@@ -1,0 +1,28 @@
+Year,Name,LowHeatingValue,Density,Density Units,Type,Region,TOD,Pollutant_Name,Value,Units
+2020,ultra low sulfur diesel,42.6,3206,[g/gal],Liquid,California,NA,GHG_LCA,100.5,gCO2 eq/MJ
+2020,Grid elec,NA,,NA,Electric,California,0:00,GHG_LCA,81.5,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,1:00,GHG_LCA,80.7,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,2:00,GHG_LCA,80.2,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,3:00,GHG_LCA,80.5,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,4:00,GHG_LCA,80.7,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,5:00,GHG_LCA,83.9,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,6:00,GHG_LCA,98.3,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,7:00,GHG_LCA,91.2,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,8:00,GHG_LCA,62.3,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,9:00,GHG_LCA,48.9,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,10:00,GHG_LCA,42.5,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,11:00,GHG_LCA,55.5,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,12:00,GHG_LCA,52.3,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,13:00,GHG_LCA,61.6,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,14:00,GHG_LCA,70.7,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,15:00,GHG_LCA,77.9,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,16:00,GHG_LCA,79.4,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,17:00,GHG_LCA,98.9,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,18:00,GHG_LCA,124.5,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,19:00,GHG_LCA,134.6,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,20:00,GHG_LCA,125.4,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,21:00,GHG_LCA,105.8,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,22:00,GHG_LCA,89.2,gCO2 eq/MJ
+2020,Grid elec,NA,,,Electric,California,23:00,GHG_LCA,83,gCO2 eq/MJ
+2020,Soybean biodiesel,37.8,3335,g/gal,Liquid,California,NA,GHG_LCA,56.3,gCO2 eq/MJ
+2020,H2 from natural gas,120,90,[g/m^3],Gas,California,NA,GHG_LCA,117.7,gCO2 eq/MJ

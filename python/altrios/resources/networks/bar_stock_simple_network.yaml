@@ -1,0 +1,298 @@
+---
+- elevs: []
+  speed_sets: []
+  length: 0.0
+  idx_next: 0
+  idx_next_alt: 0
+  idx_prev: 0
+  idx_prev_alt: 0
+  idx_curr: 0
+  idx_flip: 0
+- elevs:
+    - offset: 0.0
+      elev: 0.0
+    - offset: 1609.34400000004
+      elev: 10.668
+    - offset: 4828.03200000001
+      elev: 0.0
+    - offset: 8046.71999999997
+      elev: 12.192
+    - offset: 9656.06400000001
+      elev: 0.0
+    - offset: 11265.408
+      elev: 15.24
+    - offset: 12874.752
+      elev: 7.62
+    - offset: 14484.0960000001
+      elev: 15.24
+    - offset: 16093.4400000001
+      elev: 7.62
+    - offset: 25749.5040000001
+      elev: 68.58
+    - offset: 35405.5680000002
+      elev: 0.0
+    - offset: 102998.016
+      elev: 0.0
+    - offset: 146450.304
+      elev: 48.768
+    - offset: 148059.648
+      elev: 30.48
+    - offset: 152887.68
+      elev: 36.576
+    - offset: 157715.712
+      elev: 30.48
+    - offset: 164153.088
+      elev: 30.48
+    - offset: 180246.528
+      elev: 54.864
+    - offset: 183465.216
+      elev: 48.768
+    - offset: 189902.592
+      elev: 54.864
+    - offset: 193121.28
+      elev: 48.768
+    - offset: 201168.0
+      elev: 54.864
+    - offset: 202777.344
+      elev: 48.768
+    - offset: 215652.096
+      elev: 48.768
+    - offset: 230136.192
+      elev: 60.96
+    - offset: 255885.696
+      elev: 73.152
+    - offset: 280025.856
+      elev: 68.58
+    - offset: 308994.048
+      elev: 85.344
+    - offset: 312212.736
+      elev: 76.2
+    - offset: 315431.424
+      elev: 76.2
+    - offset: 320259.456
+      elev: 83.82
+    - offset: 325087.488
+      elev: 76.2
+    - offset: 349227.648
+      elev: 76.2
+    - offset: 370149.12
+      elev: 68.58
+    - offset: 415210.752
+      elev: 68.58
+    - offset: 458663.04
+      elev: 121.92
+    - offset: 486021.888
+      elev: 121.92
+    - offset: 498896.64
+      elev: 152.4
+    - offset: 510162.048
+      elev: 274.32
+    - offset: 511771.392
+      elev: 259.08
+    - offset: 518208.768
+      elev: 320.04
+    - offset: 527864.832
+      elev: 426.72
+    - offset: 537520.896
+      elev: 624.84
+    - offset: 563270.4
+      elev: 1158.24
+    - offset: 568098.432
+      elev: 1249.68
+    - offset: 574535.808
+      elev: 1188.72
+    - offset: 577754.496
+      elev: 1188.72
+    - offset: 598675.968
+      elev: 838.2
+    - offset: 603504.0
+      elev: 792.48
+    - offset: 610746.048
+      elev: 777.24
+    - offset: 614769.408
+      elev: 789.432
+    - offset: 622816.128
+      elev: 731.52
+    - offset: 626034.816
+      elev: 731.52
+    - offset: 630058.176
+      elev: 693.42
+    - offset: 632472.192
+      elev: 693.42
+    - offset: 638909.568
+      elev: 725.424
+    - offset: 642128.256
+      elev: 731.52
+    - offset: 655003.008
+      elev: 737.616
+    - offset: 671096.448
+      elev: 731.52
+    - offset: 680752.512
+      elev: 664.464
+    - offset: 690408.576
+      elev: 658.368
+    - offset: 692017.92
+      elev: 643.128
+    - offset: 698455.296
+      elev: 662.94
+    - offset: 703283.328
+      elev: 655.32
+  speed_sets:
+    - speed_limits:
+        - offset_start: 0.0
+          offset_end: 703283.328
+          speed: 26.8224 
+      speed_params: []
+      train_type: Freight
+      is_head_end: false
+  length: 703283.328
+  idx_next: 0
+  idx_next_alt: 0
+  idx_prev: 0
+  idx_prev_alt: 0
+  idx_curr: 1
+  idx_flip: 2
+- elevs:
+    - offset: 0.0
+      elev: 0.0
+    - offset: 1609.34400000004
+      elev: 10.668
+    - offset: 4828.03200000001
+      elev: 0.0
+    - offset: 8046.71999999997
+      elev: 12.192
+    - offset: 9656.06400000001
+      elev: 0.0
+    - offset: 11265.408
+      elev: 15.24
+    - offset: 12874.752
+      elev: 7.62
+    - offset: 14484.0960000001
+      elev: 15.24
+    - offset: 16093.4400000001
+      elev: 7.62
+    - offset: 25749.5040000001
+      elev: 68.58
+    - offset: 35405.5680000002
+      elev: 0.0
+    - offset: 102998.016
+      elev: 0.0
+    - offset: 146450.304
+      elev: 48.768
+    - offset: 148059.648
+      elev: 30.48
+    - offset: 152887.68
+      elev: 36.576
+    - offset: 157715.712
+      elev: 30.48
+    - offset: 164153.088
+      elev: 30.48
+    - offset: 180246.528
+      elev: 54.864
+    - offset: 183465.216
+      elev: 48.768
+    - offset: 189902.592
+      elev: 54.864
+    - offset: 193121.28
+      elev: 48.768
+    - offset: 201168.0
+      elev: 54.864
+    - offset: 202777.344
+      elev: 48.768
+    - offset: 215652.096
+      elev: 48.768
+    - offset: 230136.192
+      elev: 60.96
+    - offset: 255885.696
+      elev: 73.152
+    - offset: 280025.856
+      elev: 68.58
+    - offset: 308994.048
+      elev: 85.344
+    - offset: 312212.736
+      elev: 76.2
+    - offset: 315431.424
+      elev: 76.2
+    - offset: 320259.456
+      elev: 83.82
+    - offset: 325087.488
+      elev: 76.2
+    - offset: 349227.648
+      elev: 76.2
+    - offset: 370149.12
+      elev: 68.58
+    - offset: 415210.752
+      elev: 68.58
+    - offset: 458663.04
+      elev: 121.92
+    - offset: 486021.888
+      elev: 121.92
+    - offset: 498896.64
+      elev: 152.4
+    - offset: 510162.048
+      elev: 274.32
+    - offset: 511771.392
+      elev: 259.08
+    - offset: 518208.768
+      elev: 320.04
+    - offset: 527864.832
+      elev: 426.72
+    - offset: 537520.896
+      elev: 624.84
+    - offset: 563270.4
+      elev: 1158.24
+    - offset: 568098.432
+      elev: 1249.68
+    - offset: 574535.808
+      elev: 1188.72
+    - offset: 577754.496
+      elev: 1188.72
+    - offset: 598675.968
+      elev: 838.2
+    - offset: 603504.0
+      elev: 792.48
+    - offset: 610746.048
+      elev: 777.24
+    - offset: 614769.408
+      elev: 789.432
+    - offset: 622816.128
+      elev: 731.52
+    - offset: 626034.816
+      elev: 731.52
+    - offset: 630058.176
+      elev: 693.42
+    - offset: 632472.192
+      elev: 693.42
+    - offset: 638909.568
+      elev: 725.424
+    - offset: 642128.256
+      elev: 731.52
+    - offset: 655003.008
+      elev: 737.616
+    - offset: 671096.448
+      elev: 731.52
+    - offset: 680752.512
+      elev: 664.464
+    - offset: 690408.576
+      elev: 658.368
+    - offset: 692017.92
+      elev: 643.128
+    - offset: 698455.296
+      elev: 662.94
+    - offset: 703283.328
+      elev: 655.32
+  speed_sets:
+    - speed_limits:
+        - offset_start: 0.0
+          offset_end: 703283.328
+          speed: 26.8224 
+      speed_params: []
+      train_type: Freight
+      is_head_end: false
+  length: 703283.328
+  idx_next: 0
+  idx_next_alt: 0
+  idx_prev: 0
+  idx_prev_alt: 0
+  idx_curr: 2
+  idx_flip: 1

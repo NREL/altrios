@@ -78,11 +78,8 @@ jobs:
             curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=nightly --profile=minimal -y &&
             rustup show
 
-      - name: list dist files
-        run: ${{ matrix.ls || 'ls -lh' }} dist/
-
       - name: upload artifacts 
-      - uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3
         with:
           path: ./dist/*
 

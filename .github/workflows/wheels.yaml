@@ -81,7 +81,8 @@ jobs:
       - name: upload artifacts 
         uses: actions/upload-artifact@v3
         with:
-          path: ./dist/*
+          name: wheels 
+          path: dist 
 
   upload:
     needs: build
@@ -89,6 +90,9 @@ jobs:
     steps:
       - name: Download all workflow run artifacts
         uses: actions/download-artifact@v2
+        with:
+          name: wheels
+          path: dist 
 
       - name: publish package
         uses: pypa/gh-action-pypi-publish@release/v1

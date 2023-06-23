@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/NREL/altrios/actions/workflows/tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/tests.yaml) [![wheels](https://github.com/NREL/altrios/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/wheels.yaml) ![Release](https://img.shields.io/badge/release-v0.1.0-blue) ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10-blue)
 
-![Model Framework Schematic](ALTRIOS_schematic_Alfred_Hicks.png)
+![Model Framework Schematic](https://raw.githubusercontent.com/NREL/altrios/0.1.0/.github/images/ALTRIOS_schematic_Alfred_Hicks.png)
 
 The Advanced Locomotive Technology and Rail Infrastructure Optimization System ([ALTRIOS](https://www.nrel.gov/transportation/altrios.html)) is a tool for simulating and optimizing the rollout of advanced locomotive technologies and associated infrastructure with the goal of decarbonizing freight rail. ALTRIOS-lite will be released no later than June 2023, but for a richer, full-featured experience, we recommend using ALTRIOS through the Python API user interface, and we offer full installation instructions and numerous usage examples.
 

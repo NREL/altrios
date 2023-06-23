@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "altrios"
-version = "0.1.0"
+version = "0.1.0.post1"
 authors = [{ name = "NREL", email = "altrios@nrel.gov" }]
 description = "Tool for modeling and optimization of advanced locomotive powertrains for freight rail decarbonization."
 readme = "README.md"

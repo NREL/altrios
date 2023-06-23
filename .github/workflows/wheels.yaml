@@ -38,14 +38,14 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable 
+          toolchain: nightly 
           override: true
 
       - name: run cargo tests
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable 
+          toolchain: nightly 
           override: true
       - run: cd rust/ && cargo test
 
@@ -71,11 +71,11 @@ jobs:
           CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
           CIBW_BEFORE_BUILD: >
             pip install -U maturin &&
-            rustup default stable &&
+            rustup default nightly &&
             rustup show
           CIBW_BEFORE_BUILD_LINUX: >
             pip install -U setuptools-rust &&
-            curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=minimal -y &&
+            curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=nightly --profile=minimal -y &&
             rustup show
 
       - name: upload artifacts 

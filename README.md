@@ -1,8 +1,10 @@
 # ALTRIOS
 
-[![Tests](https://github.com/NREL/altrios-private/actions/workflows/tests.yaml/badge.svg)](https://github.com/NREL/altrios-private/actions/workflows/tests.yaml) [![wheels](https://github.com/NREL/altrios-private/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios-private/actions/workflows/wheels.yaml) ![Release](https://img.shields.io/badge/release-v0.1.0-blue) ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10-blue)
+![Altrios Logo](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS-logo-web.jpg)
 
-![Model Framework Schematic](ALTRIOS_schematic_Alfred_Hicks.png)
+[![Tests](https://github.com/NREL/altrios/actions/workflows/tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/tests.yaml) [![wheels](https://github.com/NREL/altrios/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/wheels.yaml) ![Release](https://img.shields.io/badge/release-v0.1.0-blue) ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10-blue)
+
+![Model Framework Schematic](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS_schematic_Alfred_Hicks.png)
 
 The Advanced Locomotive Technology and Rail Infrastructure Optimization System ([ALTRIOS](https://www.nrel.gov/transportation/altrios.html)) is a unique, fully integrated, open-source software tool to evaluate strategies for deploying advanced locomotive technologies and associated infrastructure for cost-effective decarbonization. ALTRIOS simulates freight-demand driven train scheduling, mainline meet-pass planning, locomotive dynamics, train dynamics, energy conversion efficiencies, and energy storage dynamics of line-haul train operations. Because new locomotives represent a significant long-term capital investment and new technologies must be thoroughly demonstrated before deployment, this tool provides guidance on the risk/reward tradeoffs of different technology rollout strategies. An open, integrated simulation tool is invaluable for identifying future research needs and making decisions on technology development, routes, and train selection. ALTRIOS was developed as part of a collaborative effort by a team comprising The National Renewable Energy Laboratory (NREL), University of Illinois Urbana-Champaign (UIUC), Southwest Research Institute (SwRI), and BNSF Railway.
 
@@ -81,6 +83,15 @@ Run `maturin develop --release`. Note that not including `--release` will cause 
 ### Manually Testing
 
 Whenever updating code, always run `cargo test --release` inside `ALTRIOS/rust/` to ensure that all tests pass. Also, be sure to rebuild the Python API regularly to ensure that it is up to date. Python unit tests run with `python -m unittest discover` in the root folder of the git repository.
+
+### Releasing
+
+To release the package, you can follow these steps:
+
+1. Create a new branch in the format `v<major>.<minor>.<patch>`. For example `v0.2.1`.
+1. Update the version number in the `pyproject.toml` file.
+1. Open a pull request into the main branch and make sure all checks pass.
+1. Once the pull request is merged into the main branch, create a new GitHub release and create a tag that matches the branch name. Once the release is created, a GitHub action will be launched to build the wheels and publish them to PyPI. 
 
 # How to run ALTRIOS
 

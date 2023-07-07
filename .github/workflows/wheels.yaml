@@ -40,6 +40,8 @@ jobs:
           profile: minimal
           toolchain: stable 
           override: true
+      - run: rustup target add aarch64-apple-darwin
+        if: matrix.os == 'macos'
 
       - name: run cargo tests
         uses: actions-rs/toolchain@v1
@@ -50,13 +52,13 @@ jobs:
       - run: cd rust/ && cargo test
 
       - name: install python dependencies
-        run: pip install -U setuptools wheel twine cibuildwheel
+        run: pip install -U maturin wheel twine cibuildwheel
 
       - name: build sdist
         if: matrix.os == 'ubuntu' && matrix.python-version == '8'
         run: |
-          pip install -U setuptools-rust
-          python setup.py sdist
+          pip install -U maturin
+          maturin build --sdist --out dist/
       - name: build ${{ matrix.platform || matrix.os }} binaries
         run: cibuildwheel --output-dir dist
         env:
@@ -69,22 +71,33 @@ jobs:
           CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
           CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
+          CIBW_ARCHS_MACOS: 'universal2'
+          # see https://cibuildwheel.readthedocs.io/en/stable/faq/#universal2
+          CIBW_TEST_SKIP: '*_universal2:arm64'
           CIBW_BEFORE_BUILD: >
-            pip install -U setuptools-rust &&
-            rustup default nightly &&
+            pip install -U maturin &&
+            rustup default stable &&
             rustup show
           CIBW_BEFORE_BUILD_LINUX: >
             pip install -U setuptools-rust &&
-            curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=nightly --profile=minimal -y &&
+            curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=minimal -y &&
             rustup show
 
-      - name: list dist files
-        run: ${{ matrix.ls || 'ls -lh' }} dist/
-
       - name: upload artifacts 
-      - uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3
         with:
-          path: ./dist/*
+          name: wheels 
+          path: dist 
+
+  upload:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all workflow run artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: wheels
+          path: dist 
 
       - name: publish package
         uses: pypa/gh-action-pypi-publish@release/v1

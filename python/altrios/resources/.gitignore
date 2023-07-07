@@ -1,0 +1,6 @@
+networks/StockToBar_100thPoint.yaml
+networks/StockToBar_10thPoint.yaml
+networks/StockToBar_FullRes.yaml
+networks/bar_stock_simple_network.yaml
+trains/path_tpc_bar_stock.yaml
+trains/path_tpc_stock_bar.yaml

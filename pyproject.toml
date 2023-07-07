@@ -1,0 +1,66 @@
+[build-system]
+requires = ["maturin>=0.15,<0.16"]
+build-backend = "maturin"
+
+[project]
+name = "altrios"
+version = "0.1.0"
+authors = [
+    { name = "ALTRIOS Team", email = "altrios@nrel.gov" },
+    { name = "Chad Baker, Lead Developer" },
+    { name = "Nick Reinicke, Developer" },
+    { name = "Matt Bruchon, Developer" },
+    { name = "Jinghu Hu, Developer" },
+    { name = "Grant Payne, Developer" },
+    { name = "Jason Lustbader, PI" },
+    { name = "Garrett Anderson, Developer" },
+    { name = "Joel Allardyce, Developer" },
+    { name = "Prativa Hartnett, Developer" },
+    { name = "Steve Fritz, SwRI Lead" },
+    { name = "Tyler Dick, Co-PI" },
+]
+description = "Tool for modeling and optimization of advanced locomotive powertrains for freight rail decarbonization."
+readme = "README.md"
+requires-python = ">=3.8, <3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+]
+dependencies = [
+    "pandas>=2",
+    "numpy",
+    "pymoo==0.6",
+    "openpyxl",
+    "xlrd",
+    "seaborn",
+    "matplotlib",
+    "plotly",
+    "typing_extensions",
+    "pyyaml",
+    "polars",
+    "pyarrow",
+]
+
+[project.optional-dependencies]
+dev = ["black", "pytest", "maturin", "ipykernel"]
+
+[project.urls]
+Homepage = "https://www.nrel.gov/transportation/altrios.html" 
+
+[tool.maturin]
+python-source="python"
+features = ["pyo3/extension-module"]
+module-name = "altrios.altrios_core_py"
+manifest-path = "rust/altrios-core-py/Cargo.toml"
+include = [
+    { format = "sdist", path = "rust/altrios-core/Cargo.toml"},
+    { format = "sdist", path = "rust/altrios-core/src/*"},
+    { format = "sdist", path = "rust/altrios-core-py/Cargo.toml"},
+    { format = "sdist", path = "rust/altrios-core-py/src/*"},
+    { format = "sdist", path = "rust/altrios-core/proc-macros/Cargo.toml"},
+    { format = "sdist", path = "rust/altrios-core/proc-macros/src/*"},
+    { format = "sdist", path = "rust/uom/Cargo.toml"},
+    { format = "sdist", path = "rust/uom/src/*"},
+]

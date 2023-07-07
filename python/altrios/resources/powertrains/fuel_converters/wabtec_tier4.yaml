@@ -1,0 +1,43 @@
+# [Tier 4](https://www.wabteccorp.com/media/3641/download?inline)
+
+# max steady state power consist fuel converters can produce
+pwr_out_max_watts: 3.255e6
+# time to ramp from min to max power
+pwr_ramp_lag_seconds: 25
+# idle fuel power usage
+pwr_idle_fuel_watts: 1.97032784e+04
+
+# prototype value for fractions of peak power at which efficiency values are provided
+pwr_out_frac_interp:
+  [
+    0.004562,
+    0.004510,
+    0.067605,
+    0.135349,
+    0.279407,
+    0.393484,
+    0.527557,
+    0.694049,
+    0.848721,
+    1.000000,
+  ]
+# prototype value for efficiencies
+eta_interp:
+  [
+    0.101504939,
+    0.093909485,
+    0.362188035,
+    0.373438032,
+    0.391421512,
+    0.410609012,
+    0.416530461,
+    0.426582889,
+    0.425103042,
+    0.417503202,
+  ]
+
+# notches that correspond with power and efficiencies values
+pwr_level_notch: ["Idle", "N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
+
+# if `null` or left blank, defaults to no saving, if provided saves every nth time step"
+save_interval:

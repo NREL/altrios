@@ -1,0 +1,2 @@
+﻿Car Type,Length (m),Axle Count,Brake Count,Mass Static Empty (kg),Mass Static Loaded (kg),Speed Max Empty (m/s),Speed Max Loaded (m/s),Braking Ratio Empty,Braking Ratio Loaded,Mass Extra per Axle (kg),Bearing Res per Axle (N),Rolling Ratio,Davis B (s/m),Drag Area Cd*A Loaded (m^2),Drag Area Cd*A Empty (m^2),Curve Coefficient 0,Curve Coefficient 1,Curve Coefficient 2
+Bulk,60,4,1,62600,286000,20,20,0.25,0.11,1500,18,1.5,0,4,4,0.0,0.0,0.0

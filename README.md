@@ -1,171 +1,93 @@
-uom
-===
-[![Github Actions](https://img.shields.io/github/workflow/status/iliekturtles/uom/CI%20-%20full%20test%20suite/master?label=build)](https://github.com)
-[![Codecov.io](https://img.shields.io/codecov/c/github/iliekturtles/uom/master)](https://codecov.io/gh/iliekturtles/uom)
-[![Rustup.rs](https://img.shields.io/badge/rustc-1.43.0%2B-orange.svg)](https://rustup.rs/)
-[![Crates.io](https://img.shields.io/crates/v/uom.svg)](https://crates.io/crates/uom)
-[![Crates.io](https://img.shields.io/crates/l/uom.svg)](https://crates.io/crates/uom)
-[![Documentation](https://img.shields.io/badge/documentation-docs.rs-blue.svg)](https://docs.rs/uom)
+# ALTRIOS
 
-Units of measurement is a crate that does automatic type-safe zero-cost
-[dimensional analysis][analysis]. You can create your own systems or use the pre-built
-[International System of Units][si] (SI) which is based on the
-[International System of Quantities][isq] (ISQ) and includes numerous [quantities][quantity]
-(length, mass, time, ...) with conversion factors for even more numerous
-[measurement units][measurement] (meter, kilometer, foot, mile, ...). No more crashing your
-[climate orbiter][orbiter]!
+[![Tests](https://github.com/NREL/altrios-private/actions/workflows/tests.yaml/badge.svg)](https://github.com/NREL/altrios-private/actions/workflows/tests.yaml) [![wheels](https://github.com/NREL/altrios-private/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios-private/actions/workflows/wheels.yaml) ![Release](https://img.shields.io/badge/release-v0.1.0-blue) ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10-blue)
 
-[analysis]: https://en.wikipedia.org/wiki/Dimensional_analysis
-[si]: https://jcgm.bipm.org/vim/en/1.16.html
-[isq]: https://jcgm.bipm.org/vim/en/1.6.html
-[quantity]: https://jcgm.bipm.org/vim/en/1.1.html
-[measurement]: https://jcgm.bipm.org/vim/en/1.9.html
-[orbiter]: https://en.wikipedia.org/wiki/Mars_Climate_Orbiter
+![Model Framework Schematic](ALTRIOS_schematic_Alfred_Hicks.png)
 
-## Usage
-`uom` requires `rustc` 1.43.0 or later. Add this to your `Cargo.toml`:
+The Advanced Locomotive Technology and Rail Infrastructure Optimization System ([ALTRIOS](https://www.nrel.gov/transportation/altrios.html)) is a unique, fully integrated, open-source software tool to evaluate strategies for deploying advanced locomotive technologies and associated infrastructure for cost-effective decarbonization. ALTRIOS simulates freight-demand driven train scheduling, mainline meet-pass planning, locomotive dynamics, train dynamics, energy conversion efficiencies, and energy storage dynamics of line-haul train operations. Because new locomotives represent a significant long-term capital investment and new technologies must be thoroughly demonstrated before deployment, this tool provides guidance on the risk/reward tradeoffs of different technology rollout strategies. An open, integrated simulation tool is invaluable for identifying future research needs and making decisions on technology development, routes, and train selection. ALTRIOS was developed as part of a collaborative effort by a team comprising The National Renewable Energy Laboratory (NREL), University of Illinois Urbana-Champaign (UIUC), Southwest Research Institute (SwRI), and BNSF Railway.
 
-```toml
-[dependencies]
-uom = "0.33.0"
+# Installation
+
+## All Users
+
+### Python Setup
+
+1. Python installation options:
+   - Option 1 -- Python: https://www.python.org/downloads/. We recommend Python 3.10. Be sure to check the `Add to PATH` option during installation.
+   - Option 2 -- Anaconda: we recommend https://docs.conda.io/en/latest/miniconda.html.
+1. Setup a python environment. ALTRIOS can work with Python 3.8, 3.9, or 3.10, but we recommend 3.10 for better performance and user experience. Create a python environment for ALTRIOS with either of two methods:
+   - Option 1 -- [Python Venv](https://docs.python.org/3/library/venv.html)
+     1. Navigate to the ALTRIOS folder you just cloned or any folder you'd like for using ALTRIOS. Remember the folder you use!
+     1. Assuming you have Python 3.10 installed, run `python3.10 -m venv altrios-venv` in your terminal enviroment (we recommend PowerShell in Windows, which comes pre-installed). This tells Python 3.10 to use the `venv` module to create a virtual environment (which will be ignored by git if named `altrios-venv`) in the `ALTRIOS/altrios-venv/`.
+     1. Activate the environment you just created to install packages or anytime you're running ALTRIOS:
+        - Mac and Linux: `source altrios-venv/bin/activate`
+        - Windows: `altrios-venv/Scripts/activate.bat` in a windows command prompt or power shell or `source ./altrios-venv/scripts/activate` in git bash terminal
+        - When the environment is activated, your terminal session will have a decorator that looks like `(altrios-venv)`.
+   - Option 2 -- Anaconda:
+     1. Open an Anaconda prompt (in Windows, we recommend Anaconda Powershell Prompt) and run the command `conda create -n altrios python=3.10` to create an Anaconda environment named `altrios`.
+     1. Activate the environment to install packages or anytime you're running ALTRIOS: run `conda activate altrios`.
+
+### ALTRIOS Setup
+
+With your Python environment activated, run `pip install altrios`.
+
+Congratulations, you've completed installation! Whenever you need to use ALTRIOS, be sure to activate your python environment created above.
+
+## Developers
+
+### Cloning the GitHub Repo
+
+Clone the repository:
+
+1. [Download and install git](https://git-scm.com/downloads) -- accept all defaults when installing.
+1. Create a parent directory in your preferred location to contain the repo -- e.g. `<USER_HOME>/Documents/altrios_project/`.
+1. Open git bash, and inside the directory you created, [clone](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) the [ALTRIOS repository](https://github.com/NREL/ALTRIOS) with e.g. `git clone https://github.com/NREL/ALTRIOS.git`.
+
+### Installing the Python Package
+
+Within the ALTRIOS folder, run `pip install -e ".[dev]"`
+
+#### Using Pinned Package Versions
+
+If you want to use pinned package versions to make sure you're environment is the same as the developers, you can do:
+
+```shell
+pip install -r requirements-dev.txt
 ```
 
-and this to your crate root:
+#### Updating Pinned Package Versions
 
-```rust
-extern crate uom;
+If you add a new package as a dependency, you should update the pinned requirements files.
+To do this you can install pip tools: `pip install pip-tools` and then:
+
+```shell
+pip-compile && pip-compile requirements-dev.in
 ```
 
-The simple example below shows how to use quantities and units as well as how `uom` stops invalid
-operations:
+This will generate two files: `requirements.txt` and `requirements-dev.txt` which you can check into the repository.
 
-```rust
-extern crate uom;
+### Rust Installation
 
-use uom::si::f32::*;
-use uom::si::length::kilometer;
-use uom::si::time::second;
+Install Rust: https://www.rust-lang.org/tools/install.
 
-fn main() {
-    let length = Length::new::<kilometer>(5.0);
-    let time = Time::new::<second>(15.0);
-    let velocity/*: Velocity*/ = length / time;
-    let _acceleration = calc_acceleration(velocity, time);
-    //let error = length + time; // error[E0308]: mismatched types
-}
+### Automated Building and Testing
 
-fn calc_acceleration(velocity: Velocity, time: Time) -> Acceleration {
-    velocity / time
-}
-```
+There is a shortcut for building and running all tests, assuming you've installed the python package with develop mode. In the root of the `ALTRIOS/` folder, run the `build_and_test.sh` script. In Windows bash (e.g. git bash), run `sh build_and_test.sh`, or in Linux/Unix, run `./build_and_test.sh`. This builds all the Rust code, runs Rust tests, builds the Python-exposed Rust code, and runs the Python tests.
 
-See the [examples](examples) directory for more advanced usage:
+### Manually Building the Python API
 
- * [si.rs](examples/si.rs) -- Shows how to use the pre-built SI system.
- * [base.rs](examples/base.rs) -- Shows how to create a set of `Quantity` type aliases for a
-   different set of base units. See the [Design](#design) section for implications of choosing
-   different base units.
- * [mks.rs](examples/mks.rs) -- Shows how to create a custom system of quantities.
- * [unit.rs](examples/unit.rs) -- Shows how to add new units to existing quantities in the
-   pre-build SI system.
+Run `maturin develop --release`. Note that not including `--release` will cause a significant computational performance penalty.
 
-## Features
-`uom` has multiple `Cargo` features for controlling available underlying storage types, the
-inclusion of the pre-built [International System of Units][si] (SI), support for [Serde][serde],
-and `no_std` functionality. The features are described below. `f32`, `f64`, `std`, and `si` are
-enabled by default. Features can be cherry-picked by using the `--no-default-features` and
-`--features "..."` flags when compiling `uom` or specifying features in Cargo.toml:
+### Manually Testing
 
-```toml
-[dependencies]
-uom = {
-    version = "0.33.0",
-    default-features = false,
-    features = [
-        "autoconvert", # automatic base unit conversion.
-        "usize", "u8", "u16", "u32", "u64", "u128", # Unsigned integer storage types.
-        "isize", "i8", "i16", "i32", "i64", "i128", # Signed integer storage types.
-        "bigint", "biguint", # Arbitrary width integer storage types.
-        "rational", "rational32", "rational64", "bigrational", # Integer ratio storage types.
-        "complex32", "complex64", # Complex floating point storage types.
-        "f32", "f64", # Floating point storage types.
-        "si", "std", # Built-in SI system and std library support.
-        "use_serde", # Serde support.
-    ]
-}
-```
+Whenever updating code, always run `cargo test --release` inside `ALTRIOS/rust/` to ensure that all tests pass. Also, be sure to rebuild the Python API regularly to ensure that it is up to date. Python unit tests run with `python -m unittest discover` in the root folder of the git repository.
 
- * `autoconvert` -- Feature to enable automatic conversion between base units in binary operators.
-   Disabling the feature only allows for quantities with the same base units to directly interact.
-   The feature exists to account for compiler limitations where zero-cost code is not generated for
-   non-floating point underlying storage types.
- * `usize`, `u8`, `u16`, `u32`, `u64`, `u128`, `isize`, `i8`, `i16`, `i32`, `i64`, `i128`, `bigint`,
-   `biguint`, `rational`, `rational32`, `rational64`, `bigrational`, `complex32`, `complex64`,
-   `f32`, `f64` -- Features to enable underlying storage types. At least one of these features must
-   be enabled. `f32` and `f64` are enabled by default. See the [Design](#design) section for
-   implications of choosing different underlying storage types.
- * `si` -- Feature to include the pre-built [International System of Units][si] (SI). Enabled by
-   default.
- * `std` -- Feature to compile with standard library support. Disabling this feature compiles `uom`
-   with `no_std`. Enabled by default.
- * `use_serde` -- Feature to enable support for serialization and deserialization of quantities
-   with the [Serde][serde] crate. Disabled by default.
+# How to run ALTRIOS
 
-   [Serde][serde] support for the `big*` and `rational*` underlying storage types requires manually
-   enabling the `serde` feature for the `num-rational` and `num-bigint` crates. To do so, you can
-   add one or both of the following lines to your `Cargo.toml`:
+With your activated Python environment with ALTRIOS fully installed, you can run several scripts in `ALTRIOS/applications/demos/`.
 
-   ```toml
-   num-rational = { version = "*", features = ["serde"] }
-   num-bigint = { version = "*", features = ["serde"] }
-   ```
+You can run the Simulation Manager through a multi-week simulation of train operations with `ALTRIOS/applications/demos/sim_manager_demo.py` by running `python sim_manager_demo.py` in `ALTRIOS/applications/demos/`. This will create a `plots` subfolder in which the plots will be saved. To run interactively, fire up a Python IDE (e.g. [VS Code](https://code.visualstudio.com/Download), [Spyder](https://www.spyder-ide.org/)), and run the file. If you're in VS Code, you can run the file as a virtual jupyter notebook because of the "cells" that are marked with the `# %%` annotation. You can click on line 2, for example, and hit `<Shift> + <Enter>` to run the current cell in an interactive terminal (which will take several seconds to launch) and advance to the next cell. Alternatively, you can hit `<Ctrl> + <Shift> + p` to enable interactive commands and type "run current cell".
 
-[si]: https://jcgm.bipm.org/vim/en/1.16.html
-[serde]: https://serde.rs/
-
-## Design
-Rather than working with [measurement units](https://jcgm.bipm.org/vim/en/1.9.html) (meter,
-kilometer, foot, mile, ...) `uom` works with [quantities](https://jcgm.bipm.org/vim/en/1.1.html)
-(length, mass, time, ...). This simplifies usage because units are only involved at interface
-boundaries: the rest of your code only needs to be concerned about the quantities involved. This
-also makes operations on quantities (+, -, \*, /, ...) have zero runtime cost over using the raw
-storage type (e.g. `f32`).
-
-`uom` normalizes values to the [base unit](https://jcgm.bipm.org/vim/en/1.10.html) for the quantity.
-Alternative base units can be used by executing the macro defined for the system of quantities
-(`ISQ!` for the SI). `uom` supports `usize`, `u8`, `u16`, `u32`, `u64`, `u128`, `isize`, `i8`,
-`i16`, `i32`, `i64`, `i128`, `bigint`, `biguint`, `rational`, `rational32`, `rational64`,
-`bigrational`, `complex32`, `complex64`, `f32`, and `f64` as the underlying storage type.
-
-A consequence of normalizing values to the base unit is that some values may not be able to be
-represented or can't be precisely represented for floating point and rational underlying storage
-types. For example if the base unit of `length` is `meter` and the underlying storage type is `i32`
-then values like `1 centimeter` or `1.1 meter` cannot be represented. `1 centimeter` is normalized
-to `0.01 meter` which can't be stored in an `i32`. `uom` only allows units to be used safely. Users
-of this library will still need to be aware of implementation details of the underlying storage type
-including limits and precision.
-
-## Contributing
-Contributions are welcome from everyone. Submit a pull request, an issue, or just add comments to an
-existing item. The [International Bureau of Weights and Measures][BIPM] is an international
-standards organization that publishes the [SI Brochure][brochure]. This document defines the [SI]
-and can be used as a comprehensive reference for changes to `uom`. Conversion factors for non-SI
-units can be found in NIST [Special Publication 811][nist811].
-
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in
-the work by you, as defined in the Apache-2.0 license, shall be dual licensed as below, without any
-additional terms or conditions.
-
-### License
-Licensed under either of
-
- * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
-   <https://www.apache.org/licenses/LICENSE-2.0>)
- * MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
-
-at your option.
-
-[BIPM]: https://www.bipm.org/en/about-us/
-[brochure]: https://www.bipm.org/en/publications/si-brochure/
-[si]: https://jcgm.bipm.org/vim/en/1.16.html
-[nist811]: https://www.nist.gov/pml/nist-guide-si-appendix-b9-factors-units-listed-kind-quantity-or-field-science
+# Acknowledgements
+ 
+The ALTRIOS Team would like to thank ARPA-E for financially supporting the research through the LOCOMOTIVES program and Dr. Robert Ledoux for his vision and support. We would also like to thank the ARPA-E team for their support and guidance: Dr. Apoorv Agarwal, Mirjana Marden, Alexis Amos, and Catherine Good.  We would also like to thank BNSF for their cost share financial support, guidance, and deep understanding of the rail industry’s needs.  Additionally, we would like to thank Jinghu Hu for his contributions to the core ALTRIOS code.  We would like to thank Chris Hennessy at SwRI for his support. Thank you to Michael Cleveland for his help with developing and kicking off this project.  

@@ -1,0 +1,4 @@
+pwr_out_frac_interp: [0.0, 1.0] # prototype value for fractions of peak power at which efficiency values are provided
+eta_interp: [9.79976718e-01, 9.79976718e-01] # prototype value for efficiencies
+pwr_out_max_watts: 5e6 # rated power output of generator
+save_interval: # if left blank defaults to no saving; if provided saves every nth time step"

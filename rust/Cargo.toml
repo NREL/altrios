@@ -1,0 +1,18 @@
+[workspace]
+
+members = [
+    "altrios-core", # pure rust core with optional pyo3 feature
+    "altrios-core-py", # python module exposing altrios-core
+    "uom", # Geordie's custom version of UOM
+]
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+
+[workspace.dependencies]
+anyhow = "1.0.71"
+pyo3 = "0.19"
+pyo3-log = "*"

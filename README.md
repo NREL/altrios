@@ -86,7 +86,7 @@ Whenever updating code, always run `cargo test --release` inside `ALTRIOS/rust/`
 
 ### Releasing
 
-To release the package, you can following these steps:
+To release the package, you can follow these steps:
 
 1. Create a new branch in the format `v<major>.<minor>.<patch>`. For example `v0.2.1`.
 1. Update the version number in the `pyproject.toml` file.

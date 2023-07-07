@@ -1,14 +1,14 @@
 # ALTRIOS
 
+![Altrios Logo](https://raw.githubusercontent.com/NREL/altrios/0.1.0/.github/images/ALTRIOS-logo-web.jpg)
+
 [![Tests](https://github.com/NREL/altrios/actions/workflows/tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/tests.yaml) [![wheels](https://github.com/NREL/altrios/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/wheels.yaml) ![Release](https://img.shields.io/badge/release-v0.1.0-blue) ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10-blue)
 
 ![Model Framework Schematic](https://raw.githubusercontent.com/NREL/altrios/0.1.0/.github/images/ALTRIOS_schematic_Alfred_Hicks.png)
 
 The Advanced Locomotive Technology and Rail Infrastructure Optimization System ([ALTRIOS](https://www.nrel.gov/transportation/altrios.html)) is a tool for simulating and optimizing the rollout of advanced locomotive technologies and associated infrastructure with the goal of decarbonizing freight rail. ALTRIOS-lite will be released no later than June 2023, but for a richer, full-featured experience, we recommend using ALTRIOS through the Python API user interface, and we offer full installation instructions and numerous usage examples.
 
-# Installation
-
-## All Users
+## Installation
 
 ### Python Setup
 
@@ -29,11 +29,20 @@ The Advanced Locomotive Technology and Rail Infrastructure Optimization System (
 
 ### ALTRIOS Setup
 
-1. Download an `all-wheels.zip` file from [ALTRIOS release](https://github.com/NREL/ALTRIOS/releases).
-1. Unzip the release in the folder where you want to install ALTRIOS.
-1. With your Python environment activated, run `pip install --find-links <path-to-release-folder> altrios`
+ALTRIOS can be install from PyPI.
+With your Python environment activated run:
+
+```console
+pip install altrios
+```
 
 Congratulations, you've completed installation! Whenever you need to use ALTRIOS, be sure to activate your python environment created above.
+
+## How to run ALTRIOS
+
+With your activated Python environment with ALTRIOS fully installed, you can run several scripts in `ALTRIOS/applications/demos/`.
+
+You can run the Simulation Manager through a multi-week simulation of train operations with `ALTRIOS/applications/demos/sim_manager_demo.py` by running `python sim_manager_demo.py` in `ALTRIOS/applications/demos/`. This will create a `plots` subfolder in which the plots will be saved. To run interactively, fire up a Python IDE (e.g. [VS Code](https://code.visualstudio.com/Download), [Spyder](https://www.spyder-ide.org/)), and run the file. If you're in VS Code, you can run the file as a virtual jupyter notebook because of the "cells" that are marked with the `# %%` annotation. You can click on line 2, for example, and hit `<Shift> + <Enter>` to run the current cell in an interactive terminal (which will take several seconds to launch) and advance to the next cell. Alternatively, you can hit `<Ctrl> + <Shift> + p` to enable interactive commands and type "run current cell".
 
 ## Developers
 
@@ -84,8 +93,11 @@ Run `maturin develop --release`. Note that not including `--release` will cause 
 
 Whenever updating code, always run `cargo test --release` inside `ALTRIOS/rust/` to ensure that all tests pass. Also, be sure to rebuild the Python API regularly to ensure that it is up to date. Python unit tests run with `python -m unittest discover` in the root folder of the git repository.
 
-# How to run ALTRIOS
+### Releasing
 
-With your activated Python environment with ALTRIOS fully installed, you can run several scripts in `ALTRIOS/applications/demos/`.
+To release the package, you can following these steps:
 
-You can run the Simulation Manager through a multi-week simulation of train operations with `ALTRIOS/applications/demos/sim_manager_demo.py` by running `python sim_manager_demo.py` in `ALTRIOS/applications/demos/`. This will create a `plots` subfolder in which the plots will be saved. To run interactively, fire up a Python IDE (e.g. [VS Code](https://code.visualstudio.com/Download), [Spyder](https://www.spyder-ide.org/)), and run the file. If you're in VS Code, you can run the file as a virtual jupyter notebook because of the "cells" that are marked with the `# %%` annotation. You can click on line 2, for example, and hit `<Shift> + <Enter>` to run the current cell in an interactive terminal (which will take several seconds to launch) and advance to the next cell. Alternatively, you can hit `<Ctrl> + <Shift> + p` to enable interactive commands and type "run current cell".
+1. Create a new branch in the format `v<major>.<minor>.<patch>`. For example `v0.2.1`.
+1. Update the version number in the `pyproject.toml` file.
+1. Open a pull request into the main branch and make sure all checks pass.
+1. Once the pull request is merged into the main branch, create a new GitHub release and create a tag that matches the branch name. Once the release is created, a GitHub action will be launched to build the wheels and publish them to PyPI. 

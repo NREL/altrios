@@ -1,10 +1,10 @@
 # ALTRIOS
 
-![Altrios Logo](https://raw.githubusercontent.com/NREL/altrios/0.1.0/.github/images/ALTRIOS-logo-web.jpg)
+![Altrios Logo](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS-logo-web.jpg)
 
 [![Tests](https://github.com/NREL/altrios/actions/workflows/tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/tests.yaml) [![wheels](https://github.com/NREL/altrios/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/wheels.yaml) ![Release](https://img.shields.io/badge/release-v0.1.0-blue) ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10-blue)
 
-![Model Framework Schematic](https://raw.githubusercontent.com/NREL/altrios/0.1.0/.github/images/ALTRIOS_schematic_Alfred_Hicks.png)
+![Model Framework Schematic](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS_schematic_Alfred_Hicks.png)
 
 The Advanced Locomotive Technology and Rail Infrastructure Optimization System ([ALTRIOS](https://www.nrel.gov/transportation/altrios.html)) is a unique, fully integrated, open-source software tool to evaluate strategies for deploying advanced locomotive technologies and associated infrastructure for cost-effective decarbonization. ALTRIOS simulates freight-demand driven train scheduling, mainline meet-pass planning, locomotive dynamics, train dynamics, energy conversion efficiencies, and energy storage dynamics of line-haul train operations. Because new locomotives represent a significant long-term capital investment and new technologies must be thoroughly demonstrated before deployment, this tool provides guidance on the risk/reward tradeoffs of different technology rollout strategies. An open, integrated simulation tool is invaluable for identifying future research needs and making decisions on technology development, routes, and train selection. ALTRIOS was developed as part of a collaborative effort by a team comprising The National Renewable Energy Laboratory (NREL), University of Illinois Urbana-Champaign (UIUC), Southwest Research Institute (SwRI), and BNSF Railway.
 

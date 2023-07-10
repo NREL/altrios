@@ -15,7 +15,6 @@ jobs:
           - macos
           - windows
         python-version:
-          - "8"
           - "9"
           - "10"
         include:
@@ -31,7 +30,7 @@ jobs:
       - name: set up python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.8"
+          python-version: "3.9"
 
       - name: set up rust
         if: matrix.os != 'ubuntu'
@@ -55,7 +54,7 @@ jobs:
         run: pip install -U maturin wheel twine cibuildwheel
 
       - name: build sdist
-        if: matrix.os == 'ubuntu' && matrix.python-version == '8'
+        if: matrix.os == 'ubuntu' && matrix.python-version == '9'
         run: |
           pip install -U maturin
           maturin build --sdist --out dist/

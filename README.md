@@ -2,7 +2,7 @@
 
 ![Altrios Logo](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS-logo-web.jpg)
 
-[![Tests](https://github.com/NREL/altrios/actions/workflows/tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/tests.yaml) [![wheels](https://github.com/NREL/altrios/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/wheels.yaml) ![Release](https://img.shields.io/badge/release-v0.1.0-blue) ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10-blue)
+[![Tests](https://github.com/NREL/altrios/actions/workflows/tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/tests.yaml) [![wheels](https://github.com/NREL/altrios/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/wheels.yaml) ![Release](https://img.shields.io/badge/release-v0.1.0-blue) ![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10-blue)
 
 ![Model Framework Schematic](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS_schematic_Alfred_Hicks.png)
 
@@ -17,7 +17,7 @@ The Advanced Locomotive Technology and Rail Infrastructure Optimization System (
 1. Python installation options:
    - Option 1 -- Python: https://www.python.org/downloads/. We recommend Python 3.10. Be sure to check the `Add to PATH` option during installation.
    - Option 2 -- Anaconda: we recommend https://docs.conda.io/en/latest/miniconda.html.
-1. Setup a python environment. ALTRIOS can work with Python 3.8, 3.9, or 3.10, but we recommend 3.10 for better performance and user experience. Create a python environment for ALTRIOS with either of two methods:
+1. Setup a python environment. ALTRIOS can work with Python 3.9, or 3.10, but we recommend 3.10 for better performance and user experience. Create a python environment for ALTRIOS with either of two methods:
    - Option 1 -- [Python Venv](https://docs.python.org/3/library/venv.html)
      1. Navigate to the ALTRIOS folder you just cloned or any folder you'd like for using ALTRIOS. Remember the folder you use!
      1. Assuming you have Python 3.10 installed, run `python3.10 -m venv altrios-venv` in your terminal enviroment (we recommend PowerShell in Windows, which comes pre-installed). This tells Python 3.10 to use the `venv` module to create a virtual environment (which will be ignored by git if named `altrios-venv`) in the `ALTRIOS/altrios-venv/`.

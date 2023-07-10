@@ -69,8 +69,6 @@ jobs:
           CIBW_TEST_COMMAND: "pytest {project}/tests -s"
           CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
           CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
-          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
-          CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
           CIBW_ARCHS_MACOS: 'universal2'
           # see https://cibuildwheel.readthedocs.io/en/stable/faq/#universal2
           CIBW_TEST_SKIP: '*_universal2:arm64'
@@ -89,20 +87,20 @@ jobs:
           name: wheels 
           path: dist 
 
-  upload:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/altrios
-    permissions:
-      id-token: write 
-    steps:
-      - name: Download all workflow run artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: wheels
-          path: dist 
+  # upload:
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   environment:
+  #     name: pypi
+  #     url: https://pypi.org/p/altrios
+  #   permissions:
+  #     id-token: write 
+  #   steps:
+  #     - name: Download all workflow run artifacts
+  #       uses: actions/download-artifact@v2
+  #       with:
+  #         name: wheels
+  #         path: dist 
 
-      - name: publish package
-        uses: pypa/gh-action-pypi-publish@release/v1
+  #     - name: publish package
+  #       uses: pypa/gh-action-pypi-publish@release/v1

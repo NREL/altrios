@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=0.15,<0.16"]
+requires = ["maturin>=1.0"]
 build-backend = "maturin"
 
 [project]
@@ -21,7 +21,7 @@ authors = [
 ]
 description = "Tool for modeling and optimization of advanced locomotive powertrains for freight rail decarbonization."
 readme = "README.md"
-requires-python = ">=3.8, <3.11"
+requires-python = ">=3.9, <3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: POSIX",
@@ -50,6 +50,7 @@ dev = ["black", "pytest", "maturin", "ipykernel"]
 Homepage = "https://www.nrel.gov/transportation/altrios.html" 
 
 [tool.maturin]
+profile="release"
 python-source="python"
 features = ["pyo3/extension-module"]
 module-name = "altrios.altrios_core_py"

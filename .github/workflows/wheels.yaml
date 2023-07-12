@@ -15,7 +15,6 @@ jobs:
           - macos
           - windows
         python-version:
-          - "8"
           - "9"
           - "10"
         include:
@@ -31,7 +30,7 @@ jobs:
       - name: set up python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.8"
+          python-version: "3.9"
 
       - name: set up rust
         if: matrix.os != 'ubuntu'
@@ -55,7 +54,7 @@ jobs:
         run: pip install -U maturin wheel twine cibuildwheel
 
       - name: build sdist
-        if: matrix.os == 'ubuntu' && matrix.python-version == '8'
+        if: matrix.os == 'ubuntu' && matrix.python-version == '9'
         run: |
           pip install -U maturin
           maturin build --sdist --out dist/
@@ -69,8 +68,6 @@ jobs:
           CIBW_TEST_COMMAND: "pytest {project}/tests -s"
           CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
           CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
-          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
-          CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
           CIBW_ARCHS_MACOS: 'universal2'
           # see https://cibuildwheel.readthedocs.io/en/stable/faq/#universal2
           CIBW_TEST_SKIP: '*_universal2:arm64'
@@ -92,6 +89,11 @@ jobs:
   upload:
     needs: build
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/altrios
+    permissions:
+      id-token: write 
     steps:
       - name: Download all workflow run artifacts
         uses: actions/download-artifact@v2
@@ -101,6 +103,3 @@ jobs:
 
       - name: publish package
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}

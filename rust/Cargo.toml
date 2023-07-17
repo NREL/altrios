@@ -3,7 +3,6 @@
 members = [
     "altrios-core", # pure rust core with optional pyo3 feature
     "altrios-core-py", # python module exposing altrios-core
-    "uom", # Geordie's custom version of UOM
 ]
 
 [profile.dev]

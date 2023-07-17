@@ -51,7 +51,6 @@ impl LocoTrait for Dummy {
 #[altrios_api(
     #[allow(clippy::too_many_arguments)]
     #[classmethod]
-    #[allow(clippy::too_many_arguments)]
     fn build_conventional_loco(
         _cls: &PyType,
         fuel_converter: FuelConverter,

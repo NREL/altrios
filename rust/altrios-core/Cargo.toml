@@ -8,7 +8,7 @@ csv = "1.1.6"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_yaml = "0.8.23"
 serde_json = "1.0"
-uom = { version = "0.35.0", features = ["use_serde"] }
+uom = { workspace = true }
 paste = "1.0.7"
 easy-ext = "1.0.0"
 proc-macros = { path = "proc-macros" }

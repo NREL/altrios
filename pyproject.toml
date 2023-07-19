@@ -63,6 +63,4 @@ include = [
     { format = "sdist", path = "rust/altrios-core-py/src/*"},
     { format = "sdist", path = "rust/altrios-core/proc-macros/Cargo.toml"},
     { format = "sdist", path = "rust/altrios-core/proc-macros/src/*"},
-    { format = "sdist", path = "rust/uom/Cargo.toml"},
-    { format = "sdist", path = "rust/uom/src/*"},
 ]

@@ -1,5 +1,5 @@
 use log::info;
-use proc_macros::altrios_api;
+use altrios_proc_macros::altrios_api;
 use serde::{Deserialize, Serialize};
 
 use crate::consist::locomotive::loco_sim::PowerTrace;

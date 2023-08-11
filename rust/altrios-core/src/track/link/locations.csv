@@ -1,5 +1,5 @@
-Location ID,Link Index,Offset (m),Is Front End,Grid Region
-Barstow,6,0,FALSE,MROWc
-Barstow,330,0,FALSE,MROWc
-Stockton,52,0,FALSE,MROWc
-Stockton,376,0,FALSE,MROWc
+Location ID,Link Index,Offset (m),Is Front End,Grid Emissions Region, Electricity Price Region, Liquid Fuel Price Region
+Barstow,6,0,FALSE,CAMXc,CA,CA
+Barstow,330,0,FALSE,CAMXc,CA,CA
+Stockton,52,0,FALSE,CAMXc,CA,CA
+Stockton,376,0,FALSE,CAMXc,CA,CA

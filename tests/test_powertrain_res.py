@@ -31,7 +31,7 @@ class TestRES(unittest.TestCase):
         res = alt.ReversibleEnergyStorage.from_file(str(test_file))
 
         self.assertEqual(res.min_soc, 0.05)
-        self.assertEqual(res.max_soc, 0.96)
+        self.assertEqual(res.max_soc, 0.95)
 
     def test_to_from_json(self):
         res1 = mock_reversible_energy_storage()

@@ -1,53 +1,94 @@
 import pandas as pd
 import polars as pl
+import polars.selectors as cs
 import math
 import numpy as np
 from typing import List, Optional, Dict, Tuple
 from pathlib import Path
 
 import altrios as alt
-from altrios import utilities
-discount_rate = 0.07
-charger_efficiency = 0.85
-diesel_price = 4.164  # dollar per gallon, 2021 average CA 2021 on-road diesel retail price incl taxes from EIA https://www.eia.gov/dnav/pet/pet_pri_gnd_dcus_sca_a.htm
-# dollars per kWh, CA 2021 average from EIA, transportation sector retail customers
-electricity_price = 0.1179
-# gCO2eq/MJ, converted to gCO2eq/MWh, CA-GREET 3.0, 2020 avg emissions factors
-ca_grid_avg_factor = 83.85 / utilities.MWH_PER_MJ
-new_non_bel_cost = 2950000  # Zenith
-new_bel_cost = new_non_bel_cost + 1105200  # NREL ATB https://atb.nrel.gov/electricity/2022/commercial_battery_storage
-bel_battery_size_kWh = 2400
-charger_speed_kW = 1000 # Charger speed in kW (assuming a constant charge rate, but adding some heuristic-y buffer time)
-charger_servicing_time_hours = 0.5 #Time to plug and unplug EVSE, navigate locomotive to it, etc.
-charger_cost = 1500000 # NREL Cost of Charging (Borlaug) showing ~linear trend on kW; #ICCT report showing little change through 2030
-evse_lifespan = 15
-locomotive_lifespan = 20
-annual_fleet_turnover = 1/locomotive_lifespan
-emissions_factor_file_default = alt.resources_root() / "Cambium22_MidCase_annual_gea.csv"
-emissions_factors_greet = pd.read_csv(
-    alt.resources_root() / alt.resources_root() / "GREET-CA_Emissions_Factors.csv")
+from altrios import utilities, defaults
+
+MetricType = pl.DataFrame
+
+emissions_factors_greet = pl.read_csv(defaults.FUEL_EMISSIONS_FILE,
+                                      null_values="NA")
+electricity_prices_eia = (pl.read_csv(source = defaults.ELECTRICITY_PRICE_FILE, skip_rows = 5)
+    .select(["Year", "Industrial"])
+    .rename({"Industrial": "Price"}))
+liquid_fuel_prices_eia = (pl.read_csv(source = defaults.LIQUID_FUEL_PRICE_FILE, skip_rows = 5)
+    .select(["Year", "   Diesel Fuel (distillate fuel oil) 6/"])
+    .rename({"   Diesel Fuel (distillate fuel oil) 6/": "Price"}))
+battery_prices_nrel_atb = (pl.read_csv(source = defaults.BATTERY_PRICE_FILE)).filter(pl.col("Scenario")=="Moderate")
+
+metric_columns = ["Subset","Value","Metric","Units","Year"]
 
 class ScenarioInfo:
     def __init__(self, 
                  sims: alt.SpeedLimitTrainSimVec, 
+                 simulation_days: int,
                  scenario_year: int, 
+                 loco_pool: pl.DataFrame,
                  consist_plan: pl.DataFrame,
                  refuel_facilities: pl.DataFrame,
-                 charge_sessions: pl.DataFrame,
-                 emissions_factors: pl.DataFrame):
+                 refuel_sessions: pl.DataFrame,
+                 emissions_factors: pl.DataFrame,
+                 nodal_energy_prices: pl.DataFrame,
+                 count_unused_locomotives: bool):
         self.sims = sims
+        self.simulation_days = simulation_days
         self.year = scenario_year
+        self.loco_pool = loco_pool
         self.consist_plan = consist_plan
         self.refuel_facilities = refuel_facilities
-        self.charge_sessions = charge_sessions
+        self.refuel_sessions = refuel_sessions
         self.emissions_factors = emissions_factors
+        self.nodal_energy_prices = nodal_energy_prices
+        self.count_unused_locomotives = count_unused_locomotives
+
+def metric(
+        name: str,
+        units: str,
+        value: float,
+        subset: str = "All",
+        year: str = "All") -> MetricType:
+    return MetricType({
+        "Metric" : [name],
+        "Units" : [units],
+        "Value" : [float(value)],
+        "Subset": [subset],
+        "Year": [year]
+        })
+
+def metrics_from_list(metrics: list[MetricType]) -> MetricType:
+    return pl.concat(metrics, how="diagonal")
+
+def value_from_metrics(metrics: MetricType, 
+                      name: str = None,
+                      units: str = None,
+                      subset: str = None) -> float:
+    
+    out = metrics
+    if name is not None:
+        out = out.filter(pl.col("Metric") == pl.lit(name))
+
+    if units is not None:
+        out = out.filter(pl.col("Units") == pl.lit(units))
+
+    if subset is not None: 
+        out = out.filter(pl.col("Subset") == subset)
+        
+    if out.height == 1:
+        return out.get_column("Value")[0]
+    else:
+        return math.nan
 
 def main(
         scenario_infos: List[ScenarioInfo],
-        metricsToCalc: Dict = {
-            'Metric': ['LCOTKM', 'GHG', 'BEL_Pct', 'Count_EVSE_Ports'],
-            'Units': ['usd_per_million_tonne_km', 'tonne_co2eq', 'pct', 'ports']
-        }) -> pd.DataFrame:
+        annual_metrics: dict = {
+            'Metric': ['TKM', 'GHG', 'Count_Locomotives', 'Count_Refuelers', 'Energy_Costs'],
+            'Units': ['million_tonne_km', 'tonne_co2eq', 'Locomotives', 'Refuelers', 'USD']}
+) -> pl.DataFrame:
     """
     Given a set of simulation results and the associated consist plans, computes economic and environmental metrics.
     Arguments:
@@ -58,27 +99,27 @@ def main(
     ----------
     values: DataFrame of output and intermediate metrics (metric name, units, value, and scenario year)
     """
-    metrics = pd.DataFrame(metricsToCalc)
-    all_year_metrics = []
-    for scenario_info in scenario_infos:
-        annual_metrics = metrics.apply(
-            calculate_metric, 'columns', info=scenario_info)
-        values = pd.concat(annual_metrics.tolist()).reset_index(drop=True)
-        values['Year'] = scenario_info.year
-        all_year_metrics.append(values)
+    annual_metrics = pl.DataFrame(annual_metrics)
+    values = pl.DataFrame()
+    for row in annual_metrics.iter_rows(named = True):
+        for info in scenario_infos:
+            annual_value = (calculate_annual_metric(row['Metric'], row['Units'], info)
+                .with_columns(pl.lit(info.year).alias("Year")))
+            values = pl.concat([values, annual_value], how="diagonal")
 
-    values = pd.concat(all_year_metrics).reset_index(drop=True)
-
-    values = calculate_fleet_makeup_multiyear(values)
-    multiyear = calculate_lcotkm_multiyear(values)
-    values = pd.concat([values, pd.DataFrame(data=multiyear)],axis=0, join='outer',ignore_index=True)
+    values = values.unique()
+    values = calculate_rollout_investments(values)
+    values = calculate_rollout_total_costs(values)
+    values = calculate_rollout_lcotkm(values)
+    values = values.sort(["Year","Subset"], descending = [False, True])
     print(values)
     return values
 
 
-def calculate_metric(
-        thisRow: pd.DataFrame,
-        info: ScenarioInfo) -> pd.DataFrame:
+def calculate_annual_metric(
+        metric: str,
+        units: str,
+        info: ScenarioInfo) -> MetricType:
     """
     Given a years' worth of simulation results and the associated consist plan, computes the requested metric.
     Arguments:
@@ -89,52 +130,14 @@ def calculate_metric(
     ----------
     values: DataFrame of requested output metric + any intermediate metrics (metric name, units, value, and scenario year)
     """
-    if thisRow.Metric == 'diesel_usage':
-        values = calculate_diesel_use(info, thisRow.Units)
-    elif thisRow.Metric == 'LCOTKM':
-        values = calculate_lcotkm_singleyear(info, thisRow.Units)
-    elif thisRow.Metric == 'GHG':
-        values = calculate_ghg(info, thisRow.Units)
-    elif thisRow.Metric == 'BEL_Pct':
-        values = calculate_fleet_makeup_singleyear(info)
-    elif thisRow.Metric == 'Count_EVSE_Ports':
-        values = calculate_evse_port_counts(info)
-    else:
-        print(f"Metric calculation not implemented: {thisRow.Metric}.")
-        values = thisRow.copy()
-        values.value = math.nan
+    def return_metric_error(info, units) -> MetricType:
+        print(f"Metric calculation not implemented: {metric}.")
+        return value_from_metrics(metric(metric, units, math.nan))
+    
+    function_for_metric = function_mappings.get(metric, return_metric_error)
+    return function_for_metric(info, units)
 
-    return values
-
-
-def calculate_lcotkm_singleyear(
-        info: ScenarioInfo,
-        units: str) -> pd.DataFrame:
-    """
-    Given a years' worth of simulation results, computes a single year levelized cost per gross tonne-km of freight delivered.
-    Arguments:
-    ----------
-    info: A scenario information object representing parameters and results for a single year
-    Outputs:
-    ----------
-    values: DataFrame of LCOTKM + intermediate metrics (metric name, units, value, and scenario year)
-    """
-    energy_cost = calculate_energy_cost(info, units="USD")
-    energy_cost_val = energy_cost.loc[energy_cost.Metric == 'Cost_Energy', 'Value'].to_numpy()[
-        0]
-    tkm = calculate_tkm(info, units="Mt-km")
-    tkm_val = tkm.loc[tkm.Metric == 'Mt-km', 'Value'].to_numpy()[0]
-    capital_cost_val = 0.0
-    cost_total_val = energy_cost_val + capital_cost_val
-    lcotkm_val = cost_total_val/tkm_val if tkm_val > 0 else math.nan
-    cost_total = pd.DataFrame(
-        [{'Metric': 'Cost_Total', 'Units': "USD", 'Value': cost_total_val}])
-    lcotkm = pd.DataFrame(
-        [{'Metric': 'LCOTKM', 'Units': units, 'Value': lcotkm_val}])
-    return pd.concat([energy_cost, cost_total, tkm, lcotkm]).reset_index(drop=True)
-
-
-def calculate_lcotkm_multiyear(values: pd.DataFrame) -> pd.DataFrame:
+def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
     """
     Given a DataFrame of each year's costs and gross freight deliveries, computes the multi-year levelized cost per gross tonne-km of freight delivered.
     Arguments:
@@ -144,27 +147,65 @@ def calculate_lcotkm_multiyear(values: pd.DataFrame) -> pd.DataFrame:
     ----------
     DataFrame of LCOTKM result (metric name, units, value, and scenario year)
     """
-    cost_timeseries = values[values.Metric == 'Cost_Total'].copy()
-    tkm_timeseries = values[values.Metric == 'Mt-km'].copy()
-    cost_timeseries.loc[:,'Year_Offset'] = cost_timeseries.loc[:,'Year'] - \
-        min(cost_timeseries.loc[:,'Year']) + 1
-    tkm_timeseries.loc[:,'Year_Offset'] = tkm_timeseries.loc[:,'Year'] - \
-        min(tkm_timeseries.loc[:,'Year']) + 1
-    cost_timeseries.loc[:,'Value_Discounted'] = cost_timeseries.loc[:,'Value'] / \
-        ((1+discount_rate)**cost_timeseries.loc[:,'Year_Offset'])
-    tkm_timeseries.loc[:,'Value_Discounted'] = tkm_timeseries.loc[:,'Value'] / \
-        ((1+discount_rate)**tkm_timeseries.loc[:,'Year_Offset'] )
-    cost_total = sum(cost_timeseries.Value_Discounted)
-    tkm_total = sum(tkm_timeseries.Value_Discounted)
-    try:
-        lcotkm_total = cost_total/tkm_total
-    except:
-        lcotkm_total = 0
-    return pd.DataFrame([{'Metric': 'LCOTKM', 'Units': 'usd_per_million_tonne_km', 'Value': lcotkm_total, 'Year': 'All'}])
 
+    cost_timeseries = (values
+                       .filter((pl.col("Metric")==pl.lit("Cost_Total")) & (pl.col("Subset")=="All"))
+                       .select(["Year","Value"])
+                       .rename({"Value": "Cost_Total"}))
+    tkm_timeseries = (values
+                      .filter(pl.col("Metric")==pl.lit("Mt-km"))
+                      .select(["Year", "Value"])
+                      .rename({"Value": "Mt-km"}))
+    timeseries = cost_timeseries.join(tkm_timeseries, on="Year", how="inner")
+    timeseries = (timeseries
+                  .with_columns((pl.col("Year") - pl.col("Year").min()).alias("Year_Offset"))
+                  .with_columns(((1+defaults.DISCOUNT_RATE)**pl.col("Year_Offset")).alias("Discounting_Factor"))
+                  .with_columns(
+                    (pl.col("Cost_Total") / pl.col("Discounting_Factor")).alias("Cost_Discounted"),
+                    (pl.col("Mt-km") / pl.col("Discounting_Factor")).alias("TKM_Discounted"))
+                  .with_columns(pl.col("Year").cast(pl.Utf8)))           
+    
+    cost_total = timeseries.get_column("Cost_Discounted").sum()
+    tkm_total = timeseries.get_column("TKM_Discounted").sum()
+    lcotkm_all = cost_total/tkm_total if tkm_total > 0 else math.nan
+
+    cost_discounted = (timeseries
+        .select(["Year","Cost_Discounted"])
+        .rename({"Cost_Discounted": "Value"})
+        .with_columns(pl.lit("Cost_Total_Discounted").alias("Metric"),
+                      pl.lit("All").alias("Subset"),
+                      pl.lit("USD").alias("Units")))
+    tkm_discounted = (timeseries
+        .select(["Year","TKM_Discounted"])
+        .rename({"TKM_Discounted": "Value"})
+        .with_columns(pl.lit("TKM_Discounted").alias("Metric"),
+                      pl.lit("All").alias("Subset"),
+                      pl.lit("USD").alias("Units")))
+    cotkm_annual = (timeseries
+        .with_columns((pl.col("Cost_Total")/pl.col("Mt-km")).alias("Cost_Per_TKM"))
+        .select(["Year","Cost_Per_TKM"])
+        .rename({"Cost_Per_TKM": "Value"})
+        .with_columns(pl.lit("Cost_Per_TKM").alias("Metric"),
+                      pl.lit("All").alias("Subset"),
+                      pl.lit("USD").alias("Units")))
+    discount = (timeseries
+        .select(["Year","Discounting_Factor"])
+        .rename({"Discounting_Factor": "Value"})
+        .with_columns(pl.lit("Discounting_Factor").alias("Metric"),
+                      pl.lit("All").alias("Subset"),
+                      pl.lit("USD").alias("Units")))
+    
+    return metrics_from_list([
+        values.with_columns(pl.col("Year").cast(pl.Utf8)),
+        cost_discounted,
+        tkm_discounted,
+        cotkm_annual,
+        discount,
+        metric("LCOTKM", "USD_Per_Million_Tonne-KM", lcotkm_all)
+    ])
 
 def calculate_energy_cost(info: ScenarioInfo,
-        units: str) -> pd.DataFrame:
+        units: str) -> MetricType:
     """
     Given a years' worth of simulation results, computes a single year energy costs.
     Arguments:
@@ -176,20 +217,30 @@ def calculate_energy_cost(info: ScenarioInfo,
     DataFrame of energy costs + intermediate metrics (metric name, units, value, and scenario year)
     """
     diesel_used = calculate_diesel_use(info, units="gallons")
-    electricity_used = calculate_electricity_use(info, units="kWh")
-    # fuel_price.loc[fuel_price.Metric=='fuel_price','Value'].to_numpy()[0]
-    diesel_cost_value = diesel_used.loc[diesel_used.Metric == 'Diesel_Usage', 'Value'].to_numpy()[
-        0] * diesel_price
-    diesel_cost = pd.DataFrame(
-        [{'Metric': 'Cost_Diesel', 'Units': "USD", 'Value': diesel_cost_value}])
-    electricity_cost_value = electricity_used.loc[electricity_used.Metric == 'Electricity_Usage', 'Value'].to_numpy()[
-        0] * electricity_price
-    electricity_cost = pd.DataFrame(
-        [{'Metric': 'Cost_Electricity', 'Units': "USD", 'Value': electricity_cost_value}])
-    energy_cost = pd.DataFrame(
-        [{'Metric': 'Cost_Energy', 'Units': units, 'Value': diesel_cost_value + electricity_cost_value}])
-    return pd.concat([diesel_used, diesel_cost, electricity_used, electricity_cost, energy_cost]).reset_index(drop=True)
-
+    electricity_used = (calculate_electricity_use(info, units="kWh")
+                        )
+    electricity_costs_disagg = (electricity_used
+        .filter(pl.col("Subset") != "All")
+        .join(info.nodal_energy_prices.filter(pl.col("Fuel")=="Electricity"), left_on="Subset", right_on="Node", how="left")
+        .with_columns((pl.col("Value") * pl.col("Price") / 100).alias("Value"),
+                      pl.lit("Cost_Electricity").alias("Metric"),
+                      pl.lit("USD").alias("Units"))
+        .select(metric_columns))
+    electricity_costs_agg = (electricity_costs_disagg
+        .groupby(["Metric","Units","Year"])
+        .agg(pl.col("Value").sum())
+        .with_columns(pl.lit("All").alias("Subset")))
+    electricity_cost_value = 0
+    if electricity_costs_agg.height > 0:
+        electricity_cost_value = electricity_costs_agg.get_column("Value")[0]
+    # Diesel refueling is not yet tracked spatiotemporally; just use average price across the network.
+    diesel_price = info.nodal_energy_prices.filter(pl.col("Fuel")=="Diesel").get_column("Price").mean()
+    diesel_cost_value = value_from_metrics(diesel_used,"Diesel_Usage") * diesel_price
+    return metrics_from_list([diesel_used, 
+                      metric("Cost_Diesel", "USD", diesel_cost_value), 
+                      electricity_costs_disagg, 
+                      electricity_costs_agg, 
+                      metric("Cost_Energy", units, diesel_cost_value + electricity_cost_value)])
 
 def calculate_diesel_use(
         info: ScenarioInfo,
@@ -204,11 +255,9 @@ def calculate_diesel_use(
     ----------
     DataFrame of diesel use (metric name, units, value, and scenario year)
     """
-    lhv_kj_per_kg = emissions_factors_greet[emissions_factors_greet['Name'] ==
-                                     'ultra low sulfur diesel']['LowHeatingValue'].to_numpy()[0]*1e3
-    # Rho read in as g/gal
-    rho_fuel_g_per_gallon = (
-        emissions_factors_greet[emissions_factors_greet['Name'] == 'ultra low sulfur diesel']['Density'].to_numpy()[0])
+    diesel_emissions_factors = emissions_factors_greet.filter(pl.col("Name") == pl.lit("ultra low sulfur diesel"))
+    lhv_kj_per_kg = diesel_emissions_factors.get_column("LowHeatingValue")[0] * 1e3
+    rho_fuel_g_per_gallon = diesel_emissions_factors.get_column("Density")[0]
     if units == 'gallons':
         val = (info.sims.get_energy_fuel_joules(annualize=True) /
                1e3 / lhv_kj_per_kg) * 1e3 / rho_fuel_g_per_gallon
@@ -218,37 +267,11 @@ def calculate_diesel_use(
         print(f"Units of {units} not supported for fuel usage calculation.")
         val = math.nan
 
-    return pd.DataFrame([{'Metric': 'Diesel_Usage', 'Units': units, 'Value': val}])
-
-
+    return metric("Diesel_Usage", units, val)
+  
 def calculate_electricity_use(
         info: ScenarioInfo,
-        units: str) -> pd.DataFrame:
-    """
-    Given a years' worth of simulation results, computes a single year grid electricity use.
-    Arguments:
-    ----------
-    info: A scenario information object representing parameters and results for a single year
-    units: Requested units
-    Outputs:
-    ----------
-    DataFrame of grid electricity use (metric name, units, value, and scenario year)
-    """
-    if units == 'kWh':
-        val = (info.sims.get_net_energy_res_joules(annualize=True) / 1e6) * \
-            utilities.KWH_PER_MJ / charger_efficiency
-    elif units == 'MJ':
-        val = info.sims.get_net_energy_res_joules(annualize=True) / 1e6
-        val = val / charger_efficiency
-    else:
-        print(f"Units of {units} not supported for fuel usage calculation.")
-        val = math.nan
-
-    return pd.DataFrame([{'Metric': 'Electricity_Usage', 'Units': units, 'Value': val}])
-    
-def calculate_electricity_use_disagg(
-        info: ScenarioInfo,
-        units: str) -> pd.DataFrame:
+        units: str) -> MetricType:
    """
     Given a years' worth of simulation results, computes a single year grid electricity use.
     Arguments:
@@ -259,28 +282,51 @@ def calculate_electricity_use_disagg(
     ----------
     DataFrame of grid electricity use (metric name, units, value, and scenario year)
     """    
-   if units != 'Share':
-        print(f"Units of {units} not supported for electricity usage disaggregations.")
-        val = math.nan
-
-   disagg_energy = (info.charge_sessions
-                    .filter(pl.col("Type")==pl.lit("BEL"))
+   
+   disagg_energy = (info.refuel_sessions
+                    .filter(pl.col("Locomotive_Type")==pl.lit("BEL"))
                     .groupby(["Node"])
-                    .agg((pl.col('Charge_Total_J') / charger_efficiency).sum())
-                    .with_columns(
-                        pl.lit("Electricity_Usage").alias("Metric"),
-                        pl.lit("Share").alias("Units"),
-                        (pl.col("Charge_Total_J") / pl.col("Charge_Total_J").sum())
-                        .alias("Value"))
-                    .drop("Charge_Total_J")
+                    .agg((pl.col('Refuel_Energy_J') * pl.lit(info.simulation_days)).sum())
                     )
-
-   return disagg_energy
+   
+   if units == "MJ":
+       disagg_energy = disagg_energy.with_columns(
+           (pl.col("Refuel_Energy_J") / 1e6).alias("MJ"))
+   elif units == "kWh":
+       disagg_energy = disagg_energy.with_columns(
+           ( pl.col("Refuel_Energy_J") * utilities.KWH_PER_MJ / 1e6).alias("kWh"))       
+   elif units == "MWh":
+       disagg_energy = disagg_energy.with_columns(
+           (pl.col("Refuel_Energy_J") * utilities.KWH_PER_MJ / 1e9).alias("MWh"))  
+   else:
+        print(f"Units of {units} not supported for electricity use calculation.")
+        return metric("Electricity_Usage", units, math.nan)
+   
+   disagg_energy = (disagg_energy
+        .drop("Refuel_Energy_J")
+        .with_columns(pl.lit("Electricity_Usage").alias("Metric"))
+        .melt(
+            id_vars=["Metric","Node"],
+            value_vars=units,
+            variable_name="Units",
+            value_name="Value")
+        .rename({"Node": "Subset"})
+        .with_columns(pl.lit(str(info.year)).alias("Year"))
+    )
+   agg_energy = (disagg_energy
+                 .groupby(["Metric","Units","Year"])
+                 .agg(pl.col("Value").sum())
+                 .with_columns(
+                    pl.lit("All").alias("Subset"))
+                )
+   return metrics_from_list([
+       agg_energy,
+       disagg_energy])
 
 
 def calculate_tkm(
         info: ScenarioInfo,
-        units: str) -> pd.DataFrame:
+        units: str) -> MetricType:
     """
     Given a years' worth of simulation results, computes a single year gross tonne-km of freight delivered
     Arguments:
@@ -291,12 +337,11 @@ def calculate_tkm(
     ----------
     DataFrame of gross tonne-km of freight (metric name, units, value, and scenario year)
     """
-    return pd.DataFrame([{'Metric': 'Mt-km', 'Units': units, 'Value': info.sims.get_megagram_kilometers(annualize=True)/1.0e6}])
-
+    return metric("Mt-km", units, info.sims.get_megagram_kilometers(annualize=True)/1.0e6)
 
 def calculate_ghg(
         info: ScenarioInfo,
-        units: str) -> pd.DataFrame:
+        units: str) -> MetricType:
     """
     Given a years' worth of simulation results, computes a single year GHG emissions from energy use
     Arguments:
@@ -308,47 +353,48 @@ def calculate_ghg(
     DataFrame of GHG emissions from energy use (metric name, units, value, and scenario year)
     """
     if units != 'tonne_co2eq' :
-        return pd.DataFrame([{'Metric': 'GHG_Energy', 'Units': units, 'Value': math.nan}])
+        return metric("GHG_Energy", units, math.nan)
 
     if info.emissions_factors.height == 0:
-        return pd.DataFrame([{'Metric': 'GHG_Energy', 'Units': units, 'Value': 0}])
+        return metric("GHG_Energy", units, 0.0)
     
-    sim = info.sims
-    year = info.year
-    diesel_ghg_factor = emissions_factors_greet.loc[
-        (emissions_factors_greet.Name == 'ultra low sulfur diesel') &
-        (emissions_factors_greet.Year == 2020) &
-        (emissions_factors_greet.Units == 'gCO2 eq/MJ'), "Value"].to_numpy()[0]
-
+    #GREET table only has a value for 2020; apply that to all years
+    diesel_ghg_factor = (emissions_factors_greet
+                         .filter((pl.col("Name") == "ultra low sulfur diesel") &
+                                 (pl.col("Units") == "gCO2 eq/MJ") &
+                                 (pl.col("Year") == 2020))
+                        .get_column("Value")
+    )[0]
+                            
     diesel_MJ = calculate_diesel_use(info, "MJ")
-    diesel_ghg_val = diesel_MJ.loc[diesel_MJ.Metric == 'Diesel_Usage', 'Value'].to_numpy()[
-        0]*diesel_ghg_factor/utilities.G_PER_TONNE
+    electricity_MJ = calculate_electricity_use(info,"MJ")
+    electricity_MWh = calculate_electricity_use(info,"MWh")
 
-    electricity_MJ = calculate_electricity_use(info, "MJ")
-    electricity_kWh = calculate_electricity_use(info, "kWh")
-    electricity_disagg = calculate_electricity_use_disagg(info,"Share")
-    electricity_disagg = (electricity_disagg
-        .with_columns((pl.col("Value") * pl.lit(electricity_kWh.Value / 1000.0)).alias("MWh"))
-        .join(info.emissions_factors, on="Node",how="left")
-        .select(pl.col("CO2eq_kg_per_MWh") * pl.col("MWh") / 1000.0)
+    diesel_ghg_val = value_from_metrics(diesel_MJ,"Diesel_Usage") * \
+        diesel_ghg_factor / utilities.G_PER_TONNE
+    electricity_ghg_val = (electricity_MWh
+        .filter(pl.col("Subset") != pl.lit("All"))
+        .join(info.emissions_factors, 
+              left_on="Subset",
+              right_on="Node",
+              how="inner")
+        .select(pl.col("CO2eq_kg_per_MWh") * pl.col("Value") / 1000.0)
         .sum().to_series()[0]
     )
 
-
-    diesel_ghg = pd.DataFrame(
-        [{'Metric': 'GHG_Diesel', 'Units': units, 'Value': diesel_ghg_val}])
-    electricity_ghg = pd.DataFrame(
-        [{'Metric': 'GHG_Electricity', 'Units': units, 'Value': electricity_disagg}])
-    total_energy_ghg = pd.DataFrame(
-        [{'Metric': 'GHG_Energy', 'Units': units, 'Value': diesel_ghg_val+electricity_disagg}])
-
-    # TODO: other fuel types. also, are embodied emissions in scope?
-    return pd.concat([diesel_MJ, electricity_MJ, diesel_ghg, electricity_ghg, total_energy_ghg]).reset_index(drop=True)
+    return metrics_from_list([
+        diesel_MJ, 
+        electricity_MJ, 
+        electricity_MWh,
+        metric("GHG_Diesel", units, diesel_ghg_val), 
+        metric("GHG_Electricity", units, electricity_ghg_val), 
+        metric("GHG_Energy", units, diesel_ghg_val+electricity_ghg_val)])
 
 
-def calculate_fleet_makeup_singleyear(
-        info: ScenarioInfo
-        ) -> pd.DataFrame:
+def calculate_locomotive_counts(
+        info: ScenarioInfo,
+        _
+        ) -> MetricType:
     """
     Given a single scenario year's locomotive consist plan, computes the year's locomotive fleet composition
     Arguments:
@@ -358,30 +404,53 @@ def calculate_fleet_makeup_singleyear(
     ----------
     DataFrame of locomotive fleet composition metrics (metric name, units, value, and scenario year)
     """
-    unique_locomotives = info.consist_plan.groupby(['Locomotive Type','Locomotive ID']).count()
-    bel_pct_avg_consist_val = \
-        len(info.consist_plan.filter(pl.col('Locomotive Type') == pl.lit('BEL'))) / len(info.consist_plan)
-    num_bel_val = len(unique_locomotives.filter(pl.col('Locomotive Type') == pl.lit('BEL')))
-    num_non_bel_val = len(unique_locomotives.filter(pl.col('Locomotive Type') != pl.lit('BEL')))
-    bel_pct_of_locomotives_val = num_bel_val / (num_bel_val + num_non_bel_val)
+    def get_locomotive_counts(df: pl.DataFrame) -> pl.DataFrame:
+        out = (df
+                .groupby(["Locomotive_Type"])
+                .agg((pl.col("Locomotive_ID").n_unique()).alias("Count_Locomotives"),
+                     pl.col("Cost_USD").mean().alias("Unit_Cost"),
+                     pl.col("Lifespan_Years").mean().alias("Lifespan"))
+                .with_columns((pl.col("Count_Locomotives") / pl.col("Count_Locomotives").sum()).alias("Pct_Locomotives"))
+                .melt(
+                    id_vars="Locomotive_Type",
+                    variable_name="Metric",
+                    value_name="Value")
+                .with_columns(
+                    pl.when(pl.col("Metric") == "Unit_Cost")
+                        .then("USD")
+                        .when(pl.col("Metric") == "Lifespan")
+                        .then("Years")
+                        .otherwise("Locomotives")
+                    .alias("Units"),
+                    pl.lit("All").alias("Year"))
+                .rename({"Locomotive_Type": "Subset"})
+        )
+        out_agg = (out
+                    .filter(pl.col("Metric") == ("Count_Locomotives"))
+                    .groupby(["Metric","Units","Year"])
+                    .agg(pl.col("Value").sum())
+                    .with_columns(pl.lit("All").alias("Subset"))
+        )        
+        return metrics_from_list([out, out_agg])
 
-    bel_pct_consist = pd.DataFrame(
-        [{'Metric': 'BEL_Pct_Consist_Members', 'Units': 'Percent', 'Value': bel_pct_avg_consist_val}])
-    bel_pct_of_locomotives = pd.DataFrame(
-        [{'Metric': 'BEL_Pct_Locomotives', 'Units': 'Percent', 'Value': bel_pct_of_locomotives_val}])
-    num_bel = pd.DataFrame(
-        [{'Metric': 'Count_BEL', 'Units': 'Count', 'Value': num_bel_val}])
-    num_non_bel = pd.DataFrame(
-        [{'Metric': 'Count_Non_BEL', 'Units': 'Count', 'Value': num_non_bel_val}])
-    num_total = pd.DataFrame(
-        [{'Metric': 'Count_Total', 'Units': 'Count', 'Value': num_bel_val + num_non_bel_val}])
-    return pd.concat([bel_pct_consist, bel_pct_of_locomotives, num_bel, num_non_bel, num_total]).reset_index(drop=True)
+    locos_to_use = None
+    if info.count_unused_locomotives:
+        locos_to_use = info.loco_pool
+    else:
+        locos_to_use = (info.consist_plan
+                        .join(
+                            info.loco_pool.select(["Locomotive_ID","Cost_USD","Lifespan_Years"]),
+                            on="Locomotive_ID",
+                            how="left"))
+        
+    return get_locomotive_counts(locos_to_use)
 
-def calculate_evse_port_counts(
-        info: ScenarioInfo
-        ) -> pd.DataFrame:
+def calculate_refueler_counts(
+        info: ScenarioInfo,
+        _
+        ) -> MetricType:
     """
-    Given a single scenario year's results, counts how many EVSE ports were included in the simulation.
+    Given a single scenario year's results, counts how many refuelers were included in the simulation.
     Arguments:
     ----------
     info: A scenario information object representing parameters and results for a single year
@@ -389,14 +458,30 @@ def calculate_evse_port_counts(
     ----------
     DataFrame of locomotive fleet composition metrics (metric name, units, value, and scenario year)
     """
-    
-    num_evse_ports = (info.refuel_facilities
-                      .filter(pl.col("Type") == "BEL")
-                      .get_column("Queue_Size").sum())
-    return pd.DataFrame(
-        [{'Metric': 'Count_EVSE_Ports', 'Units': 'Ports', 'Value': num_evse_ports}])
+    num_ports = (info.refuel_facilities
+                 .groupby(["Refueler_Type"])
+                 .agg(
+                    pl.col("Cost_USD").mean().alias("Unit_Cost"),
+                    pl.col("Port_Count").sum().alias("Count_Refuelers"),
+                    pl.col("Lifespan_Years").mean().alias("Lifespan"))
+                 .melt(
+                    id_vars="Refueler_Type",
+                    variable_name="Metric",
+                    value_name="Value")
+                 .with_columns(
+                    pl.when(pl.col("Metric") == "Unit_Cost")
+                        .then("USD")
+                        .when(pl.col("Metric") == "Lifespan")
+                        .then("Years")
+                        .otherwise("Refuelers")
+                    .alias("Units"),
+                    pl.lit("All").alias("Year"))
+                 .rename({"Refueler_Type": "Subset"})
+    )
 
-def calculate_fleet_makeup_multiyear(values: pd.DataFrame) -> pd.DataFrame:
+    return num_ports
+
+def calculate_rollout_investments(values: MetricType) -> MetricType:
     """
     Given multiple scenario years' locomotive fleet compositions, computes additional across-year metrics
     Arguments:
@@ -406,113 +491,199 @@ def calculate_fleet_makeup_multiyear(values: pd.DataFrame) -> pd.DataFrame:
     ----------
     DataFrame of across-year locomotive fleet composition metrics (metric name, units, value, and scenario year)
     """
-    values.sort_values(by=['Units', 'Metric', 'Year'])
-    bels = values[values['Metric'] == 'Count_BEL'].copy()
-    bels.loc[:,'Change_BELs'] = bels['Value'] - bels['Value'].shift(1)
-    bels = bels[["Year", "Change_BELs"]]
-    non_bels = values[values['Metric'] == 'Count_Non_BEL'].copy()
-    non_bels.loc[:,'Change_Non_BELs'] = non_bels['Value'] - \
-        non_bels['Value'].shift(1)
-    non_bels = non_bels[["Year", "Change_Non_BELs"]]
-
-    evse = values[values['Metric'] == 'Count_EVSE_Ports'].copy()
-    evse.loc[:,'Count_EVSE_Ports_New'] = evse['Value'] - evse['Value'].shift(1)
-    evse = evse[["Year", "Count_EVSE_Ports_New"]]
+    item_id_cols = ["Subset","Unit_Cost","Lifespan"]
+    loco_types = (values
+        .filter((pl.col("Units")=="Locomotives") & (pl.col("Subset") != "All"))
+        .get_column("Subset")
+        .unique())
+    costs = (values
+        .filter(pl.col("Metric") == "Unit_Cost")
+        .rename({"Value": "Unit_Cost"})
+        .drop(["Metric","Units"]))
+    lifespans = (values
+        .filter(pl.col("Metric") == "Lifespan")
+        .with_columns(pl.col("Value").cast(pl.Int32).alias("Lifespan"))
+        .drop(["Metric","Value","Units"]))
+    stock_values = (values
+        .filter((pl.col("Metric").str.contains("Count_")) & (pl.col("Subset") != "All"))
+        .drop(["Metric","Units"])
+        .rename({"Value": "Count"}))
     
-    last_year_size = values[values['Metric'] == 'Count_Total'].copy()
-    last_year_size.loc[:,'Last_Year_Count_Total'] = last_year_size['Value'].shift(1)
-    last_year_size.loc[:,'Count_Change'] = last_year_size['Value'] - \
-        last_year_size['Last_Year_Count_Total']
-    last_year_size = last_year_size[[
-        "Year", "Count_Change", "Last_Year_Count_Total"]]
-    all = pd.merge(bels, non_bels, on="Year")
-    all = pd.merge(all, evse, on="Year")
-    all = pd.merge(all, last_year_size, on="Year")
-    all.loc[:,'Count_New_Needed'] = np.floor(
-        all['Last_Year_Count_Total']*annual_fleet_turnover) + all['Count_Change']
-    # TODO this logic isn't quite right. Works for base case but there are lots of edge cases.
-    # TODO handle mid-simulation retirements (not just end-of-sim retirements)
-    all.loc[:,'Count_BEL_New'] = np.maximum(0, all['Change_BELs'])
-    all.loc[:,'Count_Non_BEL_New'] = np.maximum(
-        0, all['Count_New_Needed'] - all['Count_BEL_New'])
-    all.loc[:,'Cost_BEL_New'] = all['Count_BEL_New'] * new_bel_cost
-    all.loc[:,'Cost_Non_BEL_New'] = all['Count_Non_BEL_New'] * new_non_bel_cost
-    all.loc[:,'Cost_EVSE_Ports_New'] = all['Count_EVSE_Ports_New'] * charger_cost
+    years = values.get_column("Year").unique().sort()
+    years = years.extend_constant(years.max()+1, 1)
+    age_values = pl.DataFrame({"Age": range(1, 1 + lifespans.get_column("Lifespan").max())}, schema=[("Age", pl.Int32)])
+    
+    counts = (stock_values.select("Subset").unique()
+        .join(stock_values.select("Year").unique(), how="cross")
+        .join(stock_values, on=["Subset","Year"], how="left")
+        .with_columns(cs.numeric().fill_null(0))
+        .join(costs, on=["Subset","Year"], how="left")
+        .join(lifespans, on=["Subset","Year"], how="left")
+        .sort(["Subset","Year"])
+         #.with_columns((pl.col("Count") - pl.col("Count").shift().over(["Subset"])).alias('Change'))
+        .with_columns(cs.numeric().fill_null(0)))
+    item_list = counts.select(item_id_cols).unique()
+    year_zero_fleet_size = (values
+        .filter((pl.col("Metric")=="Count_Locomotives") & 
+                (pl.col("Subset").is_in(loco_types)) &
+                (pl.col("Year") == years.min()))
+        .get_column("Value")
+        .sum())
+    incumbents = (counts
+        .filter((pl.col("Subset").str.contains("Diesel")) & (pl.col("Year") == years.min()))
+        .select(["Subset","Unit_Cost","Lifespan","Count"])
+        .with_columns(pl.when(pl.col("Subset") == "Diesel_Large")
+            .then(pl.lit(year_zero_fleet_size))
+            .otherwise(pl.col("Count"))
+            .alias("Count")))
+    
+    #Initialize to only include incumbent asset counts; all else = 0
+    # Start at year -1: all-incumbent fleet,
+    # then immediately increment ages to get year 0 incumbent fleet
+    age_tracker = (item_list
+        .select(item_id_cols)
+        .unique()
+        .join(age_values, how="cross")
+        .filter(pl.col("Age") <= pl.col("Lifespan"))
+        .join(incumbents, on=item_id_cols, how="left")
+        .with_columns((pl.col("Count") * (pl.col("Age").truediv(pl.col("Lifespan")))).round().alias("Count"))
+        .with_columns(pl.when(pl.col("Age")==1)
+                      .then(pl.col("Count"))
+                      .otherwise(pl.col("Count") - (pl.col("Count").shift().over(item_id_cols))))
+        .with_columns(pl.col("Count").fill_null(0))
+        #Increment ages to get year 0 incumbent fleet
+        .with_columns(pl.col("Count").shift().over(item_id_cols))
+        .with_columns(pl.col("Count").fill_null(0)))
 
-    num_non_bel_new = all[['Year']].copy()
-    num_non_bel_new.loc[:,'Metric'] = 'Count_Non_BEL_New'
-    num_non_bel_new.loc[:,'Units'] = 'Count'
-    num_non_bel_new.loc[:,'Value'] = all['Count_Non_BEL_New'].fillna(0)
-    num_non_bel_new = num_non_bel_new[['Metric', 'Units', 'Value', 'Year']]
+    for year in years: 
+        #If year 1, this includes incumbents only (prior-year retirements already removed)
+        #So, we should do the same for subsequent years
+        counts_end_of_prior_year = age_tracker.groupby(item_id_cols).agg(pl.col("Count").sum())
+        counts_current_year = counts.filter(pl.col("Year") == year).drop("Year")
+        changes = (item_list
+            .join(counts_end_of_prior_year, on=item_id_cols, how="left")
+            .join(counts_current_year, on=item_id_cols, how="left", suffix="_Current")
+            .with_columns(cs.numeric().fill_null(0))
+            .with_columns((pl.col("Count_Current") - pl.col("Count")).alias("Change"))
+            .drop(["Count","Count_Current"]))
+        new = changes.filter(pl.col("Change") > 0).with_columns(pl.lit(1).alias("Age"))
+        early_retirements = changes.filter(pl.col("Change") < 0).with_columns(pl.col("Change")*-1)
+        age_tracker = (age_tracker
+            .join(new, on=item_id_cols + ["Age"], how="left")
+            .with_columns(pl.when((pl.col("Change") > 0) & (pl.col("Age") == 1))
+                            .then(pl.col("Change"))
+                            .otherwise(pl.col("Count"))
+                            .alias("Count"))
+            .drop("Change")
+            .join(early_retirements, on=item_id_cols, how="left")
+            .sort(item_id_cols + ["Age"], descending = True)
+            .with_columns(pl.col("Count").cumsum().over(item_id_cols).alias("To_Retire_Cumsum"))
+            .with_columns(pl.when(pl.col("Change") > 0)
+                            .then(pl.when(pl.col("To_Retire_Cumsum") <= pl.col("Change"))
+                                    .then(pl.col("Count"))
+                                    .otherwise(pl.max([0,
+                                                       pl.min([
+                                                           pl.col("Count"), 
+                                                           pl.col("Change") - (pl.col("To_Retire_Cumsum")-pl.col("Count"))])])))
+                            .otherwise(pl.lit(0))
+                            .alias("To_Retire"))
+            .drop("To_Retire_Cumsum")
+            .sort(item_id_cols + ["Age"], descending=False)
+        )
 
-    num_bel_new = all[['Year']].copy()
-    num_bel_new.loc[:,'Metric'] = 'Count_BEL_New'
-    num_bel_new.loc[:,'Units'] = 'Count'
-    num_bel_new.loc[:,'Value'] = all['Count_BEL_New'].fillna(0)
-    num_bel_new = num_bel_new[['Metric', 'Units', 'Value', 'Year']]
-    num_evse_new = all[['Year']].copy()
-    num_evse_new.loc[:,'Metric'] = 'Cost_EVSE_Ports_New'
-    num_evse_new.loc[:,'Units'] = 'Count'
-    num_evse_new.loc[:,'Value'] = all['Cost_EVSE_Ports_New'].fillna(0)
-    num_evse_new = num_evse_new[['Metric', 'Units', 'Value', 'Year']]
+        recovery_share = defaults.STRANDED_ASSET_RESALE_PCT
+        retirement_label = "Retirements_Early"
+        if year == years[len(years)-1]:
+            recovery_share = 1.0
+            retirement_label = "Retirements_End_Of_Rollout"
 
+        early_retirements = (age_tracker
+            .filter(pl.col("To_Retire") > 0)
+            .groupby("Subset")
+            .agg(pl.col("To_Retire").sum().alias("Value"))
+            .with_columns(pl.lit(retirement_label).alias("Metric"),
+                          pl.lit("Locomotives").alias("Units"),
+                          pl.lit(year).alias("Year"))
+            .select(metric_columns))
+            
+        early_retirement_costs = (age_tracker
+            .filter(pl.col("To_Retire") > 0)
+            .with_columns(
+                pl.lit("Cost_Retired_Assets").alias("Metric"),
+                pl.lit("USD").alias("Units"),
+                pl.lit(year).alias("Year"),
+                pl.when((pl.col("Age") <= pl.lit(year - years.min() + 1)) | (defaults.INCLUDE_EXISTING_ASSETS))
+                    .then(pl.col("To_Retire") * -1.0 * (1.0 - pl.col("Age")*1.0 / pl.col("Lifespan")*1.0) * pl.col("Unit_Cost") * pl.lit(recovery_share))
+                    .otherwise(0)
+                    .alias("Value"))
+            .groupby("Metric","Units","Year","Subset")
+            .agg(pl.col("Value").sum())
+            .select(metric_columns))                     
+        purchases = (new
+            .filter(pl.col("Change") > 0)
+            .with_columns(pl.lit("Purchases").alias("Metric"),
+                          pl.lit("Locomotives").alias("Units"),
+                          pl.lit(year).alias("Year"),
+                          pl.col("Change").alias("Value"))
+            .select(metric_columns))
+        purchase_costs = (purchases
+            .join(values.filter(pl.col("Metric") == "Unit_Cost"), on=["Subset","Year"], how="left")
+            .with_columns((pl.col("Value") * pl.col("Value_right")).alias("Value"),
+                          pl.lit("Cost_Purchases").alias("Metric"),
+                          pl.lit("USD").alias("Units"))
+            .select(metric_columns))
+        # Remove temporary columns and increment item ages to prep for the next year
+        age_tracker = (age_tracker
+            .with_columns((pl.col("Count") - pl.col("To_Retire")).alias("Count"))
+            .with_columns(pl.col("Count").shift().fill_null(0))
+            .drop(["Change","To_Retire"]))
+        
+        # Add metrics for early retirements, purchases, and incurred costs
+        values = pl.concat([values, 
+                            early_retirements,
+                            early_retirement_costs,
+                            purchases,
+                            purchase_costs], how="diagonal")
 
-    cost_non_bel_new = all[['Year']].copy()
-    cost_non_bel_new.loc[:,'Metric'] = 'Cost_Non_Bel_New'
-    cost_non_bel_new.loc[:,'Units'] = 'USD'
-    cost_non_bel_new.loc[:,'Value'] = all['Cost_Non_BEL_New'].fillna(0.0)
-    cost_non_bel_new = cost_non_bel_new[['Metric', 'Units', 'Value', 'Year']]
-    cost_bel_new = all[['Year']].copy()
-    cost_bel_new.loc[:,'Metric'] = 'Cost_BEL_New'
-    cost_bel_new.loc[:,'Units'] = 'USD'
-    cost_bel_new.loc[:,'Value'] = all['Cost_BEL_New'].fillna(0.0)
-    cost_bel_new = cost_bel_new[['Metric', 'Units', 'Value', 'Year']]
-    cost_evse_new = all[['Year']].copy()
-    cost_evse_new.loc[:,'Metric'] = 'Cost_EVSE_Ports_New'
-    cost_evse_new.loc[:,'Units'] = 'USD'
-    cost_evse_new.loc[:,'Value'] = all['Cost_EVSE_Ports_New'].fillna(0.0)
-    cost_evse_new = cost_evse_new[['Metric', 'Units', 'Value', 'Year']]
+    total_costs = (values
+        .filter(pl.col("Metric").is_in(["Cost_Retired_Assets","Cost_Purchases"]))
+        .groupby(["Metric","Units","Year"])
+        .agg(pl.col("Value").sum())
+        .with_columns(pl.lit("All").alias("Subset"))
+    )
+    return metrics_from_list([values, total_costs])
 
-    retirement_year = np.max(cost_bel_new['Year'])+1
-    bel_retirement_value = 0.0
-    for idx, row in cost_bel_new.iterrows():
-        pct_health = 1-(retirement_year - row['Year'])/locomotive_lifespan
-        bel_retirement_value += row['Value']*pct_health
+def calculate_rollout_total_costs(values: MetricType) -> MetricType:
+    """
+    Given multiple scenario years' locomotive fleet compositions, computes total per-year costs
+    Arguments:
+    ----------
+    values: DataFrame with annual cost metrics
+    Outputs:
+    ----------
+    DataFrame of across-year locomotive fleet composition metrics (metric name, units, value, and scenario year)
+    """
 
-    non_bel_retirement_value = 0.0
-    for idx, row in cost_non_bel_new.iterrows():
-        pct_health = 1-(retirement_year - row['Year'])/locomotive_lifespan
-        non_bel_retirement_value += row['Value']*pct_health
+    total_costs = (values
+        .filter((pl.col("Metric").is_in(["Cost_Energy", "Cost_Purchases","Cost_Retired_Assets"])) &
+                (pl.col("Subset") == "All"))
+        .groupby(pl.col("Units","Subset","Year"))
+        .agg(pl.col("Value").sum())
+        .with_columns(pl.lit("Cost_Total").alias("Metric")))
+    
 
-    evse_retirement_value = 0.0
-    for idx, row in cost_evse_new.iterrows():
-        pct_health = 1-(retirement_year - row['Year'])/evse_lifespan
-        evse_retirement_value += row['Value']*pct_health
-
-    total_retirement_value = bel_retirement_value + non_bel_retirement_value + evse_retirement_value
-
-    total_retirement = pd.DataFrame(
-        [{'Metric': 'Cost_Total', 'Units': 'USD', 'Value': -total_retirement_value, 'Year': retirement_year}])
-
-    for year in cost_non_bel_new['Year']:
-        idx = values[(values['Metric'] == 'Cost_Total') & (values['Year'] == year)].index
-        values.loc[idx,'Value'] = values.loc[idx,'Value'] + \
-            np.sum(cost_non_bel_new[cost_non_bel_new['Year'] == year]['Value']) + \
-            np.sum(cost_bel_new[cost_bel_new['Year'] == year]['Value']) + \
-            np.sum(cost_evse_new[cost_evse_new['Year'] == year]['Value'])
-
-    return pd.concat([values, total_retirement, num_bel_new, num_non_bel_new, cost_bel_new, cost_non_bel_new, cost_evse_new]).reset_index(drop=True)
+    return metrics_from_list([values, total_costs])
 
 def import_emissions_factors_cambium(
         location_map: Dict[str, List[alt.Location]],
         scenario_year: int,
-        file_path: Path = emissions_factor_file_default) -> pl.DataFrame:
+        file_path: Path = defaults.GRID_EMISSIONS_FILE) -> pl.DataFrame:
     
     location_ids = [loc.location_id for loc_list in location_map.values() for loc in loc_list]
-    grid_regions = [loc.grid_region for loc_list in location_map.values() for loc in loc_list]
+    grid_emissions_regions = [loc.grid_emissions_region for loc_list in location_map.values() for loc in loc_list]
     region_mappings = pl.DataFrame({
         "Node": location_ids,
-        "Region": grid_regions
+        "Region": grid_emissions_regions
     }).unique()
 
     emissions_factors = (
@@ -560,3 +731,130 @@ def import_emissions_factors_cambium(
             ).drop(["Year_right","CO2eq_kg_per_MWh_right","Year_Diff_right","Year_Diff"])
 
     return emissions_factors
+
+def import_energy_prices_eia(
+        location_map: Dict[str, List[alt.Location]],
+        scenario_year: int,
+        reference_year: int = 2022,
+        reference_year_values: Dict[str, List] = {'Fuel': ["Diesel", "Electricity"],
+                                                'Region': ["MN", "MN"],
+                                                'Price': [3.616, 9.19]}
+) -> pl.DataFrame:
+    reference_year_values = pl.DataFrame(reference_year_values)
+    location_ids = [loc.location_id for loc_list in location_map.values() for loc in loc_list]
+    electricity_price_regions = [loc.electricity_price_region for loc_list in location_map.values() for loc in loc_list]
+    liquid_fuel_price_regions = [loc.liquid_fuel_price_region for loc_list in location_map.values() for loc in loc_list]
+    nodal_reference_prices = (pl.concat([
+        pl.DataFrame({
+            "Node": location_ids,
+            "Region": electricity_price_regions
+            }).unique().with_columns(pl.lit("Electricity").alias("Fuel")),
+        pl.DataFrame({
+            "Node": location_ids,
+            "Region": liquid_fuel_price_regions
+            }).unique().with_columns(pl.lit("Diesel").alias("Fuel"))
+        ], how="diagonal")
+        .join(reference_year_values, on=["Region", "Fuel"]))
+
+    eia_reference_electric_price = electricity_prices_eia.filter(pl.col("Year") == reference_year).get_column("Price")[0]
+    electric = (electricity_prices_eia
+        .with_columns((pl.col("Price")/eia_reference_electric_price).alias("Price"),
+                      (pl.col("Year") - pl.lit(scenario_year)).alias("Year_Diff")))
+
+    eia_reference_liquid_fuel_price = liquid_fuel_prices_eia.filter(pl.col("Year") == reference_year).get_column("Price")[0]
+    liquid = (liquid_fuel_prices_eia
+        .with_columns((pl.col("Price")/eia_reference_liquid_fuel_price).alias("Price"),
+                      (pl.col("Year") - pl.lit(scenario_year)).alias("Year_Diff")))
+
+    if electric.get_column("Year_Diff").abs().min() == 0:
+        electric = (electric
+            .filter(pl.col("Year_Diff") == 0)
+            .drop("Year_Diff"))
+    else:
+        earlier_year = (electric
+            .filter(pl.col("Year_Diff") < 0)
+            .filter(pl.col("Year_Diff") == pl.col("Year_Diff").max()))
+        later_year = (electric
+            .filter(pl.col("Year_Diff") > 0)
+            .filter(pl.col("Year_Diff") == pl.col("Year_Diff").min()))
+        if later_year.height == 0:
+            electric = earlier_year
+        elif earlier_year.height == 0:
+            electric = later_year
+        else:
+            electric = earlier_year.join(later_year, on=["Node"],how="left")
+            total_diff = electric.get_column("Year_Diff").abs() + \
+                electric.get_column("Year_Diff_right").abs()
+            electric = electric.with_columns(
+                (pl.col("Price") * (total_diff - pl.col("Year_Diff").abs()) / total_diff +
+                 pl.col("Price_right") * (total_diff - pl.col("Year_Diff_right").abs()) / total_diff
+                 ).alias("Price"),
+                (pl.col("Year") * (total_diff - pl.col("Year_Diff").abs()) / total_diff +
+                 pl.col("Year_right") * (total_diff - pl.col("Year_Diff_right").abs()) / total_diff
+                 ).cast(pl.Int64, strict=False).alias("Year")
+            ).drop(["Year_right","Price_right","Year_Diff_right","Year_Diff"])
+
+    if liquid.get_column("Year_Diff").abs().min() == 0:
+        liquid = (liquid
+            .filter(pl.col("Year_Diff") == 0)
+            .drop("Year_Diff"))
+    else:
+        earlier_year = (liquid
+            .filter(pl.col("Year_Diff") < 0)
+            .filter(pl.col("Year_Diff") == pl.col("Year_Diff").max()))
+        later_year = (liquid
+            .filter(pl.col("Year_Diff") > 0)
+            .filter(pl.col("Year_Diff") == pl.col("Year_Diff").min()))
+        if later_year.height == 0:
+            liquid = earlier_year
+        elif earlier_year.height == 0:
+            liquid = later_year
+        else:
+            liquid = earlier_year.join(later_year, on=["Node"],how="left")
+            total_diff = liquid.get_column("Year_Diff").abs() + \
+                liquid.get_column("Year_Diff_right").abs()
+            liquid = liquid.with_columns(
+                (pl.col("Price") * (total_diff - pl.col("Year_Diff").abs()) / total_diff +
+                 pl.col("Price_right") * (total_diff - pl.col("Year_Diff_right").abs()) / total_diff
+                 ).alias("Price"),
+                (pl.col("Year") * (total_diff - pl.col("Year_Diff").abs()) / total_diff +
+                 pl.col("Year_right") * (total_diff - pl.col("Year_Diff_right").abs()) / total_diff
+                 ).cast(pl.Int64, strict=False).alias("Year")
+            ).drop(["Year_right","Price_right","Year_Diff_right","Year_Diff"])
+
+    liquid_multiplier = liquid.get_column("Price")[0]
+    electric_multiplier = electric.get_column("Price")[0]
+
+    nodal_energy_prices = (nodal_reference_prices
+        .with_columns(pl.when(pl.col("Fuel") == pl.lit("Electricity"))
+                      .then(pl.col("Price") * electric_multiplier)
+                      .otherwise(pl.col("Price") * liquid_multiplier)
+                      .alias("Price"))
+        .select(["Node","Fuel","Price"]))
+    return nodal_energy_prices
+
+def add_battery_costs(loco_info: pd.DataFrame, year: int) -> pd.DataFrame:
+    prices_to_use = (battery_prices_nrel_atb
+        .filter((pl.col("Year")-pl.lit(year)).abs().min() == (pl.col("Year")-pl.lit(year)).abs()))
+    usd_per_kWh = prices_to_use.filter(pl.col("Metric")=="USD_Per_kWh").get_column("Value")[0]
+    usd_per_kW = prices_to_use.filter(pl.col("Metric")=="USD_Per_kW").get_column("Value")[0]
+    usd_constant = prices_to_use.filter(pl.col("Metric")=="USD_Constant").get_column("Value")[0]
+
+    for idx, row in loco_info.iterrows():
+        if (hasattr(row['Rust_Loco'], "res")) and row['Rust_Loco'].res is not None:
+            kW = row['Rust_Loco'].res.pwr_out_max_watts / 1000
+            kWh = row['Rust_Loco'].res.energy_capacity_joules * 1e-6 * utilities.KWH_PER_MJ 
+            loco_info.at[idx,'Cost_USD'] = (
+                defaults.BEL_MINUS_BATTERY_COST_USD + 
+                usd_constant + 
+                kW * usd_per_kW + 
+                kWh * usd_per_kWh) * defaults.RETAIL_PRICE_EQUIVALENT_MULTIPLIER
+    return loco_info
+
+
+function_mappings = {'Energy_Costs': calculate_energy_cost,
+    'TKM': calculate_tkm,
+    'GHG': calculate_ghg,
+    'Count_Locomotives': calculate_locomotive_counts,
+    'Count_Refuelers': calculate_refueler_counts
+}

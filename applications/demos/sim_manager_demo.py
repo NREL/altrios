@@ -1,6 +1,6 @@
 # %%
 from altrios import sim_manager
-from altrios import utilities
+from altrios import utilities, defaults
 import altrios as alt
 import numpy as np
 import matplotlib.pyplot as plt
@@ -36,7 +36,7 @@ print(
 
 t0_main = time.perf_counter()
 
-train_consist_plan, loco_pool, refuel_facilities, grid_emissions_factors, speed_limit_train_sims, timed_paths = sim_manager.main(
+train_consist_plan, loco_pool, refuel_facilities, grid_emissions_factors, nodal_energy_prices, speed_limit_train_sims, timed_paths = sim_manager.main(
     network=network,
     rail_vehicle_map=rail_vehicle_map,
     location_map=location_map,
@@ -49,7 +49,7 @@ print(f"Elapsed time to run `sim_manager.main()`: {t1_main-t0_main:.3g} s")
 # %%
 t0_train_sims = time.perf_counter()
 speed_limit_train_sims.set_save_interval(100)
-(sims, charge_sessions) = alt.run_speed_limit_train_sims(
+(sims, refuel_sessions) = alt.run_speed_limit_train_sims(
     speed_limit_train_sims=speed_limit_train_sims,
     network=network,
     train_consist_plan_py=train_consist_plan,
@@ -63,7 +63,7 @@ print(f"Elapsed time to run train sims: {t1_train_sims-t0_train_sims:.3g} s")
 # %%
 t0_summary_sims = time.perf_counter()
 speed_limit_train_sims.set_save_interval(None)
-(summary_sims, summary_charge_sessions) = alt.run_speed_limit_train_sims(
+(summary_sims, summary_refuel_sessions) = alt.run_speed_limit_train_sims(
     speed_limit_train_sims=speed_limit_train_sims,
     network=network,
     train_consist_plan_py=train_consist_plan,
@@ -96,8 +96,8 @@ t1_main = time.perf_counter()
 print(f"Elapsed time to get total fuel energy: {t1_main-t0_main:.3g} s")
 print(f"Total fuel energy used: {e_total_fuel_mj:.3g} GJ")
 
-v_total_fuel_gal = summary_sims.get_energy_fuel_joules(annualize=False) / 1e3 / utilities.LHV_DIESEL_KJ_PER_KG / \
-    utilities.RHO_DIESEL_KG_PER_M3 * utilities.LITER_PER_M3 * utilities.GALLONS_PER_LITER
+v_total_fuel_gal = summary_sims.get_energy_fuel_joules(annualize=False) / 1e3 / defaults.LHV_DIESEL_KJ_PER_KG / \
+    defaults.RHO_DIESEL_KG_PER_M3 * utilities.LITER_PER_M3 * utilities.GALLONS_PER_LITER
 
 print(f"Total fuel used: {v_total_fuel_gal:.3g} gallons")
 

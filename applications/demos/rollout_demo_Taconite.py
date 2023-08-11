@@ -1,39 +1,52 @@
 # %%
 import altrios
-from altrios import rollout, defaults, train_planner
+from altrios import rollout
 
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
-
+import glob 
+import os
 sns.set()
 
 # %
 
 # %%
-
+os.chdir('D:\\Projects\\ALTRIOS\\TaconiteHacking\\applications\\demos')
 
 plot_dir = Path() / "plots"
 # make the dir if it doesn't exist
 plot_dir.mkdir(exist_ok=True)
-File = "C:/Users/mbruchon/Documents/Repos/ALTRIOS/Case Study/Conventional Freight Rollout Results/Taconite Base Demand2095.csv"
-File = defaults.DEMAND_FILE
-#targets = [0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75, 0.8]
-targets = [0.5]
-for target in targets:
+
+# # run conventional loco freight sweep
+# scenario_infos, metrics = rollout.simulate_prescribed_rollout(
+#     max_bel_share=0,
+#     number_of_years=100, #65, 
+#     results_folder = '../../Case Study/Conventional Freight Rollout Results',
+#     demand_file_path='../../Case Study/Taconite Base Demand.csv',
+#     write_complete_results=True,
+#     freight_demand_percent_growth=5,
+#     save_interval=120,
+#     write_metrics=True,
+#     network_filename_path=str(altrios.resources_root() / "networks/Taconite-NoBalloon.yaml")
+# )
+
+
+#run bel sweep with random conventional generated freight demand.  Will need to pick correct file that closely represents the event recorder file
+DemandFiles = ["../../Case Study/Conventional Freight Rollout Results/Taconite Base Demand2095.csv",
+    "../../Case Study/Conventional Freight Rollout Results/Taconite Base Demand2067.csv",
+    "../../Case Study/Conventional Freight Rollout Results/Taconite Base Demand2080.csv"]
+
+for File in DemandFiles:
     scenario_infos, metrics = rollout.simulate_prescribed_rollout(
-        max_bel_share=target, 
-        number_of_years=1,
-        results_folder = 'C:/Users/mbruchon/Documents/Repos/ALTRIOS/Case Study/Rollout Results',
+        max_bel_share=.8,
+        number_of_years=31, 
+        results_folder = '../../Case Study/Rollout Results',
         demand_file_path=File,
-        train_planner_config=train_planner.TrainPlannerConfig(
-            cars_per_locomotive=50,
-            target_length=90),
-        count_unused_locomotives=False,
-        write_complete_results=False,
+        write_complete_results=True,
         freight_demand_percent_growth=0,
-        save_interval=None,
+        save_interval=5,
         write_metrics=True,
         network_filename_path=str(altrios.resources_root() / "networks/Taconite-NoBalloon.yaml")
     )
@@ -45,15 +58,15 @@ to_plot = scenario_infos[0].sims.tolist()
 for idx, sim in enumerate(to_plot[:10]):
     # sim = altc.SpeedLimitTrainSim.from_bincode(
     #     sim.to_bincode())  # to support linting
+
     fig, ax = plt.subplots(3, 1, sharex=True)
 
     loco0 = sim.loco_con.loco_vec.tolist()[0]
 
     # loco0 = altc.Locomotive.from_bincode(
     #     loco0.to_bincode())  # to support linting
-    if len(sim.loco_con.loco_vec.tolist()) > 1:
-        loco1 = sim.loco_con.loco_vec.tolist()[1]
-        plt.suptitle(f"sim #: {idx}")
+    loco1 = sim.loco_con.loco_vec.tolist()[1]
+    plt.suptitle(f"sim #: {idx}")
 
     if loco0.fc is not None:
         ax[0].plot(
@@ -64,7 +77,7 @@ for idx, sim in enumerate(to_plot[:10]):
         # ax[0].plot(
         #     np.array(sim.history.time_seconds) / 3_600,
         #     np.array(loco0.history.pwr_out_watts) / 1e6,
-    #     label='conv. loco. tractive'
+        #     label='conv. loco. tractive'
         # )
         # ax[0].plot(
         #     np.array(sim.history.time_seconds) / 3_600,
@@ -75,7 +88,8 @@ for idx, sim in enumerate(to_plot[:10]):
         # ax[0].legend()
 
     if loco1.res is not None:
-        ax[1].plot(np.array(sim.history.time_seconds) / 3_600, loco1.res.history.soc)
+        ax[1].plot(np.array(sim.history.time_seconds) /
+                   3_600, loco1.res.history.soc)
         ax[1].set_ylabel("SOC")
 
     ax[-1].plot(

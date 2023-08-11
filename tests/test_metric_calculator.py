@@ -15,6 +15,7 @@ class TestMetricCalculator(unittest.TestCase):
                 pl.DataFrame(),
                 pl.DataFrame(),
                 pl.DataFrame(),
+                pl.DataFrame(),
                 pl.DataFrame()))
             
         for info in scenario_infos:

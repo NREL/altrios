@@ -149,7 +149,7 @@ impl Consist {
     }
 
     /// Returns number of RES-equipped locomotives
-    fn n_res_equipped(&mut self) -> u8 {
+    pub fn n_res_equipped(&mut self) -> u8 {
         match self.n_res_equipped {
             Some(n_res_equipped) => n_res_equipped,
             None => {

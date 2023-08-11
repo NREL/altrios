@@ -1,4 +1,4 @@
-"""Module for general functions and classes."""
+"""Module for general functions, classes, and unit conversion factors."""
 
 import re
 import numpy as np
@@ -32,17 +32,12 @@ KG_PER_TON = KG_PER_LB * 2000.0
 CM_PER_IN = 2.54
 CM_PER_FT = CM_PER_IN * 12.0
 M_PER_FT = CM_PER_FT / 100.0
+MI_PER_KM = 0.621371
 LITER_PER_M3 = 1.0e3
 G_PER_TONNE = 1.0e6
 GALLONS_PER_LITER = 1.0 / 3.79
 KWH_PER_MJ = 0.277778 # https://www.eia.gov/energyexplained/units-and-calculators/energy-conversion-calculators.php
 MWH_PER_MJ = KWH_PER_MJ / 1.0e3
-
-LHV_DIESEL_KJ_PER_KG = 45.6e3 # https://www.engineeringtoolbox.com/fuels-higher-calorific-values-d_169.html
-RHO_DIESEL_KG_PER_M3 = 959.  # https://www.engineeringtoolbox.com/fuels-densities-specific-volumes-d_166.html
-
-WARM_START_DAYS = 7
-
 
 def print_dt():
     print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))

@@ -425,7 +425,7 @@ class Locomotive:
     ) -> Any: ...
 
     @classmethod
-    def default_battery_electic_loco(cls) -> Locomotive: ...
+    def default_battery_electric_loco(cls) -> Locomotive: ...
     @classmethod
     def build_conventional_loco(cls) -> Any: ...
     @classmethod
@@ -1076,7 +1076,9 @@ class Location:
     offset: float
     link_idx: LinkIdx
     is_front_end: bool
-    grid_region: str
+    grid_emissions_region: str
+    electricity_price_region: str
+    liquid_fuel_price_region: str
     @classmethod
     def default(cls) -> Self: ...
     @classmethod

@@ -751,7 +751,6 @@ impl Default for ReversibleEnergyStorageState {
     fn default() -> Self {
         Self {
             i: 1,
-            // slightly less than max soc for default ReversibleEnergyStorage
             soc: uc::R * 0.95,
             soh: 1.0,
             eta: Default::default(),

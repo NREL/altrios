@@ -1,5 +1,5 @@
 # assumes a python environment has been created and activated
-(cd rust/ && cargo test --workspace) && \
+(cd rust/altrios-core/ && cargo test) && \
 # pip install -qe ".[dev]" && \ 
 maturin develop --release && \
 pytest -v tests && \

@@ -179,7 +179,7 @@ pub struct ReversibleEnergyStorage {
 impl Default for ReversibleEnergyStorage {
     fn default() -> Self {
         let file_contents = include_str!("reversible_energy_storage.default.yaml");
-        serde_yaml::from_str::<ReversibleEnergyStorage>(file_contents).unwrap()
+        Self::from_yaml(file_contents).unwrap()
     }
 }
 

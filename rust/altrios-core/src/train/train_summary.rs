@@ -1,12 +1,17 @@
 use super::resistance::kind as res_kind;
 use super::resistance::method as res_method;
+use crate::consist::locomotive::locomotive_model::LocoType;
 use crate::consist::Mass;
 
 use super::{
     friction_brakes::*, rail_vehicle::RailVehicleMap, train_imports::*, InitTrainState,
-    SetSpeedTrainSim, SpeedLimitTrainSim, SpeedTrace, TrainState,
+    LinkIdxTime, SetSpeedTrainSim, SpeedLimitTrainSim, SpeedTrace, TrainState,
 };
 use crate::track::LocationMap;
+
+use polars::prelude::*;
+use polars_lazy::prelude::*;
+use pyo3_polars::PyDataFrame;
 
 #[altrios_api(
     #[new]
@@ -178,9 +183,9 @@ impl Valid for TrainSummary {
 pub struct TrainSimBuilder {
     /// Unique identifier for the train starting from 0
     pub train_id: String,
-    /// Origin_ID from train planner to map to track network locations
+    /// Origin ID from train planner to map to track network locations
     pub origin_id: String,
-    /// Destination_ID from train planner to map to track network locations
+    /// Destination ID from train planner to map to track network locations
     pub destination_id: String,
     pub train_summary: TrainSummary,
     pub loco_con: Consist,
@@ -370,80 +375,97 @@ pub fn run_speed_limit_train_sims(
     let mut loco_pool: DataFrame = loco_pool_py.into();
     let refuel_facilities: DataFrame = refuel_facilities_py.into();
 
-    loco_pool = loco_pool.lazy().with_columns(vec![
-        lit(f64::ZERO).alias("Trip_Energy_J").to_owned(),
-        lit(f64::INFINITY).alias("Ready_Time_Min").to_owned(),
-        lit(f64::INFINITY).alias("Ready_Time_Est").to_owned(),
-        lit("Ready").alias("Status").to_owned(),
-        col("SOC_Max_J").alias("SOC_J").to_owned(),
-        ]).collect().unwrap();
-            
-    let mut arrival_times = train_consist_plan.clone().lazy().select(vec![
-        col("Arrival_Time_Actual_Hr"),
-        col("Locomotive_ID"),
-        col("Destination_ID"),
-        col("TrainSimVec_Index")
-    ]).sort_by_exprs(
-        vec![col("Arrival_Time_Actual_Hr"), col("Locomotive_ID")],
-        vec![false, false], 
-        false,
-        false
-    ).collect().unwrap();
-    
-    let departure_times = train_consist_plan.clone().lazy().select(vec![
-        col("Departure_Time_Actual_Hr"),
-        col("Locomotive_ID")
-    ]).sort_by_exprs(
-        vec![col("Locomotive_ID"),col("Departure_Time_Actual_Hr")],
-        vec![false, false], 
-        false,
-        false
-    ).collect().unwrap();
+    loco_pool = loco_pool
+        .lazy()
+        .with_columns(vec![
+            lit(f64::INFINITY).alias("Ready_Time_Min").to_owned(),
+            lit(f64::INFINITY).alias("Ready_Time_Est").to_owned(),
+            lit("Ready").alias("Status").to_owned(),
+            col("SOC_Max_J").alias("SOC_J").to_owned(),
+        ])
+        .collect()
+        .unwrap();
 
-    let mut refuel_sessions = DataFrame::default();
+    let mut arrival_times = train_consist_plan
+        .clone()
+        .lazy()
+        .select(vec![
+            col("Actual Arrival Time(hr)"),
+            col("Locomotive ID"),
+            col("Destination ID"),
+            col("TrainSimVec Index"),
+        ])
+        .sort_by_exprs(
+            vec![col("Actual Arrival Time(hr)"), col("Locomotive ID")],
+            vec![false, false],
+            false,
+            false,
+        )
+        .collect()
+        .unwrap();
 
-    let active_loco_statuses = Series::from_iter(vec!["Refueling".to_string(), "Dispatched".to_string()]);
-    let mut current_time: f64 = (&arrival_times).column("Arrival_Time_Actual_Hr")?.min().unwrap();
+    let departure_times = train_consist_plan
+        .clone()
+        .lazy()
+        .select(vec![col("Actual Departure Time(hr)"), col("Locomotive ID")])
+        .sort_by_exprs(
+            vec![col("Locomotive ID"), col("Actual Departure Time(hr)")],
+            vec![false, false],
+            false,
+            false,
+        )
+        .collect()
+        .unwrap();
 
+    let mut charge_sessions = DataFrame::default();
+
+    let active_loco_statuses =
+        Series::from_iter(vec!["Refueling".to_string(), "Dispatched".to_string()]);
+    let mut current_time: f64 = (&arrival_times)
+        .column("Actual Arrival Time(hr)")?
+        .min()
+        .unwrap();
     let mut done = false;
     while !done {
-        let arrivals_mask = (&arrival_times).column("Arrival_Time_Actual_Hr")?.equal(current_time)?;
+        let arrivals_mask = (&arrival_times)
+            .column("Actual Arrival Time(hr)")?
+            .equal(current_time)?;
         let arrivals = arrival_times.clone().filter(&arrivals_mask)?;
-        let arrivals_merged = loco_pool.clone()
-            .left_join(&arrivals, &["Locomotive_ID"], &["Locomotive_ID"])?;
-        let arrival_locations = arrivals_merged.column("Destination_ID")?;
+        let arrivals_merged =
+            loco_pool
+                .clone()
+                .left_join(&arrivals, &["Locomotive_ID"], &["Locomotive ID"])?;
+        let arrival_locations = arrivals_merged.column("Destination ID")?;
         if arrivals.height() > 0 {
-            let arrival_ids = arrivals.column("Locomotive_ID")?;
-            loco_pool = loco_pool.lazy().with_columns(vec![
-                when(col("Locomotive_ID").is_in(lit(arrival_ids.clone())))
-                    .then(lit("Queued"))
-                    .otherwise(col("Status"))
-                    .alias("Status"),
-                when(col("Locomotive_ID").is_in(lit(arrival_ids.clone())))
-					.then(lit(current_time))
-					.otherwise(col("Ready_Time_Est"))
-					.alias("Ready_Time_Est"),
-				when(col("Locomotive_ID").is_in(lit(arrival_ids.clone())))
-					.then(lit(arrival_locations.clone()))
-					.otherwise(col("Node"))
-					.alias("Node"),
+            let arrival_ids = arrivals.column("Locomotive ID")?;
+            loco_pool = loco_pool
+                .lazy()
+                .with_columns(vec![
+                    when(col("Locomotive_ID").is_in(lit(arrival_ids.clone())))
+                        .then(lit("Queued"))
+                        .otherwise(col("Status"))
+                        .alias("Status"),
+                    when(col("Locomotive_ID").is_in(lit(arrival_ids.clone())))
+                        .then(lit(current_time))
+                        .otherwise(col("Ready_Time_Est"))
+                        .alias("Ready_Time_Est"),
+                    when(col("Locomotive_ID").is_in(lit(arrival_ids.clone())))
+                        .then(lit(arrival_locations.clone()))
+                        .otherwise(col("Node"))
+                        .alias("Node"),
                 ])
-                .drop_columns(vec!["Refueler_J_Per_Hr","Refueler_Efficiency","Port_Count","Battery_Headroom_J"])
-                .join(refuel_facilities.clone().lazy().select(&[
-                        col("Node"),
-                        col("Locomotive_Type"),
-                        col("Refueler_J_Per_Hr"),
-                        col("Refueler_Efficiency"),
-                        col("Port_Count"),
-                        col("Battery_Headroom_J")]), 
-                    [col("Node"), col("Locomotive_Type")], 
-                    [col("Node"), col("Locomotive_Type")], 
-                    JoinArgs::new(JoinType::Left)
+                .drop_columns(vec!["Charger_J_Per_Hr", "Queue_Size"])
+                .join(
+                    refuel_facilities.clone().lazy(),
+                    [col("Node"), col("Type")],
+                    [col("Node"), col("Type")],
+                    JoinArgs::new(JoinType::Left),
                 )
-                .sort("Locomotive_ID", SortOptions::default())
-                .collect().unwrap();
+                .sort("Ready_Time_Est", SortOptions::default())
+                .collect()
+                .unwrap();
 
-            let indices = arrivals.column("TrainSimVec_Index")?.u32()?.unique()?;
+            let indices = arrivals.column("TrainSimVec Index")?.u32()?.unique()?;
             for index in indices.into_iter() {
                 let idx = index.unwrap() as usize;
                 let sim = &mut speed_limit_train_sims.0[idx];
@@ -451,28 +473,34 @@ pub fn run_speed_limit_train_sims(
                     .walk_timed_path(&network, &timed_paths[idx])
                     .map_err(|err| err.context(format!("train sim idx: {}", idx)));
 
-                let new_soc_vec: Vec<f64> = sim.loco_con.loco_vec.iter()
-                    .map(|loco| 
-                        match loco.loco_type {
-                        LocoType::BatteryElectricLoco(_) => (loco.reversible_energy_storage().unwrap().state.soc *
-                            loco.reversible_energy_storage().unwrap().energy_capacity).get::<si::joule>(),
-                        _ => f64::ZERO,
+                let new_soc_vec: Vec<f64> = sim
+                    .loco_con
+                    .loco_vec
+                    .iter()
+                    .map(|loco| match loco.loco_type {
+                        LocoType::BatteryElectricLoco(_) => {
+                            (loco.reversible_energy_storage().unwrap().state.soc
+                                * loco.reversible_energy_storage().unwrap().energy_capacity)
+                                .get::<si::joule>()
                         }
-                    ).collect();
-                let new_energy_j_vec: Vec<f64> = sim.loco_con.loco_vec.iter()
-                    .map(|loco| 
-                        match loco.loco_type {
-                        LocoType::BatteryElectricLoco(_) => (loco.reversible_energy_storage().unwrap().state.energy_out_chemical).get::<si::joule>(),
                         _ => f64::ZERO,
-                        }
-                    ).collect();
-                let mut all_current_socs: Vec<f64> = loco_pool.column("SOC_J")?.f64()?.into_no_null_iter().collect();
-                let mut all_energy_j: Vec<f64> = (loco_pool.column("SOC_J")?.f64()?*0.0).into_no_null_iter().collect();
-                let idx_mask = (&arrival_times).column("TrainSimVec_Index")?.equal(idx as u32)?;
+                    })
+                    .collect();
+                let mut all_current_socs: Vec<f64> = loco_pool
+                    .column("SOC_J")?
+                    .f64()?
+                    .into_no_null_iter()
+                    .collect();
+                let idx_mask = (&arrival_times)
+                    .column("TrainSimVec Index")?
+                    .equal(idx as u32)?;
                 let arrival_locos = arrival_times.filter(&idx_mask)?;
-                let arrival_loco_ids = arrival_locos.column("Locomotive_ID")?.u32()?;
-                let arrival_loco_mask = loco_pool.column("Locomotive_ID")?.is_in(&(arrival_loco_ids.clone().into_series())).unwrap();
-				// Get the indices of true values in the boolean ChunkedArray
+                let arrival_loco_ids = arrival_locos.column("Locomotive ID")?.u32()?;
+                let arrival_loco_mask = loco_pool
+                    .column("Locomotive_ID")?
+                    .is_in(&(arrival_loco_ids.clone().into_series()))
+                    .unwrap();
+                // Get the indices of true values in the boolean ChunkedArray
                 let arrival_loco_indices: Vec<usize> = arrival_loco_mask
                     .into_iter()
                     .enumerate()
@@ -480,28 +508,18 @@ pub fn run_speed_limit_train_sims(
                     .map(|(i, _)| i)
                     .collect();
 
-                // TODO: rewrite this a little so it doesn't depend on the previous sort
                 for (index, value) in arrival_loco_indices.iter().zip(new_soc_vec) {
                     all_current_socs[*index] = value;
                 }
-                for (index, value) in arrival_loco_indices.iter().zip(new_energy_j_vec) {
-                    all_energy_j[*index] = value;
-                }
-                loco_pool = loco_pool.lazy().with_columns(vec![
-                    when(lit(arrival_loco_mask.clone().into_series()))
+                loco_pool = loco_pool
+                    .lazy()
+                    .with_columns(vec![when(lit(arrival_loco_mask.into_series()))
                         .then(lit(Series::new("SOC_J", all_current_socs)))
                         .otherwise(col("SOC_J"))
-                        .alias("SOC_J"),
-                    when(lit(arrival_loco_mask.clone().into_series()))
-                        .then(lit(Series::new("Trip_Energy_J", all_energy_j)))
-                        .otherwise(col("Trip_Energy_J"))
-                        .alias("Trip_Energy_J")
-                    ])
-                    .collect().unwrap();
-
+                        .alias("SOC_J")])
+                    .collect()
+                    .unwrap();
             }
-            loco_pool = loco_pool.lazy().sort("Ready_Time_Est", SortOptions::default()).collect().unwrap();
-
         }
 
         let refueling_mask = (&loco_pool).column("Status")?.equal("Refueling")?;
@@ -521,104 +539,148 @@ pub fn run_speed_limit_train_sims(
 
         if (arrivals.height() > 0) || (refueling_finished.height() > 0) {
             // update queue
-            let place_in_queue = loco_pool.clone().lazy().select(&[
-                ((col("Status").eq(lit("Refueling")).sum().over(["Node", "Locomotive_Type"])) +
-                (col("Status").eq(lit("Queued")).cumsum(false).over(["Node", "Locomotive_Type"])))               
-                .alias("place_in_queue")
-            ]).collect()?.column("place_in_queue")?.clone().into_series();
+            let place_in_queue = loco_pool
+                .clone()
+                .lazy()
+                .select(&[((col("Status")
+                    .eq(lit("Refueling"))
+                    .sum()
+                    .over(["Node", "Type"]))
+                    + (col("Status")
+                        .eq(lit("Queued"))
+                        .cumsum(false)
+                        .over(["Node", "Type"])))
+                .alias("place_in_queue")])
+                .collect()?
+                .column("place_in_queue")?
+                .clone()
+                .into_series();
             let future_times_mask = (&departure_times)
-                .column("Departure_Time_Actual_Hr")?.f64()?
+                .column("Actual Departure Time(hr)")?
+                .f64()?
                 .gt(current_time);
 
-            let next_departure_time = departure_times.clone().lazy()
-                .filter(col("Departure_Time_Actual_Hr").gt(lit(current_time)))
-                .groupby(&["Locomotive_ID"])
-                .agg([
-                    col("Departure_Time_Actual_Hr").min()
-                ])
-                .collect().unwrap();
+            let next_departure_time = departure_times
+                .clone()
+                .lazy()
+                .filter(col("Actual Departure Time(hr)").gt(lit(current_time)))
+                .groupby(&["Locomotive ID"])
+                .agg([col("Actual Departure Time(hr)").min()])
+                .collect()
+                .unwrap();
 
-            let departures_merged = loco_pool.clone()
-                .left_join(&next_departure_time, &["Locomotive_ID"], &["Locomotive_ID"])?;
-            let departure_times = departures_merged.column("Departure_Time_Actual_Hr")?.f64()?;
+            let departures_merged = loco_pool.clone().left_join(
+                &next_departure_time,
+                &["Locomotive_ID"],
+                &["Locomotive ID"],
+            )?;
+            let departure_times = departures_merged
+                .column("Actual Departure Time(hr)")?
+                .f64()?;
 
-            let target_j = loco_pool.clone().lazy().select(&[
-                (col("SOC_Max_J") - col("Battery_Headroom_J")).alias("Target_J")]
-                ).collect()?.column("Target_J")?.clone();
-            let target_j_f64 = target_j.f64()?;
-            let current_j = loco_pool.column("SOC_J")?.f64()?;
+            let charge_end_time_ideal = loco_pool
+                .clone()
+                .lazy()
+                .select(&[(lit(current_time)
+                    + (col("SOC_Max_J") - col("SOC_J")) / col("Charger_J_Per_Hr"))
+                .alias("Charge_End_Time")])
+                .collect()?
+                .column("Charge_End_Time")?
+                .clone()
+                .into_series();
 
-            let soc_target: Vec<f64> = target_j_f64.into_iter().zip(current_j.into_iter())
-                .map(|(b, v)| b.unwrap_or(f64::ZERO).max(v.unwrap_or(f64::ZERO))).collect::<Vec<_>>();
-            let soc_target_series = Series::new("soc_target",soc_target);
+            let charge_end_time: Vec<f64> = departure_times
+                .into_iter()
+                .zip(charge_end_time_ideal.f64()?.into_iter())
+                .map(|(b, v)| b.unwrap_or(f64::INFINITY).min(v.unwrap_or(f64::INFINITY)))
+                .collect::<Vec<_>>();
 
-            let refuel_end_time_ideal = loco_pool.clone().lazy().select(&[
-                    (lit(current_time) + (lit(soc_target_series)-col("SOC_J"))/col("Refueler_J_Per_Hr"))
-                .alias("Refuel_End_Time")
-            ]).collect()?.column("Refuel_End_Time")?.clone().into_series();
-
-            let refuel_end_time: Vec<f64> = departure_times.into_iter().zip(refuel_end_time_ideal.f64()?.into_iter())
-                .map(|(b, v)| b.unwrap_or(f64::INFINITY).min(v.unwrap_or(f64::INFINITY))).collect::<Vec<_>>();
-
-            let mut refuel_duration: Vec<f64> = refuel_end_time.clone();
-            for element in refuel_duration.iter_mut() {
+            let mut charge_duration: Vec<f64> = charge_end_time.clone();
+            for element in charge_duration.iter_mut() {
                 *element -= current_time;
             }
-			
-            let refuel_duration_series = Series::new("refuel_duration",refuel_duration);
-            let refuel_end_series = Series::new("refuel_end_time",refuel_end_time);
-            
-            loco_pool = loco_pool.lazy().with_columns(vec![
-                lit(place_in_queue),
-                lit(refuel_duration_series),
-                lit(refuel_end_series)
-            ]).collect().unwrap();
-            
-            // store the filter as an Expr
-            let refuel_starting = loco_pool.clone().lazy().filter(
-                col("Status").eq(lit("Queued")).and(
-                col("Port_Count").gt_eq(col("place_in_queue")))
-            ).collect().unwrap();
+            let charge_duration_series = Series::new("charge_duration", charge_duration);
+            let charge_end_series = Series::new("charge_end_time", charge_end_time);
 
-            let these_refuel_sessions = df![
-                "Node" => refuel_starting.column("Node").unwrap(),
-                "Locomotive_Type" => refuel_starting.column("Locomotive_Type").unwrap(),
-                "Locomotive_ID" => refuel_starting.column("Locomotive_ID").unwrap(),
-                "Refueler_J_Per_Hr" => refuel_starting.column("Refueler_J_Per_Hr").unwrap(),
-                "Refueler_Efficiency" => refuel_starting.column("Refueler_Efficiency").unwrap(),
-                "Trip_Energy_J" => refuel_starting.column("Trip_Energy_J").unwrap(),
-                "SOC_J" => refuel_starting.column("SOC_J").unwrap(),
-                "Refuel_Energy_J" => refuel_starting.clone().lazy().select(&[
-                    (col("Refueler_J_Per_Hr")*col("refuel_duration")/col("Refueler_Efficiency")).alias("Refuel_Energy_J")
-                    ]).collect()?.column("Refuel_Energy_J")?.clone().into_series(),
-                "Refuel_Duration_Hr" => refuel_starting.column("refuel_duration").unwrap(),
-                "Refuel_Start_Time_Hr" => refuel_starting.column("refuel_end_time").unwrap() - 
-                    refuel_starting.column("refuel_duration").unwrap(),
-                "Refuel_End_Time_Hr" => refuel_starting.column("refuel_end_time").unwrap()
+            loco_pool = loco_pool
+                .lazy()
+                .with_columns(vec![
+                    lit(place_in_queue),
+                    lit(charge_duration_series),
+                    lit(charge_end_series),
+                ])
+                .collect()
+                .unwrap();
+
+            // store the filter as an Expr
+            let charge_starting = loco_pool
+                .clone()
+                .lazy()
+                .filter(
+                    col("Status")
+                        .eq(lit("Queued"))
+                        .and(col("Queue_Size").gt_eq(col("place_in_queue"))),
+                )
+                .collect()
+                .unwrap();
+
+            // Make a Polars DataFrame of:
+            // Node from filtered loco_pool
+            // Type from filtered loco_pool
+            // Locomotive_ID from filtered loco_pool
+            // Charge_J_Per_Hr from filtered loco_pool
+            // charge_duration_series * Charger_J_Per_Hr (total J of charging)
+            // current_time (Charge_Start_Time)
+            // Ready_Time_Est from filtered loco_pool (Charge_End_Time)
+            //
+            let these_charge_sessions = df![
+                "Node" => charge_starting.column("Node").unwrap(),
+                "Type" => charge_starting.column("Type").unwrap(),
+                "Locomotive_ID" => charge_starting.column("Locomotive_ID").unwrap(),
+                "Charger_J_Per_Hr" => charge_starting.column("Charger_J_Per_Hr").unwrap(),
+                "Charge_Total_J" => charge_starting.column("charge_duration").unwrap() *
+                    charge_starting.column("Charger_J_Per_Hr").unwrap(),
+                "Charge_Start_Time_Hr" => charge_starting.column("charge_end_time").unwrap() -
+                    charge_starting.column("charge_duration").unwrap(),
+                "Charge_End_Time_Hr" => charge_starting.column("charge_end_time").unwrap()
             ]?;
-            refuel_sessions.vstack_mut(&these_refuel_sessions)?;
+            charge_sessions.vstack_mut(&these_charge_sessions)?;
             // set finishedCharging times to min(max soc OR departure time)
-            loco_pool = loco_pool.clone().lazy().with_columns(vec![
-                when(col("Status").eq(lit("Queued")).and(
-                    col("Port_Count").gt_eq(col("place_in_queue"))))
-                    .then(col("SOC_J") + col("refuel_duration") * col("Refueler_J_Per_Hr"))
+            loco_pool = loco_pool
+                .clone()
+                .lazy()
+                .with_columns(vec![
+                    when(
+                        col("Status")
+                            .eq(lit("Queued"))
+                            .and(col("Queue_Size").gt_eq(col("place_in_queue"))),
+                    )
+                    .then(col("SOC_J") + col("charge_duration") * col("Charger_J_Per_Hr"))
                     .otherwise(col("SOC_J"))
                     .alias("SOC_J"),
-                    when(col("Status").eq(lit("Queued")).and(
-                        col("Port_Count").gt_eq(col("place_in_queue"))))
-                        .then(col("refuel_end_time"))
-                        .otherwise(col("Ready_Time_Est"))
-                        .alias("Ready_Time_Est"),
-                        when(col("Status").eq(lit("Queued")).and(
-                            col("Port_Count").gt_eq(col("place_in_queue"))))
-                        .then(lit("Refueling"))
-                        .otherwise(col("Status"))
-                        .alias("Status")
-                ]).collect().unwrap();
+                    when(
+                        col("Status")
+                            .eq(lit("Queued"))
+                            .and(col("Queue_Size").gt_eq(col("place_in_queue"))),
+                    )
+                    .then(col("charge_end_time"))
+                    .otherwise(col("Ready_Time_Est"))
+                    .alias("Ready_Time_Est"),
+                    when(
+                        col("Status")
+                            .eq(lit("Queued"))
+                            .and(col("Queue_Size").gt_eq(col("place_in_queue"))),
+                    )
+                    .then(lit("Refueling"))
+                    .otherwise(col("Status"))
+                    .alias("Status"),
+                ])
+                .collect()
+                .unwrap();
 
             loco_pool = loco_pool.drop("place_in_queue")?;
-            loco_pool = loco_pool.drop("refuel_duration")?;
-            loco_pool = loco_pool.drop("refuel_end_time")?;
+            loco_pool = loco_pool.drop("charge_duration")?;
+            loco_pool = loco_pool.drop("charge_end_time")?;
         }
 
         let active_loco_ready_times = loco_pool
@@ -626,14 +688,24 @@ pub fn run_speed_limit_train_sims(
             .lazy()
             .filter(col("Status").is_in(lit(active_loco_statuses.clone())))
             .select(vec![col("Ready_Time_Est")])
-            .collect()?.column("Ready_Time_Est")?.clone().into_series();
-        arrival_times = arrival_times.lazy()
-            .filter(col("Arrival_Time_Actual_Hr").gt(current_time))
+            .collect()?
+            .column("Ready_Time_Est")?
+            .clone()
+            .into_series();
+        arrival_times = arrival_times
+            .lazy()
+            .filter(col("Actual Arrival Time(hr)").gt(current_time))
             .collect()?;
-        let arrival_times_remaining = arrival_times.clone().lazy()
-            .select(vec![col("Arrival_Time_Actual_Hr").alias("Arrival_Time_Actual_Hr")])
-            .collect()?.column("Arrival_Time_Actual_Hr")?.clone().into_series();
-
+        let arrival_times_remaining = arrival_times
+            .clone()
+            .lazy()
+            .select(vec![
+                col("Actual Arrival Time(hr)").alias("Actual Arrival Time(hr)")
+            ])
+            .collect()?
+            .column("Actual Arrival Time(hr)")?
+            .clone()
+            .into_series();
         if (arrival_times_remaining.len() == 0) & (active_loco_ready_times.len() == 0) {
             done = true;
         } else {
@@ -649,7 +721,7 @@ pub fn run_speed_limit_train_sims(
         }
     }
 
-    Ok((speed_limit_train_sims, PyDataFrame(refuel_sessions)))
+    Ok((speed_limit_train_sims, PyDataFrame(charge_sessions)))
 }
 
 // This MUST remain a unit struct to trigger correct tolist() behavior
@@ -667,21 +739,6 @@ pub fn run_speed_limit_train_sims(
     #[pyo3(name = "get_megagram_kilometers")]
     pub fn get_megagram_kilometers_py(&self, annualize: bool) -> f64 {
         self.get_megagram_kilometers(annualize)
-    }
-
-    #[pyo3(name = "get_kilometers")]
-    pub fn get_kilometers_py(&self, annualize: bool) -> f64 {
-        self.get_kilometers(annualize)
-    }
-    
-    #[pyo3(name = "get_res_kilometers")]
-    pub fn get_res_kilometers_py(&mut self, annualize: bool) -> f64 {
-        self.get_res_kilometers(annualize)
-    }
-    
-    #[pyo3(name = "get_non_res_kilometers")]
-    pub fn get_non_res_kilometers_py(&mut self, annualize: bool) -> f64 {
-        self.get_non_res_kilometers(annualize)
     }
 
     #[pyo3(name = "set_save_interval")]
@@ -711,27 +768,6 @@ impl SpeedLimitTrainSimVec {
         self.0
             .iter()
             .map(|sim| sim.get_megagram_kilometers(annualize))
-            .sum()
-    }
-
-    pub fn get_kilometers(&self, annualize: bool) -> f64 {
-        self.0
-            .iter()
-            .map(|sim| sim.get_kilometers(annualize))
-            .sum()
-    }
-    
-    pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {
-        self.0
-            .iter_mut()
-            .map(|sim| sim.get_res_kilometers(annualize))
-            .sum()
-    }
-    
-    pub fn get_non_res_kilometers(&mut self, annualize: bool) -> f64 {
-        self.0
-            .iter_mut()
-            .map(|sim| sim.get_non_res_kilometers(annualize))
             .sum()
     }
 

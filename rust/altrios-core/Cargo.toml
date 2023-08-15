@@ -2,6 +2,12 @@
 name = "altrios-core"
 version = "0.1.0"
 edition = "2021"
+license-file = "../../LICENSE.md"
+authors = ["NREL/MTES/CIMS/MBAP Group"]
+description = "ALTRIOS Core model for train simulation"
+homepage = "https://www.nrel.gov/transportation/altrios.html"
+readme = "../../README.md"
+repository = "https://github.com/NREL/altrios"
 
 [dependencies]
 csv = "1.1.6"
@@ -11,7 +17,7 @@ serde_json = "1.0"
 uom = { workspace = true }
 paste = "1.0.7"
 easy-ext = "1.0.0"
-proc-macros = { path = "proc-macros" }
+altrios-proc-macros = { version = "0.1.0", path = "altrios-proc-macros" }
 argmin = "0.5.1"
 enum_dispatch = "0.3.8"
 rayon = "1.5.3"
@@ -21,12 +27,23 @@ anyhow = { workspace = true }
 readonly = "0.2.3"
 duplicate = "0.4.1"
 nohash-hasher = "0.2.0"
-polars = {version = "0.30", features = ["dtype-categorical","rank","strings"]}
-polars-lazy = {version = "0.30", features = ["dtype-categorical","rank","strings"]}
-pyo3-polars = {version = "0.4.1", features = ["lazy"]}
+polars = { workspace = true, features = [
+    "dtype-categorical",
+    "rank",
+    "strings",
+] }
+polars-lazy = { workspace = true, features = [
+    "dtype-categorical",
+    "rank",
+    "strings",
+] }
+pyo3-polars = { workspace = true, features = ["lazy"] }
 
 # optional
-pyo3 = { workspace = true, features = ["extension-module", "anyhow"], optional = true }
+pyo3 = { workspace = true, features = [
+    "extension-module",
+    "anyhow",
+], optional = true }
 serde-this-or-that = "0.4.2"
 project-root = "0.2.2"
 

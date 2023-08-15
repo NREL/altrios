@@ -27,7 +27,7 @@ rail_vehicle_map = alt.import_rail_vehicles(
 location_map = alt.import_locations(
     str(alt.resources_root() / "networks/default_locations.csv")
 )
-network = alt.import_network(str(alt.resources_root() / "networks/Taconite.yaml"))
+network = alt.import_network(str(alt.resources_root() / "networks/Taconite-NoBalloon.yaml"))
 
 t1_import = time.perf_counter()
 print(

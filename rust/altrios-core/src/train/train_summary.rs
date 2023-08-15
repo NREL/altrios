@@ -1,17 +1,12 @@
 use super::resistance::kind as res_kind;
 use super::resistance::method as res_method;
-use crate::consist::locomotive::locomotive_model::LocoType;
 use crate::consist::Mass;
 
 use super::{
     friction_brakes::*, rail_vehicle::RailVehicleMap, train_imports::*, InitTrainState,
-    LinkIdxTime, SetSpeedTrainSim, SpeedLimitTrainSim, SpeedTrace, TrainState,
+    SetSpeedTrainSim, SpeedLimitTrainSim, SpeedTrace, TrainState,
 };
 use crate::track::LocationMap;
-
-use polars::prelude::*;
-use polars_lazy::prelude::*;
-use pyo3_polars::PyDataFrame;
 
 #[altrios_api(
     #[new]

@@ -404,6 +404,7 @@ pub fn run_speed_limit_train_sims(
 
     let active_loco_statuses = Series::from_iter(vec!["Refueling".to_string(), "Dispatched".to_string()]);
     let mut current_time: f64 = (&arrival_times).column("Arrival_Time_Actual_Hr")?.min().unwrap();
+
     let mut done = false;
     while !done {
         let arrivals_mask = (&arrival_times).column("Arrival_Time_Actual_Hr")?.equal(current_time)?;

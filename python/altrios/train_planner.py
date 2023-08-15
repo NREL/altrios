@@ -784,9 +784,11 @@ def update_refuel_queue(
             port_counts = charger_type.get_column("Port_Count")
             for i in range(0, refueling_done_times.len()):
                 if refueling_done_times[i] is not None: continue
-                next_done = refueling_done_times.filter(refueling_done_times.rank(method='ordinal', descending = True).eq(port_counts[i]))
+                next_done = refueling_done_times.filter(
+                    (refueling_done_times.is_not_null()) & 
+                    (refueling_done_times.rank(method='ordinal', descending = True).eq(port_counts[i])))
                 if next_done.len() == 0: next_done = arrival_times[i]
-                else: next_done = next_done[0]
+                else: next_done = max(next_done[0], arrival_times[i])
                 refueling_done_times[i] = next_done + refueling_durations[i]
             charger_type_list.append(pl.DataFrame([loco_ids, refueling_done_times]))
 

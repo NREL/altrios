@@ -79,7 +79,7 @@ def simulate_prescribed_rollout(
 
         t1 = time.perf_counter()
         if DEBUG:
-            print(f"Elapsed time to run `sim_manager.main()`: {t1-t0:.3g} s")
+            print(f"Elapsed time to run `sim_manager.main() for year {scenario_year}`: {t1-t0:.3g} s")
         speed_limit_train_sims.set_save_interval(save_interval)
         used_loco_pool = loco_pool.filter(pl.col("Locomotive_ID").is_in(train_consist_plan.get_column("Locomotive_ID").unique()))
         (sims, refuel_sessions) = alt.run_speed_limit_train_sims(
@@ -109,27 +109,32 @@ def simulate_prescribed_rollout(
             grid_emissions_factors,
             nodal_energy_prices,
             count_unused_locomotives))
-
+        
         t2 = time.perf_counter()
                     
+        if DEBUG:
+            print(f"Elapsed time to run `run_speed_limit_train_sims()` for year {scenario_year}: {t2-t1:.3g} s")
+
         if write_complete_results:
             print(results_folder +'/RolloutResults_Year {}_Demand {}.json'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv',''))
             sims.to_file(results_folder +'/RolloutResults_Year {}_Demand {}.json'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv',''))
             
             train_consist_plan.write_csv(results_folder +'/ConsistPlan_Year {}_Demand {}.csv'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv','')+ '.csv')
+            t3 = time.perf_counter()
 
-        if DEBUG:
-            print(
-                f"Elapsed time to run `run_speed_limit_train_sims()`: {t2-t1:.3g} s")
+            if DEBUG:
+                print(f"Elapsed time to serialize results for year {scenario_year}: {t3-t2:.3g} s")
+        
+        t2 = time.perf_counter()
 
     metrics = metric_calculator.main(scenarios)
 
     if write_metrics:
         print(results_folder +'/Metrics_Demand {}_DemandFile {}.xlsx'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv',''))
         metrics.to_pandas().to_excel(results_folder +'/Metrics_Demand {}_DemandFile {}.xlsx'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv',''))
-
+    
     t3 = time.perf_counter()
     if DEBUG:
-        print(f"Elapsed time to run metric_calculator.main(): {t3-t2:.3g} s")
+        print(f"Elapsed time to run `metric_calculator.main()` and serialize metrics: {t3-t2:.3g} s")
 
     return scenarios, metrics

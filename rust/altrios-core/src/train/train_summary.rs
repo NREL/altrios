@@ -10,9 +10,9 @@ use super::{
 use crate::track::LocationMap;
 
 use polars::prelude::*;
+use polars_lazy::dsl::max_horizontal;
 use polars_lazy::prelude::*;
 use pyo3_polars::PyDataFrame;
-use polars_lazy::dsl::max_horizontal;
 
 #[altrios_api(
     #[new]
@@ -455,36 +455,38 @@ pub fn run_speed_limit_train_sims(
                         .otherwise(col("Node"))
                         .alias("Node"),
                 ])
-                .drop_columns(vec!["Charger_J_Per_Hr", "Queue_Size","Battery_Headroom_J"])
+                .drop_columns(vec!["Charger_J_Per_Hr", "Queue_Size", "Battery_Headroom_J"])
                 .join(
                     refuel_facilities.clone().lazy(),
                     [col("Node"), col("Type")],
                     [col("Node"), col("Type")],
                     JoinArgs::new(JoinType::Left),
                 )
-                .with_columns(vec![
-                    col("Battery_Headroom_J").fill_null(0)
+                .with_columns(vec![col("Battery_Headroom_J").fill_null(0)])
+                .with_columns(vec![max_horizontal([
+                    col("SOC_Max_J") - col("Battery_Headroom_J"),
+                    col("SOC_Min_J"),
                 ])
-                .with_columns(vec![
-                    max_horizontal([col("SOC_Max_J")-col("Battery_Headroom_J"), col("SOC_Min_J")]).alias("SOC_Target_J")
-                ])
+                .alias("SOC_Target_J")])
                 .sort("Ready_Time_Est", SortOptions::default())
                 .collect()
                 .unwrap();
 
             let indices = arrivals.column("TrainSimVec Index")?.u32()?.unique()?;
             for index in indices.into_iter() {
-                let idx = index.unwrap() as usize; //ChunkedArray<Float64Type> 
+                let idx = index.unwrap() as usize; //ChunkedArray<Float64Type>
                 let departing_soc_pct = train_consist_plan
                     .clone()
                     .lazy()
                     .filter(col("TrainSimVec Index").eq(index.unwrap()))
                     .select(vec![col("Locomotive_ID")])
                     .unique(None, UniqueKeepStrategy::First)
-                    .join(loco_pool.clone().lazy(),
+                    .join(
+                        loco_pool.clone().lazy(),
                         [col("Locomotive_ID")],
                         [col("Locomotive_ID")],
-                        JoinArgs::new(JoinType::Left))
+                        JoinArgs::new(JoinType::Left),
+                    )
                     .sort("Locomotive_ID", SortOptions::default())
                     .with_columns(vec![(col("SOC_J") / col("Capacity_J")).alias("SOC_Pct")])
                     .collect()?
@@ -620,7 +622,8 @@ pub fn run_speed_limit_train_sims(
                 .clone()
                 .lazy()
                 .select(&[(lit(current_time)
-                    + (max_horizontal([col("SOC_J"),col("SOC_Target_J")]) - col("SOC_J")) / col("Charger_J_Per_Hr"))
+                    + (max_horizontal([col("SOC_J"), col("SOC_Target_J")]) - col("SOC_J"))
+                        / col("Charger_J_Per_Hr"))
                 .alias("Charge_End_Time")])
                 .collect()?
                 .column("Charge_End_Time")?

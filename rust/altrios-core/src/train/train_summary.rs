@@ -492,16 +492,20 @@ pub fn run_speed_limit_train_sims(
                     .clone()
                     .into_series();
 
-                let departing_soc_pct_vec: Vec<f64> = departing_soc_pct.f64()?.into_no_null_iter().collect();
+                let departing_soc_pct_vec: Vec<f64> =
+                    departing_soc_pct.f64()?.into_no_null_iter().collect();
 
                 let sim = &mut speed_limit_train_sims.0[idx];
-                for (index, loco) in sim.loco_con.loco_vec.iter_mut().enumerate() {
-                    let soc = departing_soc_pct_vec[index];
-                    match loco.loco_type {
-                        LocoType::BatteryElectricLoco(_) => loco.reversible_energy_storage().unwrap().state.soc = si::Ratio::new::<si::ratio>(soc),
-                        _ => {}
-                    }
-                }
+                sim.loco_con
+                    .loco_vec
+                    .iter_mut()
+                    .zip(departing_soc_pct_vec)
+                    .for_each(
+                        |(loco, soc)| match &mut loco.reversible_energy_storage_mut() {
+                            Some(loco) => loco.state.soc = soc * uc::R,
+                            None => {}
+                        },
+                    );
 
                 let _ = sim
                     .walk_timed_path(&network, &timed_paths[idx])

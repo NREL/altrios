@@ -31,11 +31,12 @@ def simulate_prescribed_rollout(
 ) -> Tuple[List[ScenarioInfo], pl.DataFrame]:
     years = list(range(start_year, start_year + number_of_years))
     target_bel_shares = np.zeros(len(years))
-    if len(years) == 1:
+    if len(years) == 0:
         target_bel_shares[0] = max_bel_share
     else:
         for idx, _ in enumerate(target_bel_shares):
-            target_bel_shares[idx] = ((idx+1) / (len(years))) * max_bel_share
+            if idx==0: target_bel_shares[idx] = 0.0
+            else: target_bel_shares[idx] = ((idx) / (len(years)-1)) * max_bel_share
 
     save_dir = Path(results_folder)
     save_dir.mkdir(exist_ok=True, parents=True) 

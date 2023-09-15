@@ -2,7 +2,7 @@
 name = "altrios-core"
 version = "0.1.0"
 edition = "2021"
-license-file = "../../LICENSE.md"
+license = "BSD-3-Clause"
 authors = ["NREL/MTES/CIMS/MBAP Group"]
 description = "ALTRIOS Core model for train simulation"
 homepage = "https://www.nrel.gov/transportation/altrios.html"

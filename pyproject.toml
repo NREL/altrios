@@ -21,10 +21,11 @@ authors = [
 ]
 description = "Tool for modeling and optimization of advanced locomotive powertrains for freight rail decarbonization."
 readme = "README.md"
-license = {file = "LICENSE.md"}
+license = { file = "LICENSE.md" }
 requires-python = ">=3.9, <3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: License :: OSI Approved :: BSD License",
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
@@ -48,21 +49,21 @@ dependencies = [
 dev = ["black", "pytest", "maturin", "ipykernel"]
 
 [project.urls]
-Homepage = "https://www.nrel.gov/transportation/altrios.html" 
+Homepage = "https://www.nrel.gov/transportation/altrios.html"
 
 [tool.maturin]
-profile="release"
-python-source="python"
+profile = "release"
+python-source = "python"
 features = ["pyo3/extension-module"]
 module-name = "altrios.altrios_core_py"
 manifest-path = "rust/altrios-core-py/Cargo.toml"
 include = [
-    { format = "sdist", path = "rust/altrios-core/Cargo.toml"},
-    { format = "sdist", path = "rust/altrios-core/src/*"},
-    { format = "sdist", path = "rust/altrios-core-py/Cargo.toml"},
-    { format = "sdist", path = "rust/altrios-core-py/src/*"},
-    { format = "sdist", path = "rust/altrios-core/proc-macros/Cargo.toml"},
-    { format = "sdist", path = "rust/altrios-core/proc-macros/src/*"},
-    { format = "sdist", path = "rust/uom/Cargo.toml"},
-    { format = "sdist", path = "rust/uom/src/*"},
+    { format = "sdist", path = "rust/altrios-core/Cargo.toml" },
+    { format = "sdist", path = "rust/altrios-core/src/*" },
+    { format = "sdist", path = "rust/altrios-core-py/Cargo.toml" },
+    { format = "sdist", path = "rust/altrios-core-py/src/*" },
+    { format = "sdist", path = "rust/altrios-core/proc-macros/Cargo.toml" },
+    { format = "sdist", path = "rust/altrios-core/proc-macros/src/*" },
+    { format = "sdist", path = "rust/uom/Cargo.toml" },
+    { format = "sdist", path = "rust/uom/src/*" },
 ]

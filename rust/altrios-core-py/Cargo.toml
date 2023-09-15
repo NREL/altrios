@@ -2,16 +2,17 @@
 name = "altrios-core-py"
 version = "0.1.0"
 edition = "2021"
+license = "BSD-3-Clause"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 altrios-core = { path = "../altrios-core", features = ["pyo3"] }
 pyo3 = { workspace = true, features = ["extension-module", "anyhow"] }
-pyo3-log = { workspace = true}
-polars = {workspace = true}
-polars-lazy = {workspace = true}
-pyo3-polars = {workspace = true}
+pyo3-log = { workspace = true }
+polars = { workspace = true }
+polars-lazy = { workspace = true }
+pyo3-polars = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]

@@ -16,7 +16,7 @@ pub use crate::consist::locomotive::conventional_loco::ConventionalLoco;
 pub use crate::consist::locomotive::hybrid_loco::HybridLoco;
 use crate::consist::LocoTrait;
 use crate::imports::*;
-use proc_macros::{altrios_api, HistoryVec};
+use altrios_proc_macros::{altrios_api, HistoryVec};
 
 use crate::consist::locomotive::powertrain::electric_drivetrain::ElectricDrivetrain;
 use crate::consist::locomotive::powertrain::fuel_converter::FuelConverter;

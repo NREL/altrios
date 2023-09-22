@@ -399,6 +399,7 @@ pub fn run_speed_limit_train_sims(
             vec![col("Actual Arrival Time(hr)"), col("Locomotive ID")],
             vec![false, false],
             false,
+            false,
         )
         .collect()
         .unwrap();
@@ -410,6 +411,7 @@ pub fn run_speed_limit_train_sims(
         .sort_by_exprs(
             vec![col("Locomotive ID"), col("Actual Departure Time(hr)")],
             vec![false, false],
+            false,
             false,
         )
         .collect()
@@ -457,7 +459,7 @@ pub fn run_speed_limit_train_sims(
                     refuel_facilities.clone().lazy(),
                     [col("Node"), col("Type")],
                     [col("Node"), col("Type")],
-                    JoinType::Left,
+                    JoinArgs::new(JoinType::Left),
                 )
                 .sort("Ready_Time_Est", SortOptions::default())
                 .collect()

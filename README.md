@@ -78,20 +78,26 @@ There is a shortcut for building and running all tests, assuming you've installe
 
 ### Manually Building the Python API
 
-Run `maturin develop --release`. Note that not including `--release` will cause a significant computational performance penalty.
+Run `maturin develop --release`. Note that not including `--release` will cause a significant runtime computational performance penalty.
 
-### Manually Testing
+### Testing
+
+#### Manually
 
 Whenever updating code, always run `cargo test --release` inside `ALTRIOS/rust/` to ensure that all tests pass. Also, be sure to rebuild the Python API regularly to ensure that it is up to date. Python unit tests run with `python -m unittest discover` in the root folder of the git repository.
 
+#### With GitHub Actions
+Any time anyone pushes to `main` or does any pull request, the GitHub Actions [tests workflow](https://github.com/NREL/altrios/blob/686e8c28828cb980cc45567d08091e69b7bee52c/.github/workflows/tests.yaml#L3) is triggered.  
+
 ### Releasing
 
-To release the package, you can follow these steps:
+#### With GitHub Actions
+To release the package with GitHub Actions, you can follow these steps:
 
-1. Create a new branch in the format `v<major>.<minor>.<patch>`. For example `v0.2.1`.
-1. Update the version number in the `pyproject.toml` file.
+1. With the changes already committed, create a new branch in the format `v<major>.<minor>.<patch>`. For example `v0.2.1`.
+1. Update the version number in the `pyproject.toml` file.  Commit and push to https://github.com/NREL/altrios.  
 1. Open a pull request into the main branch and make sure all checks pass.
-1. Once the pull request is merged into the main branch, create a new GitHub release and create a tag that matches the branch name. Once the release is created, a GitHub action will be launched to build the wheels and publish them to PyPI. 
+1. Once the pull request is merged into the main branch by a reviewer, create a new GitHub release and create a tag that matches the branch name. Once the release is created, a [GitHub action](https://github.com/NREL/altrios/blob/686e8c28828cb980cc45567d08091e69b7bee52c/.github/workflows/wheels.yaml#L5) will be launched to build the wheels and publish them to PyPI. 
 
 # How to run ALTRIOS
 

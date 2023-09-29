@@ -63,9 +63,15 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
                 })
                 .collect();
             // println!("options {:?}", opts);
-            let mut iter = keep.iter();
-            // this drops attrs with api, removing the field attribute from the struct def
-            field.attrs.retain(|_| *iter.next().unwrap());
+            // this drops attrs with `#[altrios_api(...)]`, removing the field attribute from the struct def
+            // iter.for_each(|x| field.attrs.retain(|_| *x));
+            let new_attrs: (Vec<&syn::Attribute>, Vec<bool>) = field
+                .attrs
+                .iter()
+                .zip(keep.iter())
+                .filter(|(_a, k)| **k)
+                .unzip();
+            field.attrs = new_attrs.0.iter().cloned().cloned().collect();
 
             impl_getters_and_setters(&mut py_impl_block, ident, &opts, &ftype);
         }

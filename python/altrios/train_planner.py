@@ -811,14 +811,19 @@ def run_train_planner(
 
     done = False
     # start at first departure time
-    current_time = np.min(df_timesteps['Hour'])
+    current_time: float = np.min(df_timesteps['Hour'])
     while not done:
         # Remove locomotives that are done refueling from the refuel queue
-        refueling_finished = loco_pool.select(
+        refueling_finished: pl.Series = loco_pool.select(
             (pl.col("Status") == "Refueling") & (pl.col("Ready_Time_Est") <= current_time)).to_series()
-        refueling_finished_count = pl.sum(refueling_finished)
+        refueling_finished_count: int = pl.sum(refueling_finished)
         if(refueling_finished_count > 0):
-            refueling_times = loco_pool.filter(refueling_finished).select((pl.col('SOC_Max_J')-pl.col('SOC_J'))/pl.col('Charger_J_Per_Hr')).to_series()
+            refueling_times = (
+                loco_pool
+                    .filter(refueling_finished)
+                    .select((pl.col('SOC_Max_J') - pl.col('SOC_J')) / pl.col('Charger_J_Per_Hr'))
+                    .to_series()
+            )
             loco_pool = loco_pool.with_columns(
                 pl.when(refueling_finished)
                 .then(pl.col("SOC_Max_J"))

@@ -61,7 +61,7 @@ pillow==9.5.0
     # via matplotlib
 plotly==5.14.1
     # via altrios (setup.py)
-polars==0.17.14
+polars==0.18.7
     # via altrios (setup.py)
 pyarrow==12.0.0
     # via altrios (setup.py)

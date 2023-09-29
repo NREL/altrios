@@ -162,9 +162,7 @@ impl FuelConverter {
                 format_dbg!(dt > si::Time::ZERO)
             )
         );
-        if self.pwr_out_max_init == si::Power::ZERO {
-            self.pwr_out_max_init = self.pwr_out_max / 10.
-        };
+        self.pwr_out_max_init = self.pwr_out_max_init.max(self.pwr_out_max / 10.);
         self.state.pwr_out_max = (self.state.pwr_brake
             + (self.pwr_out_max / self.pwr_ramp_lag) * dt)
             .min(self.pwr_out_max)

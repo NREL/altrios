@@ -58,12 +58,10 @@ features = ["pyo3/extension-module"]
 module-name = "altrios.altrios_core_py"
 manifest-path = "rust/altrios-core-py/Cargo.toml"
 include = [
-    { format = "sdist", path = "rust/altrios-core/Cargo.toml" },
-    { format = "sdist", path = "rust/altrios-core/src/*" },
-    { format = "sdist", path = "rust/altrios-core-py/Cargo.toml" },
-    { format = "sdist", path = "rust/altrios-core-py/src/*" },
-    { format = "sdist", path = "rust/altrios-core/proc-macros/Cargo.toml" },
-    { format = "sdist", path = "rust/altrios-core/proc-macros/src/*" },
-    { format = "sdist", path = "rust/uom/Cargo.toml" },
-    { format = "sdist", path = "rust/uom/src/*" },
+    { format = "sdist", path = "rust/altrios-core/Cargo.toml"},
+    { format = "sdist", path = "rust/altrios-core/src/*"},
+    { format = "sdist", path = "rust/altrios-core-py/Cargo.toml"},
+    { format = "sdist", path = "rust/altrios-core-py/src/*"},
+    { format = "sdist", path = "rust/altrios-core/proc-macros/Cargo.toml"},
+    { format = "sdist", path = "rust/altrios-core/proc-macros/src/*"},
 ]

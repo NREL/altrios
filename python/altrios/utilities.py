@@ -9,6 +9,7 @@ import numpy.typing as npt
 import logging
 from pathlib import Path
 import datetime
+import requests
 
 
 from altrios.altrios_core_py import (
@@ -42,7 +43,6 @@ LHV_DIESEL_KJ_PER_KG = 45.6e3 # https://www.engineeringtoolbox.com/fuels-higher-
 RHO_DIESEL_KG_PER_M3 = 959.  # https://www.engineeringtoolbox.com/fuels-densities-specific-volumes-d_166.html
 
 WARM_START_DAYS = 7
-
 
 def print_dt():
     print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
@@ -267,3 +267,29 @@ def enable_logging():
     set_log_level(logging.WARNING)
 
 
+def download_demo_files():
+    """
+    Downloads demo files from github repo into local directory.
+    """
+
+    api_url = "https://api.github.com/repos/NREL/altrios/contents/applications/demos"
+    response = requests.get(api_url)
+    
+    if response.status_code == 200:
+        contents = response.json()
+        
+        for item in contents:
+            if item["type"] == "file" and item["name"].endswith(".py"):
+                file_url = item["download_url"]
+                file_name = item["name"]
+
+                demo_path = Path("demos")
+                demo_path.mkdir(exist_ok=True)
+                
+                with open(demo_path / file_name, "wb") as file:
+                    file_content = requests.get(file_url).content
+                    file.write(file_content)
+                    
+                print(f"Saved {file_name} to {str(demo_path / file_name)}")
+    else:
+        print("Failed to download demo files")

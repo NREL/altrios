@@ -43,6 +43,7 @@ dependencies = [
     "pyyaml",
     "polars==0.18.7",
     "pyarrow",
+    "requests",
 ]
 
 [project.optional-dependencies]

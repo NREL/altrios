@@ -46,11 +46,12 @@ dependencies = [
     "requests",
 ]
 
+[project.urls]
+homepage = "https://www.nrel.gov/transportation/altrios.html"
+source = "https://github.com/NREL/altrios"
+
 [project.optional-dependencies]
 dev = ["black", "pytest", "maturin", "ipykernel"]
-
-[project.urls]
-Homepage = "https://www.nrel.gov/transportation/altrios.html"
 
 [tool.maturin]
 profile = "release"

@@ -91,13 +91,16 @@ Any time anyone pushes to `main` or does any pull request, the GitHub Actions [t
 
 ### Releasing
 
-#### With GitHub Actions
+#### To PyPI With GitHub Actions
 To release the package with GitHub Actions, you can follow these steps:
 
 1. With the changes already committed, create a new branch in the format `v<major>.<minor>.<patch>`. For example `v0.2.1`.
 1. Update the version number in the `pyproject.toml` file.  Commit and push to https://github.com/NREL/altrios.  
 1. Open a pull request into the main branch and make sure all checks pass.
 1. Once the pull request is merged into the main branch by a reviewer, create a new GitHub release and create a tag that matches the branch name. Once the release is created, a [GitHub action](https://github.com/NREL/altrios/blob/686e8c28828cb980cc45567d08091e69b7bee52c/.github/workflows/wheels.yaml#L5) will be launched to build the wheels and publish them to PyPI. 
+
+#### To crates.io
+Instructions for releasing `altrios-core` and `altrios-proc-macros` are found in the README.md files in both of these crates.  `altrios-core-py` is a `cdylib` crate and cannot be released.  
 
 # How to run ALTRIOS
 

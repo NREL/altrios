@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "altrios"
-version = "0.1.1.post2"
+version = "0.1.2"
 authors = [
     { name = "ALTRIOS Team", email = "altrios@nrel.gov" },
     { name = "Chad Baker, Lead Developer" },
@@ -46,11 +46,12 @@ dependencies = [
     "requests",
 ]
 
+[project.urls]
+homepage = "https://www.nrel.gov/transportation/altrios.html"
+source = "https://github.com/NREL/altrios"
+
 [project.optional-dependencies]
 dev = ["black", "pytest", "maturin", "ipykernel"]
-
-[project.urls]
-Homepage = "https://www.nrel.gov/transportation/altrios.html"
 
 [tool.maturin]
 profile = "release"

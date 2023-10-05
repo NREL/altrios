@@ -10,6 +10,10 @@ alive-progress==3.1.2
     # via pymoo
 autograd==1.5
     # via pymoo
+certifi==2023.7.22
+    # via requests
+charset-normalizer==3.3.0
+    # via requests
 cma==3.2.2
     # via pymoo
 contourpy==1.0.7
@@ -28,16 +32,18 @@ future==0.18.3
     # via autograd
 grapheme==0.6.0
     # via alive-progress
+idna==3.4
+    # via requests
 kiwisolver==1.4.4
     # via matplotlib
 matplotlib==3.7.1
     # via
-    #   altrios (setup.py)
+    #   altrios (pyproject.toml)
     #   pymoo
     #   seaborn
 numpy==1.24.3
     # via
-    #   altrios (setup.py)
+    #   altrios (pyproject.toml)
     #   autograd
     #   cma
     #   contourpy
@@ -48,25 +54,25 @@ numpy==1.24.3
     #   scipy
     #   seaborn
 openpyxl==3.1.2
-    # via altrios (setup.py)
+    # via altrios (pyproject.toml)
 packaging==23.1
     # via
     #   matplotlib
     #   plotly
 pandas==2.0.1
     # via
-    #   altrios (setup.py)
+    #   altrios (pyproject.toml)
     #   seaborn
 pillow==9.5.0
     # via matplotlib
 plotly==5.14.1
-    # via altrios (setup.py)
-polars==0.17.14
-    # via altrios (setup.py)
+    # via altrios (pyproject.toml)
+polars==0.18.7
+    # via altrios (pyproject.toml)
 pyarrow==12.0.0
-    # via altrios (setup.py)
-pymoo==0.6
-    # via altrios (setup.py)
+    # via altrios (pyproject.toml)
+pymoo==0.6.0
+    # via altrios (pyproject.toml)
 pyparsing==3.0.9
     # via matplotlib
 python-dateutil==2.8.2
@@ -76,20 +82,24 @@ python-dateutil==2.8.2
 pytz==2023.3
     # via pandas
 pyyaml==6.0
-    # via altrios (setup.py)
+    # via altrios (pyproject.toml)
+requests==2.31.0
+    # via altrios (pyproject.toml)
 scipy==1.10.1
     # via pymoo
 seaborn==0.12.2
-    # via altrios (setup.py)
+    # via altrios (pyproject.toml)
 six==1.16.0
     # via python-dateutil
 tenacity==8.2.2
     # via plotly
 typing-extensions==4.5.0
-    # via altrios (setup.py)
+    # via altrios (pyproject.toml)
 tzdata==2023.3
     # via pandas
+urllib3==2.0.6
+    # via requests
 wrapt==1.15.0
     # via deprecated
 xlrd==2.0.1
-    # via altrios (setup.py)
+    # via altrios (pyproject.toml)

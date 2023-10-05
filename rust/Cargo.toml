@@ -1,9 +1,9 @@
 [workspace]
-
 members = [
-    "altrios-core", # pure rust core with optional pyo3 feature
+    "altrios-core",    # pure rust core with optional pyo3 feature
     "altrios-core-py", # python module exposing altrios-core
 ]
+resolver = "2"
 
 [profile.dev]
 opt-level = 0
@@ -15,7 +15,7 @@ opt-level = 3
 anyhow = "1.0.71"
 pyo3 = "0.19"
 pyo3-log = "*"
-polars = {version = "0.32"}
-polars-lazy = {version = "0.32"}
-pyo3-polars = {version = "0.6"}
+polars = { version = "0.32" }
+polars-lazy = { version = "0.32" }
+pyo3-polars = { version = "0.6" }
 uom = { version = "0.35.0", features = ["use_serde"] }

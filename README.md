@@ -2,7 +2,7 @@
 
 ![Altrios Logo](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS-logo-web.jpg)
 
-[![Tests](https://github.com/NREL/altrios/actions/workflows/tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/tests.yaml) [![wheels](https://github.com/NREL/altrios/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/wheels.yaml) ![Release](https://img.shields.io/badge/release-v0.1.0-blue) ![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10-blue)
+[![Tests](https://github.com/NREL/altrios/actions/workflows/tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/tests.yaml) [![wheels](https://github.com/NREL/altrios/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/wheels.yaml?event=release) ![Release](https://img.shields.io/badge/release-v0.1.0-blue) ![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10-blue)
 
 ![Model Framework Schematic](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS_schematic_Alfred_Hicks.png)
 
@@ -78,26 +78,39 @@ There is a shortcut for building and running all tests, assuming you've installe
 
 ### Manually Building the Python API
 
-Run `maturin develop --release`. Note that not including `--release` will cause a significant computational performance penalty.
+Run `maturin develop --release`. Note that not including `--release` will cause a significant runtime computational performance penalty.
 
-### Manually Testing
+### Testing
+
+#### Manually
 
 Whenever updating code, always run `cargo test --release` inside `ALTRIOS/rust/` to ensure that all tests pass. Also, be sure to rebuild the Python API regularly to ensure that it is up to date. Python unit tests run with `python -m unittest discover` in the root folder of the git repository.
 
+#### With GitHub Actions
+Any time anyone pushes to `main` or does any pull request, the GitHub Actions [tests workflow](https://github.com/NREL/altrios/blob/686e8c28828cb980cc45567d08091e69b7bee52c/.github/workflows/tests.yaml#L3) is triggered.  
+
 ### Releasing
 
-To release the package, you can follow these steps:
+#### To PyPI With GitHub Actions
+To release the package with GitHub Actions, you can follow these steps:
 
-1. Create a new branch in the format `v<major>.<minor>.<patch>`. For example `v0.2.1`.
-1. Update the version number in the `pyproject.toml` file.
+1. With the changes already committed, create a new branch in the format `v<major>.<minor>.<patch>`. For example `v0.2.1`.
+1. Update the version number in the `pyproject.toml` file.  Commit and push to https://github.com/NREL/altrios.  
 1. Open a pull request into the main branch and make sure all checks pass.
-1. Once the pull request is merged into the main branch, create a new GitHub release and create a tag that matches the branch name. Once the release is created, a GitHub action will be launched to build the wheels and publish them to PyPI. 
+1. Once the pull request is merged into the main branch by a reviewer, create a new GitHub release and create a tag that matches the branch name. Once the release is created, a [GitHub action](https://github.com/NREL/altrios/blob/686e8c28828cb980cc45567d08091e69b7bee52c/.github/workflows/wheels.yaml#L5) will be launched to build the wheels and publish them to PyPI. 
+
+#### To crates.io
+Instructions for releasing `altrios-core` and `altrios-proc-macros` are found in the README.md files in both of these crates.  `altrios-core-py` is a `cdylib` crate and cannot be released.  
 
 # How to run ALTRIOS
 
-With your activated Python environment with ALTRIOS fully installed, you can run several scripts in `ALTRIOS/applications/demos/`.
+With your activated Python environment with ALTRIOS fully installed, you can download the demo scripts to the current working directory inside of a `demos/` folder with:
+```python
+import altrios as alt  
+alt.download_demo_files()
+```
 
-You can run the Simulation Manager through a multi-week simulation of train operations with `ALTRIOS/applications/demos/sim_manager_demo.py` by running `python sim_manager_demo.py` in `ALTRIOS/applications/demos/`. This will create a `plots` subfolder in which the plots will be saved. To run interactively, fire up a Python IDE (e.g. [VS Code](https://code.visualstudio.com/Download), [Spyder](https://www.spyder-ide.org/)), and run the file. If you're in VS Code, you can run the file as a virtual jupyter notebook because of the "cells" that are marked with the `# %%` annotation. You can click on line 2, for example, and hit `<Shift> + <Enter>` to run the current cell in an interactive terminal (which will take several seconds to launch) and advance to the next cell. Alternatively, you can hit `<Ctrl> + <Shift> + p` to enable interactive commands and type "run current cell".
+You can run the Simulation Manager through a multi-week simulation of train operations in by running `python sim_manager_demo.py` in `demos/`. This will create a `plots/` subfolder in which the plots will be saved. To run interactively, fire up a Python IDE (e.g. [VS Code](https://code.visualstudio.com/Download), [Spyder](https://www.spyder-ide.org/)), and run the file. If you're in VS Code, you can run the file as a virtual jupyter notebook because of the "cells" that are marked with the `# %%` annotation. You can click on line 2, for example, and hit `<Shift> + <Enter>` to run the current cell in an interactive terminal (which will take several seconds to launch) and advance to the next cell. Alternatively, you can hit `<Ctrl> + <Shift> + p` to enable interactive commands and type "run current cell".  There are several other python files in the `demos/` folder to demonstrate various capabilities of ALTRIOS.  
 
 # Acknowledgements
  

@@ -3,4 +3,9 @@
 # pip install -qe ".[dev]" && \ 
 maturin develop --release && \
 pytest -v tests && \
-(cd applications/demos/ && python sim_manager_demo.py && python rollout_demo.py)
+(cd applications/demos/ && \
+echo "Running sim_manager_demo.py" && \
+python sim_manager_demo.py && \
+echo "Running rollout_demo.py" && \
+python rollout_demo.py) && \
+echo "Everything worked!"

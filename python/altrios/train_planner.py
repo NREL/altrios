@@ -15,19 +15,19 @@ pl.enable_string_cache(True)
 
 class TrainPlannerConfig:
     def __init__(self, 
-                 min_length: int = 60,
-                 target_length: int = 180,
+                 min_cars_per_train: int = 60,
+                 target_cars_per_train: int = 180,
                  manifest_empty_return_ratio: float = 0.6,
                  cars_per_locomotive: int = 70,
                  refuelers_per_incoming_corridor: int = 4,
                  hp_required_per_ton: Dict = {
                      "Default": {
-                        "Unit": 2.0,
+                        "Unit": 0.7,
                         "Manifest": 1.5,
-                        "Intermodal": 2+2.0,
+                        "Intermodal": 2.0 + 2.0,
                         "Unit_Empty": 2.0,
                         "Manifest_Empty": 1.5,
-                        "Intermodal_Empty": 2+2.0,
+                        "Intermodal_Empty": 2.0 + 2.0,
                         }                         
                      }, 
                  dispatch_scaling_dict: Dict = {
@@ -72,8 +72,8 @@ class TrainPlannerConfig:
         Constructor for train planner configuration objects
         Arguments:
         ----------
-        min_length: the minimum length in number of cars to form a train
-        target_length: the standard train length in number of cars
+        min_cars_per_train: the minimum length in number of cars to form a train
+        target_cars_per_train: the standard train length in number of cars
         manifest_empty_return_ratio: Desired railcar reuse ratio to calculate the empty manifest car demand, (E_ij+E_ji)/(L_ij+L_ji)
         cars_per_locomotive: Heuristic scaling factor used to size number of locomotives needed based on demand.
         refuelers_per_incoming_corridor: 
@@ -82,8 +82,8 @@ class TrainPlannerConfig:
         loco_info:
         refueler_info:
         """
-        self.min_length = min_length
-        self.target_length = target_length
+        self.min_cars_per_train = min_cars_per_train
+        self.target_cars_per_train = target_cars_per_train
         self.manifest_empty_return_ratio = manifest_empty_return_ratio
         self.cars_per_locomotive = cars_per_locomotive
         self.refuelers_per_incoming_corridor = refuelers_per_incoming_corridor
@@ -367,9 +367,9 @@ def generate_demand_trains(
                 .then(0)
                 .otherwise(
                     pl.max([1,
-                        (pl.when(pl.col("Number_of_Cars_Total").mod(pl.lit(config.target_length)).gt(pl.lit(config.min_length)))
-                            .then(pl.col("Number_of_Cars_Total").floordiv(pl.lit(config.target_length)))
-                            .otherwise(pl.col("Number_of_Cars_Total").floordiv(pl.lit(config.target_length))+1))
+                        (pl.when(pl.col("Number_of_Cars_Total").mod(pl.lit(config.target_cars_per_train)).gt(pl.lit(config.min_cars_per_train)))
+                            .then(pl.col("Number_of_Cars_Total").floordiv(pl.lit(config.target_cars_per_train)))
+                            .otherwise(pl.col("Number_of_Cars_Total").floordiv(pl.lit(config.target_cars_per_train))+1))
                         ])
                 )
                 .alias("Number_of_Trains"))

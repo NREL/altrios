@@ -29,7 +29,7 @@ for target in targets:
         demand_file_path=File,
         train_planner_config=train_planner.TrainPlannerConfig(
             cars_per_locomotive=50,
-            target_length=90),
+            target_cars_per_train=90),
         count_unused_locomotives=False,
         write_complete_results=False,
         freight_demand_percent_growth=0,

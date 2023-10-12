@@ -9,9 +9,49 @@ import altrios as alt
 
 # %%
 
-save_interval = 1
+SAVE_INTERVAL = 1
 
-train_sim = alt.SetSpeedTrainSim.default()
+
+res = alt.ReversibleEnergyStorage.from_file(
+    str(alt.resources_root() / 
+        "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
+    )
+)
+edrv = alt.ElectricDrivetrain(
+    pwr_out_frac_interp=[0., 1.],
+    eta_interp=[0.98, 0.98],
+    pwr_out_max_watts=5e9,
+    save_interval=SAVE_INTERVAL,
+)
+
+loco_params = alt.LocoParams.from_dict
+
+loco_vec = [
+    alt.Locomotive.build_battery_electric_loco(
+        reversible_energy_storage=res,
+        drivetrain=edrv,
+        pwr_aux_offset_watts=8.55e3,
+        pwr_aux_traction_coeff=540.e-6,
+        force_max_newtons=None,
+    )
+]
+loco_con = alt.Consist(
+    loco_vec,
+    SAVE_INTERVAL,
+)
+train_state = alt.TrainState.
+speed_trace = alt.SpeedTrace.
+train_res = alt.Train.
+path_tpc = alt.
+
+train_sim = alt.SetSpeedTrainSim.new(
+    loco_con,
+    train_state,
+    speed_trace,
+    train_res,
+    path_tpc,
+    SAVE_INTERVAL,
+)
 train_sim.set_save_interval(1)
 t0 = time.perf_counter()
 train_sim.walk()

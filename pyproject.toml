@@ -25,7 +25,7 @@ license = { file = "LICENSE.md" }
 requires-python = ">=3.9, <3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: License :: OSI Approved :: BSD License",
+    "License :: OSI Approved :: BSD License",
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",

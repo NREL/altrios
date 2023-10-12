@@ -398,6 +398,20 @@ class GeneratorStateHistoryVec:
     def __len__(self) -> int: ...
 
 
+class LocoParams:
+    pwr_aux_offset: float
+    pwr_aux_traction_coeff: float
+    force_max: float
+    mass: Optional[float]
+
+    @classmethod
+    def from_dict(cls, param_dict: Dict[str, float]) -> Self: 
+        """
+        Argument `param_dict` has keys matching attributes of class
+        """
+        ...
+
+
 class Locomotive:
     assert_limits: bool
     edrv: Any
@@ -418,11 +432,9 @@ class Locomotive:
         cls,
         reversible_energy_storage: ReversibleEnergyStorage,
         drivetrain: ElectricDrivetrain,
-        pwr_aux_offset_watts: float,
-        pwr_aux_traction_coeff: float,
-        force_max_newtons: float,
+        loco_params: LocoParams,
         save_interval: Optional[int]
-    ) -> Any: ...
+    ) -> Self: ...
 
     @classmethod
     def default_battery_electic_loco(cls) -> Locomotive: ...

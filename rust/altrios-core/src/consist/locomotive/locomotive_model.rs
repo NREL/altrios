@@ -30,6 +30,58 @@ impl std::string::ToString for LocoType {
     }
 }
 
+#[altrios_api(
+    #[classmethod]
+    fn from_dict(_cls: &PyType, param_dict: HashMap<&str, f64>) -> anyhow::Result<Self> {
+        Self::from_hash(param_dict)
+    }
+)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+/// Struct to facilitate passing several parameters to builder
+pub struct LocoParams {
+    /// [Locomotive::pwr_aux_offset]
+    pub pwr_aux_offset: si::Power,
+    /// [Locomotive::pwr_aux_traction_coeff]
+    pub pwr_aux_traction_coeff: si::Ratio,
+    /// [Locomotive::force_max]
+    pub force_max: si::Force,
+    #[api(skip_get, skip_set)]
+    /// [Locomotive::mass]
+    pub mass: Option<si::Mass>,
+}
+
+impl LocoParams {
+    fn from_hash(mut params: HashMap<&str, f64>) -> anyhow::Result<Self> {
+        let pwr_aux_offset_watts = params
+            .remove("pwr_aux_offset_watts")
+            .ok_or_else(|| anyhow!("Must provide 'pwr_aux_offset_watts'."))?;
+        let pwr_aux_traction_coeff_ratio = params
+            .remove("pwr_aux_traction_coeff_ratio")
+            .ok_or_else(|| anyhow!("Must provide 'pwr_aux_traction_coeff_ratio'."))?;
+        let force_max_newtons = params
+            .remove("force_max_newtons")
+            .ok_or_else(|| anyhow!("Must provide 'force_max_newtons'."))?;
+        let mass_kg = params.remove("mass_kg");
+        Ok(Self {
+            pwr_aux_offset: pwr_aux_offset_watts * uc::W,
+            pwr_aux_traction_coeff: pwr_aux_traction_coeff_ratio * uc::R,
+            force_max: force_max_newtons * uc::N,
+            mass: mass_kg.map(|m| m * uc::KG),
+        })
+    }
+}
+
+impl Default for LocoParams {
+    fn default() -> Self {
+        Self {
+            pwr_aux_offset: 8554.15 * uc::W,
+            pwr_aux_traction_coeff: 0.000539638 * uc::R,
+            force_max: 667.2e3 * uc::N,
+            mass: None,
+        }
+    }
+}
+
 #[derive(Clone, Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
 pub struct Dummy {}
 
@@ -133,12 +185,10 @@ impl LocoTrait for Dummy {
         _cls: &PyType,
         reversible_energy_storage: ReversibleEnergyStorage,
         drivetrain: ElectricDrivetrain,
-        pwr_aux_offset_watts: f64,
-        pwr_aux_traction_coeff_ratio: f64,
-        force_max_newtons: f64,
+        loco_params: LocoParams,
         save_interval: Option<usize>,
 
-    ) -> PyResult<Self> {
+    ) -> anyhow::Result<Self> {
         let mut loco = Self {
             loco_type: LocoType::BatteryElectricLoco(BatteryElectricLoco::new(
                 reversible_energy_storage,
@@ -148,9 +198,9 @@ impl LocoTrait for Dummy {
             save_interval,
             history: LocomotiveStateHistoryVec::new(),
             assert_limits: true,
-            pwr_aux_offset: pwr_aux_offset_watts * uc::W,
-            pwr_aux_traction_coeff: pwr_aux_traction_coeff_ratio * uc::R,
-            force_max: Some(force_max_newtons * uc::N),
+            pwr_aux_offset: loco_params.pwr_aux_offset,
+            pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
+            force_max: Some(loco_params.force_max),
             ..Default::default()
 
         };
@@ -343,13 +393,14 @@ pub struct Locomotive {
 
 impl Default for Locomotive {
     fn default() -> Self {
+        let loco_params = LocoParams::default();
         let mut loco = Self {
             loco_type: LocoType::ConventionalLoco(ConventionalLoco::default()),
-            pwr_aux_offset: 8554.15 * uc::W, // pwr_aux_offset
-            pwr_aux_traction_coeff: 0.000539638 * uc::R, // pwr_aux_traction_coeff
-            force_max: None,
+            pwr_aux_offset: loco_params.pwr_aux_offset,
+            pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
+            mass: loco_params.mass,
+            force_max: Some(loco_params.force_max),
             state: Default::default(),
-            mass: Default::default(),
             ballast_mass: Default::default(),
             baseline_mass: Default::default(),
             save_interval: Some(1),

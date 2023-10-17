@@ -24,7 +24,12 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
-loco_params = alt.LocoParams.from_dict
+loco_params = alt.LocoParams.from_dict({
+    'pwr_aux_offset_watts':8.55e3,
+    'pwr_aux_traction_coeff':540.e-6,
+    'force_max_newtons': 667.2e3,
+    'mass_kg': None
+})
 
 loco_vec = [
     alt.Locomotive.build_battery_electric_loco(

@@ -26,6 +26,7 @@ fn altrios_core_py(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ElectricDrivetrainStateHistoryVec>()?;
 
     m.add_class::<Locomotive>()?;
+    m.add_class::<LocoParams>()?;
     m.add_class::<LocomotiveState>()?;
     m.add_class::<LocomotiveStateHistoryVec>()?;
     m.add_class::<LocomotiveSimulation>()?;

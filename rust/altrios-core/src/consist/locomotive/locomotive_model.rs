@@ -62,6 +62,12 @@ impl LocoParams {
             .remove("force_max_newtons")
             .ok_or_else(|| anyhow!("Must provide 'force_max_newtons'."))?;
         let mass_kg = params.remove("mass_kg");
+        ensure!(
+            params.is_empty(),
+            "{}\nSuperfluous `params` keys: {:?}",
+            format_dbg!(),
+            params.keys()
+        );
         Ok(Self {
             pwr_aux_offset: pwr_aux_offset_watts * uc::W,
             pwr_aux_traction_coeff: pwr_aux_traction_coeff_ratio * uc::R,

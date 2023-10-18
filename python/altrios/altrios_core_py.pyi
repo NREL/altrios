@@ -539,6 +539,7 @@ class LocomotiveStateHistoryVec:
     def __len__(self) -> int: ...
 
 
+@dataclass
 class PowerTrace:
     time_seconds: list[float]
     pwr_watts: list[float]
@@ -559,6 +560,7 @@ class PowerTrace:
     def to_yaml(self) -> Any: ...
     def __copy__(self) -> Any: ...
     def __len__(self) -> int: ...
+    def from_csv_file(pathstr: str) -> Self: ...
 
 
 class Pyo3Vec2Wrapper:
@@ -771,8 +773,6 @@ class SpeedTrace:
     time_seconds: list[float]
     speed_meters_per_second: list[float]
     engine_on: Optional[list[bool]]
-    @classmethod
-    def __init__(cls) -> None: ...
     def clone(self) -> Self: ...
     @classmethod
     def default(cls) -> Self: ...
@@ -789,6 +789,7 @@ class SpeedTrace:
     def to_yaml(self) -> Any: ...
     def __copy__(self) -> Any: ...
     def __len__(self) -> int: ...
+    def from_csv_file(pathstr: str) -> Self: ...
 
 
 class TrainState:
@@ -954,6 +955,7 @@ class SpeedLimitTrainSimVec:
     def from_file(cls, filename: str) -> Self: ...
     def to_file(self, filename: str) -> None: ...
     def tolist(self) -> List[SpeedLimitTrainSim]: ...
+    def set_save_interval(save_interal: int): ...
 
 
 @dataclass
@@ -1026,14 +1028,34 @@ class TrainSimBuilder:
         init_train_state
     ) -> None: ...
 
+    def make_set_speed_train_sim(
+        rail_vehicle_map: Dict[str, RailVehicle],
+        network: List[Link],
+        link_path: List[LinkIdx],
+        speed_trace: SpeedTrace,
+        save_interval: Optional[int],
+    ) -> SetSpeedTrainSim:
+        ...
 
+    def make_speed_limit_train_sim(
+        self,
+        rail_vehicle_map: Dict[str, RailVehicle],
+        location_map: Dict[str, List[Location]],
+        save_interval: Optional[int],
+        simulation_days: Optional[int],
+        scenario_year: Optional[int],
+    ) -> SpeedLimitTrainSim:
+        ...
+
+
+@dataclass
 class TrainSummary:
+    rail_vehicle_type: str
     cars_empty: int
     cars_loaded: int
-    rail_vehicle_type: str
-    train_id: str
-    train_length: Optional[float]
-    train_mass: Optional[float]
+    train_type: str
+    train_length_meters: Optional[float]
+    train_mass_kilograms: Optional[float]
     @classmethod
     def default(cls) -> Self: ...
     @classmethod
@@ -1175,6 +1197,7 @@ def run_dispatch(
 ) -> List[List[LinkIdxTime]]: ...
 
 
+@dataclass
 class InitTrainState:
     time_seconds: float
     offset_meters: float

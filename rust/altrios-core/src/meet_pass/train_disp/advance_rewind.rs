@@ -10,10 +10,11 @@ impl TrainDisp {
     ///
     /// To use via cargo, create a `.cargo/config.toml` with the
     /// following contents:
-    ///
+    /// ```toml
     /// \[build\]
     ///
     /// rustflags = "--cfg debug_advance_rewind"
+    /// ```
     pub fn advance(
         &mut self,
         link_disp_auths: &mut [Vec<DispAuth>],

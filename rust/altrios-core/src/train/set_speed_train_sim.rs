@@ -10,15 +10,21 @@ use super::train_imports::*;
         Ok(Self::new(time_seconds, speed_meters_per_second, engine_on))
     }
 
+    #[classmethod]
+    #[pyo3(name = "from_csv_file")]
+    fn from_csv_file_py(_cls: &PyType, pathstr: String) -> anyhow::Result<Self> {
+        Self::from_csv_file(&pathstr)
+    }
+
     fn __len__(&self) -> usize {
         self.len()
     }
 )]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerdeAPI)]
 pub struct SpeedTrace {
-    /// simulation time \[s\]
+    /// simulation time
     pub time: Vec<si::Time>,
-    /// simulation speed \[m/s\]
+    /// simulation speed
     pub speed: Vec<si::Velocity>,
     /// Whether engine is on
     pub engine_on: Option<Vec<bool>>,
@@ -67,6 +73,52 @@ impl SpeedTrace {
     pub fn is_empty(&self) -> bool {
         true // not really possible to create an empty SpeedTrace
     }
+
+    pub fn push(&mut self, speed_element: SpeedTraceElement) -> anyhow::Result<()> {
+        self.time.push(speed_element.time);
+        self.speed.push(speed_element.speed);
+        self.engine_on
+            .as_mut()
+            .map(|eo| match speed_element.engine_on {
+                Some(seeeo) => {
+                    eo.push(seeeo);
+                    Ok(())
+                }
+                None => bail!(
+                    "`engine_one` in `SpeedTraceElement` and `SpeedTrace` must both have same option variant."),
+            });
+        Ok(())
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            time: Vec::new(),
+            speed: Vec::new(),
+            engine_on: None,
+        }
+    }
+
+    /// Load cycle from csv file
+    pub fn from_csv_file(pathstr: &str) -> Result<Self, anyhow::Error> {
+        let pathbuf = PathBuf::from(&pathstr);
+
+        // create empty cycle to be populated
+        let mut pt = Self::empty();
+
+        let file = File::open(pathbuf)?;
+        let mut rdr = csv::ReaderBuilder::new()
+            .has_headers(true)
+            .from_reader(file);
+        for result in rdr.deserialize() {
+            let pt_elem: SpeedTraceElement = result?;
+            pt.push(pt_elem)?;
+        }
+        if pt.is_empty() {
+            bail!("Invalid PowerTrace file; Powertrace is empty")
+        } else {
+            Ok(pt)
+        }
+    }
 }
 
 impl Default for SpeedTrace {
@@ -78,6 +130,17 @@ impl Default for SpeedTrace {
         let time_s: Vec<f64> = (0..speed_mps.len()).map(|x| x as f64).collect();
         Self::new(time_s, speed_mps, None)
     }
+}
+
+/// Element of [SpeedTrace].  Used for vec-like operations.
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+pub struct SpeedTraceElement {
+    /// simulation time
+    time: si::Time,
+    /// prescribed speed
+    speed: si::Velocity,
+    /// whether engine is on
+    engine_on: Option<bool>,
 }
 
 #[altrios_api(
@@ -299,14 +362,6 @@ impl SetSpeedTrainSim {
             self.state.energy_whl_out_neg -= self.state.pwr_whl_out * dt;
         }
     }
-
-    // /// Solves or fuel consumption \[W\]
-    // /// Arguments:
-    // /// ----------
-    // /// pwr_out_req: float, output brake power required from fuel converter.
-    // pub fn solve_energy_consumption(&mut self, pwr_out_req: si::Power, dt: si::Time) {
-    //     self.loco_con.solve_energy_consumption(pwr_out_req, dt);
-    // }
 }
 
 impl Default for SetSpeedTrainSim {

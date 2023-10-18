@@ -456,10 +456,7 @@ impl Mass for Locomotive {
                 }
             }
             None => {
-                self.mass = Some(
-                    self.derived_mass()?
-                        .ok_or_else(|| anyhow!("`mass` must be provided or set."))?,
-                )
+                self.mass = self.derived_mass()?;
             }
         }
         Ok(())

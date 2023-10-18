@@ -24,6 +24,7 @@ pub struct InitTrainState {
     pub dt: si::Time,
 }
 
+// TODO: get rid of this function
 impl Default for InitTrainState {
     fn default() -> Self {
         Self {

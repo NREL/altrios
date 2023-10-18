@@ -29,10 +29,10 @@ use crate::imports::*;
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, SerdeAPI)]
 /// Container
 pub struct PowerTrace {
-    /// simulation time \[s\]
+    /// simulation time
     #[serde(rename = "time_seconds")]
     pub time: Vec<si::Time>,
-    /// simulation power \[W\]
+    /// simulation power
     #[serde(rename = "pwr_watts")]
     pub pwr: Vec<si::Power>,
     /// Whether engine is on
@@ -121,13 +121,13 @@ impl Default for PowerTrace {
     }
 }
 
-/// Element of `PowerTrace`.  Used for vec-like operations.
+/// Element of [PowerTrace].  Used for vec-like operations.
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
 pub struct PowerTraceElement {
-    /// simulation time \[s\]
+    /// simulation time
     #[serde(rename = "time_seconds")]
     time: si::Time,
-    /// simulation power \[W\]
+    /// simulation power
     #[serde(rename = "pwr_watts")]
     pwr: si::Power,
     /// Whether engine is on
@@ -265,7 +265,7 @@ impl LocomotiveSimulation {
         Ok(())
     }
 
-    /// Solves for fuel and RES consumption \[W\]
+    /// Solves for fuel and RES consumption
     /// Arguments:
     /// ----------
     /// pwr_out_req: float, output brake power required from fuel converter.

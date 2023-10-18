@@ -42,12 +42,12 @@ use pyo3_polars::PyDataFrame;
 pub struct TrainSummary {
     /// User-defined identifier for the car type on this train
     pub rail_vehicle_type: String,
-    /// Train type matching one of the PTC types
-    pub train_type: TrainType,
     /// Number of empty railcars on the train
     pub cars_empty: u32,
     /// Number of loaded railcars on the train
     pub cars_loaded: u32,
+    /// Train type matching one of the PTC types
+    pub train_type: TrainType,
     /// Train length that overrides the railcar specific value
     #[api(skip_set, skip_get)]
     pub train_length: Option<si::Length>,
@@ -181,7 +181,7 @@ impl Valid for TrainSummary {
 )]
 #[derive(Debug, Default, Clone, Deserialize, Serialize, PartialEq, SerdeAPI)]
 pub struct TrainSimBuilder {
-    /// Unique identifier for the train starting from 0
+    /// Unique, user-defined identifier for the train
     pub train_id: String,
     /// Origin ID from train planner to map to track network locations
     pub origin_id: String,
@@ -207,6 +207,7 @@ impl TrainSimBuilder {
             destination_id,
             train_summary,
             loco_con,
+            // TODO: think about whether this is needed
             init_train_state: init_train_state.unwrap_or_default(),
         }
     }

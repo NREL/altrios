@@ -176,8 +176,7 @@ def get_train_sim_inputs(df: pd.DataFrame, file_path: Path) -> bytes:
     )
 
     init_train_state = InitTrainState(
-        offset_meters=max(train_length_meters,
-                          df[offset_col].iloc[0]),
+        offset_meters=max(train_length_meters, df[offset_col].iloc[0]),
         velocity_meters_per_second=velocity_start_mps,
     )
 

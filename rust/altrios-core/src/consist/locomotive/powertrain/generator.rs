@@ -95,7 +95,7 @@ pub struct Generator {
     #[serde(skip)]
     #[api(skip_set)]
     pub pwr_in_frac_interp: Vec<f64>,
-    /// Generator max power out \[W\]
+    /// Generator max power out
     #[serde(rename = "pwr_out_max_watts")]
     pub pwr_out_max: si::Power,
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.

@@ -11,12 +11,23 @@ import altrios as alt
 
 SAVE_INTERVAL = 1
 
+# Question: what happens to type, length, and mass when this is instantiated?
+train_summary = alt.TrainSummary(
+    rail_vehicle_type="Manifest",
+    cars_empty=50,
+    cars_loaded=50,
+    train_type=None,
+    train_length_meters=None,
+    train_mass_kilograms=None,
+)
 
+# instantiate battery model
 res = alt.ReversibleEnergyStorage.from_file(
     str(alt.resources_root() / 
         "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
     )
 )
+# instantiate electric drivetrain (motors and any gearboxes)
 edrv = alt.ElectricDrivetrain(
     pwr_out_frac_interp=[0., 1.],
     eta_interp=[0.98, 0.98],
@@ -24,13 +35,7 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
-loco_params = alt.LocoParams.from_dict({
-    'pwr_aux_offset_watts':8.55e3,
-    'pwr_aux_traction_coeff':540.e-6,
-    'force_max_newtons': 667.2e3,
-    'mass_kg': None
-})
-
+# construct a vector of one BEL and 3 conventional locomotives
 loco_vec = [
     alt.Locomotive.build_battery_electric_loco(
         reversible_energy_storage=res,
@@ -38,25 +43,51 @@ loco_vec = [
         pwr_aux_offset_watts=8.55e3,
         pwr_aux_traction_coeff=540.e-6,
         force_max_newtons=None,
-    )
-]
+    )] + [
+    alt.Locomotive.default(),
+] * 3
+# instantiate consist
 loco_con = alt.Consist(
     loco_vec,
     SAVE_INTERVAL,
 )
-train_state = alt.TrainState.
-speed_trace = alt.SpeedTrace.
-train_res = alt.Train.
-path_tpc = alt.
-
-train_sim = alt.SetSpeedTrainSim.new(
-    loco_con,
-    train_state,
-    speed_trace,
-    train_res,
-    path_tpc,
-    SAVE_INTERVAL,
+init_train_state = alt.InitTrainState(
+    # Question: is `train_summary.train_length` updated correctly?
+    offset_meters=train_summary.train_length
 )
+
+tsb = alt.TrainSimBuilder(
+    # TODO: make sure `train_id` is being used meaningfully
+    train_id="0",
+    # Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
+    origin_id="Minneapolis",
+    destination_id="Superior",
+    train_summary=train_summary,
+    loco_con=loco_con,
+    init_train_state=init_train_state,
+)
+
+# make sure rail_vehicle_map can be constructed from yaml file and such
+rail_vehicle_file = "rolling_stock/rail_vehicles.csv"
+rail_vehicle_map = alt.import_rail_vehicles(
+    str(alt.resources_root() / rail_vehicle_file)
+)
+
+network = alt.import_network(str(alt.resources_root() / "networks/Taconite.yaml"))
+# Question: where do get link_path?
+link_path = 
+speed_trace = alt.SpeedTrace.from_csv_file(
+    str(alt.resources_root() / "speed_trace.csv")
+)
+
+train_sim = tsb.make_set_speed_train_sim(
+    rail_vehicle_map=rail_vehicle_map,
+    network=network,
+    link_path=link_path,
+    speed_trace=speed_trace,
+    save_interval=10,
+)
+
 train_sim.set_save_interval(1)
 t0 = time.perf_counter()
 train_sim.walk()

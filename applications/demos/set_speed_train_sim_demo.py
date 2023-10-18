@@ -54,8 +54,8 @@ loco_con = alt.Consist(
     SAVE_INTERVAL,
 )
 init_train_state = alt.InitTrainState(
-    # Question: is `train_summary.train_length` updated correctly?
-    offset_meters=train_summary.train_length
+    # TODO: fix how `train_length_meters` is set on instantiation of `train_summary`
+    offset_meters=train_summary.train_length_meters
 )
 
 tsb = alt.TrainSimBuilder(

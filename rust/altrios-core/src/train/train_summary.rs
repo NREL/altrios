@@ -37,6 +37,16 @@ use pyo3_polars::PyDataFrame;
     fn make_train_params_py(&self, rail_vehicle_map: RailVehicleMap) -> PyResult<TrainParams> {
         Ok(self.make_train_params(&rail_vehicle_map))
     }
+
+    #[getter]
+    fn get_train_length_meters(&self) -> Option<f64> {
+        self.train_length.map(|l| l.get::<si::meter>())
+    }    
+
+    #[getter]
+    fn get_train_mass_kilograms(&self) -> Option<f64> {
+        self.train_mass.map(|l| l.get::<si::kilogram>())
+    }    
 )]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
 pub struct TrainSummary {
@@ -49,7 +59,7 @@ pub struct TrainSummary {
     /// Train type matching one of the PTC types
     pub train_type: TrainType,
     /// Train length that overrides the railcar specific value
-    #[api(skip_set, skip_get)]
+    #[api(skip_get, skip_set)]
     pub train_length: Option<si::Length>,
     /// Total train mass that overrides the railcar specific values
     #[api(skip_set, skip_get)]
@@ -319,7 +329,7 @@ impl TrainSimBuilder {
         scenario_year: Option<i32>,
     ) -> anyhow::Result<SpeedLimitTrainSim> {
         let (state, path_tpc, train_res, fric_brake) =
-            self.make_train_sim_parts(rail_vehicle_map, save_interval)?;
+            self.make_train_sim_parts(rail_vehicle_map, save_interval).with_context(|| format_dbg!())?;
 
         Ok(SpeedLimitTrainSim::new(
             self.train_id.clone(),

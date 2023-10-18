@@ -17,7 +17,7 @@ pub struct PathTpc {
     #[api(skip_set)]
     curves: Vec<PathResCoeff>,
     #[api(skip_set)]
-    speed_points: Vec<SpeedPoint>,
+    speed_points: Vec<SpeedLimitPoint>,
     #[api(skip_set)]
     cat_power_limits: Vec<CatPowerLimit>,
     #[api(skip_set)]
@@ -43,7 +43,7 @@ impl PathTpc {
     pub fn curves(&self) -> &[PathResCoeff] {
         &self.curves
     }
-    pub fn speed_points(&self) -> &[SpeedPoint] {
+    pub fn speed_points(&self) -> &[SpeedLimitPoint] {
         &self.speed_points
     }
     pub fn cat_power_limits(&self) -> &[CatPowerLimit] {
@@ -64,7 +64,7 @@ impl PathTpc {
             link_points: vec![LinkPoint::default()],
             grades: vec![PathResCoeff::default()],
             curves: vec![PathResCoeff::default()],
-            speed_points: vec![SpeedPoint {
+            speed_points: vec![SpeedLimitPoint {
                 offset: si::Length::ZERO,
                 speed_limit: train_params.speed_max,
             }],
@@ -281,7 +281,7 @@ impl PathTpc {
 
     pub fn recalc_speeds(&mut self, links: &[Link]) {
         self.speed_points.clear();
-        self.speed_points.push(SpeedPoint {
+        self.speed_points.push(SpeedLimitPoint {
             offset: self.link_points.first().unwrap().offset,
             speed_limit: self.train_params.speed_max,
         });
@@ -305,7 +305,7 @@ impl PathTpc {
     }
 
     fn add_speeds(
-        speed_points: &mut Vec<SpeedPoint>,
+        speed_points: &mut Vec<SpeedLimitPoint>,
         train_params: &TrainParams,
         speed_sets: &[SpeedSet],
         offset_base: si::Length,

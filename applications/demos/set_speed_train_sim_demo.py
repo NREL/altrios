@@ -50,7 +50,7 @@ loco_vec = [
         ))
     )] + [
     alt.Locomotive.default(),
-] * 7
+] * 3
 # instantiate consist
 loco_con = alt.Consist(
     loco_vec,

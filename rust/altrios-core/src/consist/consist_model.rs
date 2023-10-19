@@ -249,6 +249,7 @@ impl Consist {
         engine_on: Option<bool>,
     ) -> anyhow::Result<()> {
         // TODO: account for catenary in here
+        // TODO: add in `eng_fmt` in the error messages
         if self.assert_limits {
             ensure!(
                 -pwr_out_req <= self.state.pwr_dyn_brake_max,
@@ -258,7 +259,6 @@ impl Consist {
                 self.state.pwr_dyn_brake_max.get::<si::megawatt>(),
             );
             ensure!(
-                // TODO: update to print units
                 pwr_out_req <= self.state.pwr_out_max,
                 "{}\n{} MW\n{} MW",
                 format_dbg!(),

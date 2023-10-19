@@ -2,6 +2,7 @@
 import time
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 sns.set()
 
@@ -11,7 +12,9 @@ import altrios as alt
 
 SAVE_INTERVAL = 1
 
-# Question: what happens to type, length, and mass when this is instantiated?
+# Question: what happens to type, length, and mass when this is instantiated? TrainSummary does not
+# have locos so mass and length may not be fully known yet.  If they are, in fact, not known, we
+# should hide these fields from python
 train_summary = alt.TrainSummary(
     rail_vehicle_type="Manifest",
     cars_empty=50,
@@ -47,7 +50,7 @@ loco_vec = [
         ))
     )] + [
     alt.Locomotive.default(),
-] * 3
+] * 7
 # instantiate consist
 loco_con = alt.Consist(
     loco_vec,
@@ -55,7 +58,8 @@ loco_con = alt.Consist(
 )
 init_train_state = alt.InitTrainState(
     # TODO: fix how `train_length_meters` is set on instantiation of `train_summary`
-    offset_meters=train_summary.train_length_meters
+    # offset_meters=train_summary.train_length_meters
+    offset_meters=666,
 )
 
 tsb = alt.TrainSimBuilder(
@@ -76,11 +80,22 @@ rail_vehicle_map = alt.import_rail_vehicles(
 )
 
 network = alt.import_network(str(alt.resources_root() / "networks/Taconite.yaml"))
-# Question: where do get link_path?
-link_path = 
-speed_trace = alt.SpeedTrace.from_csv_file(
-    str(alt.resources_root() / "speed_trace.csv")
+# TODO: explain how this file was created from running `sim_manager_demo.py` and getting the first
+# simulation
+link_points = pd.read_csv(alt.resources_root() / "link_points.csv")["link points"].tolist()
+link_path = [alt.LinkIdx(int(lp)) for lp in link_points]
+
+# TODO: uncomment and fix
+# speed_trace = alt.SpeedTrace.from_csv_file(
+#     str(alt.resources_root() / "speed_trace.csv")
+# )
+df_speed_trace = pd.read_csv(alt.resources_root() / "speed_trace.csv")
+speed_trace = alt.SpeedTrace(
+    df_speed_trace['time_seconds'],
+    df_speed_trace['speed_meters_per_second'],
+    None,
 )
+
 
 train_sim = tsb.make_set_speed_train_sim(
     rail_vehicle_map=rail_vehicle_map,

@@ -40,4 +40,4 @@ pub use crate::train::{
     TrainSummary,
 };
 
-pub use crate::track::{Link, LinkIdx, Location, TrainParams, TrainType};
+pub use crate::track::{Link, LinkIdx, LinkPoint, Location, TrainParams, TrainType};

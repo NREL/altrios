@@ -103,20 +103,20 @@ impl SpeedTrace {
         let pathbuf = PathBuf::from(&pathstr);
 
         // create empty cycle to be populated
-        let mut pt = Self::empty();
+        let mut st = Self::empty();
 
         let file = File::open(pathbuf)?;
         let mut rdr = csv::ReaderBuilder::new()
             .has_headers(true)
             .from_reader(file);
         for result in rdr.deserialize() {
-            let pt_elem: SpeedTraceElement = result?;
-            pt.push(pt_elem)?;
+            let st_elem: SpeedTraceElement = result?;
+            st.push(st_elem)?;
         }
-        if pt.is_empty() {
-            bail!("Invalid PowerTrace file; Powertrace is empty")
+        if st.is_empty() {
+            bail!("Invalid SpeedTrace file; SpeedTrace is empty")
         } else {
-            Ok(pt)
+            Ok(st)
         }
     }
 }
@@ -136,8 +136,10 @@ impl Default for SpeedTrace {
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
 pub struct SpeedTraceElement {
     /// simulation time
+    #[serde(alias = "time_seconds")]
     time: si::Time,
     /// prescribed speed
+    #[serde(alias = "speed_meters_per_second")]
     speed: si::Velocity,
     /// whether engine is on
     engine_on: Option<bool>,

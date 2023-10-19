@@ -101,7 +101,7 @@ impl PowerTrace {
             pt.push(pt_elem);
         }
         if pt.is_empty() {
-            bail!("Invalid PowerTrace file; Powertrace is empty")
+            bail!("Invalid PowerTrace file; PowerTrace is empty")
         } else {
             Ok(pt)
         }

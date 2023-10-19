@@ -7,6 +7,7 @@ use crate::imports::*;
 
 /// Contains all of the train path parameters in vector form
 /// e.g. -  link points, elevations, speed points, and TrainParams
+/// TODO: make PathTPC robust to `Vec<LinkPoint>` that ends with `0`
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 #[altrios_api]
 pub struct PathTpc {
@@ -98,13 +99,19 @@ impl PathTpc {
         self.link_points.reserve(link_path.len());
         let mut link_point_sum = LinkPoint::default();
         for link_idx in link_path {
-            ensure!(link_idx.is_real(), "Error: `link_idx` is not real.");
+            ensure!(
+                link_idx.is_real(),
+                "{}\nError: `link_idx`: {} is not real.",
+                format_dbg!(),
+                link_idx
+            );
             let link = &network[link_idx.idx()];
             let offset_base = self.link_points.last().unwrap().offset;
 
             // Verify that the path to be added is continuous
             if self.link_points.len() >= 2 {
                 let link_idx_prev = self.link_points[self.link_points.len() - 2].link_idx;
+                // TODO: improve error message quality
                 ensure!(link_idx_prev.is_real(), "link_idx_prev is not real");
                 ensure!(
                     link.idx_prev == link_idx_prev || link.idx_prev_alt == link_idx_prev,

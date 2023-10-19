@@ -996,7 +996,12 @@ def run_train_planner(
                     )
 
                     slts = tsb.make_speed_limit_train_sim(
-                        rail_vehicle_map, location_map, None, None, None)
+                        rail_vehicle_map, 
+                        location_map, 
+                        None, 
+                        None, 
+                        None
+                    )
                     (est_time_net, loco_con_out) = alt.make_est_times(slts, network)
                     travel_time = (
                         est_time_net.get_running_time_hours()

@@ -87,6 +87,7 @@ pub struct TrainState {
     pub offset: si::Length,
     pub offset_back: si::Length,
     pub total_dist: si::Length,
+    // TODO: change to speed
     pub velocity: si::Velocity,
     pub speed_limit: si::Velocity,
     pub speed_target: si::Velocity,

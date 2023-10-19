@@ -252,15 +252,18 @@ impl Consist {
         if self.assert_limits {
             ensure!(
                 -pwr_out_req <= self.state.pwr_dyn_brake_max,
-                "{}\n{}",
-                format_dbg!(-pwr_out_req),
-                format_dbg!(self.state.pwr_dyn_brake_max),
+                "{}\n{} MW\n{} MW",
+                format_dbg!(),
+                -pwr_out_req.get::<si::megawatt>(),
+                self.state.pwr_dyn_brake_max.get::<si::megawatt>(),
             );
             ensure!(
+                // TODO: update to print units
                 pwr_out_req <= self.state.pwr_out_max,
-                "{}\n{}",
-                format_dbg!(pwr_out_req),
-                format_dbg!(self.state.pwr_out_max)
+                "{}\n{} MW\n{} MW",
+                format_dbg!(),
+                pwr_out_req.get::<si::megawatt>(),
+                self.state.pwr_out_max.get::<si::megawatt>()
             );
         }
 

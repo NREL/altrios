@@ -33,3 +33,5 @@ pub(crate) use uom::typenum;
 pub(crate) use uom::ConstZero;
 
 pub(crate) use anyhow::{anyhow, bail, ensure, Context};
+
+pub(crate) use eng_fmt::FormatEng;

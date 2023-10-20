@@ -8,4 +8,4 @@ maturin develop --release && \
 echo "Running python tests"
 pytest -v tests && \
 echo "Verifying that demos run"
-(cd applications/demos/ && python sim_manager_demo.py && python rollout_demo.py)
+pytest -v applications/demos/*.py

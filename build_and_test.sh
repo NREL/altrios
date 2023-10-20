@@ -8,5 +8,5 @@ maturin develop --release && \
 echo "Running python tests" && \
 pytest -v tests && \
 echo "Verifying that demos run" && \
-SHOW_PLOTS=false pytest -v applications/demos/*.py && \ 
+SHOW_PLOTS=false pytest -v applications/demos/*demo*.py && \ 
 echo "Complete success!"

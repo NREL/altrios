@@ -794,8 +794,11 @@ class SpeedTrace:
 
 class TrainState:
     time_seconds: float
+    i: int
     offset_meters: float
-    velocity_meters_per_second: float
+    offset_back_meters: float
+    total_dist_meters: float
+    speed_meters_per_second: float
     speed_limit_meters_per_second: float
     speed_target_meters_per_second: float
     dt_seconds: float
@@ -803,7 +806,6 @@ class TrainState:
     mass_static_kilograms: float
     mass_adj_kilograms: float
     mass_freight_kilograms: float
-    max_fric_braking: float
     weight_static_newtons: float
     res_rolling_newtons: float
     res_bearing_newtons: float
@@ -811,12 +813,31 @@ class TrainState:
     res_aero_newtons: float
     res_grade_newtons: float
     res_curve_newtons: float
+    grade_front: float
+    elev_front_meters: float
+    pwr_res_watts: float
+    pwr_accel_watts: float
     pwr_whl_out_watts: float
     energy_whl_out_joules: float
+    energy_whl_out_pos_joules: float
+    energy_whl_out_neg_joules: float
     @classmethod
     def default(cls) -> TrainState: ...
     @classmethod
     def from_json(cls, json_str: str) -> TrainState: ...
+    @classmethod
+    def __new__(
+        cls,
+        offset_meters: float,
+        length_meters: float,
+        mass_static_kilograms: float,
+        mass_adj_kilograms: float,
+        mass_freight_kilograms: float,
+        time_seconds: Optional[float],
+        i: Optional[int],
+        speed_meters_per_second: Optional[float],
+        dt_seconds: Optional[float],
+    ) -> Self: ...
     def to_json(self) -> str: ...
     @classmethod
     def from_yaml(cls, yaml_str: str) -> TrainState: ...
@@ -828,7 +849,7 @@ class TrainState:
 class TrainStateHistoryVec:
     time_seconds: list[float]
     offset_meters: list[float]
-    velocity_meters_per_second: list[float]
+    speed_meters_per_second: list[float]
     speed_limit_meters_per_second: list[float]
     speed_target_meters_per_second: list[float]
     dt_seconds: list[float]
@@ -1201,7 +1222,7 @@ def run_dispatch(
 class InitTrainState:
     time_seconds: float
     offset_meters: float
-    velocity_meters_per_second: float
+    speed_meters_per_second: float
     dt_seconds: float
     @classmethod
     def default(cls) -> Self: ...

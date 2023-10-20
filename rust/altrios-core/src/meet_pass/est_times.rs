@@ -15,12 +15,12 @@ use update_times::*;
 pub struct EstTime {
     /// Scheduled time of arrival at the node
     pub time_sched: si::Time,
-    /// Time required to get to the next node when passing at speed "velocity"
+    /// Time required to get to the next node when passing at speed
     pub time_to_next: si::Time,
     /// Distance to the next node
     pub dist_to_next: si::Length,
     /// Speed at which the train will pass this node assuming no delays
-    pub velocity: si::Velocity,
+    pub speed: si::Velocity,
 
     /// Index of the next node in the network when traveling along the shortest path from this node
     pub idx_next: EstIdx,
@@ -48,7 +48,7 @@ impl Default for EstTime {
             time_sched: TIME_NAN,
             time_to_next: si::Time::ZERO,
             dist_to_next: si::Length::ZERO,
-            velocity: si::Velocity::ZERO,
+            speed: si::Velocity::ZERO,
             idx_next: EST_IDX_NA,
             idx_next_alt: EST_IDX_NA,
             idx_prev: EST_IDX_NA,
@@ -181,12 +181,12 @@ fn update_est_times_add(
         // Add estimated times while in range
         while offset_next <= movement[i].offset {
             let dist_diff_x2 = 2.0 * (movement[i].offset - offset_next);
-            let velocity = (movement[i].velocity * movement[i].velocity
-                - (movement[i].velocity - movement[i - 1].velocity)
+            let speed = (movement[i].speed * movement[i].speed
+                - (movement[i].speed - movement[i - 1].speed)
                     / (movement[i].time - movement[i - 1].time)
                     * dist_diff_x2)
                 .sqrt();
-            let time_to_next = movement[i].time - dist_diff_x2 / (movement[i].velocity + velocity);
+            let time_to_next = movement[i].time - dist_diff_x2 / (movement[i].speed + speed);
 
             // Add either an arrive or a clear event depending on which happened earlier
             let link_event =
@@ -213,7 +213,7 @@ fn update_est_times_add(
             est_times_add.push(EstTime {
                 time_to_next,
                 dist_to_next: offset_next,
-                velocity,
+                speed,
                 link_event,
                 ..Default::default()
             });
@@ -261,7 +261,7 @@ fn insert_est_time(
         // If the insert time is the same as the next estimated time, update stored values, do not insert, and return false
         let est_match = &est_times[idx_next.idx()];
         if est_match.link_event == est_insert.link_event
-            && (est_insert.velocity - est_match.velocity).abs() < SPEED_DIFF_JOIN
+            && (est_insert.speed - est_match.speed).abs() < SPEED_DIFF_JOIN
         {
             est_alt.idx_prev = idx_next;
             break;
@@ -388,21 +388,20 @@ fn perform_speed_join(
     est_times: &mut Vec<EstTime>,
     est_time_add: &EstTime,
 ) -> bool {
-    let mut velocity_diff_join = SPEED_DIFF_JOIN;
+    let mut speed_diff_join = SPEED_DIFF_JOIN;
     let mut est_idx_join = EST_IDX_NA;
     for est_join_path in est_join_paths {
         if est_join_path.has_space_match() {
-            let velocity_diff = (est_times[est_join_path.est_idx_next.idx()].velocity
-                - est_time_add.velocity)
-                .abs();
-            if velocity_diff < velocity_diff_join {
-                velocity_diff_join = velocity_diff;
+            let speed_diff =
+                (est_times[est_join_path.est_idx_next.idx()].speed - est_time_add.speed).abs();
+            if speed_diff < speed_diff_join {
+                speed_diff_join = speed_diff;
                 est_idx_join = est_join_path.est_idx_next;
             }
         }
     }
 
-    if velocity_diff_join < SPEED_DIFF_JOIN {
+    if speed_diff_join < SPEED_DIFF_JOIN {
         // TODO: Add assertion from C++
 
         let est_idx_last = (est_times.len() - 1).try_into().unwrap();
@@ -523,7 +522,7 @@ pub fn make_est_times(
             &EstTime {
                 time_to_next: time_depart,
                 dist_to_next: orig.offset,
-                velocity: si::Velocity::ZERO,
+                speed: si::Velocity::ZERO,
                 link_event: LinkEvent {
                     link_idx: orig.link_idx,
                     est_type: EstType::Arrive,
@@ -538,7 +537,7 @@ pub fn make_est_times(
             &EstTime {
                 time_to_next: time_depart,
                 dist_to_next: orig.offset + speed_limit_train_sim.state.length,
-                velocity: si::Velocity::ZERO,
+                speed: si::Velocity::ZERO,
                 link_event: LinkEvent {
                     link_idx: orig.link_idx,
                     est_type: EstType::Clear,

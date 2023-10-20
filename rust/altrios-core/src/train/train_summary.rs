@@ -248,7 +248,7 @@ impl TrainSimBuilder {
             Some(self.init_train_state.time),
             None,
             start_offset,
-            Some(self.init_train_state.velocity),
+            Some(self.init_train_state.speed),
             Some(self.init_train_state.dt),
             length,
             mass_static,

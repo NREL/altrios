@@ -149,7 +149,7 @@ impl TrainDisp {
                 }
 
                 // Update time next based on current disp_auths
-                let time_startup = est_time_curr.velocity / self.acc_startup;
+                let time_startup = est_time_curr.speed / self.acc_startup;
                 let flip_clear_exit = link_disp_auths[link_curr.idx_flip.idx()]
                     .last()
                     .unwrap()

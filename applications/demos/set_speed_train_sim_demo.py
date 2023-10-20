@@ -8,6 +8,8 @@ import seaborn as sns
 import altrios as alt 
 sns.set()
 
+SHOW_PLOTS = alt.utils.show_plots()
+
 SAVE_INTERVAL = 1
 
 # Question: what happens to type, length, and mass when this is instantiated? TrainSummary does not
@@ -36,19 +38,17 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
-# construct a vector of one BEL and 3 conventional locomotives
-loco_vec = [
-    alt.Locomotive.build_battery_electric_loco(
-        reversible_energy_storage=res,
-        drivetrain=edrv,
-        loco_params=alt.LocoParams.from_dict(dict(
-            pwr_aux_offset_watts=8.55e3,
-            pwr_aux_traction_coeff_ratio=540.e-6,
-            force_max_newtons=667.2e3,
-        ))
-    )] + [
-    alt.Locomotive.default(),
-] * 7
+bel: alt.Locomotive = alt.Locomotive.build_battery_electric_loco(
+    reversible_energy_storage=res,
+    drivetrain=edrv,
+    loco_params=alt.LocoParams.from_dict(dict(
+        pwr_aux_offset_watts=8.55e3,
+        pwr_aux_traction_coeff_ratio=540.e-6,
+        force_max_newtons=667.2e3,
+)))
+
+# construct a vector of one BEL and several conventional locomotives
+loco_vec = [bel] + [alt.Locomotive.default()] * 7
 # instantiate consist
 loco_con = alt.Consist(
     loco_vec,
@@ -94,7 +94,7 @@ speed_trace = alt.SpeedTrace(
     None,
 )
 
-train_sim = tsb.make_set_speed_train_sim(
+train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
     rail_vehicle_map=rail_vehicle_map,
     network=network,
     link_path=link_path,
@@ -152,4 +152,7 @@ ax[-1].plot(
 )
 ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')
-# %%
+
+if SHOW_PLOTS:
+    plt.tight_layout()
+    plt.show()

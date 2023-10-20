@@ -138,7 +138,7 @@ def get_train_sim_inputs(df: pd.DataFrame, file_path: Path) -> bytes:
         df['Filtered Speed'],
     )
 
-    velocity_start_mps = df['Locomotive Speed GECX 3000'].iloc[0] * \
+    speed_start_mps = df['Locomotive Speed GECX 3000'].iloc[0] * \
         alt.utils.MPS_PER_MPH
 
     # loco_conventional = Locomotive.default()
@@ -177,7 +177,7 @@ def get_train_sim_inputs(df: pd.DataFrame, file_path: Path) -> bytes:
 
     init_train_state = InitTrainState(
         offset_meters=max(train_length_meters, df[offset_col].iloc[0]),
-        velocity_meters_per_second=velocity_start_mps,
+        speed_meters_per_second=speed_start_mps,
     )
 
     tsb = TrainSimBuilder(

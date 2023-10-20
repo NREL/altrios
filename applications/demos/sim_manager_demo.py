@@ -152,7 +152,7 @@ for idx, sim in enumerate(sims_list[:10]):
 
     ax[-1].plot(
         np.array(sim.history.time_seconds) / 3_600,
-        sim.history.velocity_meters_per_second,
+        sim.history.speed_meters_per_second,
         label="actual",
     )
     ax[-1].plot(

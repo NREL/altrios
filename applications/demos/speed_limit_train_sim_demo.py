@@ -82,102 +82,64 @@ location_map = alt.import_locations(
     str(alt.resources_root() / "networks/default_locations.csv")
 )
 
-def get_train_sim(
-        loco_con: alt.Consist = alt.Consist.default()
-    ) -> alt.SpeedLimitTrainSim:
-    # function body
-    tsb = alt.TrainSimBuilder(
-        "demo_train",
-        "Hibbing",
-        "Allouez",
-        train_summary,
-        loco_con,
-    )
-    train_sim = tsb.make_speed_limit_train_sim(
-        rail_vehicle_map,
-        location_map,
-        save_interval=SAVE_INTERVAL,
-    )
-    network_filename_path = alt.resources_root() / "networks/Taconite.yaml"
-    train_sim.extend_path(
-        str(network_filename_path),
-        train_path
-    )
-
-    train_sim.set_save_interval(SAVE_INTERVAL)
-    return train_sim
-
+train_sim = tsb.make_speed_limit_train_sim(
+    rail_vehicle_map=rail_vehicle_map,
+    location_map=location_map,
+    save_interval=1,
+)
 
 # %%
-train_sim = get_train_sim()
 
 t0 = time.perf_counter()
 train_sim.walk()
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 
-# %%
-
 fig, ax = plt.subplots(3, 1, sharex=True)
-start_idx = 0
-end_idx = -1
-
 ax[0].plot(
-    np.array(train_sim.history.time_seconds)[start_idx:end_idx],
-    np.array(train_sim.history.pwr_whl_out_watts)[start_idx:end_idx],
-    label="whl_out",
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.pwr_whl_out_watts,
+    label="tract pwr",
 )
-# ax[0].plot(
-#     np.array(train_sim.history.time_seconds)[start_idx:end_idx],
-#     (np.array(train_sim.fric_brake.history.force_newtons) *
-#         np.array(train_sim.history.velocity_meters_per_second))[start_idx:end_idx],
-#     label="fric brake",
-# )
-ax[0].set_ylabel('Power [W]')
-ax[0].legend(loc="lower right")
-
-# ax[1].plot(
-#     np.array(train_sim.history.time_seconds)[start_idx:end_idx],
-#     np.array(train_sim.fric_brake.history.force_newtons)[
-#         start_idx:end_idx],
-# )
-# ax[1].set_ylabel('Brake Force [N]')
+ax[0].set_ylabel('Power')
+ax[0].legend()
 
 ax[1].plot(
-    np.array(train_sim.history.time_seconds)[start_idx:end_idx],
-    np.array(train_sim.loco_con.loco_vec.tolist()[1].res.history.soc)[
-        start_idx:end_idx],
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.res_aero_newtons,
+    label='aero',
 )
-ax[1].set_ylabel('BEL SOC')
+ax[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.res_rolling_newtons,
+    label='rolling',
+)
+ax[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.res_curve_newtons,
+    label='curve',
+)
+ax[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.res_bearing_newtons,
+    label='bearing',
+)
+ax[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.res_grade_newtons,
+    label='grade',
+)
+ax[1].set_ylabel('Force [N]')
+ax[1].legend()
 
 ax[-1].plot(
-    np.array(train_sim.history.time_seconds)[start_idx:end_idx],
-    np.array(train_sim.history.velocity_meters_per_second)[start_idx:end_idx],
-    label='achieved'
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.speed_trace.speed_meters_per_second,
 )
-ax[-1].plot(
-    np.array(train_sim.history.time_seconds)[start_idx:end_idx],
-    np.array(train_sim.history.speed_target_meters_per_second)[
-        start_idx:end_idx],
-    label='target'
-)
-ax[-1].plot(
-    np.array(train_sim.history.time_seconds)[start_idx:end_idx],
-    np.array(train_sim.history.speed_limit_meters_per_second)[
-        start_idx:end_idx],
-    label='limit'
-)
-ax[-1].legend()
-ax[-1].set_xlabel('Time [s]')
+ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')
 
-# %%
-
-# print composition of consist
-for i, loco in enumerate(train_sim.loco_con.loco_vec.tolist()):
-    print(f'locomotive at position {i} is {loco.loco_type()}')
-
-# %% Sweep of BELs
+# Sweep of BELs
 
 bel = alt.Locomotive.default_battery_electic_loco()
 diesel = alt.Locomotive.default()

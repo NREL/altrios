@@ -4,11 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-sns.set()
 
 import altrios as alt 
-
-# %%
+sns.set()
 
 SAVE_INTERVAL = 1
 
@@ -96,7 +94,6 @@ speed_trace = alt.SpeedTrace(
     None,
 )
 
-
 train_sim = tsb.make_set_speed_train_sim(
     rail_vehicle_map=rail_vehicle_map,
     network=network,
@@ -112,7 +109,6 @@ train_sim.walk()
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 
-# %%
 fig, ax = plt.subplots(3, 1, sharex=True)
 ax[0].plot(
     np.array(train_sim.history.time_seconds) / 3_600,

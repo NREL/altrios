@@ -757,7 +757,13 @@ def run_train_planner(
     config: TrainPlannerConfig = TrainPlannerConfig(),
     # change file name here to test different cases
     demand_file_path=alt.resources_root() / "Default Demand.csv",
-) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, List[alt.SpeedLimitTrainSim], List[alt.EstTimeNet]]:
+) -> Tuple[
+    pl.DataFrame, 
+    pl.DataFrame, 
+    pl.DataFrame, 
+    List[alt.SpeedLimitTrainSim], 
+    List[alt.EstTimeNet]
+]:
     """
     Run the train planner
     Arguments:

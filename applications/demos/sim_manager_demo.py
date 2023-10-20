@@ -36,7 +36,14 @@ print(
 
 t0_main = time.perf_counter()
 
-train_consist_plan, loco_pool, refuel_facilities, grid_emissions_factors, speed_limit_train_sims, timed_paths = sim_manager.main(
+(
+    train_consist_plan, 
+    loco_pool, 
+    refuel_facilities, 
+    grid_emissions_factors, 
+    speed_limit_train_sims, 
+    timed_paths
+) = sim_manager.main(
     network=network,
     rail_vehicle_map=rail_vehicle_map,
     location_map=location_map,
@@ -145,7 +152,7 @@ for idx, sim in enumerate(sims_list[:10]):
 
     ax[-1].plot(
         np.array(sim.history.time_seconds) / 3_600,
-        sim.history.velocity_meters_per_second,
+        sim.history.speed_meters_per_second,
         label="actual",
     )
     ax[-1].plot(

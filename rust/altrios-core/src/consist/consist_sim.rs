@@ -1,5 +1,5 @@
-use log::info;
 use altrios_proc_macros::altrios_api;
+use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::consist::locomotive::loco_sim::PowerTrace;
@@ -105,7 +105,7 @@ impl ConsistSimulation {
         Ok(())
     }
 
-    /// Solves for fuel and RES consumption \[W\]
+    /// Solves for fuel and RES consumption
     /// Arguments:
     /// ----------
     /// pwr_out_req: float, output brake power required from fuel converter.

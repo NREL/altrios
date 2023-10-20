@@ -26,6 +26,7 @@ fn altrios_core_py(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ElectricDrivetrainStateHistoryVec>()?;
 
     m.add_class::<Locomotive>()?;
+    m.add_class::<LocoParams>()?;
     m.add_class::<LocomotiveState>()?;
     m.add_class::<LocomotiveStateHistoryVec>()?;
     m.add_class::<LocomotiveSimulation>()?;
@@ -41,6 +42,7 @@ fn altrios_core_py(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<SpeedLimitTrainSim>()?;
     m.add_class::<LinkIdx>()?;
     m.add_class::<LinkIdxTime>()?;
+    m.add_class::<LinkPoint>()?;
     m.add_class::<Link>()?;
     m.add_class::<Location>()?;
 

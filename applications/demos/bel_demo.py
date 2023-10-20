@@ -13,55 +13,40 @@ import seaborn as sns
 
 sns.set()
 
-SHOW_PLOTS = os.environ.get("SHOW_PLOTS", "true").lower() == "true"
+SHOW_PLOTS = alt.utils.show_plots()
 
 
-# %%
 SAVE_INTERVAL = 1
-# load hybrid consist
-t0 = time.perf_counter()
-res = alt.ReversibleEnergyStorage.default()
-# uncomment to trigger error
-# altpy.set_param_from_path(
-#     res,
-#     "pwr_out_max_watts",
-#     res.pwr_out_max_watts / 10.
-# )
 
-# from_file(
-#     str(altpy.resources_root() /
-#         "powertrains" /
-#         "reversible_energy_storages" /
-#         "Kokam_NMC_75Ah_flx_drive.yaml")
-# )
 
-res = alt.set_param_from_path(res, "state.soc", 0.95)
-edrv = alt.ElectricDrivetrain.default()
+pt = alt.PowerTrace.default()
 
-# .from_file(
-#     str(altpy.resources_root() /
-#         "powertrains" /
-#         "electric_drivetrains" /
-#         "edrv_default.yaml")
-# )
+res = alt.ReversibleEnergyStorage.from_file(
+    str(alt.resources_root() / 
+        "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
+    )
+)
+# instantiate electric drivetrain (motors and any gearboxes)
+edrv = alt.ElectricDrivetrain(
+    pwr_out_frac_interp=[0., 1.],
+    eta_interp=[0.98, 0.98],
+    pwr_out_max_watts=5e9,
+    save_interval=SAVE_INTERVAL,
+)
 
 bel = alt.Locomotive.build_battery_electric_loco(
     reversible_energy_storage=res,
     drivetrain=edrv,
-    pwr_aux_offset_watts=13e3,
-    pwr_aux_traction_coeff_ratio=1.1e-3,
-    save_interval=SAVE_INTERVAL,
-    force_max_newtons=667.2e3,
-)
+    loco_params=alt.LocoParams.from_dict(dict(
+        pwr_aux_offset_watts=8.55e3,
+        pwr_aux_traction_coeff_ratio=540.e-6,
+        force_max_newtons=667.2e3,
+)))
 
-
-# %%
-
-pt = alt.PowerTrace.default()
-
+# instantiate battery model
+t0 = time.perf_counter()
 sim = alt.LocomotiveSimulation(bel, pt, SAVE_INTERVAL)
 t1 = time.perf_counter()
-
 print(f"Time to load: {t1-t0:.3g}")
 
 # simulate
@@ -69,9 +54,6 @@ t0 = time.perf_counter()
 sim.walk()
 t1 = time.perf_counter()
 print(f"Time to simulate: {t1-t0:.5g}")
-
-
-# %%
 
 
 bel_rslt = sim.loco_unit
@@ -121,4 +103,3 @@ ax[i].tick_params(labelsize=fontsize)
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
-# %%

@@ -236,7 +236,7 @@ impl SpeedLimitTrainSim {
     fn walk_internal(&mut self) -> anyhow::Result<()> {
         while self.state.offset < self.path_tpc.offset_end() - 1000.0 * uc::FT
             || (self.state.offset < self.path_tpc.offset_end()
-                && self.state.velocity != si::Velocity::ZERO)
+                && self.state.speed != si::Velocity::ZERO)
         {
             self.step()?;
         }
@@ -308,14 +308,14 @@ impl SpeedLimitTrainSim {
         // TODO: Validate that this makes sense considering friction brakes
         let (speed_limit, speed_target) = self.braking_points.calc_speeds(
             self.state.offset,
-            self.state.velocity,
+            self.state.speed,
             self.fric_brake.ramp_up_time * self.fric_brake.ramp_up_coeff,
         );
         self.state.speed_limit = speed_limit;
         self.state.speed_target = speed_target;
 
         let f_applied_target =
-            res_net + self.state.mass_static * (speed_target - self.state.velocity) / self.state.dt;
+            res_net + self.state.mass_static * (speed_target - self.state.speed) / self.state.dt;
 
         let pwr_pos_max =
             self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
@@ -332,9 +332,9 @@ impl SpeedLimitTrainSim {
         // (i.e. maximum) acceleration force does not exceed `power_max`
         // Base equation: m * (v_max - v_curr) / dt = p_max / v_max – f_res
         let v_max = 0.5
-            * (self.state.velocity - res_net * time_per_mass
-                + ((self.state.velocity - res_net * time_per_mass)
-                    * (self.state.velocity - res_net * time_per_mass)
+            * (self.state.speed - res_net * time_per_mass
+                + ((self.state.speed - res_net * time_per_mass)
+                    * (self.state.speed - res_net * time_per_mass)
                     + 4.0 * time_per_mass * pwr_pos_max)
                     .sqrt());
 
@@ -345,7 +345,7 @@ impl SpeedLimitTrainSim {
             .force_max()?
             .min(pwr_pos_max / speed_target.min(v_max));
         // Verify that train has sufficient power to move
-        if self.state.velocity < uc::MPH * 0.1 && f_pos_max <= res_net {
+        if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
             bail!(
                 "{}\nTrain does not have sufficient power to move!\nforce_max={:?},\nres_net={:?},\ntrain_state={:?}", // ,\nlink={:?}
                 format_dbg!(),
@@ -363,11 +363,11 @@ impl SpeedLimitTrainSim {
             self.loco_con.state.pwr_dyn_brake_max / self.loco_con.force_max()?;
 
         // TODO: Make sure that train handling rules consist dynamic braking force limit is respected!
-        let f_max_consist_regen_dyn = if self.state.velocity > v_neg_trac_lim {
+        let f_max_consist_regen_dyn = if self.state.speed > v_neg_trac_lim {
             // If there is enough braking to slow down at v_max
             let f_max_dyn_fast = self.loco_con.state.pwr_dyn_brake_max / v_max;
             if res_net + self.fric_brake.state.force_max_curr + f_max_dyn_fast >= si::Force::ZERO {
-                self.loco_con.state.pwr_dyn_brake_max / v_max //self.state.velocity
+                self.loco_con.state.pwr_dyn_brake_max / v_max //self.state.speed
             } else {
                 f_max_dyn_fast
             }
@@ -381,19 +381,19 @@ impl SpeedLimitTrainSim {
         );
 
         let vel_change = time_per_mass * (f_applied - res_net);
-        let vel_avg = self.state.velocity + 0.5 * vel_change;
+        let vel_avg = self.state.speed + 0.5 * vel_change;
 
         self.state.pwr_res = res_net * vel_avg;
         self.state.pwr_accel = self.state.mass_adj / (2.0 * self.state.dt)
-            * ((self.state.velocity + vel_change) * (self.state.velocity + vel_change)
-                - self.state.velocity * self.state.velocity);
+            * ((self.state.speed + vel_change) * (self.state.speed + vel_change)
+                - self.state.speed * self.state.speed);
 
         self.state.time += self.state.dt;
         self.state.offset += self.state.dt * vel_avg;
         self.state.total_dist += (self.state.dt * vel_avg).abs();
-        self.state.velocity += vel_change;
-        if utils::almost_eq_uom(&self.state.velocity, &speed_target, None) {
-            self.state.velocity = speed_target;
+        self.state.speed += vel_change;
+        if utils::almost_eq_uom(&self.state.speed, &speed_target, None) {
+            self.state.speed = speed_target;
         }
 
         // Questions:
@@ -453,7 +453,7 @@ impl SpeedLimitTrainSim {
             }
         };
 
-        self.state.pwr_whl_out = f_consist * self.state.velocity;
+        self.state.pwr_whl_out = f_consist * self.state.speed;
 
         // this allows for float rounding error overshoot
         ensure!(
@@ -470,8 +470,8 @@ impl SpeedLimitTrainSim {
             format_dbg!(utils::almost_le_uom(&-self.state.pwr_whl_out, &pwr_neg_max, Some(1.0e-7))),
             -self.state.pwr_whl_out,
             pwr_neg_max,
-            self.state.velocity,
-            self.fric_brake.state.force * self.state.velocity,
+            self.state.speed,
+            self.fric_brake.state.force * self.state.speed,
             vel_change,
         res_net)
         );

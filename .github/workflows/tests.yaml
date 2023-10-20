@@ -46,9 +46,5 @@ jobs:
 
       - name: Python functional tests 
         run: |
-          python applications/demos/bel_demo.py
-          python applications/demos/conv_demo.py
-          python applications/demos/set_speed_train_sim_demo.py
-          python applications/demos/sim_manager_demo.py
-          python applications/demos/rollout_demo.py
+          SHOW_PLOTS=false pytest -v applications/demos/*demo*.py
 

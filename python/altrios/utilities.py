@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 import datetime
 import requests
+import os
 
 
 from altrios.altrios_core_py import (
@@ -293,3 +294,10 @@ def download_demo_files():
                 print(f"Saved {file_name} to {str(demo_path / file_name)}")
     else:
         print("Failed to download demo files")
+
+
+def show_plots() -> bool:
+    """
+    Returns true if plots should be displayed
+    """
+    return os.environ.get("SHOW_PLOTS", "true").lower() == "true"        

@@ -46,6 +46,7 @@ pyo3 = { workspace = true, features = [
 ], optional = true }
 serde-this-or-that = "0.4.2"
 project-root = "0.2.2"
+eng_fmt = { workspace = true }
 
 [features]
 pyo3 = ["dep:pyo3"]

@@ -11,6 +11,7 @@ from pathlib import Path
 import datetime
 import requests
 import os
+from altrios import __version__
 
 
 from altrios.altrios_core_py import (

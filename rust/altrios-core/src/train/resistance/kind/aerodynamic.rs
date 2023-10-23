@@ -12,6 +12,6 @@ impl Basic {
         Self { drag_area }
     }
     pub fn calc_res(&mut self, state: &TrainState) -> si::Force {
-        self.drag_area * uc::rho_air() * state.velocity * state.velocity
+        self.drag_area * uc::rho_air() * state.speed * state.speed
     }
 }

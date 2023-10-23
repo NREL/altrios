@@ -55,6 +55,7 @@ dependencies = [
  "csv",
  "duplicate",
  "easy-ext",
+ "eng_fmt",
  "enum_dispatch",
  "log",
  "nohash-hasher",
@@ -536,6 +537,12 @@ name = "either"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
+
+[[package]]
+name = "eng_fmt"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c263a94ae6bb6421c63a454ad97968f6a6a7dfd3d23aab51441b604d074af3f0"
 
 [[package]]
 name = "enum_dispatch"

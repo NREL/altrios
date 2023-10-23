@@ -7,6 +7,7 @@ use crate::imports::*;
 
 /// Contains all of the train path parameters in vector form
 /// e.g. -  link points, elevations, speed points, and TrainParams
+/// TODO: make PathTPC robust to `Vec<LinkPoint>` that ends with `0`
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 #[altrios_api]
 pub struct PathTpc {
@@ -17,7 +18,7 @@ pub struct PathTpc {
     #[api(skip_set)]
     curves: Vec<PathResCoeff>,
     #[api(skip_set)]
-    speed_points: Vec<SpeedPoint>,
+    speed_points: Vec<SpeedLimitPoint>,
     #[api(skip_set)]
     cat_power_limits: Vec<CatPowerLimit>,
     #[api(skip_set)]
@@ -43,7 +44,7 @@ impl PathTpc {
     pub fn curves(&self) -> &[PathResCoeff] {
         &self.curves
     }
-    pub fn speed_points(&self) -> &[SpeedPoint] {
+    pub fn speed_points(&self) -> &[SpeedLimitPoint] {
         &self.speed_points
     }
     pub fn cat_power_limits(&self) -> &[CatPowerLimit] {
@@ -64,7 +65,7 @@ impl PathTpc {
             link_points: vec![LinkPoint::default()],
             grades: vec![PathResCoeff::default()],
             curves: vec![PathResCoeff::default()],
-            speed_points: vec![SpeedPoint {
+            speed_points: vec![SpeedLimitPoint {
                 offset: si::Length::ZERO,
                 speed_limit: train_params.speed_max,
             }],
@@ -98,13 +99,19 @@ impl PathTpc {
         self.link_points.reserve(link_path.len());
         let mut link_point_sum = LinkPoint::default();
         for link_idx in link_path {
-            ensure!(link_idx.is_real(), "Error: `link_idx` is not real.");
+            ensure!(
+                link_idx.is_real(),
+                "{}\nError: `link_idx`: {} is not real.",
+                format_dbg!(),
+                link_idx
+            );
             let link = &network[link_idx.idx()];
             let offset_base = self.link_points.last().unwrap().offset;
 
             // Verify that the path to be added is continuous
             if self.link_points.len() >= 2 {
                 let link_idx_prev = self.link_points[self.link_points.len() - 2].link_idx;
+                // TODO: improve error message quality
                 ensure!(link_idx_prev.is_real(), "link_idx_prev is not real");
                 ensure!(
                     link.idx_prev == link_idx_prev || link.idx_prev_alt == link_idx_prev,
@@ -281,7 +288,7 @@ impl PathTpc {
 
     pub fn recalc_speeds(&mut self, links: &[Link]) {
         self.speed_points.clear();
-        self.speed_points.push(SpeedPoint {
+        self.speed_points.push(SpeedLimitPoint {
             offset: self.link_points.first().unwrap().offset,
             speed_limit: self.train_params.speed_max,
         });
@@ -305,7 +312,7 @@ impl PathTpc {
     }
 
     fn add_speeds(
-        speed_points: &mut Vec<SpeedPoint>,
+        speed_points: &mut Vec<SpeedLimitPoint>,
         train_params: &TrainParams,
         speed_sets: &[SpeedSet],
         offset_base: si::Length,

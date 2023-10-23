@@ -4,20 +4,20 @@ use crate::imports::*;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, SerdeAPI)]
 #[altrios_api]
-pub struct SpeedPoint {
+pub struct SpeedLimitPoint {
     #[api(skip_set)]
     pub offset: si::Length,
     #[api(skip_set)]
     pub speed_limit: si::Velocity,
 }
 
-impl GetOffset for SpeedPoint {
+impl GetOffset for SpeedLimitPoint {
     fn get_offset(&self) -> si::Length {
         self.offset
     }
 }
 
-impl ObjState for SpeedPoint {
+impl ObjState for SpeedLimitPoint {
     fn validate(&self) -> Result<(), crate::validate::ValidationErrors> {
         let mut errors = ValidationErrors::new();
         si_chk_num_gez(&mut errors, &self.offset, "Offset");
@@ -27,7 +27,7 @@ impl ObjState for SpeedPoint {
 }
 
 #[ext(InsertSpeed)]
-pub impl Vec<SpeedPoint> {
+pub impl Vec<SpeedLimitPoint> {
     /// Add a speed limit to speed points.
     /// The new speed limit must not start before the beginning of the current speed points.
     fn insert_speed(&mut self, speed_limit: &SpeedLimit) {
@@ -45,11 +45,11 @@ pub impl Vec<SpeedPoint> {
                 if self.last().unwrap().offset < speed_limit.offset_start {
                     // Insert the new speed at its offset and add the old speed at the end
                     self.reserve(2);
-                    self.push(SpeedPoint {
+                    self.push(SpeedLimitPoint {
                         offset: speed_limit.offset_start,
                         speed_limit: speed_new,
                     });
-                    self.push(SpeedPoint {
+                    self.push(SpeedLimitPoint {
                         offset: speed_limit.offset_end,
                         speed_limit: speed_old,
                     });
@@ -63,7 +63,7 @@ pub impl Vec<SpeedPoint> {
                 else {
                     // Overwrite the old last speed and add the old speed at the end
                     self.last_mut().unwrap().speed_limit = speed_new;
-                    self.push(SpeedPoint {
+                    self.push(SpeedLimitPoint {
                         offset: speed_limit.offset_end,
                         speed_limit: speed_old,
                     });
@@ -89,7 +89,7 @@ pub impl Vec<SpeedPoint> {
                 if speed_old != speed_new {
                     self.insert(
                         idx_start,
-                        SpeedPoint {
+                        SpeedLimitPoint {
                             offset: speed_limit.offset_start,
                             speed_limit: speed_new,
                         },
@@ -107,7 +107,7 @@ pub impl Vec<SpeedPoint> {
                 if speed_old != min_speed(speed_old, speed_limit.speed) {
                     self.insert(
                         idx_end + 1,
-                        SpeedPoint {
+                        SpeedLimitPoint {
                             offset: speed_limit.offset_end,
                             speed_limit: speed_old,
                         },
@@ -170,7 +170,7 @@ pub impl Vec<SpeedPoint> {
     }
 }
 
-impl ObjState for [SpeedPoint] {
+impl ObjState for [SpeedLimitPoint] {
     fn is_fake(&self) -> bool {
         self.is_empty()
     }

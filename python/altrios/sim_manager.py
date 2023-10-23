@@ -15,37 +15,6 @@ from altrios import train_planner as planner
 from altrios import metric_calculator as metrics
 
 
-def make_train_sim_builders(
-    df_train_consist_plan: pd.DataFrame,
-    loco_cons: List[alt.Consist],
-) -> List[alt.TrainSimBuilder]:
-    tsbs = []
-
-    for idx, train_row in df_train_consist_plan.drop_duplicates(["Train ID"]).iterrows():
-        train_summary = alt.TrainSummary(
-            train_row["Train Type"],
-            int(train_row["Number of Empty Railcars"]),
-            int(train_row["Number of Loaded Railcars"]),
-            None,
-            None,
-            None,
-        )
-        init_train_state = alt.InitTrainState(
-            time_seconds=train_row["Planned Departure Time(hr)"] * 3600,
-        )
-        tsbs.append(
-            alt.TrainSimBuilder(
-                train_id=str(idx),
-                origin_id=train_row["Origin ID"],
-                destination_id=train_row["Destination ID"],
-                train_summary=train_summary,
-                loco_con=loco_cons[train_row["Train ID"] - 1],
-                init_train_state=init_train_state,
-            )
-        )
-    return tsbs
-
-
 def main(
     rail_vehicle_map: Dict[str, alt.RailVehicle],
     location_map: Dict[str, List[alt.Location]],

@@ -37,19 +37,29 @@ use pyo3_polars::PyDataFrame;
     fn make_train_params_py(&self, rail_vehicle_map: RailVehicleMap) -> PyResult<TrainParams> {
         Ok(self.make_train_params(&rail_vehicle_map))
     }
+
+    #[getter]
+    fn get_train_length_meters(&self) -> Option<f64> {
+        self.train_length.map(|l| l.get::<si::meter>())
+    }    
+
+    #[getter]
+    fn get_train_mass_kilograms(&self) -> Option<f64> {
+        self.train_mass.map(|l| l.get::<si::kilogram>())
+    }    
 )]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
 pub struct TrainSummary {
     /// User-defined identifier for the car type on this train
     pub rail_vehicle_type: String,
-    /// Train type matching one of the PTC types
-    pub train_type: TrainType,
     /// Number of empty railcars on the train
     pub cars_empty: u32,
     /// Number of loaded railcars on the train
     pub cars_loaded: u32,
+    /// Train type matching one of the PTC types
+    pub train_type: TrainType,
     /// Train length that overrides the railcar specific value
-    #[api(skip_set, skip_get)]
+    #[api(skip_get, skip_set)]
     pub train_length: Option<si::Length>,
     /// Total train mass that overrides the railcar specific values
     #[api(skip_set, skip_get)]
@@ -181,7 +191,7 @@ impl Valid for TrainSummary {
 )]
 #[derive(Debug, Default, Clone, Deserialize, Serialize, PartialEq, SerdeAPI)]
 pub struct TrainSimBuilder {
-    /// Unique identifier for the train starting from 0
+    /// Unique, user-defined identifier for the train
     pub train_id: String,
     /// Origin ID from train planner to map to track network locations
     pub origin_id: String,
@@ -207,6 +217,7 @@ impl TrainSimBuilder {
             destination_id,
             train_summary,
             loco_con,
+            // TODO: think about whether this is needed
             init_train_state: init_train_state.unwrap_or_default(),
         }
     }
@@ -237,7 +248,7 @@ impl TrainSimBuilder {
             Some(self.init_train_state.time),
             None,
             start_offset,
-            Some(self.init_train_state.velocity),
+            Some(self.init_train_state.speed),
             Some(self.init_train_state.dt),
             length,
             mass_static,
@@ -318,7 +329,7 @@ impl TrainSimBuilder {
         scenario_year: Option<i32>,
     ) -> anyhow::Result<SpeedLimitTrainSim> {
         let (state, path_tpc, train_res, fric_brake) =
-            self.make_train_sim_parts(rail_vehicle_map, save_interval)?;
+            self.make_train_sim_parts(rail_vehicle_map, save_interval).with_context(|| format_dbg!())?;
 
         Ok(SpeedLimitTrainSim::new(
             self.train_id.clone(),

@@ -80,7 +80,7 @@ pub struct FuelConverter {
     pub pwr_out_frac_interp: Vec<f64>,
     /// fuel converter efficiency array
     pub eta_interp: Vec<f64>,
-    /// idle fuel power to overcome internal friction (not including aux load) \[W\]
+    /// idle fuel power to overcome internal friction (not including aux load)
     #[serde(rename = "pwr_idle_fuel_watts")]
     pub pwr_idle_fuel: si::Power,
     /// time step interval between saves. 1 is a good option. If None, no saving occurs.
@@ -153,7 +153,7 @@ impl Mass for FuelConverter {
 
 // non-py methods
 impl FuelConverter {
-    /// Get fuel converter max power output given time step, dt \[s\]
+    /// Get fuel converter max power output given time step, dt
     pub fn set_cur_pwr_out_max(&mut self, dt: si::Time) -> anyhow::Result<()> {
         ensure!(
             dt > si::Time::ZERO,
@@ -171,7 +171,6 @@ impl FuelConverter {
     }
 
     /// Solve for fuel usage for a given required fuel converter power output
-    /// (pwr_out_req \[W\]) and time step size (dt_s \[s\])
     pub fn solve_energy_consumption(
         &mut self,
         pwr_out_req: si::Power,

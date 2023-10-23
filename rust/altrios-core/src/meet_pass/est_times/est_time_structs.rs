@@ -23,7 +23,7 @@ impl EstJoinPath {
 pub(super) struct SimpleState {
     pub time: si::Time,
     pub offset: si::Length,
-    pub velocity: si::Velocity,
+    pub speed: si::Velocity,
 }
 
 impl SimpleState {
@@ -31,7 +31,7 @@ impl SimpleState {
         Self {
             time: train_state.time,
             offset: train_state.offset,
-            velocity: train_state.velocity,
+            speed: train_state.speed,
         }
     }
 }
@@ -51,7 +51,7 @@ impl SavedSim {
                 || (
                     train_sim.is_finished()
                     // this needs to be reconsidered.  The issue is determining when SpeedLimitTrainSim is finished.
-                        && train_sim.state.velocity > si::Velocity::ZERO
+                        && train_sim.state.speed > si::Velocity::ZERO
                     // train_sim.state.offset
                     //     < train_sim.path_tpc.offset_end() + train_sim.state.length
                 )

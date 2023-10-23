@@ -860,10 +860,15 @@ def run_train_planner(
     simulation_days: int,
     scenario_year: int,
     config: TrainPlannerConfig = TrainPlannerConfig(),
-    # change file name here to test different cases
     demand_file_path=defaults.DEMAND_FILE,
     network_charging_guidelines: pl.DataFrame = None,
-) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, List[alt.SpeedLimitTrainSim], List[alt.EstTimeNet]]:
+) -> Tuple[
+    pl.DataFrame, 
+    pl.DataFrame, 
+    pl.DataFrame, 
+    List[alt.SpeedLimitTrainSim], 
+    List[alt.EstTimeNet]
+]:
     """
     Run the train planner
     Arguments:
@@ -955,10 +960,25 @@ def run_train_planner(
                     dispatched = dispatched.sort('Locomotive_ID')
                     loco_types = dispatched.get_column('Locomotive_Type')
                     loco_start_soc_pct = dispatched.select(pl.col('SOC_J') / pl.col('Capacity_J')).to_series()
-                    locos = [config.loco_info[config.loco_info['Locomotive_Type']==loco_type]['Rust_Loco'].to_list()[0].clone() for loco_type in loco_types]
-                    [alt.set_param_from_path(locos[i], "res.state.soc", loco_start_soc_pct[i]) for i in range(len(locos)) if loco_types[i] == 'BEL']
-                    loco_con = alt.Consist(loco_vec=locos, save_interval=None)
-                    init_train_state = alt.InitTrainState(time_seconds=current_time * 3600)
+                    locos = [
+                        config.loco_info[config.loco_info['Locomotive_Type']==loco_type]['Rust_Loco'].to_list()[0].clone() 
+                        for loco_type in loco_types
+                    ]
+                    [alt.set_param_from_path(
+                        locos[i], 
+                        "res.state.soc", 
+                        loco_start_soc_pct[i]
+                    ) for i in range(len(locos)) if loco_types[i] == 'BEL']
+
+                    loco_con = alt.Consist(
+                        loco_vec=locos,
+                        save_interval=None,
+                    )
+
+                    init_train_state = alt.InitTrainState(
+                        time_seconds=current_time * 3600,
+                    )
+
                     tsb = alt.TrainSimBuilder(
                         train_id=train_id,
                         origin_id=this_train['Origin'],
@@ -969,7 +989,12 @@ def run_train_planner(
                     )
 
                     slts = tsb.make_speed_limit_train_sim(
-                        rail_vehicle_map, location_map, None, simulation_days, scenario_year)
+                        rail_vehicle_map, 
+                        location_map, 
+                        None, 
+                        simulation_days, 
+                        scenario_year
+                    )
                     (est_time_net, loco_con_out) = alt.make_est_times(slts, network)
                     travel_time = (
                         est_time_net.get_running_time_hours()

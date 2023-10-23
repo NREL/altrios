@@ -29,14 +29,14 @@ impl BrakingPoints {
     /// TODO: complete this doc string
     /// Arguments:
     /// - offset: si::Length -- ???
-    /// - velocity: si::Velocity -- ???
+    /// - speed: si::Velocity -- ???
     /// - adj_ramp_up_time: si::Time -- corrected ramp up time to account
     ///     for approximately linear brake build up
 
     pub fn calc_speeds(
         &mut self,
         offset: si::Length,
-        velocity: si::Velocity,
+        speed: si::Velocity,
         adj_ramp_up_time: si::Time,
     ) -> (si::Velocity, si::Velocity) {
         if self.points.first().unwrap().offset <= offset {
@@ -47,14 +47,14 @@ impl BrakingPoints {
             }
         }
         assert!(
-            velocity <= self.points[self.idx_curr].speed_limit,
-            "Speed limit violated! velocity={velocity:?}, speed_limit={:?}",
+            speed <= self.points[self.idx_curr].speed_limit,
+            "Speed limit violated! speed={speed:?}, speed_limit={:?}",
             self.points[self.idx_curr].speed_limit
         );
 
         // need to make a way for this to never decrease until a stop happens or maybe never at all
         // need to maybe save `offset_far`
-        let offset_far = offset + velocity * adj_ramp_up_time;
+        let offset_far = offset + speed * adj_ramp_up_time;
         let mut speed_target = self.points[self.idx_curr].speed_target;
         let mut idx = self.idx_curr;
         while idx >= 1 && self.points[idx - 1].offset <= offset_far {
@@ -80,7 +80,7 @@ impl BrakingPoints {
         let mut train_state = *train_state;
         let mut train_res = train_res.clone();
         train_state.offset = path_tpc.offset_end();
-        train_state.velocity = si::Velocity::ZERO;
+        train_state.speed = si::Velocity::ZERO;
         train_res.update_res::<{ Dir::Unk }>(&mut train_state, path_tpc)?;
         let speed_points = path_tpc.speed_points();
         let mut idx = path_tpc.speed_points().len();
@@ -100,7 +100,7 @@ impl BrakingPoints {
                     let speed_limit = speed_points[idx].speed_limit.abs();
 
                     train_state.offset = bp_curr.offset;
-                    train_state.velocity = bp_curr.speed_limit;
+                    train_state.speed = bp_curr.speed_limit;
                     train_res.update_res::<{ Dir::Bwd }>(&mut train_state, path_tpc)?;
 
                     assert!(fric_brake.force_max + train_state.res_net() > si::Force::ZERO);

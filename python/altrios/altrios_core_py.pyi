@@ -398,6 +398,20 @@ class GeneratorStateHistoryVec:
     def __len__(self) -> int: ...
 
 
+class LocoParams:
+    pwr_aux_offset: float
+    pwr_aux_traction_coeff: float
+    force_max: float
+    mass: Optional[float]
+
+    @classmethod
+    def from_dict(cls, param_dict: Dict[str, float]) -> Self: 
+        """
+        Argument `param_dict` has keys matching attributes of class
+        """
+        ...
+
+
 class Locomotive:
     assert_limits: bool
     edrv: Any
@@ -418,11 +432,9 @@ class Locomotive:
         cls,
         reversible_energy_storage: ReversibleEnergyStorage,
         drivetrain: ElectricDrivetrain,
-        pwr_aux_offset_watts: float,
-        pwr_aux_traction_coeff: float,
-        force_max_newtons: float,
+        loco_params: LocoParams,
         save_interval: Optional[int]
-    ) -> Any: ...
+    ) -> Self: ...
 
     @classmethod
     def default_battery_electric_loco(cls) -> Locomotive: ...
@@ -527,6 +539,7 @@ class LocomotiveStateHistoryVec:
     def __len__(self) -> int: ...
 
 
+@dataclass
 class PowerTrace:
     time_seconds: list[float]
     pwr_watts: list[float]
@@ -547,6 +560,7 @@ class PowerTrace:
     def to_yaml(self) -> Any: ...
     def __copy__(self) -> Any: ...
     def __len__(self) -> int: ...
+    def from_csv_file(pathstr: str) -> Self: ...
 
 
 class Pyo3Vec2Wrapper:
@@ -759,8 +773,6 @@ class SpeedTrace:
     time_seconds: list[float]
     speed_meters_per_second: list[float]
     engine_on: Optional[list[bool]]
-    @classmethod
-    def __init__(cls) -> None: ...
     def clone(self) -> Self: ...
     @classmethod
     def default(cls) -> Self: ...
@@ -777,12 +789,16 @@ class SpeedTrace:
     def to_yaml(self) -> Any: ...
     def __copy__(self) -> Any: ...
     def __len__(self) -> int: ...
+    def from_csv_file(pathstr: str) -> Self: ...
 
 
 class TrainState:
     time_seconds: float
+    i: int
     offset_meters: float
-    velocity_meters_per_second: float
+    offset_back_meters: float
+    total_dist_meters: float
+    speed_meters_per_second: float
     speed_limit_meters_per_second: float
     speed_target_meters_per_second: float
     dt_seconds: float
@@ -790,7 +806,6 @@ class TrainState:
     mass_static_kilograms: float
     mass_adj_kilograms: float
     mass_freight_kilograms: float
-    max_fric_braking: float
     weight_static_newtons: float
     res_rolling_newtons: float
     res_bearing_newtons: float
@@ -798,12 +813,31 @@ class TrainState:
     res_aero_newtons: float
     res_grade_newtons: float
     res_curve_newtons: float
+    grade_front: float
+    elev_front_meters: float
+    pwr_res_watts: float
+    pwr_accel_watts: float
     pwr_whl_out_watts: float
     energy_whl_out_joules: float
+    energy_whl_out_pos_joules: float
+    energy_whl_out_neg_joules: float
     @classmethod
     def default(cls) -> TrainState: ...
     @classmethod
     def from_json(cls, json_str: str) -> TrainState: ...
+    @classmethod
+    def __new__(
+        cls,
+        offset_meters: float,
+        length_meters: float,
+        mass_static_kilograms: float,
+        mass_adj_kilograms: float,
+        mass_freight_kilograms: float,
+        time_seconds: Optional[float],
+        i: Optional[int],
+        speed_meters_per_second: Optional[float],
+        dt_seconds: Optional[float],
+    ) -> Self: ...
     def to_json(self) -> str: ...
     @classmethod
     def from_yaml(cls, yaml_str: str) -> TrainState: ...
@@ -815,7 +849,7 @@ class TrainState:
 class TrainStateHistoryVec:
     time_seconds: list[float]
     offset_meters: list[float]
-    velocity_meters_per_second: list[float]
+    speed_meters_per_second: list[float]
     speed_limit_meters_per_second: list[float]
     speed_target_meters_per_second: list[float]
     dt_seconds: list[float]
@@ -942,6 +976,7 @@ class SpeedLimitTrainSimVec:
     def from_file(cls, filename: str) -> Self: ...
     def to_file(self, filename: str) -> None: ...
     def tolist(self) -> List[SpeedLimitTrainSim]: ...
+    def set_save_interval(save_interal: int): ...
 
 
 @dataclass
@@ -1014,14 +1049,34 @@ class TrainSimBuilder:
         init_train_state
     ) -> None: ...
 
+    def make_set_speed_train_sim(
+        rail_vehicle_map: Dict[str, RailVehicle],
+        network: List[Link],
+        link_path: List[LinkIdx],
+        speed_trace: SpeedTrace,
+        save_interval: Optional[int],
+    ) -> SetSpeedTrainSim:
+        ...
 
+    def make_speed_limit_train_sim(
+        self,
+        rail_vehicle_map: Dict[str, RailVehicle],
+        location_map: Dict[str, List[Location]],
+        save_interval: Optional[int],
+        simulation_days: Optional[int],
+        scenario_year: Optional[int],
+    ) -> SpeedLimitTrainSim:
+        ...
+
+
+@dataclass
 class TrainSummary:
+    rail_vehicle_type: str
     cars_empty: int
     cars_loaded: int
-    rail_vehicle_type: str
-    train_id: str
-    train_length: Optional[float]
-    train_mass: Optional[float]
+    train_type: str
+    train_length_meters: Optional[float]
+    train_mass_kilograms: Optional[float]
     @classmethod
     def default(cls) -> Self: ...
     @classmethod
@@ -1165,10 +1220,11 @@ def run_dispatch(
 ) -> List[List[LinkIdxTime]]: ...
 
 
+@dataclass
 class InitTrainState:
     time_seconds: float
     offset_meters: float
-    velocity_meters_per_second: float
+    speed_meters_per_second: float
     dt_seconds: float
     @classmethod
     def default(cls) -> Self: ...

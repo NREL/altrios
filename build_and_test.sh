@@ -1,12 +1,12 @@
 # assumes a python environment has been created and activated
-(cd rust/altrios-core/ && cargo test) && \
+echo "Testing rust" && \
+(cd rust/ && cargo test --workspace) && \
 # pip install -qe ".[dev]" && \ 
 # assumes `pip install -qe ".[dev]"` has been run already
+echo "Building python API" && \
 maturin develop --release && \
+echo "Running python tests" && \
 pytest -v tests && \
-(cd applications/demos/ && \
-echo "Running sim_manager_demo.py" && \
-python sim_manager_demo.py && \
-echo "Running rollout_demo.py" && \
-python rollout_demo.py) && \
-echo "Everything worked!"
+echo "Verifying that demos run" && \
+pytest -v applications && \
+echo "Complete success!"

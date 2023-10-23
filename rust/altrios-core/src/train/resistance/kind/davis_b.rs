@@ -11,6 +11,6 @@ impl Basic {
         Self { davis_b }
     }
     pub fn calc_res(&mut self, state: &TrainState) -> si::Force {
-        self.davis_b * state.velocity * state.weight_static
+        self.davis_b * state.speed * state.weight_static
     }
 }

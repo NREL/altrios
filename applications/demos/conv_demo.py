@@ -13,7 +13,7 @@ import seaborn as sns
 
 sns.set()
 
-SHOW_PLOTS = os.environ.get("SHOW_PLOTS", "true").lower() == "true"
+SHOW_PLOTS = alt.utils.show_plots()
 
 # %%
 SAVE_INTERVAL = 1
@@ -110,6 +110,5 @@ ax[i].set_ylabel("Total Tractive\nEffort [MW]", fontsize=fontsize)
 
 if SHOW_PLOTS:
     plt.tight_layout()
-
     plt.show()
 # %%

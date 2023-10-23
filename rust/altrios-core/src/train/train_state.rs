@@ -6,13 +6,13 @@ use crate::imports::*;
     fn __new__(
         time_seconds: Option<f64>,
         offset_meters: Option<f64>,
-        velocity_meters_per_second: Option<f64>,
+        speed_meters_per_second: Option<f64>,
         dt_seconds: Option<f64>,
     ) -> Self {
         Self::new(
             time_seconds.map(|x| x * uc::S),
             offset_meters.map(|x| x * uc::M),
-            velocity_meters_per_second.map(|x| x * uc::MPS),
+            speed_meters_per_second.map(|x| x * uc::MPS),
             dt_seconds.map(|x| x * uc::S),
         )
     }
@@ -20,16 +20,17 @@ use crate::imports::*;
 pub struct InitTrainState {
     pub time: si::Time,
     pub offset: si::Length,
-    pub velocity: si::Velocity,
+    pub speed: si::Velocity,
     pub dt: si::Time,
 }
 
+// TODO: get rid of this function
 impl Default for InitTrainState {
     fn default() -> Self {
         Self {
             time: si::Time::ZERO,
             offset: f64::NAN * uc::M,
-            velocity: si::Velocity::ZERO,
+            speed: si::Velocity::ZERO,
             dt: uc::S,
         }
     }
@@ -39,14 +40,14 @@ impl InitTrainState {
     pub fn new(
         time: Option<si::Time>,
         offset: Option<si::Length>,
-        velocity: Option<si::Velocity>,
+        speed: Option<si::Velocity>,
         dt: Option<si::Time>,
     ) -> Self {
         let base = InitTrainState::default();
         Self {
             time: time.unwrap_or(base.time),
             offset: offset.unwrap_or(base.offset),
-            velocity: velocity.unwrap_or(base.velocity),
+            speed: speed.unwrap_or(base.speed),
             dt: dt.unwrap_or(base.dt),
         }
     }
@@ -64,14 +65,14 @@ impl InitTrainState {
         mass_freight_kilograms: f64,
         time_seconds: Option<f64>,
         i: Option<usize>,
-        velocity_meters_per_second: Option<f64>,
+        speed_meters_per_second: Option<f64>,
         dt_seconds: Option<f64>,
     ) -> Self {
         Self::new(
             time_seconds.map(|x| x * uc::S),
             i,
             offset_meters * uc::M,
-            velocity_meters_per_second.map(|x| x * uc::MPS),
+            speed_meters_per_second.map(|x| x * uc::MPS),
             dt_seconds.map(|x| x * uc::S),
             length_meters * uc::M,
             mass_static_kilograms * uc::KG,
@@ -81,21 +82,24 @@ impl InitTrainState {
     }
 )]
 pub struct TrainState {
+    /// time since user-defined datum
     pub time: si::Time,
+    /// index for time steps
     pub i: usize,
     pub offset: si::Length,
     pub offset_back: si::Length,
     pub total_dist: si::Length,
-    pub velocity: si::Velocity,
+    /// Achieved speed based on consist capabilities and train resistance
+    pub speed: si::Velocity,
+    /// Speed limit
     pub speed_limit: si::Velocity,
+    /// Speed target from meet-pass planner
     pub speed_target: si::Velocity,
-
     pub dt: si::Time,
     pub length: si::Length,
     pub mass_static: si::Mass,
     pub mass_adj: si::Mass,
     pub mass_freight: si::Mass,
-
     pub weight_static: si::Force,
     pub res_rolling: si::Force,
     pub res_bearing: si::Force,
@@ -130,7 +134,7 @@ impl Default for TrainState {
             offset: Default::default(),
             offset_back: Default::default(),
             total_dist: si::Length::ZERO,
-            velocity: Default::default(),
+            speed: Default::default(),
             speed_limit: Default::default(),
             dt: uc::S,
             length: Default::default(),
@@ -163,7 +167,7 @@ impl TrainState {
         time: Option<si::Time>,
         i: Option<usize>,
         offset: si::Length,
-        velocity: Option<si::Velocity>,
+        speed: Option<si::Velocity>,
         dt: Option<si::Time>,
         // the following variables probably won't ever change so it'd be good to have a separate train params object
         length: si::Length,
@@ -177,8 +181,8 @@ impl TrainState {
             offset,
             offset_back: offset - length,
             total_dist: si::Length::ZERO,
-            velocity: velocity.unwrap_or_default(),
-            speed_limit: velocity.unwrap_or_default(),
+            speed: speed.unwrap_or_default(),
+            speed_limit: speed.unwrap_or_default(),
             dt: dt.unwrap_or(uc::S),
             length,
             mass_static,

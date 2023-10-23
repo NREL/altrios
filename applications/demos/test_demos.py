@@ -5,7 +5,7 @@ import pytest
 
 
 demo_paths = list(Path(__file__).parent.glob("*demo*.py"))
-@pytest.mark.parametrize("demo_path", demo_paths, ids=[str(dp) for dp in demo_paths])
+@pytest.mark.parametrize("demo_path", demo_paths, ids=[dp.name for dp in demo_paths])
 def test_demo(demo_path: Path):
     os.environ['SHOW_PLOTS'] = "false"
     rslt = subprocess.run(

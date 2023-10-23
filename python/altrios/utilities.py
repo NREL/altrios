@@ -272,9 +272,14 @@ def enable_logging():
 def download_demo_files():
     """
     Downloads demo files from github repo into local directory.
+
+    # Warning: running this function will overwrite existing files so make sure any files with
+    changes you'd like to keep are renamed.
     """
 
-    api_url = "https://api.github.com/repos/NREL/altrios/contents/applications/demos"
+    v = f"v{__version__}"
+
+    api_url = f"https://api.github.com/repos/NREL/altrios/contents/applications/demos?reg={v}"
     response = requests.get(api_url)
     
     if response.status_code == 200:

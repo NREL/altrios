@@ -112,7 +112,6 @@ def main(
     values = calculate_rollout_total_costs(values)
     values = calculate_rollout_lcotkm(values)
     values = values.sort(["Year","Subset"], descending = [False, True])
-    print(values)
     return values
 
 

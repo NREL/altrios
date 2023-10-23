@@ -22,7 +22,7 @@ class TrainPlannerConfig:
                  refuelers_per_incoming_corridor: int = 4,
                  hp_required_per_ton: Dict = {
                      "Default": {
-                        "Unit": 0.7,
+                        "Unit": 2.0,
                         "Manifest": 1.5,
                         "Intermodal": 2.0 + 2.0,
                         "Unit_Empty": 2.0,

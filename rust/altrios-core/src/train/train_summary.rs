@@ -461,8 +461,11 @@ pub fn run_speed_limit_train_sims(
                 let departing_soc_pct = train_consist_plan
                     .clone()
                     .lazy()
+                    // retain rows in which "TrainSimVec_Index" equals current `index`
                     .filter(col("TrainSimVec_Index").eq(index.unwrap()))
+                    // Select "Locomotive_ID" column
                     .select(vec![col("Locomotive_ID")])
+                    // find unique locomotive IDs
                     .unique(None, UniqueKeepStrategy::First)
                     .join(loco_pool.clone().lazy(),
                         [col("Locomotive_ID")],

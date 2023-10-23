@@ -1,6 +1,6 @@
 # %%
 from altrios import sim_manager
-from altrios import utilities, defaults
+from altrios import utilities, defaults, train_planner
 import altrios as alt
 import numpy as np
 import matplotlib.pyplot as plt
@@ -34,6 +34,10 @@ print(
     f"Elapsed time to import rail vehicles, locations, and network: {t1_import - t0_import:.3g} s"
 )
 
+train_planner_config = train_planner.TrainPlannerConfig(
+            cars_per_locomotive=50,
+            target_cars_per_train=90)
+
 t0_main = time.perf_counter()
 
 (
@@ -48,6 +52,7 @@ t0_main = time.perf_counter()
     network=network,
     rail_vehicle_map=rail_vehicle_map,
     location_map=location_map,
+    train_planner_config=train_planner_config,
     debug=True,
 )
 

@@ -46,5 +46,5 @@ jobs:
 
       - name: Python functional tests 
         run: |
-          SHOW_PLOTS=false pytest -v applications/demos/*demo*.py
+          SHOW_PLOTS=false pytest -v applications
 

@@ -21,4 +21,4 @@ public        git@github.com:NREL/altrios.git (fetch)
 After that, just run `sh publish.sh`
 
 ## Troubleshooting
-Check that https://github.com/NREL/fastsim/settings/pages is set to deploy from the `mdbook-src` branch.  
+Check that https://github.com/NREL/fastsim/settings/pages is set to deploy from the `mdbook-publish` branch.  

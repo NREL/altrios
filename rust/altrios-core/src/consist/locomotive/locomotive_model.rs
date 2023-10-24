@@ -181,8 +181,8 @@ impl LocoTrait for Dummy {
     }
 
     #[classmethod]
-    #[pyo3(name = "default_battery_electic_loco")]
-    fn default_battery_electic_loco_py (_cls: &PyType) -> PyResult<Self> {
+    #[pyo3(name = "default_battery_electric_loco")]
+    fn default_battery_electric_loco_py (_cls: &PyType) -> PyResult<Self> {
         Ok(Self::default_battery_electric_loco())
     }
 

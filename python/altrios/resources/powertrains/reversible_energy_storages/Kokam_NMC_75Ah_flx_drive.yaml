@@ -1,7 +1,7 @@
 # locomitive-specific parameters from https://www.wabteccorp.com/media/466/download?inline
 energy_capacity_joules: 8.64e9 # 2,400 kW-hours
 pwr_out_max_watts: 3.821e6 # 4,400 hp
-max_soc: 0.96
+max_soc: 0.95
 min_soc: 0.05
 # simulation parameters
 save_interval: 1

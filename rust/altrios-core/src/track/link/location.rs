@@ -16,8 +16,12 @@ pub struct Location {
     #[serde(rename = "Is Front End")]
     #[serde(deserialize_with = "as_bool")]
     pub is_front_end: bool,
-    #[serde(rename = "Grid Region")]
-    pub grid_region: String,
+    #[serde(rename = "Grid Emissions Region")]
+    pub grid_emissions_region: String,
+    #[serde(rename = "Electricity Price Region")]
+    pub electricity_price_region: String,
+    #[serde(rename = "Liquid Fuel Price Region")]
+    pub liquid_fuel_price_region: String,
 }
 pub type LocationMap = HashMap<String, Vec<Location>>;
 

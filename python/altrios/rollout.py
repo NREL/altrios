@@ -1,31 +1,57 @@
 from altrios import sim_manager
-from altrios import metric_calculator
+from altrios import metric_calculator, train_planner, defaults
 from altrios.metric_calculator import ScenarioInfo
 
 import altrios as alt
 import numpy as np
 import time
 import pandas as pd
+import polars as pl
 from typing import List, Tuple, Optional
 from pathlib import Path
 import os
 
-DEBUG = False
+DEBUG = True
 
 
 def simulate_prescribed_rollout(
     max_bel_share: float,
     number_of_years: int,
+    start_year: int = defaults.BASE_ANALYSIS_YEAR,
+    # If you do not have this path, please add it! We are trying to keep confidential documents out of the git repo
     network_filename_path: str = str(alt.resources_root() / "networks/Taconite.yaml"),
     save_interval: Optional[int] = None,
-) -> Tuple[List[ScenarioInfo], pd.DataFrame]:
-    years = list(range(2020, 2020 + number_of_years))
+    freight_demand_percent_growth:float = 0.0,
+    demand_file_path= defaults.DEMAND_FILE,
+    train_planner_config: train_planner.TrainPlannerConfig = train_planner.TrainPlannerConfig(),
+    results_folder: Optional[str] = '../../Case Study/Rollout Results',
+    count_unused_locomotives = False,
+    write_complete_results: Optional[bool] = False,
+    write_metrics: Optional[bool] = False,
+) -> Tuple[List[ScenarioInfo], pl.DataFrame]:
+    years = list(range(start_year, start_year + number_of_years))
     target_bel_shares = np.zeros(len(years))
-    if len(years) == 1:
+    if len(years) == 0:
         target_bel_shares[0] = max_bel_share
     else:
         for idx, _ in enumerate(target_bel_shares):
-            target_bel_shares[idx] = ((idx+1) / (len(years))) * max_bel_share
+            if idx==0: target_bel_shares[idx] = 0.0
+            else: target_bel_shares[idx] = ((idx) / (len(years)-1)) * max_bel_share
+
+    save_dir = Path(results_folder)
+    save_dir.mkdir(exist_ok=True, parents=True) 
+
+    base_freight_demand_df = pd.read_csv(demand_file_path)
+    demand_paths = []
+    for year in years:
+        if freight_demand_percent_growth > 0:
+            demand_filename = results_folder + '/' + os.path.basename(demand_file_path).replace('.csv',str(year) + '.csv')
+            base_freight_demand_df.to_csv(demand_filename, float_format="%.0f")
+            demand_paths.append(demand_filename)
+            base_freight_demand_df.Number_of_Cars = base_freight_demand_df.Number_of_Cars * (1 + freight_demand_percent_growth/100)
+            base_freight_demand_df.Number_of_Containers = base_freight_demand_df.Number_of_Containers * (1 + freight_demand_percent_growth/100)
+        else:
+            demand_paths.append(demand_file_path)
 
     rail_vehicle_map = alt.import_rail_vehicles(
         str(alt.resources_root() / "rolling_stock/rail_vehicles.csv")
@@ -34,13 +60,12 @@ def simulate_prescribed_rollout(
         str(alt.resources_root() / "networks/default_locations.csv")
     )
     network = alt.import_network(network_filename_path)
-
-    sim_days = 7
+    sim_days = defaults.SIMULATION_DAYS
     scenarios = []
     for idx, scenario_year in enumerate(years):
         t0 = time.perf_counter()
         (
-            train_consist_plan, loco_pool, refuel_facilities, grid_emissions_factors, speed_limit_train_sims, timed_paths
+            train_consist_plan, loco_pool, refuel_facilities, grid_emissions_factors, nodal_energy_prices, speed_limit_train_sims, timed_paths
         ) = sim_manager.main(
             network=network,
             rail_vehicle_map=rail_vehicle_map,
@@ -49,40 +74,68 @@ def simulate_prescribed_rollout(
             scenario_year=scenario_year,
             target_bel_share=target_bel_shares[idx],
             debug=True,
+            train_planner_config=train_planner_config,
+            demand_file_path=demand_paths[idx],
         )
 
         t1 = time.perf_counter()
         if DEBUG:
-            print(f"Elapsed time to run `sim_manager.main()`: {t1-t0:.3g} s")
-
+            print(f"Elapsed time to run `sim_manager.main() for year {scenario_year}`: {t1-t0:.3g} s")
         speed_limit_train_sims.set_save_interval(save_interval)
-        (sims, charge_sessions) = alt.run_speed_limit_train_sims(
+        used_loco_pool = loco_pool.filter(pl.col("Locomotive_ID").is_in(train_consist_plan.get_column("Locomotive_ID").unique()))
+        (sims, refuel_sessions) = alt.run_speed_limit_train_sims(
             speed_limit_train_sims=speed_limit_train_sims,
             network=network,
             train_consist_plan_py=train_consist_plan,
-            loco_pool_py=loco_pool,
+            loco_pool_py=used_loco_pool,
             refuel_facilities_py=refuel_facilities,
             timed_paths=timed_paths
         )
+        # gallons = (sims.get_energy_fuel_joules(annualize=True) / 1e3 / 45.6e3) * 1e3 / 3206
 
+        loco_pool = loco_pool.drop(["Refueler_Efficiency","Refueler_J_Per_Hr","Port_Count","Battery_Headroom_J"])
+        train_consist_plan = train_consist_plan.sort(["Locomotive_Type","Locomotive_ID","Train_ID"])
+        refuel_sessions = (refuel_sessions
+                           .sort(["Locomotive_Type","Locomotive_ID","Refuel_Start_Time_Hr"])
+                           .with_columns(train_consist_plan.get_column("TrainSimVec_Index"),
+                                         train_consist_plan.get_column("Train_ID")))
         scenarios.append(ScenarioInfo(
             sims, 
+            sim_days,
             scenario_year, 
+            loco_pool,
             train_consist_plan, 
             refuel_facilities,
-            charge_sessions, 
-            grid_emissions_factors))
-
+            refuel_sessions, 
+            grid_emissions_factors,
+            nodal_energy_prices,
+            count_unused_locomotives))
+        
         t2 = time.perf_counter()
                     
         if DEBUG:
-            print(
-                f"Elapsed time to run `run_speed_limit_train_sims()`: {t2-t1:.3g} s")
+            print(f"Elapsed time to run `run_speed_limit_train_sims()` for year {scenario_year}: {t2-t1:.3g} s")
+
+        if write_complete_results:
+            print(results_folder +'/RolloutResults_Year {}_Demand {}.json'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv',''))
+            sims.to_file(results_folder +'/RolloutResults_Year {}_Demand {}.json'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv',''))
+            
+            train_consist_plan.write_csv(results_folder +'/ConsistPlan_Year {}_Demand {}.csv'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv','')+ '.csv')
+            t3 = time.perf_counter()
+
+            if DEBUG:
+                print(f"Elapsed time to serialize results for year {scenario_year}: {t3-t2:.3g} s")
+        
+        t2 = time.perf_counter()
 
     metrics = metric_calculator.main(scenarios)
 
+    if write_metrics:
+        print(results_folder +'/Metrics_Demand {}_DemandFile {}.xlsx'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv',''))
+        metrics.to_pandas().to_excel(results_folder +'/Metrics_Demand {}_DemandFile {}.xlsx'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv',''))
+    
     t3 = time.perf_counter()
     if DEBUG:
-        print(f"Elapsed time to run metric_calculator.main(): {t3-t2:.3g} s")
+        print(f"Elapsed time to run `metric_calculator.main()` and serialize metrics: {t3-t2:.3g} s")
 
     return scenarios, metrics

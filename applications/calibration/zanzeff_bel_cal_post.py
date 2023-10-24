@@ -21,7 +21,7 @@ bel_optimal_params = cval.min_error_selection(
     param_num=len(bel_cal_mod_err.params)
 )
 
-bel_default = altc.Locomotive.default_battery_electic_loco()
+bel_default = altc.Locomotive.default_battery_electric_loco()
 
 # note that this is not guaranteed to be consistent with `params_and_bounds` from zanzeff_bel_cal.py
 bel_default_params =  [

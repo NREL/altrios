@@ -12,7 +12,7 @@ fn test_consist() {
     consist.set_cur_pwr_max_out(None, 1.0 * uc::S).unwrap();
     assert!(consist.state.pwr_out_max > si::Power::ZERO);
     assert!(consist.state.pwr_rate_out_max > si::PowerRate::ZERO);
-    assert!(consist.state.pwr_regen_max > si::Power::ZERO);
+    assert!(consist.state.pwr_regen_max == si::Power::ZERO);
 
     assert_eq!(consist.state.energy_out, si::Energy::ZERO);
     assert_eq!(consist.state.energy_fuel, si::Energy::ZERO);

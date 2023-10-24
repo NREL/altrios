@@ -1,5 +1,6 @@
 # %%
-from altrios import rollout
+import altrios
+from altrios import rollout, defaults, train_planner
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,12 +17,25 @@ sns.set()
 plot_dir = Path() / "plots"
 # make the dir if it doesn't exist
 plot_dir.mkdir(exist_ok=True)
-
+File = defaults.DEMAND_FILE
 #targets = [0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75, 0.8]
+train_planner_config = train_planner.TrainPlannerConfig(
+            cars_per_locomotive=50,
+            target_cars_per_train=90)
 targets = [0.5]
 for target in targets:
     scenario_infos, metrics = rollout.simulate_prescribed_rollout(
-        max_bel_share=target, number_of_years=2
+        max_bel_share=target, 
+        number_of_years=1,
+        results_folder = 'C:/Users/mbruchon/Documents/Repos/ALTRIOS/Case Study/Rollout Results',
+        demand_file_path=File,
+        train_planner_config=train_planner_config,
+        count_unused_locomotives=False,
+        write_complete_results=False,
+        freight_demand_percent_growth=0,
+        save_interval=None,
+        write_metrics=True,
+        network_filename_path=str(altrios.resources_root() / "networks/Taconite-NoBalloon.yaml")
     )
 
 # %%

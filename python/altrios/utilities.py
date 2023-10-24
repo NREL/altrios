@@ -269,11 +269,15 @@ def enable_logging():
     set_log_level(logging.WARNING)
 
 
-def download_demo_files():
+def download_demo_files(demo_path: Path=Path("demos")):
     """
     Downloads demo files from github repo into local directory.
 
-    # Warning: running this function will overwrite existing files so make sure any files with
+    # Arguments
+    demo_path: path (relative or absolute in )
+
+    # Warning
+    Running this function will overwrite existing files so make sure any files with
     changes you'd like to keep are renamed.
     """
 
@@ -290,12 +294,19 @@ def download_demo_files():
                 file_url = item["download_url"]
                 file_name = item["name"]
 
-                demo_path = Path("demos")
                 demo_path.mkdir(exist_ok=True)
                 
                 with open(demo_path / file_name, "wb") as file:
                     file_content = requests.get(file_url).content
                     file.write(file_content)
+                
+                with open(demo_path / file_name, "r+") as file:
+                    file_content = file.readlines()
+                    prepend_str = f"# %% Downloaded from ALTRIOS version '{v}'. Guaranteed compatibility with this version only.\n"
+                    prepend = [prepend_str]
+                    file_content = prepend + file_content
+                    file.seek(0)
+                    file.writelines(file_content)
                     
                 print(f"Saved {file_name} to {str(demo_path / file_name)}")
     else:

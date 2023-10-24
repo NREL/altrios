@@ -43,6 +43,21 @@ impl LinkIdxTime {
         self.get_megagram_kilometers(annualize)
     }
 
+    #[pyo3(name = "get_kilometers")]
+    pub fn get_kilometers_py(&self, annualize: bool)  -> f64 {
+        self.get_kilometers(annualize)
+    }
+
+    #[pyo3(name = "get_res_kilometers")]
+    pub fn get_res_kilometers_py(&mut self, annualize: bool)  -> f64 {
+        self.get_res_kilometers(annualize)
+    }
+
+    #[pyo3(name = "get_non_res_kilometers")]
+    pub fn get_non_res_kilometers_py(&mut self, annualize: bool)  -> f64 {
+        self.get_non_res_kilometers(annualize)
+    }
+
     #[pyo3(name = "get_net_energy_res_joules")]
     pub fn get_net_energy_res_py(&self, annualize: bool) -> f64 {
         self.get_net_energy_res(annualize).get::<si::joule>()
@@ -148,6 +163,25 @@ impl SpeedLimitTrainSim {
     pub fn get_megagram_kilometers(&self, annualize: bool) -> f64 {
         self.state.mass_freight.get::<si::megagram>()
             * self.state.total_dist.get::<si::kilometer>()
+            * self.get_scaling_factor(annualize)
+    }
+
+    pub fn get_kilometers(&self, annualize: bool) -> f64 {
+        self.state.total_dist.get::<si::kilometer>()
+            * self.get_scaling_factor(annualize)
+    }
+
+    pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {
+        let n_res = self.loco_con.n_res_equipped() as f64;
+        self.state.total_dist.get::<si::kilometer>()
+            * n_res
+            * self.get_scaling_factor(annualize)
+    }
+
+    pub fn get_non_res_kilometers(&mut self, annualize: bool) -> f64 {
+        let n_res = self.loco_con.n_res_equipped() as usize;
+        self.state.total_dist.get::<si::kilometer>()
+            * ((self.loco_con.loco_vec.len() - n_res) as f64)
             * self.get_scaling_factor(annualize)
     }
 
@@ -537,14 +571,18 @@ pub fn speed_limit_train_sim_fwd() -> SpeedLimitTrainSim {
             offset: si::Length::ZERO,
             link_idx: LinkIdx::new(96),
             is_front_end: Default::default(),
-            grid_region: "CAMXc".into(),
+            grid_emissions_region: "CAMXc".into(),
+            electricity_price_region: "CA".into(),
+            liquid_fuel_price_region: "CA".into(),
         },
         Location {
             location_id: "Barstow".into(),
             offset: si::Length::ZERO,
             link_idx: LinkIdx::new(634),
             is_front_end: Default::default(),
-            grid_region: "CAMXc".into(),
+            grid_emissions_region: "CAMXc".into(),
+            electricity_price_region: "CA".into(),
+            liquid_fuel_price_region: "CA".into(),
         },
     ];
     speed_limit_train_sim.dests = vec![
@@ -553,14 +591,18 @@ pub fn speed_limit_train_sim_fwd() -> SpeedLimitTrainSim {
             offset: si::Length::ZERO,
             link_idx: LinkIdx::new(288),
             is_front_end: Default::default(),
-            grid_region: "CAMXc".into(),
+            grid_emissions_region: "CAMXc".into(),
+            electricity_price_region: "CA".into(),
+            liquid_fuel_price_region: "CA".into(),
         },
         Location {
             location_id: "Stockton".into(),
             offset: si::Length::ZERO,
             link_idx: LinkIdx::new(826),
             is_front_end: Default::default(),
-            grid_region: "CAMXc".into(),
+            grid_emissions_region: "CAMXc".into(),
+            electricity_price_region: "CA".into(),
+            liquid_fuel_price_region: "CA".into(),
         },
     ];
     speed_limit_train_sim

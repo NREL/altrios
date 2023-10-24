@@ -146,7 +146,7 @@ def get_train_sim_inputs(df: pd.DataFrame, file_path: Path) -> bytes:
     #     loco_conventional, "fc.pwr_ramp_lag_seconds", 0.000001)
     # loco_vec = [
     #     loco_conventional.clone(),
-    #     alt.Locomotive.default_battery_electic_loco(),
+    #     alt.Locomotive.default_battery_electric_loco(),
     #     loco_conventional.clone(),
     #     loco_conventional.clone(),
     #     # loco_con needs to be consistent with whatever is actually in ZANZEFF

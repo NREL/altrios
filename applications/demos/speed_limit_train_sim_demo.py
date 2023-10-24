@@ -140,5 +140,4 @@ ax[-1].set_ylabel('Speed [m/s]')
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
-
 # Impact of sweep of battery capacity

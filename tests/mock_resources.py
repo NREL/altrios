@@ -34,6 +34,7 @@ def mock_conventional_loco(
     pwr_aux_offset_watts: float = 0.0,
     pwr_aux_traction_coeff: float = 0.0,
     force_max_newtons: float = 150000.0,
+    mass_kg: float = 0.0
 ) -> alt.Locomotive:
     if not fc:
         fc = mock_fuel_converter(save_interval)
@@ -42,14 +43,17 @@ def mock_conventional_loco(
     if not edrv:
         edrv = mock_electric_drivetrain(save_interval)
 
+    loco_params = alt.LocoParams.from_dict({'pwr_aux_offset_watts':pwr_aux_offset_watts,
+        'pwr_aux_traction_coeff':pwr_aux_offset_watts,
+        'force_max_newtons':force_max_newtons,
+        'mass_kg': mass_kg})
+    
     loco_unit = alt.Locomotive.build_conventional_loco(
         fuel_converter=fc,
         generator=gen,
         drivetrain=edrv,
         save_interval=save_interval,
-        pwr_aux_offset_watts=pwr_aux_offset_watts,
-        pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
-        force_max_newtons=force_max_newtons,
+        loco_params=loco_params
     )
     return loco_unit
 
@@ -66,6 +70,7 @@ def mock_hybrid_loco(
     pwr_aux_offset_watts: float = 0.0,
     pwr_aux_traction_coeff: float = 0.0,
     force_max_newtons: float = 150000.0,
+    mass_kg: float = 0.0
 ) -> alt.Locomotive:
     if not fc:
         fc = mock_fuel_converter(save_interval)
@@ -76,6 +81,11 @@ def mock_hybrid_loco(
     if not res:
         res = mock_reversible_energy_storage(save_interval)
 
+    loco_params = alt.LocoParams.from_dict({'pwr_aux_offset_watts':pwr_aux_offset_watts,
+        'pwr_aux_traction_coeff':pwr_aux_traction_coeff,
+        'force_max_newtons':force_max_newtons,
+        'mass_kg': mass_kg})
+    
     loco_unit = alt.Locomotive.build_hybrid_loco(
         fuel_converter=fc,
         generator=gen,
@@ -85,9 +95,7 @@ def mock_hybrid_loco(
         fuel_res_split=fuel_res_split,
         fuel_res_ratio=fuel_res_ratio,
         gss_interval=gss_interval,
-        pwr_aux_offset_watts=pwr_aux_offset_watts,
-        pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
-        force_max_newtons=force_max_newtons,
+        loco_params = loco_params,
     )
     return loco_unit
 

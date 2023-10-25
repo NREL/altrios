@@ -29,14 +29,17 @@ fc = alt.FuelConverter.default()
 gen = alt.Generator.default()
 edrv = alt.ElectricDrivetrain.default()
 
+loco_params = alt.LocoParams.from_dict({'pwr_aux_offset_watts':13e3,
+        'pwr_aux_traction_coeff':1.1e-3,
+        'force_max_newtons':667.2e3,
+        'mass_kg': 1e6})
+
 conv = alt.Locomotive.build_conventional_loco(
     fuel_converter=fc,
     generator=gen,
     drivetrain=edrv,
-    pwr_aux_offset_watts=13e3,
-    pwr_aux_traction_coeff_ratio=1.1e-3,
+    loco_params=loco_params,
     save_interval=SAVE_INTERVAL,
-    force_max_newtons=667.2e3,
 )
 
 

@@ -409,7 +409,24 @@ class LocoParams:
         """
         Argument `param_dict` has keys matching attributes of class
         """
-        ...
+        try:
+            cls.pwr_aux_offset_watts = param_dict.pop("pwr_aux_offset_watts",None)
+        except:
+            print("Must provide 'pwr_aux_offset_watts'.") 
+        try:
+            cls.pwr_aux_traction_coeff_ratio = param_dict.pop("force_max_newtons")
+        except:
+            print("Must provide 'pwr_aux_traction_coeff_ratio'.")
+            
+        try:
+            cls.force_max_newtons = param_dict.pop("force_max_newtons")
+        except:
+            print("Must provide 'force_max_newtons'.")
+        try:
+            cls.mass_kg = param_dict.pop("mass_kg")
+        except:
+            print("Must provide 'mass_kg'.")
+        
 
 
 class Locomotive:
@@ -439,11 +456,27 @@ class Locomotive:
     @classmethod
     def default_battery_electic_loco(cls) -> Locomotive: ...
     @classmethod
-    def build_conventional_loco(cls) -> Any: ...
+    def build_conventional_loco(
+        cls,
+        fuel_converter: FuelConverter,
+        generator: Generator,
+        drivetrain: ElectricDrivetrain,
+        loco_params: LocoParams,
+        save_interval: Optional[int]) -> Any: ...
     @classmethod
     def build_dummy_loco(cls) -> Any: ...
     @classmethod
-    def build_hybrid_loco(cls) -> Any: ...
+    def build_hybrid_loco(
+        fuel_converter: FuelConverter,
+        generator:Generator,
+        reversible_energy_storage:ReversibleEnergyStorage,
+        drivetrain:ElectricDrivetrain,
+        save_interval: Optional[int],
+        fuel_res_split:float,
+        fuel_res_ratio: float,
+        gss_interval: float,
+        loco_params: LocoParams,) -> Any: ...
+    
     def clone(self) -> Self: ...
     @classmethod
     def default(cls) -> Self: ...

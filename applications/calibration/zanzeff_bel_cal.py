@@ -85,12 +85,15 @@ def get_loco_sim(
     reves = alt.ReversibleEnergyStorage.default()
     edrv = alt.ElectricDrivetrain.default()
 
+    loco_params = alt.LocoParams.from_dict({'pwr_aux_offset_watts':10e3,
+        'pwr_aux_traction_coeff':0,
+        'force_max_newtons':667.2e3,
+        'mass_kg': 1e6})
+    
     loco_unit = alt.Locomotive.build_battery_electric_loco(
         reversible_energy_storage=reves,
         drivetrain=edrv,
-        pwr_aux_offset_watts=10e3,
-        pwr_aux_traction_coeff_ratio=0,
-        force_max_newtons=667.2e3,
+        loco_params = loco_params,
         save_interval=1,
     )
 

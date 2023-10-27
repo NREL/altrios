@@ -9,7 +9,7 @@ def demo_paths():
     demo_paths.remove(Path(__file__).resolve())
     return demo_paths
 
-@pytest.mark.parametrize("demo_path", demo_paths(), ids=[str(dp) for dp in demo_paths()])
+@pytest.mark.parametrize("demo_path", demo_paths(), ids=[dp.name for dp in demo_paths()])
 def test_demo(demo_path: Path):
     os.environ['SHOW_PLOTS'] = "false"
     rslt = subprocess.run(
@@ -19,5 +19,5 @@ def test_demo(demo_path: Path):
         text=True
     )
 
-    assert rslt.returncode == 0
+    assert rslt.returncode == 0, rslt.stderr
 

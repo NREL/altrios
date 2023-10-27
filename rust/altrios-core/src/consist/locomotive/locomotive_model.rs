@@ -389,8 +389,8 @@ pub struct Locomotive {
     pub assert_limits: bool,
     /// constant aux load
     pub pwr_aux_offset: si::Power,
-    /// gain for linear model on traciton hp use to compute linear aux
-    /// load
+    /// gain for linear model on traction power used to compute traction-power-dependent component
+    /// of aux load, in terms of ratio of aux power per tractive power
     pub pwr_aux_traction_coeff: si::Ratio,
     /// maximum tractive force
     #[api(skip_get, skip_set)]

@@ -7,16 +7,16 @@ import numpy as np
 import time
 import pandas as pd
 import polars as pl
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 from pathlib import Path
 import os
 
 DEBUG = True
 
-
 def simulate_prescribed_rollout(
     max_bel_share: float,
     number_of_years: int,
+    results_folder: Path,
     start_year: int = defaults.BASE_ANALYSIS_YEAR,
     # If you do not have this path, please add it! We are trying to keep confidential documents out of the git repo
     network_filename_path: str = str(alt.resources_root() / "networks/Taconite.yaml"),
@@ -24,7 +24,6 @@ def simulate_prescribed_rollout(
     freight_demand_percent_growth:float = 0.0,
     demand_file_path= defaults.DEMAND_FILE,
     train_planner_config: train_planner.TrainPlannerConfig = train_planner.TrainPlannerConfig(),
-    results_folder: Optional[str] = '../../Case Study/Rollout Results',
     count_unused_locomotives = False,
     write_complete_results: Optional[bool] = False,
     write_metrics: Optional[bool] = False,
@@ -35,11 +34,18 @@ def simulate_prescribed_rollout(
         target_bel_shares[0] = max_bel_share
     else:
         for idx, _ in enumerate(target_bel_shares):
-            if idx==0: target_bel_shares[idx] = 0.0
-            else: target_bel_shares[idx] = ((idx) / (len(years)-1)) * max_bel_share
+            if idx==0: 
+                target_bel_shares[idx] = 0.0
+            else: 
+                target_bel_shares[idx] = ((idx) / (len(years)-1)) * max_bel_share
 
-    save_dir = Path(results_folder)
+    save_dir = Path(results_folder) # make sure it's a path
     save_dir.mkdir(exist_ok=True, parents=True) 
+    with open(save_dir / "README.md", "w") as file:
+        file.writelines(["This directory contains results from demo files and can usually be safely deleted."])
+    with open(save_dir / ".gitignore", "w") as file:
+        file.writelines(["*"])
+
 
     base_freight_demand_df = pd.read_csv(demand_file_path)
     demand_paths = []
@@ -131,8 +137,16 @@ def simulate_prescribed_rollout(
     metrics = metric_calculator.main(scenarios)
 
     if write_metrics:
-        print(results_folder +'/Metrics_Demand {}_DemandFile {}.xlsx'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv',''))
-        metrics.to_pandas().to_excel(results_folder +'/Metrics_Demand {}_DemandFile {}.xlsx'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv',''))
+        print
+        (results_folder /
+            'Metrics_Demand {}_DemandFile {}.xlsx'.format(
+                scenario_year, os.path.basename(demand_file_path)
+            ).replace('.csv','')
+        )
+        metrics.to_pandas().to_excel(
+            results_folder / 'Metrics_Demand {}_DemandFile {}.xlsx'.format(
+                scenario_year, os.path.basename(demand_file_path)).replace('.csv','')
+        )
     
     t3 = time.perf_counter()
     if DEBUG:

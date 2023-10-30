@@ -8,6 +8,8 @@ use crate::imports::*;
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
 /// Conventional locomotive
 pub struct ConventionalLoco {
+    // The fields in this struct are all locally defined structs and are therefore not documented in
+    // this context
     #[has_state]
     pub fc: FuelConverter,
     #[has_state]
@@ -29,6 +31,12 @@ impl ConventionalLoco {
         }
     }
 
+    /// # Arguments
+    /// - `pwr_out_req`: power required at the wheel/rail interface
+    /// - `dt`: time step size
+    /// - `engine_on`: whether engine is on (i.e. rotating and consuming at least idle fuel)
+    /// - `pwr_aux`: power demand for auxilliary systems
+    /// - `assert_limits`: whether to fail when powertrain capabilities are exceeded
     pub fn solve_energy_consumption(
         &mut self,
         pwr_out_req: si::Power,

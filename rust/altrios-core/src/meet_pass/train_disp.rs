@@ -8,58 +8,66 @@ pub use free_path::FreePathStatus;
 mod advance_rewind;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, SerdeAPI)]
+/// TODO: Geordie, doc string here.  What does `Disp` mean or expand to?  
 pub struct TrainDisp {
-    // Estimated time network. Does not change after creation
+    /// Estimated time network. Does not change after creation
     est_times: Vec<EstTime>,
     est_time_statuses: Vec<EstTimeStatus>,
 
-    // Path that the train takes through the network
-    // (fixed path before disp_node_idx_free, free path after disp_node_idx_free)
+    /// Path that the train takes through the network
+    /// (fixed path before disp_node_idx_free, free path after disp_node_idx_free)
     disp_path: Vec<DispNode>,
-    // Optimized form of disp_path that has identical link_idxs (for arrive nodes, NA otherwise) plus an ending sentinel
+    /// Optimized form of disp_path that has identical link_idxs (for arrive nodes, NA otherwise) plus an ending sentinel
     link_idx_path: Vec<LinkIdx>,
-    // Optimized form of disp_path that is a fast set of all arrive node link_idxs
+    /// Optimized form of disp_path that is a fast set of all arrive node link_idxs
     links_on_path: IntSet<LinkIdx>,
-    // All locations where the train diverged from the shortest path and why
+    /// All locations where the train diverged from the shortest path and why
     div_nodes: Vec<DivergeNode>,
 
-    // Saved buffer for changing disp_path. Only modified within update_free_path
+    /// Saved buffer for changing disp_path. Only modified within update_free_path
     disp_path_new: Vec<DispNode>,
-    // Saved buffer for changing div_nodes. Only modified within update_free_path
+    /// Saved buffer for changing div_nodes. Only modified within update_free_path
     div_nodes_new: Vec<DivergeNode>,
-    // Saved buffer of est_idxs currently blocked. Only modified within update_free_path
+    /// Saved buffer of est_idxs currently blocked. Only modified within update_free_path
     est_idxs_blocked: Vec<EstIdx>,
-    // Saved memory buffer of train_idxs blocked. Only modified within update_free_path
+    /// Saved memory buffer of train_idxs blocked. Only modified within update_free_path
     train_idxs_blocking: Vec<TrainIdx>,
 
-    // Time that the train will be updated at
+    /// Time that the train will be updated at
     time_update: si::Time,
     time_update_next: si::Time,
 
-    // Ordered list of all link indexes currently blocked by the train including lockouts
+    /// Ordered list of all link indexes currently blocked by the train including lockouts
     link_idxs_blocking: Vec<LinkIdx>,
-    // Location of boundary between fixed and free part of disp_path
+    /// Location of boundary between fixed and free part of disp_path
     disp_node_idx_fixed: DispNodeIdx,
     disp_node_idx_free: DispNodeIdx,
     offset_fixed: si::Length,
     offset_free: si::Length,
-    // Location of front of train along disp_path
+    /// Location of front of train along disp_path
     disp_node_idx_front: DispNodeIdx,
-    // Location of back of train along disp_path
+    /// Location of back of train along disp_path
     disp_node_idx_back: DispNodeIdx,
 
-    // Is the train currently blocked by another (same-direction) train?
+    /// Is the train currently blocked by another (same-direction) train?
     is_blocked: bool,
 
-    //Const
+    /// TODO: What is `Const`?
+    /// Const <-- What's this?  
     train_id: String,
+    /// TODO: Geordie, explain the significance of this
     train_idx: TrainIdx,
+    /// TODO: Geordie, doc string
     time_spacing: si::Time,
+    /// TODO: Geordie, doc string
     dist_disp_path_search: si::Length,
+    /// TODO: Geordie, doc string
     dist_fixed_max: si::Length,
+    /// TODO: Geordie, doc string
     acc_startup: si::Acceleration,
 }
 
+// TODO: Geordie, more doc strings, but net necessarily every function as some are fairly obvious
 impl TrainDisp {
     pub fn swap_link_idxs_blocking(&mut self, link_idxs: &mut Vec<LinkIdx>) {
         std::mem::swap(&mut self.link_idxs_blocking, link_idxs);
@@ -79,6 +87,7 @@ impl TrainDisp {
     pub fn is_blocked(&self) -> bool {
         self.is_blocked
     }
+    /// TODO: Geordie, doc string
     pub fn fix_advance(&mut self) {
         assert!(self.time_update <= self.time_update_next);
         assert!(self.offset_fixed <= self.offset_free);
@@ -87,6 +96,7 @@ impl TrainDisp {
         self.offset_fixed = self.offset_free;
         self.disp_node_idx_fixed = self.disp_node_idx_free;
     }
+    /// TODO: Geordie, doc string
     pub fn calc_timed_path(&self) -> Vec<LinkIdxTime> {
         assert!(self.disp_node_idx_fixed.idx() == self.disp_path.len());
         let mut timed_path = Vec::with_capacity(self.disp_path.len() / 2);
@@ -103,6 +113,7 @@ impl TrainDisp {
 
     #[allow(clippy::too_many_arguments)]
     /// [TrainDisp] constructor method.
+    /// TODO: Geordie, provide arguments explanation here, though this is somewhat lower priority
     pub fn new(
         train_id: String,
         train_idx: TrainIdx,

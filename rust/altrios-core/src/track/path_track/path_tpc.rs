@@ -190,6 +190,9 @@ impl PathTpc {
                 let mut res_net_prev = self.curves.last().unwrap().res_net;
                 for (prev, curr) in link.headings.windows(2).map(|x| (&x[0], &x[1])) {
                     let length = curr.offset - prev.offset;
+
+                    // Curve resistance calculated using AAR's train energy model:
+                    
                     let curvature = (-uc::REV / 2.0
                         + (curr.heading - prev.heading + uc::REV / 2.0) % uc::REV)
                         .abs()

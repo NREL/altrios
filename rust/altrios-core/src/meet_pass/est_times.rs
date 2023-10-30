@@ -64,6 +64,7 @@ impl Default for EstTime {
         (self.val.last().unwrap().time_sched - self.val.first().unwrap().time_sched).get::<si::hour>()
     }
 )]
+// TODO: Geordie, what does the `Net` mean in this context?
 pub struct EstTimeNet {
     #[api(skip_get, skip_set)]
     pub val: Vec<EstTime>,
@@ -90,6 +91,10 @@ pub fn check_od_pair_valid(
 
 /// Get link indexes that lead to the destination (CURRENTLY ALLOWS LOOPS THAT
 /// ARE TOO SMALL TO FIT THE TRAIN!)
+/// # Arguments
+/// - `origs`: TODO: Geordie, put some words here
+/// - `dests`: TODO: Geordie, put some words here
+/// - `links`: TODO: Geordie, put some words here.  What do the links represent in this context?  
 pub fn get_link_idx_options(
     origs: &[Location],
     dests: &[Location],

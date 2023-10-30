@@ -13,6 +13,7 @@ use std::fmt;
     }
 )]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default, SerdeAPI)]
+/// TODO: Geordie, put a doc string here.  Why does this even need to be a struct?
 pub struct LinkIdx {
     #[api(skip_set)]
     idx: u32,

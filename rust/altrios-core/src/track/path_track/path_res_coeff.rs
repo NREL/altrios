@@ -3,12 +3,16 @@ use crate::imports::*;
 /// Struct containing linear resistance coefficients for a particular offset w.r.t. `PathTpc`
 #[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize, SerdeAPI)]
 #[altrios_api]
+/// TODO: Geordie, doc string.
 pub struct PathResCoeff {
     #[api(skip_set)]
+    /// TODO: Geordie, doc string.
     pub offset: si::Length,
     #[api(skip_set)]
+    /// TODO: Geordie, doc string.
     pub res_coeff: si::Ratio,
     #[api(skip_set)]
+    /// TODO: Geordie, doc string.
     pub res_net: si::Length,
 }
 

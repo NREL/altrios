@@ -3,6 +3,7 @@ use crate::imports::*;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, SerdeAPI)]
 #[altrios_api]
+/// TODO: Geordie, doc string and also for all the fields
 pub struct TrainParams {
     pub length: si::Length,
     pub speed_max: si::Velocity,

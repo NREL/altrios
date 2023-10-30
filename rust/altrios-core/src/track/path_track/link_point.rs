@@ -5,13 +5,18 @@ use crate::imports::*;
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, SerdeAPI)]
 #[altrios_api]
 pub struct LinkPoint {
+    /// TODO: Geordie, doc string.  What does offset mean here?  distance from start of link to front
+    /// of train?  Something else?
     #[api(skip_set)]
     pub offset: si::Length,
     #[api(skip_set)]
+    /// TODO: Geordie, doc string.
     pub grade_count: usize,
     #[api(skip_set)]
+    /// TODO: Geordie, doc string.
     pub curve_count: usize,
     #[api(skip_set)]
+    /// TODO: Geordie, doc string.
     pub cat_power_count: usize,
     #[api(skip_set)]
     pub link_idx: LinkIdx,

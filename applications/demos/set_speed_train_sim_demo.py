@@ -71,7 +71,7 @@ tsb = alt.TrainSimBuilder(
     init_train_state=init_train_state,
 )
 
-# make sure rail_vehicle_map can be constructed from yaml file and such
+# TODO: make sure rail_vehicle_map can be constructed from yaml file and such
 rail_vehicle_file = "rolling_stock/rail_vehicles.csv"
 rail_vehicle_map = alt.import_rail_vehicles(
     str(alt.resources_root() / rail_vehicle_file)

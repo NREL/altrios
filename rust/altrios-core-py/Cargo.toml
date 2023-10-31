@@ -1,22 +1,11 @@
 [package]
 name = "altrios-core-py"
-authors = [
-    "ALTRIOS Team <altrios@nrel.gov>",
-    "Chad Baker, Lead Developer",
-    "Nick Reinicke, Developer",
-    "Matt Bruchon, Developer",
-    "Jinghu Hu, Developer",
-    "Grant Payne, Developer",
-    "Jason Lustbader, PI",
-    "Garrett Anderson, Developer",
-    "Joel Allardyce, Developer",
-    "Prativa Hartnett, Developer",
-    "Steve Fritz, SwRI Lead",
-    "Tyler Dick, Co-PI",
-]
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
 version = "0.1.0"
-edition = "2021"
-license = "BSD-3-Clause"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

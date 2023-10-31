@@ -1,26 +1,13 @@
 [package]
 name = "altrios-proc-macros"
-authors = [
-    "ALTRIOS Team <altrios@nrel.gov>",
-    "Chad Baker, Lead Developer",
-    "Nick Reinicke, Developer",
-    "Matt Bruchon, Developer",
-    "Jinghu Hu, Developer",
-    "Grant Payne, Developer",
-    "Jason Lustbader, PI",
-    "Garrett Anderson, Developer",
-    "Joel Allardyce, Developer",
-    "Prativa Hartnett, Developer",
-    "Steve Fritz, SwRI Lead",
-    "Tyler Dick, Co-PI",
-]
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
 version = "0.1.2"
-edition = "2021"
-license = "BSD-3-Clause"
 description = "ALTRIOS procedural macros"
-homepage = "https://www.nrel.gov/transportation/altrios.html"
 readme = "README.md"
-repository = "https://github.com/NREL/altrios"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

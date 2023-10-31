@@ -5,6 +5,26 @@ members = [
 ]
 resolver = "2"
 
+[workspace.package]
+authors = [
+    "ALTRIOS Team <altrios@nrel.gov>",
+    "Chad Baker, Lead Developer",
+    "Nick Reinicke, Developer",
+    "Matt Bruchon, Developer",
+    "Jinghu Hu, Developer",
+    "Grant Payne, Developer",
+    "Jason Lustbader, PI",
+    "Garrett Anderson, Developer",
+    "Joel Allardyce, Developer",
+    "Prativa Hartnett, Developer",
+    "Steve Fritz, SwRI Lead",
+    "Tyler Dick, Co-PI",
+]
+license = "BSD-3-Clause"
+edition = "2021"
+homepage = "https://www.nrel.gov/transportation/altrios.html"
+repository = "https://github.com/NREL/altrios"
+
 [profile.dev]
 opt-level = 0
 

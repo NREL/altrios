@@ -1,9 +1,22 @@
 [package]
 name = "altrios-core"
+authors = [
+    "ALTRIOS Team <altrios@nrel.gov>",
+    "Chad Baker, Lead Developer",
+    "Nick Reinicke, Developer",
+    "Matt Bruchon, Developer",
+    "Jinghu Hu, Developer",
+    "Grant Payne, Developer",
+    "Jason Lustbader, PI",
+    "Garrett Anderson, Developer",
+    "Joel Allardyce, Developer",
+    "Prativa Hartnett, Developer",
+    "Steve Fritz, SwRI Lead",
+    "Tyler Dick, Co-PI",
+]
 version = "0.1.2"
 edition = "2021"
 license = "BSD-3-Clause"
-authors = ["NREL/MTES/CIMS/MBAP Group"]
 description = "ALTRIOS Core model for train simulation"
 homepage = "https://www.nrel.gov/transportation/altrios.html"
 readme = "README.md"

@@ -6,6 +6,7 @@ use super::LocoTrait;
 use crate::imports::*;
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
+#[altrios_api]
 /// Conventional locomotive
 pub struct ConventionalLoco {
     #[has_state]

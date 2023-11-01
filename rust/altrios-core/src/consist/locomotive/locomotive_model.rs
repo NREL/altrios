@@ -13,6 +13,39 @@ pub enum LocoType {
     Dummy,
 }
 
+impl From<HybridLoco> for LocoType {
+    fn from(value: HybridLoco) -> Self {
+        Self::from(Box::new(value))
+    }
+}
+
+impl TryFrom<&PyAny> for LocoType {
+    type Error = PyErr;
+    /// This allows us to construct LocoType any struct that can be converted into LocoType
+    fn try_from(value: &PyAny) -> std::result::Result<Self, Self::Error> {
+        value
+            .extract::<ConventionalLoco>()
+            .map(LocoType::from)
+            .or_else(|_| {
+                value
+                    .extract::<HybridLoco>()
+                    .map(LocoType::from)
+                    .or_else(|_| {
+                        value
+                            .extract::<BatteryElectricLoco>()
+                            .map(LocoType::from)
+                            .or_else(|_| value.extract::<Dummy>().map(LocoType::from))
+                    })
+            })
+            .map_err(|_| {
+                pyo3::PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                    "{}\nMust provide ConventionalLoco, HybridLoco, BatteryElectricLoco, or Dummy",
+                    format_dbg!()
+                ))
+            })
+    }
+}
+
 impl Default for LocoType {
     fn default() -> Self {
         Self::ConventionalLoco(Default::default())
@@ -89,6 +122,7 @@ impl Default for LocoParams {
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[altrios_api]
 pub struct Dummy {}
 
 impl LocoTrait for Dummy {
@@ -107,6 +141,24 @@ impl LocoTrait for Dummy {
 }
 
 #[altrios_api(
+    #[new]
+    fn __new__(
+        loco_type: &PyAny,
+        loco_params: LocoParams,
+        save_interval: Option<usize>,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            loco_type: LocoType::try_from(loco_type)?,
+            state: Default::default(),
+            save_interval,
+            assert_limits: true,
+            pwr_aux_offset: loco_params.pwr_aux_offset,
+            pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
+            force_max: Some(loco_params.force_max),
+            ..Default::default()
+        })
+    }
+
     #[allow(clippy::too_many_arguments)]
     #[classmethod]
     fn build_conventional_loco(
@@ -186,9 +238,8 @@ impl LocoTrait for Dummy {
         Ok(Self::default_battery_electric_loco())
     }
 
-    #[classmethod]
+    #[staticmethod]
     fn build_battery_electric_loco (
-        _cls: &PyType,
         reversible_energy_storage: ReversibleEnergyStorage,
         drivetrain: ElectricDrivetrain,
         loco_params: LocoParams,

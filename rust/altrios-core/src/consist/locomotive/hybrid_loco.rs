@@ -10,6 +10,7 @@ use super::LocoTrait;
 use crate::imports::*;
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, HistoryMethods)]
+#[altrios_api]
 /// Hybrid locomotive with both engine and reversible energy storage (aka battery)  
 /// This type of locomotive is not likely to be widely prevalent due to modularity of consists.  
 pub struct HybridLoco {

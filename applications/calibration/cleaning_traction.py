@@ -4,7 +4,10 @@ import pandas as pd
 import re
 import numpy as np
  
-directory = 'C:\\Users\\phartnett\\Altrios_private\\altrios-private\\data\\trips\\ZANZEFF Data - v5.1 1-27-23 ALTRIOS Confidential\\ZANZEFF Data - v5 1-27-23 ALTRIOS Confidential\\'
+directory = Path().home() /\
+    'Altrios_private/altrios-private/data/trips/ZANZEFF Data - v5.1 1-27-23 ALTRIOS Confidential' /\
+    'ZANZEFF Data - v5 1-27-23 ALTRIOS Confidential/'
+
 pathlist = Path(directory).glob('*.csv')
 paths=[]
 os.makedirs('traction/trips', exist_ok=True)

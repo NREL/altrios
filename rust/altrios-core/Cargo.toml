@@ -1,13 +1,13 @@
 [package]
 name = "altrios-core"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
 version = "0.1.2"
-edition = "2021"
-license = "BSD-3-Clause"
-authors = ["NREL/MTES/CIMS/MBAP Group"]
 description = "ALTRIOS Core model for train simulation"
-homepage = "https://www.nrel.gov/transportation/altrios.html"
 readme = "README.md"
-repository = "https://github.com/NREL/altrios"
 
 [dependencies]
 csv = "1.1.6"

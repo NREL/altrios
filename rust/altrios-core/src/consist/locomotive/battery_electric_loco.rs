@@ -5,6 +5,7 @@ use super::LocoTrait;
 use crate::imports::*;
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
+#[altrios_api]
 /// Battery electric locomotive
 pub struct BatteryElectricLoco {
     #[has_state]

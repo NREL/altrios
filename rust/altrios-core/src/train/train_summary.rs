@@ -44,9 +44,21 @@ use pyo3_polars::PyDataFrame;
         self.train_length.map(|l| l.get::<si::meter>())
     }    
 
+    #[setter]
+    fn set_train_length_meters(&mut self, train_length: f64) -> PyResult<()> {
+        self.train_length = Some(train_length * uc::M);
+        Ok(())
+    }    
+
     #[getter]
     fn get_train_mass_kilograms(&self) -> Option<f64> {
         self.train_mass.map(|l| l.get::<si::kilogram>())
+    }    
+
+    #[setter]
+    fn set_train_mass_kilograms(&mut self, train_mass: f64) -> PyResult<()> {
+        self.train_mass = Some(train_mass * uc::KG);
+        Ok(())
     }    
 )]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
@@ -200,7 +212,8 @@ pub struct TrainSimBuilder {
     pub destination_id: String,
     pub train_summary: TrainSummary,
     pub loco_con: Consist,
-    pub init_train_state: InitTrainState,
+    #[api(skip_get, skip_set)]
+    init_train_state: Option<InitTrainState>,
 }
 
 impl TrainSimBuilder {
@@ -218,8 +231,7 @@ impl TrainSimBuilder {
             destination_id,
             train_summary,
             loco_con,
-            // TODO: think about whether this is needed
-            init_train_state: init_train_state.unwrap_or_default(),
+            init_train_state,
         }
     }
 
@@ -244,17 +256,12 @@ impl TrainSimBuilder {
                 + veh.braking_ratio_loaded * self.train_summary.cars_loaded as f64)
             / cars_total;
 
-        let start_offset = self.init_train_state.offset.max(length);
         let state = TrainState::new(
-            Some(self.init_train_state.time),
-            None,
-            start_offset,
-            Some(self.init_train_state.speed),
-            Some(self.init_train_state.dt),
             length,
             mass_static,
             mass_adj,
             mass_freight,
+            self.init_train_state
         );
 
         let path_tpc = PathTpc::new(train_params);

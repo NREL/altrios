@@ -16,9 +16,14 @@ SAVE_INTERVAL = 1
 # have locos so mass and length may not be fully known yet.  If they are, in fact, not known, we
 # should hide these fields from python
 train_summary = alt.TrainSummary(
-    rail_vehicle_type="Manifest",
+    rail_vehicle_type="Manifest", # maybe make it so that you could provide the rail vehicle file or the type
     cars_empty=50,
     cars_loaded=50,
+    # what is `train_type` used for?  It has overlap with railcar type  
+    # Geordie: this is here because Geordie couldn't specify the enum in python. It is only used
+    # w.r.t. speed limits -- could go in rail vehicle csv file, but might create trouble if you have
+    # multiple rail vehicle types per train, which is pretty much never a thing  
+    # TODO: move `train_type` to rail vehicle file
     train_type=None,
     train_length_meters=None,
     train_mass_kilograms=None,
@@ -38,6 +43,8 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
+# TODO: make it so that a BatteryElectricLocomotive can be instantiated here and then passed in to
+# `alt.Locomotive(...)`
 bel: alt.Locomotive = alt.Locomotive.build_battery_electric_loco(
     reversible_energy_storage=res,
     drivetrain=edrv,
@@ -54,11 +61,10 @@ loco_con = alt.Consist(
     loco_vec,
     SAVE_INTERVAL,
 )
-init_train_state = alt.InitTrainState(
-    # TODO: fix how `train_length_meters` is set on instantiation of `train_summary`
-    # offset_meters=train_summary.train_length_meters
-    offset_meters=666,
-)
+
+# TODO: `dt` in this struct may not get used anywhere or may not be needed  
+# Check whether this is just initial or the dt for the whole time and consider moving to TSB or TS
+init_train_state = alt.InitTrainState()
 
 tsb = alt.TrainSimBuilder(
     # TODO: make sure `train_id` is being used meaningfully
@@ -80,7 +86,9 @@ rail_vehicle_map = alt.import_rail_vehicles(
 network = alt.import_network(str(alt.resources_root() / "networks/Taconite.yaml"))
 # TODO: explain how this file was created from running `sim_manager_demo.py` and getting the first
 # simulation
-link_points = pd.read_csv(alt.resources_root() / "demo_data/link_points.csv")["link points"].tolist()
+link_points = pd.read_csv(
+    alt.resources_root() / "demo_data/link_points.csv")["link points"].tolist()
+# TODO: if possible, make a way to generate this directly from `link_points`
 link_path = [alt.LinkIdx(int(lp)) for lp in link_points]
 
 # TODO: uncomment and fix

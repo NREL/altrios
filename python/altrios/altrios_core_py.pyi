@@ -828,15 +828,11 @@ class TrainState:
     @classmethod
     def __new__(
         cls,
-        offset_meters: float,
         length_meters: float,
         mass_static_kilograms: float,
         mass_adj_kilograms: float,
         mass_freight_kilograms: float,
-        time_seconds: Optional[float],
-        i: Optional[int],
-        speed_meters_per_second: Optional[float],
-        dt_seconds: Optional[float],
+        init_train_state: Optional[InitTrainState]
     ) -> Self: ...
     def to_json(self) -> str: ...
     @classmethod

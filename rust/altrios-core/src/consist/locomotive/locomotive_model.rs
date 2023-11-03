@@ -64,8 +64,8 @@ impl std::string::ToString for LocoType {
 }
 
 #[altrios_api(
-    #[classmethod]
-    fn from_dict(_cls: &PyType, param_dict: HashMap<&str, f64>) -> anyhow::Result<Self> {
+    #[staticmethod]
+    fn from_dict(param_dict: HashMap<&str, f64>) -> anyhow::Result<Self> {
         Self::from_hash(param_dict)
     }
 )]
@@ -160,9 +160,8 @@ impl LocoTrait for Dummy {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[classmethod]
+    #[staticmethod]
     fn build_conventional_loco(
-        _cls: &PyType,
         fuel_converter: FuelConverter,
         generator: Generator,
         drivetrain: ElectricDrivetrain,
@@ -192,9 +191,8 @@ impl LocoTrait for Dummy {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[classmethod]
+    #[staticmethod]
     fn build_hybrid_loco(
-        _cls: &PyType,
         fuel_converter: FuelConverter,
         generator: Generator,
         reversible_energy_storage: ReversibleEnergyStorage,
@@ -232,9 +230,9 @@ impl LocoTrait for Dummy {
         Ok(loco)
     }
 
-    #[classmethod]
+    #[staticmethod]
     #[pyo3(name = "default_battery_electric_loco")]
-    fn default_battery_electric_loco_py (_cls: &PyType) -> PyResult<Self> {
+    fn default_battery_electric_loco_py () -> PyResult<Self> {
         Ok(Self::default_battery_electric_loco())
     }
 
@@ -266,8 +264,8 @@ impl LocoTrait for Dummy {
         Ok(loco)
     }
 
-    #[classmethod]
-    fn build_dummy_loco(_cls: &PyType) -> Self {
+    #[staticmethod]
+    fn build_dummy_loco() -> Self {
         let mut dummy  = Self {
             loco_type: LocoType::Dummy(Dummy::default()),
             state: LocomotiveState::default(),

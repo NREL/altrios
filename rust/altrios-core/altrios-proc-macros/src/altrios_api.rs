@@ -161,10 +161,10 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     py_impl_block.extend::<TokenStream2>(quote! {
-        #[classmethod]
+        #[staticmethod]
         #[pyo3(name = "default")]
         /// Exposes `default` to python.
-        fn default_py(_cls: &PyType) -> PyResult<Self> {
+        fn default_py() -> PyResult<Self> {
             Ok(Self::default())
         }
 
@@ -174,10 +174,10 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             Ok(self.to_json())
         }
 
-        #[classmethod]
+        #[staticmethod]
         /// json deserialization method.
         #[pyo3(name = "from_json")]
-        fn from_json_py(_cls: &PyType, json_str: &str) -> PyResult<Self> {
+        fn from_json_py(json_str: &str) -> PyResult<Self> {
             Ok(Self::from_json(json_str)?)
         }
 
@@ -187,10 +187,10 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             Ok(self.to_yaml())
         }
 
-        #[classmethod]
+        #[staticmethod]
         /// yaml deserialization method.
         #[pyo3(name = "from_yaml")]
-        fn from_yaml_py(_cls: &PyType, yaml_str: &str) -> PyResult<Self> {
+        fn from_yaml_py(yaml_str: &str) -> PyResult<Self> {
             Ok(Self::from_yaml(yaml_str)?)
         }
 
@@ -200,10 +200,10 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             Ok(PyBytes::new(py, &self.to_bincode()))
         }
 
-        #[classmethod]
+        #[staticmethod]
         /// bincode deserialization method.
         #[pyo3(name = "from_bincode")]
-        fn from_bincode_py(_cls: &PyType, encoded: &PyBytes) -> PyResult<Self> {
+        fn from_bincode_py(encoded: &PyBytes) -> PyResult<Self> {
             Ok(Self::from_bincode(encoded.as_bytes())?)
         }
 
@@ -231,10 +231,10 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         impl #ident {
             #py_impl_block
 
-            #[classmethod]
+            #[staticmethod]
             #[pyo3(name = "from_file")]
             /// Exposes `from_file` to Python.
-            fn from_file_py(_cls: &PyType, filename: String) -> PyResult<Self> {
+            fn from_file_py(filename: String) -> PyResult<Self> {
                 Ok(Self::from_file(&filename)?)
             }
 

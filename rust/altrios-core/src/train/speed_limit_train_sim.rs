@@ -73,9 +73,9 @@ impl LinkIdxTime {
         self.walk()
     }
 
-    #[classmethod]
+    #[staticmethod]
     #[pyo3(name = "valid")]
-    fn valid_py(_cls: &PyType) -> Self {
+    fn valid_py() -> Self {
         Self::valid()
     }
 
@@ -167,15 +167,12 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn get_kilometers(&self, annualize: bool) -> f64 {
-        self.state.total_dist.get::<si::kilometer>()
-            * self.get_scaling_factor(annualize)
+        self.state.total_dist.get::<si::kilometer>() * self.get_scaling_factor(annualize)
     }
 
     pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {
         let n_res = self.loco_con.n_res_equipped() as f64;
-        self.state.total_dist.get::<si::kilometer>()
-            * n_res
-            * self.get_scaling_factor(annualize)
+        self.state.total_dist.get::<si::kilometer>() * n_res * self.get_scaling_factor(annualize)
     }
 
     pub fn get_non_res_kilometers(&mut self, annualize: bool) -> f64 {

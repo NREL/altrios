@@ -16,9 +16,9 @@ use crate::imports::*;
         Ok(Self::new(time_seconds, pwr_watts, engine_on))
     }
 
-    #[classmethod]
+    #[staticmethod]
     #[pyo3(name = "from_csv_file")]
-    fn from_csv_file_py(_cls: &PyType, pathstr: String) -> anyhow::Result<Self> {
+    fn from_csv_file_py(pathstr: String) -> anyhow::Result<Self> {
         Self::from_csv_file(&pathstr)
     }
 

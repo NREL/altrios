@@ -6,7 +6,7 @@ echo "Testing rust" && \
 echo "Building python API" && \
 maturin develop --release && \
 echo "Running python tests" && \
-pytest -v tests && \
+pytest -v python/altrios/tests && \
 echo "Verifying that demos run" && \
-pytest -v applications && \
+pytest -v python/altrios/demos && \
 echo "Complete success!"

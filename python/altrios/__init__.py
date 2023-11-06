@@ -7,7 +7,7 @@ import logging
 
 from altrios.loaders.powertrain_components import _res_from_excel
 from altrios.utilities import set_param_from_path  # noqa: F401
-from altrios.utilities import download_demo_files  # noqa: F401
+from altrios.utilities import copy_demo_files  # noqa: F401
 from altrios import utilities as utils
 # make everything in altrios_core_py available here
 from altrios.altrios_core_py import *

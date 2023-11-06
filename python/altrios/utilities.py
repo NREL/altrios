@@ -13,9 +13,22 @@ import os
 import shutil
 
 # local imports
-from . import __version__
-from . import package_root
+from altrios import __version__
 
+def package_root() -> Path:
+    """
+    Returns the package root directory.
+    """
+    path = Path(__file__).parent
+    return path
+
+
+def resources_root() -> Path:
+    """
+    Returns the resources root directory.
+    """
+    path = package_root() / "resources"
+    return path
 
 from altrios.altrios_core_py import (
     SetSpeedTrainSim,
@@ -283,7 +296,9 @@ def copy_demo_files(demo_path: Path=Path("demos")):
     v = f"v{__version__}"
     demo_path.mkdir(exist_ok=True)
 
-    for src_file in package_root / "demos":
+    for src_file in (package_root() / "demos").iterdir():
+        if src_file.suffix != ".py":
+            continue
         src_file: Path
         dest_file = demo_path / src_file.name
         shutil.copyfile(

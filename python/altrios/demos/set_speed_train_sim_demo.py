@@ -12,17 +12,10 @@ SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 1
 
-# Question: what happens to type, length, and mass when this is instantiated? TrainSummary does not
-# have locos so mass and length may not be fully known yet.  If they are, in fact, not known, we
-# should hide these fields from python
+# https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainSummary.html
 train_summary = alt.TrainSummary(
-    rail_vehicle_type="Manifest", # maybe make it so that you could provide the rail vehicle file or the type
     cars_empty=50,
     cars_loaded=50,
-    # what is `train_type` used for?  It has overlap with railcar type  
-    # Geordie: this is here because Geordie couldn't specify the enum in python. It is only used
-    # w.r.t. speed limits -- could go in rail vehicle csv file, but might create trouble if you have
-    # multiple rail vehicle types per train, which is pretty much never a thing  
     # TODO: move `train_type` to rail vehicle file
     train_type=None,
     train_length_meters=None,
@@ -30,12 +23,14 @@ train_summary = alt.TrainSummary(
 )
 
 # instantiate battery model
+# https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/reversible_energy_storage/struct.ReversibleEnergyStorage.html#
 res = alt.ReversibleEnergyStorage.from_file(
     str(alt.resources_root() / 
         "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
     )
 )
 # instantiate electric drivetrain (motors and any gearboxes)
+# https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/electric_drivetrain/struct.ElectricDrivetrain.html
 edrv = alt.ElectricDrivetrain(
     pwr_out_frac_interp=[0., 1.],
     eta_interp=[0.98, 0.98],
@@ -43,8 +38,7 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
-# TODO: make it so that a BatteryElectricLocomotive can be instantiated here and then passed in to
-# `alt.Locomotive(...)`
+# TODO: build_battery_electric_loco has no documentation generated anywhere so fix this
 bel: alt.Locomotive = alt.Locomotive.build_battery_electric_loco(
     reversible_energy_storage=res,
     drivetrain=edrv,
@@ -69,7 +63,7 @@ init_train_state = alt.InitTrainState()
 tsb = alt.TrainSimBuilder(
     # TODO: make sure `train_id` is being used meaningfully
     train_id="0",
-    # Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
+    # TODO: Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
     origin_id="Minneapolis",
     destination_id="Superior",
     train_summary=train_summary,

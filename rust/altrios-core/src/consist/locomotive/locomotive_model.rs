@@ -143,6 +143,7 @@ impl LocoTrait for Dummy {
 #[altrios_api(
     #[new]
     fn __new__(
+        // needs to be variant in LocoType
         loco_type: &PyAny,
         loco_params: LocoParams,
         save_interval: Option<usize>,

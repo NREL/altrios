@@ -24,11 +24,11 @@ impl Idx for Option<NonZeroU16> {
     }
 }
 
-/// Trait implemented for indexing types, specifically [usize], to assist in
-/// converting them into an [Option]\<NonZeroUxxxx\>.
+/// Trait implemented for indexing types, specifically `usize`, to assist in
+/// converting them into an `Option<NonZeroUxxxx>`.
 ///
 /// This is necessary because both the common type conversion trait ([From])
-/// and the types involved (e.g. [Option]<[NonZeroU16]> ) are from the
+/// and the types involved (e.g. `Option<NonZeroU16>` ) are from the
 /// standard library.  Rust does not allow for the combination of traits and
 /// types if both are from external libraries.
 ///

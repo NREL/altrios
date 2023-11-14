@@ -62,6 +62,7 @@ use pyo3_polars::PyDataFrame;
     }    
 )]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+/// Any optional fields will be populated later in [TrainSimBuilder::make_train_sim_parts]
 pub struct TrainSummary {
     /// User-defined identifier for the car type on this train
     pub rail_vehicle_type: String,

@@ -1067,6 +1067,7 @@ class TrainSimBuilder:
 
 @dataclass
 class TrainSummary:
+    rail_vehicle_type: str
     cars_empty: int
     cars_loaded: int
     train_type: str

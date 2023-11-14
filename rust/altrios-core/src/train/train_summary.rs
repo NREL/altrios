@@ -1,6 +1,6 @@
 use super::resistance::kind as res_kind;
 use super::resistance::method as res_method;
-use crate::consist::locomotive::locomotive_model::LocoType;
+use crate::consist::locomotive::locomotive_model::PowertrainType;
 use crate::consist::Mass;
 
 use super::{
@@ -516,7 +516,7 @@ pub fn run_speed_limit_train_sims(
                 let new_soc_vec: Vec<f64> = sim.loco_con.loco_vec.iter()
                     .map(|loco| 
                         match loco.loco_type {
-                        LocoType::BatteryElectricLoco(_) => (loco.reversible_energy_storage().unwrap().state.soc *
+                        PowertrainType::BatteryElectricLoco(_) => (loco.reversible_energy_storage().unwrap().state.soc *
                             loco.reversible_energy_storage().unwrap().energy_capacity).get::<si::joule>(),
                         _ => f64::ZERO,
                         }
@@ -524,7 +524,7 @@ pub fn run_speed_limit_train_sims(
                 let new_energy_j_vec: Vec<f64> = sim.loco_con.loco_vec.iter()
                     .map(|loco| 
                         match loco.loco_type {
-                        LocoType::BatteryElectricLoco(_) => (loco.reversible_energy_storage().unwrap().state.energy_out_chemical).get::<si::joule>(),
+                        PowertrainType::BatteryElectricLoco(_) => (loco.reversible_energy_storage().unwrap().state.energy_out_chemical).get::<si::joule>(),
                         _ => f64::ZERO,
                         }
                     ).collect();

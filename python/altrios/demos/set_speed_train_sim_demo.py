@@ -14,6 +14,7 @@ SAVE_INTERVAL = 1
 
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainSummary.html
 train_summary = alt.TrainSummary(
+    rail_vehicle_type="Manifest",
     cars_empty=50,
     cars_loaded=50,
     # TODO: move `train_type` to rail vehicle file

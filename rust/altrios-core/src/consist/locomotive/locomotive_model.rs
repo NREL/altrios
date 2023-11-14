@@ -6,11 +6,7 @@ pub enum PowertrainType {
     ConventionalLoco,
     HybridLoco(Box<HybridLoco>),
     BatteryElectricLoco,
-    /// Dummy locomotive with infinite power and free energy, used for
-    /// working with train performance calculator with
-    /// [crate::train::SetSpeedTrainSim] with no effort to ensure loads
-    /// on locomotive are realistic.
-    Dummy,
+    DummyLoco,
 }
 
 impl From<HybridLoco> for PowertrainType {
@@ -34,12 +30,12 @@ impl TryFrom<&PyAny> for PowertrainType {
                         value
                             .extract::<BatteryElectricLoco>()
                             .map(PowertrainType::from)
-                            .or_else(|_| value.extract::<Dummy>().map(PowertrainType::from))
+                            .or_else(|_| value.extract::<DummyLoco>().map(PowertrainType::from))
                     })
             })
             .map_err(|_| {
                 pyo3::PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                    "{}\nMust provide ConventionalLoco, HybridLoco, BatteryElectricLoco, or Dummy",
+                    "{}\nMust provide ConventionalLoco, HybridLoco, BatteryElectricLoco, or DummyLoco",
                     format_dbg!()
                 ))
             })
@@ -58,12 +54,27 @@ impl std::string::ToString for PowertrainType {
             PowertrainType::ConventionalLoco(_) => String::from("Conventional"),
             PowertrainType::HybridLoco(_) => String::from("Hybrid"),
             PowertrainType::BatteryElectricLoco(_) => String::from("Battery Electric"),
-            PowertrainType::Dummy(_) => String::from("Dummy"),
+            PowertrainType::DummyLoco(_) => String::from("DummyLoco"),
         }
     }
 }
 
 #[altrios_api(
+    #[new]
+    fn __new__(
+        pwr_aux_offset_watts: f64,
+        pwr_aux_traction_coeff_ratio: f64,
+        force_max_newtons: f64,
+        mass_kilograms: Option<f64>,
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
+            pwr_aux_offset: pwr_aux_offset_watts * uc::W,
+            pwr_aux_traction_coeff: pwr_aux_traction_coeff_ratio * uc::R,
+            force_max: force_max_newtons * uc::N,
+            mass: mass_kilograms.map(|m| m * uc::KG)
+        })
+    }
+
     #[staticmethod]
     fn from_dict(param_dict: HashMap<&str, f64>) -> anyhow::Result<Self> {
         Self::from_hash(param_dict)
@@ -122,10 +133,19 @@ impl Default for LocoParams {
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
-#[altrios_api]
-pub struct Dummy {}
+#[altrios_api(
+    #[staticmethod]
+    fn __new__() -> Self {
+        Default::default()
+    }
+)]
+/// DummyLoco locomotive with infinite power and free energy, used for
+/// working with train performance calculator with
+/// [crate::train::SetSpeedTrainSim] with no effort to ensure loads
+/// on locomotive are realistic.
+pub struct DummyLoco {}
 
-impl LocoTrait for Dummy {
+impl LocoTrait for DummyLoco {
     fn set_cur_pwr_max_out(
         &mut self,
         _pwr_aux: Option<si::Power>,
@@ -166,9 +186,7 @@ impl LocoTrait for Dummy {
         fuel_converter: FuelConverter,
         generator: Generator,
         drivetrain: ElectricDrivetrain,
-        pwr_aux_offset_watts: f64,
-        pwr_aux_traction_coeff_ratio: f64,
-        force_max_newtons: f64,
+        loco_params: LocoParams,
         save_interval: Option<usize>,
     ) -> PyResult<Self> {
         let mut loco = Self {
@@ -181,9 +199,9 @@ impl LocoTrait for Dummy {
             save_interval,
             history: LocomotiveStateHistoryVec::new(),
             assert_limits: true,
-            pwr_aux_offset: pwr_aux_offset_watts * uc::W,
-            pwr_aux_traction_coeff: pwr_aux_traction_coeff_ratio * uc::R,
-            force_max: Some(force_max_newtons * uc::N),
+            pwr_aux_offset: loco_params.pwr_aux_offset,
+            pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
+            force_max: Some(loco_params.force_max),
             ..Default::default()
         };
         // make sure save_interval is propagated
@@ -198,9 +216,7 @@ impl LocoTrait for Dummy {
         generator: Generator,
         reversible_energy_storage: ReversibleEnergyStorage,
         drivetrain: ElectricDrivetrain,
-        pwr_aux_offset_watts: f64,
-        pwr_aux_traction_coeff_ratio: f64,
-        force_max_newtons: f64,
+        loco_params: LocoParams,
         fuel_res_split: Option<f64>,
         fuel_res_ratio: Option<f64>,
         gss_interval: Option<usize>,
@@ -217,13 +233,13 @@ impl LocoTrait for Dummy {
                 fuel_res_ratio,
                 gss_interval,
             ))),
+            pwr_aux_offset: loco_params.pwr_aux_offset,
+            pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
+            force_max: Some(loco_params.force_max),
             state: Default::default(),
             save_interval,
             history: LocomotiveStateHistoryVec::new(),
             assert_limits: true,
-            pwr_aux_offset: pwr_aux_offset_watts * uc::W,
-            pwr_aux_traction_coeff: pwr_aux_traction_coeff_ratio * uc::R,
-            force_max: Some(force_max_newtons * uc::N),
             ..Default::default()
         };
         // make sure save_interval is propagated
@@ -268,7 +284,7 @@ impl LocoTrait for Dummy {
     #[staticmethod]
     fn build_dummy_loco() -> Self {
         let mut dummy  = Self {
-            loco_type: PowertrainType::Dummy(Dummy::default()),
+            loco_type: PowertrainType::DummyLoco(DummyLoco::default()),
             state: LocomotiveState::default(),
             save_interval: None,
             history: LocomotiveStateHistoryVec::new(),
@@ -628,7 +644,7 @@ impl Locomotive {
                 loco.res.save_interval = save_interval;
                 loco.edrv.save_interval = save_interval;
             }
-            PowertrainType::Dummy(_) => { /* maybe return an error for this in the future */ }
+            PowertrainType::DummyLoco(_) => { /* maybe return an error for this in the future */ }
         }
     }
 
@@ -637,7 +653,7 @@ impl Locomotive {
             PowertrainType::ConventionalLoco(loco) => Some(&loco.fc),
             PowertrainType::HybridLoco(loco) => Some(&loco.fc),
             PowertrainType::BatteryElectricLoco(_) => None,
-            PowertrainType::Dummy(_) => None,
+            PowertrainType::DummyLoco(_) => None,
         }
     }
 
@@ -646,7 +662,7 @@ impl Locomotive {
             PowertrainType::ConventionalLoco(loco) => Some(&mut loco.fc),
             PowertrainType::HybridLoco(loco) => Some(&mut loco.fc),
             PowertrainType::BatteryElectricLoco(_) => None,
-            PowertrainType::Dummy(_) => None,
+            PowertrainType::DummyLoco(_) => None,
         }
     }
 
@@ -661,7 +677,7 @@ impl Locomotive {
                 Ok(())
             }
             PowertrainType::BatteryElectricLoco(_) => bail!("BEL has no FuelConverter."),
-            PowertrainType::Dummy(_) => bail!("Dummy locomotive has no FuelConverter."),
+            PowertrainType::DummyLoco(_) => bail!("DummyLoco locomotive has no FuelConverter."),
         }
     }
 
@@ -670,7 +686,7 @@ impl Locomotive {
             PowertrainType::ConventionalLoco(loco) => Some(&loco.gen),
             PowertrainType::HybridLoco(loco) => Some(&loco.gen),
             PowertrainType::BatteryElectricLoco(_) => None,
-            PowertrainType::Dummy(_) => None,
+            PowertrainType::DummyLoco(_) => None,
         }
     }
 
@@ -679,7 +695,7 @@ impl Locomotive {
             PowertrainType::ConventionalLoco(loco) => Some(&mut loco.gen),
             PowertrainType::HybridLoco(loco) => Some(&mut loco.gen),
             PowertrainType::BatteryElectricLoco(_) => None,
-            PowertrainType::Dummy(_) => None,
+            PowertrainType::DummyLoco(_) => None,
         }
     }
 
@@ -694,7 +710,7 @@ impl Locomotive {
                 Ok(())
             }
             PowertrainType::BatteryElectricLoco(_) => bail!("BEL has no Generator."),
-            PowertrainType::Dummy(_) => bail!("Dummy locomotive has no Generator."),
+            PowertrainType::DummyLoco(_) => bail!("DummyLoco locomotive has no Generator."),
         }
     }
 
@@ -703,7 +719,7 @@ impl Locomotive {
             PowertrainType::ConventionalLoco(_) => None,
             PowertrainType::HybridLoco(loco) => Some(&loco.res),
             PowertrainType::BatteryElectricLoco(loco) => Some(&loco.res),
-            PowertrainType::Dummy(_) => None,
+            PowertrainType::DummyLoco(_) => None,
         }
     }
 
@@ -712,7 +728,7 @@ impl Locomotive {
             PowertrainType::ConventionalLoco(_) => None,
             PowertrainType::HybridLoco(loco) => Some(&mut loco.res),
             PowertrainType::BatteryElectricLoco(loco) => Some(&mut loco.res),
-            PowertrainType::Dummy(_) => None,
+            PowertrainType::DummyLoco(_) => None,
         }
     }
 
@@ -729,7 +745,7 @@ impl Locomotive {
                 loco.res = res;
                 Ok(())
             }
-            PowertrainType::Dummy(_) => bail!("Dummy locomotive has no RES."),
+            PowertrainType::DummyLoco(_) => bail!("DummyLoco locomotive has no RES."),
         }
     }
 
@@ -747,7 +763,7 @@ impl Locomotive {
                 let edrv = loco.edrv.clone();
                 Some(edrv)
             }
-            PowertrainType::Dummy(_) => None,
+            PowertrainType::DummyLoco(_) => None,
         }
     }
 
@@ -765,7 +781,9 @@ impl Locomotive {
                 loco.edrv = edrv;
                 Ok(())
             }
-            PowertrainType::Dummy(_) => bail!("Dummy locomotive has no ElectricDrivetrain."),
+            PowertrainType::DummyLoco(_) => {
+                bail!("DummyLoco locomotive has no ElectricDrivetrain.")
+            }
         }
     }
 
@@ -813,9 +831,9 @@ impl Locomotive {
                         )
                     }
                 }
-                PowertrainType::Dummy(_) => {
+                PowertrainType::DummyLoco(_) => {
                     bail!(
-                        "`baseline` and `ballast` mass must be `None` with Dummy locomotive.\n{}",
+                        "`baseline` and `ballast` mass must be `None` with DummyLoco locomotive.\n{}",
                         format_dbg!()
                     )
                 }
@@ -860,7 +878,7 @@ impl Locomotive {
                         )
                     }
                 }
-                PowertrainType::Dummy(_) => Ok(Some(0.0 * uc::KG)),
+                PowertrainType::DummyLoco(_) => Ok(Some(0.0 * uc::KG)),
             }
         } else {
             bail!(
@@ -910,7 +928,7 @@ impl Locomotive {
                 self.state.pwr_out =
                     loco.edrv.state.pwr_mech_prop_out - loco.edrv.state.pwr_mech_dyn_brake;
             }
-            PowertrainType::Dummy(_) => { /* maybe put an error error in the future */ }
+            PowertrainType::DummyLoco(_) => { /* maybe put an error error in the future */ }
         }
         self.state.energy_out += self.state.pwr_out * dt;
         self.state.energy_aux += self.state.pwr_aux * dt;
@@ -983,7 +1001,7 @@ impl LocoTrait for Locomotive {
                 // TODO: Coordinate with Geordie on rate; INCOMPLETE ON
                 // RATE (Jinghu as of 06/06/2022)
             }
-            PowertrainType::Dummy(_) => {
+            PowertrainType::DummyLoco(_) => {
                 // this locomotive has the power of 1,000 suns and more
                 // power absorption ability than really big numbers that
                 // are not inf to avoid null in json

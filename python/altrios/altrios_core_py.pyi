@@ -6,14 +6,14 @@ from dataclasses import dataclass
 
 
 class SerdeAPI(object):
-    @staticmethod
-    def from_bincode() -> Self: ...
-    @staticmethod
-    def from_json() -> Self: ...
-    @staticmethod
-    def from_yaml() -> Self: ...
-    @staticmethod
-    def from_file() -> Self: ...
+    @classmethod
+    def from_bincode(cls) -> Self: ...
+    @classmethod
+    def from_json(cls) -> Self: ...
+    @classmethod
+    def from_yaml(cls) -> Self: ...
+    @classmethod
+    def from_file(cls) -> Self: ...
     def to_file(self): ... 
     def to_bincode(self) -> bytes: ...
     def to_json(self) -> str: ...
@@ -291,11 +291,12 @@ class GeneratorStateHistoryVec(SerdeAPI):
     def __len__(self) -> int: ...
 
 
+@dataclass
 class LocoParams:
-    pwr_aux_offset: float
-    pwr_aux_traction_coeff: float
-    force_max: float
-    mass: Optional[float]
+    pwr_aux_offset_watts: float
+    pwr_aux_traction_coeff_ratio: float
+    force_max_newtons: float
+    mass_kilograms: Optional[float]
 
     @classmethod
     def from_dict(cls, param_dict: Dict[str, float]) -> Self: 
@@ -306,9 +307,31 @@ class LocoParams:
 
 
 @dataclass
-class ConventionalLoco:
+class ConventionalLoco(SerdeAPI):
+    fc: FuelConverter
+    gen: Generator
     edrv: ElectricDrivetrain
 
+
+@dataclass
+class HybridLoco(SerdeAPI):
+    fuel_converter: FuelConverter
+    generator: Generator
+    reversible_energy_storage: ReversibleEnergyStorage
+    electric_drivetrain: ElectricDrivetrain
+    fuel_res_ratio: Optional[float]
+    fuel_res_split: Optional[float]
+    gss_interval: Optional[int]
+
+
+@dataclass
+class BatteryElectricLoco(SerdeAPI):
+    res: ReversibleEnergyStorage
+    edrv: ElectricDrivetrain
+
+
+@dataclass
+class DummyLoco(SerdeAPI): ...
 
 
 class Locomotive(SerdeAPI):
@@ -324,32 +347,37 @@ class Locomotive(SerdeAPI):
     save_interval: int
     state: LocomotiveState
 
-    @staticmethod
+    @classmethod
     def __new__(
-        loco_type: Union[ConventionalLoco]
-    ): ...
-    @staticmethod
+        cls,
+        loco_type: Union[ConventionalLoco, HybridLoco, BatteryElectricLoco, DummyLoco],
+        loco_params: LocoParams,
+        ): ...
+    @classmethod
     def build_battery_electric_loco(
+        cls,
         reversible_energy_storage: ReversibleEnergyStorage,
         drivetrain: ElectricDrivetrain,
         loco_params: LocoParams,
         save_interval: Optional[int]
     ) -> Self: ...
 
-    @staticmethod
-    def default_battery_electric_loco() -> Locomotive: ...
-    @staticmethod
+    @classmethod
+    def default_battery_electric_loco(cls) -> Locomotive: ...
+    @classmethod
     def build_conventional_loco(
+        cls,
         fuel_converter: FuelConverter,
         generator: Generator,
         drivetrain: ElectricDrivetrain,
         loco_params: LocoParams,
         save_interval: Optional[int],
     ) -> Self: ...
-    @staticmethod
-    def build_dummy_loco() -> Self: ...
-    @staticmethod
+    @classmethod
+    def build_dummy_loco(cls) -> Self: ...
+    @classmethod
     def build_hybrid_loco(
+        cls,
         fuel_converter: FuelConverter,
         generator: Generator,
         reversible_energy_storage: ReversibleEnergyStorage,

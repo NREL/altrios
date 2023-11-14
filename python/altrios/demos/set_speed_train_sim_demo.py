@@ -39,10 +39,10 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
-# TODO: build_battery_electric_loco has no documentation generated anywhere so fix this
-bel: alt.Locomotive = alt.Locomotive.build_battery_electric_loco(
-    reversible_energy_storage=res,
-    drivetrain=edrv,
+loco_type = alt.BatteryElectricLoco(res, edrv)
+
+bel: alt.Locomotive = alt.Locomotive(
+    loco_type=loco_type,
     loco_params=alt.LocoParams.from_dict(dict(
         pwr_aux_offset_watts=8.55e3,
         pwr_aux_traction_coeff_ratio=540.e-6,

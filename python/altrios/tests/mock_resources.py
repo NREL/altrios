@@ -47,9 +47,11 @@ def mock_conventional_loco(
         generator=gen,
         drivetrain=edrv,
         save_interval=save_interval,
-        pwr_aux_offset_watts=pwr_aux_offset_watts,
-        pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
-        force_max_newtons=force_max_newtons,
+        loco_params=alt.LocoParams(
+            pwr_aux_offset_watts=pwr_aux_offset_watts,
+            pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
+            force_max_newtons=force_max_newtons,
+        )
     )
     return loco_unit
 
@@ -85,9 +87,11 @@ def mock_hybrid_loco(
         fuel_res_split=fuel_res_split,
         fuel_res_ratio=fuel_res_ratio,
         gss_interval=gss_interval,
-        pwr_aux_offset_watts=pwr_aux_offset_watts,
-        pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
-        force_max_newtons=force_max_newtons,
+        loco_params=alt.LocoParams(
+            pwr_aux_offset_watts=pwr_aux_offset_watts,
+            pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
+            force_max_newtons=force_max_newtons,
+        )
     )
     return loco_unit
 
@@ -108,9 +112,11 @@ def mock_battery_electric_locomotive(
         reversible_energy_storage=res,
         drivetrain=edrv,
         save_interval=save_interval,
-        pwr_aux_offset_watts=pwr_aux_offset_watts,
-        pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
-        force_max_newtons=force_max_newtons,
+        loco_params=alt.LocoParams(
+            pwr_aux_offset_watts=pwr_aux_offset_watts,
+            pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
+            force_max_newtons=force_max_newtons,
+        )
     )
     return loco_unit
 

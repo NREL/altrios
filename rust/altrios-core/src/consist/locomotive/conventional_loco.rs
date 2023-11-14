@@ -6,7 +6,20 @@ use super::LocoTrait;
 use crate::imports::*;
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
-#[altrios_api]
+#[altrios_api(
+    #[new]
+    pub fn __new__(
+        fuel_converter: FuelConverter,
+        generator: Generator,
+        electric_drivetrain: ElectricDrivetrain,
+    ) -> Self {
+        Self {
+            fc: fuel_converter,
+            gen: generator,
+            edrv: electric_drivetrain,
+        }
+    }
+)]
 /// Conventional locomotive
 pub struct ConventionalLoco {
     #[has_state]
@@ -23,7 +36,7 @@ impl ConventionalLoco {
         generator: Generator,
         electric_drivetrain: ElectricDrivetrain,
     ) -> Self {
-        ConventionalLoco {
+        Self {
             fc: fuel_converter,
             gen: generator,
             edrv: electric_drivetrain,

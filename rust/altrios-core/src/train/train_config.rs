@@ -345,8 +345,18 @@ impl TrainSimBuilder {
 
         Ok(SpeedLimitTrainSim::new(
             self.train_id.clone(),
-            location_map.get(&self.origin_id).unwrap(),
-            location_map.get(&self.destination_id).unwrap(),
+            location_map.get(&self.origin_id).ok_or_else(|| {
+                anyhow!(format!(
+                    "{}\nFailed to extract `location_map`.",
+                    format_dbg!()
+                ))
+            })?,
+            location_map.get(&self.destination_id).ok_or_else(|| {
+                anyhow!(format!(
+                    "{}\nFailed to extract `location_map`.",
+                    format_dbg!()
+                ))
+            })?,
             self.loco_con.clone(),
             state,
             train_res,

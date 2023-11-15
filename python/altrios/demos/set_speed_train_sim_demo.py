@@ -81,7 +81,7 @@ link_path = [alt.LinkIdx(int(lp)) for lp in link_points]
 
 # TODO: uncomment and fix
 # speed_trace = alt.SpeedTrace.from_csv_file(
-#     str(alt.resources_root() / "speed_trace.csv")
+#     str(alt.resources_root() / "demo_data/speed_trace.csv")
 # )
 df_speed_trace = pd.read_csv(alt.resources_root() / "demo_data/speed_trace.csv")
 speed_trace = alt.SpeedTrace(
@@ -152,3 +152,5 @@ ax[-1].set_ylabel('Speed [m/s]')
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
+
+# %%

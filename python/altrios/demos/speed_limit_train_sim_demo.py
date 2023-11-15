@@ -61,7 +61,7 @@ tsb = alt.TrainSimBuilder(
     # TODO: make sure `train_id` is being used meaningfully
     train_id="0",
     # Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
-    origin_id="Funkytown",
+    origin_id="Minneapolis",
     destination_id="Superior",
     train_config=train_config,
     loco_con=loco_con,

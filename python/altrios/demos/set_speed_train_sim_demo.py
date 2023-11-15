@@ -60,9 +60,6 @@ init_train_state = alt.InitTrainState()
 
 tsb = alt.TrainSimBuilder(
     train_id="0",
-    # TODO: Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
-    origin_id="Minneapolis",
-    destination_id="Superior",
     train_config=train_config,
     loco_con=loco_con,
     init_train_state=init_train_state,

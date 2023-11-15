@@ -152,18 +152,18 @@ impl Valid for TrainConfig {
     #[new]
     fn __new__(
         train_id: String,
-        origin_id: String,
-        destination_id: String,
         train_config: TrainConfig,
         loco_con: Consist,
+        origin_id: Option<String>,
+        destination_id: Option<String>,
         init_train_state: Option<InitTrainState>,
     ) -> Self {
         Self::new(
             train_id,
-            origin_id,
-            destination_id,
             train_config,
             loco_con,
+            origin_id,
+            destination_id,
             init_train_state,
         )
     }
@@ -209,12 +209,14 @@ impl Valid for TrainConfig {
 pub struct TrainSimBuilder {
     /// Unique, user-defined identifier for the train
     pub train_id: String,
-    /// Origin_ID from train planner to map to track network locations
-    pub origin_id: String,
-    /// Destination_ID from train planner to map to track network locations
-    pub destination_id: String,
     pub train_config: TrainConfig,
     pub loco_con: Consist,
+    /// Origin_ID from train planner to map to track network locations.  Only needed if
+    /// [Self::make_speed_limit_train_sim] will be called.
+    pub origin_id: Option<String>,
+    /// Destination_ID from train planner to map to track network locations.  Only needed if
+    /// [Self::make_speed_limit_train_sim] will be called.
+    pub destination_id: Option<String>,
     #[api(skip_get, skip_set)]
     init_train_state: Option<InitTrainState>,
 }
@@ -222,18 +224,18 @@ pub struct TrainSimBuilder {
 impl TrainSimBuilder {
     pub fn new(
         train_id: String,
-        origin_id: String,
-        destination_id: String,
         train_config: TrainConfig,
         loco_con: Consist,
+        origin_id: Option<String>,
+        destination_id: Option<String>,
         init_train_state: Option<InitTrainState>,
     ) -> Self {
         Self {
             train_id,
-            origin_id,
-            destination_id,
             train_config,
             loco_con,
+            origin_id,
+            destination_id,
             init_train_state,
         }
     }
@@ -343,20 +345,37 @@ impl TrainSimBuilder {
             .make_train_sim_parts(rail_vehicle_map, save_interval)
             .with_context(|| format_dbg!())?;
 
+        ensure!(
+            self.origin_id.is_some() & self.destination_id.is_some(),
+            "{}\nBoth `origin_id` and `destination_id` must be provided when initializing{} ",
+            format_dbg!(),
+            "`TrainSimBuilder` when using `make_speed_limit_train_sim`."
+        );
+
         Ok(SpeedLimitTrainSim::new(
             self.train_id.clone(),
-            location_map.get(&self.origin_id).ok_or_else(|| {
-                anyhow!(format!(
-                    "{}\nFailed to extract `location_map`.",
-                    format_dbg!()
-                ))
-            })?,
-            location_map.get(&self.destination_id).ok_or_else(|| {
-                anyhow!(format!(
-                    "{}\nFailed to extract `location_map`.",
-                    format_dbg!()
-                ))
-            })?,
+            // `self.origin_id` verified to be `Some` earlier
+            location_map
+                .get(self.origin_id.as_ref().unwrap())
+                .ok_or_else(|| {
+                    anyhow!(format!(
+                        "{}\n`origin_id`: \"{}\" not found in `location_map` keys: {:?}",
+                        format_dbg!(),
+                        self.origin_id.as_ref().unwrap(),
+                        location_map.keys(),
+                    ))
+                })?,
+            // `self.destination_id` verified to be `Some` earlier
+            location_map
+                .get(self.destination_id.as_ref().unwrap())
+                .ok_or_else(|| {
+                    anyhow!(format!(
+                        "{}\n`destination_id`: \"{}\" not found in `location_map` keys: {:?}",
+                        format_dbg!(),
+                        self.destination_id.as_ref().unwrap(),
+                        location_map.keys(),
+                    ))
+                })?,
             self.loco_con.clone(),
             state,
             train_res,
@@ -980,10 +999,10 @@ mod tests {
         for train_config in train_summaries {
             let tsb = TrainSimBuilder::new(
                 "".to_string(),
-                "dummy".to_string(),
-                "dummy".to_string(),
                 train_config,
                 consist.clone(),
+                Some("dummy".to_string()),
+                Some("dummy".to_string()),
                 None,
             );
             tsb.make_speed_limit_train_sim(&rail_vehicle_map, &location_map, None, None, None)

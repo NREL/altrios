@@ -51,14 +51,9 @@ loco_con = alt.Consist(
     loco_vec,
     SAVE_INTERVAL,
 )
-init_train_state = alt.InitTrainState(
-    # TODO: fix how `train_length_meters` is set on instantiation of `train_config`
-    # offset_meters=train_config.train_length_meters
-    offset_meters=666,
-)
+init_train_state = alt.InitTrainState()
 
 tsb = alt.TrainSimBuilder(
-    # TODO: make sure `train_id` is being used meaningfully
     train_id="0",
     # Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
     origin_id="Minneapolis",

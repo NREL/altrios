@@ -7,13 +7,11 @@ use crate::imports::*;
         time_seconds: Option<f64>,
         offset_meters: Option<f64>,
         speed_meters_per_second: Option<f64>,
-        dt_seconds: Option<f64>,
     ) -> Self {
         Self::new(
             time_seconds.map(|x| x * uc::S),
             offset_meters.map(|x| x * uc::M),
             speed_meters_per_second.map(|x| x * uc::MPS),
-            dt_seconds.map(|x| x * uc::S),
         )
     }
 )]
@@ -22,7 +20,6 @@ pub struct InitTrainState {
     pub time: si::Time,
     pub offset: si::Length,
     pub speed: si::Velocity,
-    pub dt: si::Time,
 }
 
 impl Default for InitTrainState {
@@ -31,7 +28,6 @@ impl Default for InitTrainState {
             time: si::Time::ZERO,
             offset: f64::NAN * uc::M,
             speed: si::Velocity::ZERO,
-            dt: uc::S,
         }
     }
 }
@@ -41,14 +37,12 @@ impl InitTrainState {
         time: Option<si::Time>,
         offset: Option<si::Length>,
         speed: Option<si::Velocity>,
-        dt: Option<si::Time>,
     ) -> Self {
         let base = InitTrainState::default();
         Self {
             time: time.unwrap_or(base.time),
             offset: offset.unwrap_or(base.offset),
             speed: speed.unwrap_or(base.speed),
-            dt: dt.unwrap_or(base.dt),
         }
     }
 }
@@ -176,7 +170,6 @@ impl TrainState {
             // this needs to be set to something greater than or equal to actual speed and will be
             // updated after the first time step anyway
             speed_limit: init_train_state.speed,
-            dt: init_train_state.dt,
             length,
             mass_static,
             mass_adj,

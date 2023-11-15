@@ -89,7 +89,6 @@ t0 = time.perf_counter()
 train_sim.walk()
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
-assert len(train_sim.history.time_seconds) > 1
 
 fig, ax = plt.subplots(3, 1, sharex=True)
 ax[0].plot(

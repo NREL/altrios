@@ -61,7 +61,7 @@ tsb = alt.TrainSimBuilder(
     # TODO: make sure `train_id` is being used meaningfully
     train_id="0",
     # Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
-    origin_id="Minneapolis",
+    origin_id="Funkytown",
     destination_id="Superior",
     train_config=train_config,
     loco_con=loco_con,
@@ -93,6 +93,7 @@ t0 = time.perf_counter()
 train_sim.walk()
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
+assert len(train_sim.history.time_seconds) > 1
 
 fig, ax = plt.subplots(3, 1, sharex=True)
 ax[0].plot(

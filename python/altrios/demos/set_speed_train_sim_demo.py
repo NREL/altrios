@@ -56,15 +56,12 @@ loco_con = alt.Consist(
     SAVE_INTERVAL,
 )
 
-# TODO: `dt` in this struct may not get used anywhere or may not be needed  
-# Check whether this is just initial or the dt for the whole time and consider moving to TSB or TS
 init_train_state = alt.InitTrainState()
 
 tsb = alt.TrainSimBuilder(
-    # TODO: make sure `train_id` is being used meaningfully
     train_id="0",
     # TODO: Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
-    origin_id="Minneapolis",
+    origin_id="Nonsensopolis",
     destination_id="Superior",
     train_config=train_config,
     loco_con=loco_con,

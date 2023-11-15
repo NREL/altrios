@@ -65,11 +65,11 @@ tsb = alt.TrainSimBuilder(
     init_train_state=init_train_state,
 )
 
-# TODO: make sure rail_vehicle_map can be constructed from yaml file and such
 rail_vehicle_file = "rolling_stock/rail_vehicles.csv"
 rail_vehicle_map = alt.import_rail_vehicles(
     str(alt.resources_root() / rail_vehicle_file)
 )
+rail_vehicle = rail_vehicle_map[train_config.rail_vehicle_type]
 
 network = alt.import_network(str(alt.resources_root() / "networks/Taconite.yaml"))
 # TODO: explain how this file was created from running `sim_manager_demo.py` and getting the first
@@ -91,7 +91,7 @@ speed_trace = alt.SpeedTrace(
 )
 
 train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
-    rail_vehicle_map=rail_vehicle_map,
+    rail_vehicle=rail_vehicle,
     network=network,
     link_path=link_path,
     speed_trace=speed_trace,

@@ -73,6 +73,7 @@ rail_vehicle_file = "rolling_stock/rail_vehicles.csv"
 rail_vehicle_map = alt.import_rail_vehicles(
     str(alt.resources_root() / rail_vehicle_file)
 )
+rail_vehicle = rail_vehicle_map[train_config.rail_vehicle_type]
 
 network = alt.import_network(str(alt.resources_root() / "networks/Taconite.yaml"))
 
@@ -82,7 +83,7 @@ location_map = alt.import_locations(
 )
 
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
-    rail_vehicle_map=rail_vehicle_map,
+    rail_vehicle=rail_vehicle,
     location_map=location_map,
     save_interval=1,
 )

@@ -25,7 +25,7 @@ train_planner_config = train_planner.TrainPlannerConfig(
 targets = [0.5]
 for target in targets:
     scenario_infos, metrics = rollout.simulate_prescribed_rollout(
-        max_bel_share=target, 
+        max_bel_share=target,
         number_of_years=1,
         results_folder=Path(__file__).parent / "results/case study/",
         demand_file_path=File,

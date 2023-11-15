@@ -4,8 +4,8 @@ use crate::consist::locomotive::locomotive_model::PowertrainType;
 use crate::consist::Mass;
 
 use super::{
-    friction_brakes::*, rail_vehicle::RailVehicleMap, train_imports::*, InitTrainState,
-    LinkIdxTime, SetSpeedTrainSim, SpeedLimitTrainSim, SpeedTrace, TrainState,
+    friction_brakes::*, rail_vehicle::RailVehicle, train_imports::*, InitTrainState, LinkIdxTime,
+    SetSpeedTrainSim, SpeedLimitTrainSim, SpeedTrace, TrainState,
 };
 use crate::track::LocationMap;
 
@@ -35,8 +35,8 @@ use pyo3_polars::PyDataFrame;
     }
 
     #[pyo3(name = "make_train_params")]
-    fn make_train_params_py(&self, rail_vehicle_map: RailVehicleMap) -> PyResult<TrainParams> {
-        Ok(self.make_train_params(&rail_vehicle_map))
+    fn make_train_params_py(&self, rail_vehicle: RailVehicle) -> PyResult<TrainParams> {
+        Ok(self.make_train_params(&rail_vehicle))
     }
 
     #[getter]
@@ -65,7 +65,7 @@ use pyo3_polars::PyDataFrame;
 /// User-defined train configuration used to generate [crate::prelude::TrainParams].
 /// Any optional fields will be populated later in [TrainSimBuilder::make_train_sim_parts]
 pub struct TrainConfig {
-    /// User-defined identifier for the car type on this train.  Analogous with `train_type`.
+    /// User-defined identifier for the car type on this train.  
     pub rail_vehicle_type: String,
     /// Number of empty railcars on the train
     pub cars_empty: u32,
@@ -105,8 +105,7 @@ impl TrainConfig {
         self.cars_empty + self.cars_loaded
     }
 
-    pub fn make_train_params(&self, rail_vehicle_map: &RailVehicleMap) -> TrainParams {
-        let rail_vehicle = &rail_vehicle_map[&self.rail_vehicle_type];
+    pub fn make_train_params(&self, rail_vehicle: &RailVehicle) -> TrainParams {
         let mass_static = self.train_mass.unwrap_or(
             rail_vehicle.mass_static_empty * self.cars_empty as f64
                 + rail_vehicle.mass_static_loaded * self.cars_loaded as f64,
@@ -171,14 +170,14 @@ impl Valid for TrainConfig {
     #[pyo3(name = "make_set_speed_train_sim")]
     fn make_set_speed_train_sim_py(
         &self,
-        rail_vehicle_map: RailVehicleMap,
+        rail_vehicle: RailVehicle,
         network: Vec<Link>,
         link_path: Vec<LinkIdx>,
         speed_trace: SpeedTrace,
         save_interval: Option<usize>
     ) -> anyhow::Result<SetSpeedTrainSim> {
         self.make_set_speed_train_sim(
-            &rail_vehicle_map,
+            &rail_vehicle,
             &network,
             &link_path,
             speed_trace,
@@ -189,14 +188,14 @@ impl Valid for TrainConfig {
     #[pyo3(name = "make_speed_limit_train_sim")]
     fn make_speed_limit_train_sim_py(
         &self,
-        rail_vehicle_map: RailVehicleMap,
+        rail_vehicle: RailVehicle,
         location_map: LocationMap,
         save_interval: Option<usize>,
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
     ) -> PyResult<SpeedLimitTrainSim> {
         Ok(self.make_speed_limit_train_sim(
-            &rail_vehicle_map,
+            &rail_vehicle,
             &location_map,
             save_interval,
             simulation_days,
@@ -242,11 +241,11 @@ impl TrainSimBuilder {
 
     fn make_train_sim_parts(
         &self,
-        rail_vehicle_map: &RailVehicleMap,
+        rail_vehicle: &RailVehicle,
         save_interval: Option<usize>,
     ) -> anyhow::Result<(TrainState, PathTpc, TrainRes, FricBrake)> {
-        let veh = &rail_vehicle_map[&self.train_config.rail_vehicle_type];
-        let train_params = self.train_config.make_train_params(rail_vehicle_map);
+        let veh = rail_vehicle;
+        let train_params = self.train_config.make_train_params(rail_vehicle);
 
         let length = train_params.length;
         // TODO: figure out what to do about rotational mass of locomotive components (e.g. axles, gearboxes, motor shafts)
@@ -313,14 +312,20 @@ impl TrainSimBuilder {
 
     pub fn make_set_speed_train_sim(
         &self,
-        rail_vehicle_map: &RailVehicleMap,
+        rail_vehicle: &RailVehicle,
         network: &[Link],
         link_path: &[LinkIdx],
         speed_trace: SpeedTrace,
         save_interval: Option<usize>,
     ) -> anyhow::Result<SetSpeedTrainSim> {
+        ensure!(
+            self.origin_id.is_none() & self.destination_id.is_none(),
+            "{}\n`origin_id` and `destination_id` must both be `None` when calling `make_set_speed_train_sim`.",
+            format_dbg!()
+        );
+
         let (state, mut path_tpc, train_res, _fric_brake) =
-            self.make_train_sim_parts(rail_vehicle_map, save_interval)?;
+            self.make_train_sim_parts(rail_vehicle, save_interval)?;
 
         path_tpc.extend(network, link_path)?;
         Ok(SetSpeedTrainSim::new(
@@ -335,21 +340,21 @@ impl TrainSimBuilder {
 
     pub fn make_speed_limit_train_sim(
         &self,
-        rail_vehicle_map: &RailVehicleMap,
+        rail_vehicle: &RailVehicle,
         location_map: &LocationMap,
         save_interval: Option<usize>,
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
     ) -> anyhow::Result<SpeedLimitTrainSim> {
         let (state, path_tpc, train_res, fric_brake) = self
-            .make_train_sim_parts(rail_vehicle_map, save_interval)
+            .make_train_sim_parts(rail_vehicle, save_interval)
             .with_context(|| format_dbg!())?;
 
         ensure!(
             self.origin_id.is_some() & self.destination_id.is_some(),
             "{}\nBoth `origin_id` and `destination_id` must be provided when initializing{} ",
             format_dbg!(),
-            "`TrainSimBuilder` when using `make_speed_limit_train_sim`."
+            "`TrainSimBuilder` for `make_speed_limit_train_sim` to work."
         );
 
         Ok(SpeedLimitTrainSim::new(
@@ -393,7 +398,7 @@ impl TrainSimBuilder {
 #[pyfunction]
 pub fn build_speed_limit_train_sims(
     train_sim_builders: Vec<TrainSimBuilder>,
-    rail_veh_map: RailVehicleMap,
+    rail_veh: RailVehicle,
     location_map: LocationMap,
     save_interval: Option<usize>,
     simulation_days: Option<i32>,
@@ -402,7 +407,7 @@ pub fn build_speed_limit_train_sims(
     let mut speed_limit_train_sims = Vec::with_capacity(train_sim_builders.len());
     for tsb in train_sim_builders.iter() {
         speed_limit_train_sims.push(tsb.make_speed_limit_train_sim(
-            &rail_veh_map,
+            &rail_veh,
             &location_map,
             save_interval,
             simulation_days,
@@ -481,7 +486,7 @@ pub fn run_speed_limit_train_sims(
 
     let mut done = false;
     while !done {
-        let arrivals_mask = (&arrival_times)
+        let arrivals_mask = arrival_times
             .column("Arrival_Time_Actual_Hr")?
             .equal(current_time)?;
         let arrivals = arrival_times.clone().filter(&arrivals_mask)?;
@@ -614,7 +619,7 @@ pub fn run_speed_limit_train_sims(
                 let mut all_energy_j: Vec<f64> = (loco_pool.column("SOC_J")?.f64()? * 0.0)
                     .into_no_null_iter()
                     .collect();
-                let idx_mask = (&arrival_times)
+                let idx_mask = arrival_times
                     .column("TrainSimVec_Index")?
                     .equal(idx as u32)?;
                 let arrival_locos = arrival_times.filter(&idx_mask)?;
@@ -972,17 +977,18 @@ mod tests {
 
     #[test]
     fn test_make_train_params() {
-        let train_summaries = vec![TrainConfig::valid()];
+        let train_configs = vec![TrainConfig::valid()];
         let rail_vehicle_map =
             import_rail_vehicles(Path::new("./src/train/test_rail_vehicles.csv")).unwrap();
-        for train_config in train_summaries {
-            train_config.make_train_params(&rail_vehicle_map);
+        for train_config in train_configs {
+            let rail_vehicle = &rail_vehicle_map[&train_config.rail_vehicle_type];
+            train_config.make_train_params(rail_vehicle);
         }
     }
 
     #[test]
     fn test_make_speed_limit_train_sims() {
-        let train_summaries = vec![TrainConfig::valid()];
+        let train_configs = vec![TrainConfig::valid()];
         let mut rvm_file = project_root::get_project_root().unwrap();
         rvm_file.push("altrios-core/src/train/test_rail_vehicles.csv");
         let rail_vehicle_map = match import_rail_vehicles(&rvm_file) {
@@ -996,16 +1002,17 @@ mod tests {
 
         let consist = Consist::default();
 
-        for train_config in train_summaries {
+        for train_config in train_configs {
             let tsb = TrainSimBuilder::new(
                 "".to_string(),
-                train_config,
+                train_config.clone(),
                 consist.clone(),
                 Some("dummy".to_string()),
                 Some("dummy".to_string()),
                 None,
             );
-            tsb.make_speed_limit_train_sim(&rail_vehicle_map, &location_map, None, None, None)
+            let rail_vehicle = &rail_vehicle_map[&train_config.rail_vehicle_type];
+            tsb.make_speed_limit_train_sim(rail_vehicle, &location_map, None, None, None)
                 .unwrap();
         }
     }

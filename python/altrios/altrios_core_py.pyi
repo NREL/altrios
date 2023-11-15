@@ -791,7 +791,7 @@ class TrainSimBuilder(SerdeAPI):
     ) -> None: ...
 
     def make_set_speed_train_sim(
-        rail_vehicle_map: Dict[str, RailVehicle],
+        rail_vehicle: RailVehicle,
         network: List[Link],
         link_path: List[LinkIdx],
         speed_trace: SpeedTrace,
@@ -801,7 +801,7 @@ class TrainSimBuilder(SerdeAPI):
 
     def make_speed_limit_train_sim(
         self,
-        rail_vehicle_map: Dict[str, RailVehicle],
+        rail_vehicle: RailVehicle,
         location_map: Dict[str, List[Location]],
         save_interval: Optional[int],
         simulation_days: Optional[int],

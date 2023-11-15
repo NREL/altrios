@@ -98,11 +98,11 @@ impl SpeedTrace {
         }
     }
 
-    /// Load cycle from csv file
+    /// Load speed trace from csv file
     pub fn from_csv_file(pathstr: &str) -> Result<Self, anyhow::Error> {
         let pathbuf = PathBuf::from(&pathstr);
 
-        // create empty cycle to be populated
+        // create empty SpeedTrace to be populated
         let mut st = Self::empty();
 
         let file = File::open(pathbuf)?;

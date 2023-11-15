@@ -229,7 +229,8 @@ def balance_trains(
     while (~np.isclose(demand["Received"], demand["Dispatched"])).any() and (step <= max_iter):
         rows_def = demand[demand["Received"] < demand["Dispatched"]]
         rows_sur = demand[demand["Received"] > demand["Dispatched"]]
-        if((len(rows_def) == 0) | (len(rows_sur) == 0)): break
+        if((len(rows_def) == 0) | (len(rows_sur) == 0)): 
+            break
         # Find the first node that is in deficit of cars because of the empty return
         row_def = rows_def.index[0]
         # Find the first node that is in surplus of cars
@@ -989,7 +990,7 @@ def run_train_planner(
                     )
 
                     slts = tsb.make_speed_limit_train_sim(
-                        rail_vehicle_map, 
+                        rail_vehicle_map[train_config.rail_vehicle_type], 
                         location_map, 
                         None, 
                         simulation_days, 
@@ -1117,7 +1118,7 @@ if __name__ == "__main__":
         config.refuelers_per_incoming_corridor)
 
     output = run_train_planner(
-        rail_vehicle_map=rail_vehicle_map, 
+        rail_vehicle=rail_vehicle_map, 
         location_map=location_map, 
         network=network,
         loco_pool=loco_pool,

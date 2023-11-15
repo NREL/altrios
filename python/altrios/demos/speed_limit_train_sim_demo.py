@@ -12,7 +12,7 @@ SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 1
 
-train_summary = alt.TrainSummary(
+train_config = alt.TrainConfig(
     rail_vehicle_type="Manifest",
     cars_empty=50,
     cars_loaded=50,
@@ -52,8 +52,8 @@ loco_con = alt.Consist(
     SAVE_INTERVAL,
 )
 init_train_state = alt.InitTrainState(
-    # TODO: fix how `train_length_meters` is set on instantiation of `train_summary`
-    # offset_meters=train_summary.train_length_meters
+    # TODO: fix how `train_length_meters` is set on instantiation of `train_config`
+    # offset_meters=train_config.train_length_meters
     offset_meters=666,
 )
 
@@ -63,7 +63,7 @@ tsb = alt.TrainSimBuilder(
     # Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
     origin_id="Minneapolis",
     destination_id="Superior",
-    train_summary=train_summary,
+    train_config=train_config,
     loco_con=loco_con,
     init_train_state=init_train_state,
 )

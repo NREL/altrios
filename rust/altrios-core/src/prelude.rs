@@ -37,8 +37,8 @@ pub use crate::meet_pass::est_times::{make_est_times, EstTimeNet};
 
 pub use crate::train::{
     InitTrainState, LinkIdxTime, RailVehicle, RailVehicleMap, SetSpeedTrainSim, SpeedLimitTrainSim,
-    SpeedLimitTrainSimVec, SpeedTrace, TrainSimBuilder, TrainState, TrainStateHistoryVec,
-    TrainSummary,
+    SpeedLimitTrainSimVec, SpeedTrace, TrainConfig, TrainSimBuilder, TrainState,
+    TrainStateHistoryVec,
 };
 
 pub use crate::track::{Link, LinkIdx, LinkPoint, Location, TrainParams, TrainType};

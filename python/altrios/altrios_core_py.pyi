@@ -774,7 +774,7 @@ class TrainSimBuilder(SerdeAPI):
     train_id: str
     origin_id: str
     destination_id: str
-    train_summary: TrainSummary
+    train_config: TrainConfig
     loco_con: Consist
     init_train_state: Optional[InitTrainState]
     @classmethod
@@ -785,7 +785,7 @@ class TrainSimBuilder(SerdeAPI):
         train_id,
         origin_id,
         destination_id,
-        train_summary,
+        train_config,
         loco_con,
         init_train_state
     ) -> None: ...
@@ -811,7 +811,7 @@ class TrainSimBuilder(SerdeAPI):
 
 
 @dataclass
-class TrainSummary(SerdeAPI):
+class TrainConfig(SerdeAPI):
     rail_vehicle_type: str
     cars_empty: int
     cars_loaded: int

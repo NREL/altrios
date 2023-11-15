@@ -12,12 +12,11 @@ SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 1
 
-# https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainSummary.html
-train_summary = alt.TrainSummary(
+# https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
+train_config = alt.TrainConfig(
     rail_vehicle_type="Manifest",
     cars_empty=50,
     cars_loaded=50,
-    # TODO: move `train_type` to rail vehicle file
     train_type=None,
     train_length_meters=None,
     train_mass_kilograms=None,
@@ -67,7 +66,7 @@ tsb = alt.TrainSimBuilder(
     # TODO: Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
     origin_id="Minneapolis",
     destination_id="Superior",
-    train_summary=train_summary,
+    train_config=train_config,
     loco_con=loco_con,
     init_train_state=init_train_state,
 )

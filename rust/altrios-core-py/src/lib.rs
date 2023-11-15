@@ -54,7 +54,7 @@ fn altrios_core_py(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<TrainState>()?;
     m.add_class::<TrainStateHistoryVec>()?;
 
-    m.add_class::<TrainSummary>()?;
+    m.add_class::<TrainConfig>()?;
     m.add_class::<TrainType>()?;
     m.add_class::<TrainParams>()?;
     m.add_class::<RailVehicle>()?;

@@ -946,7 +946,7 @@ def run_train_planner(
                         loco_pool,
                         this_train['HP_Required_Per_Ton']
                     )
-                    train_summary = alt.TrainSummary(
+                    train_config = alt.TrainConfig(
                         cars_empty = int(this_train['Cars_Per_Train_Empty']),
                         cars_loaded = int(this_train['Cars_Per_Train_Loaded']),
                         rail_vehicle_type = this_train['Train_Type'])
@@ -983,7 +983,7 @@ def run_train_planner(
                         train_id=train_id,
                         origin_id=this_train['Origin'],
                         destination_id=this_train['Destination'],
-                        train_summary=train_summary,
+                        train_config=train_config,
                         loco_con=loco_con,
                         init_train_state=init_train_state,
                     )

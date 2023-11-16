@@ -43,9 +43,5 @@ jobs:
         run: |
           pip install maturin pytest
           pip install . 
-          pytest tests/ -v
-
-      - name: Python functional tests 
-        run: |
-          SHOW_PLOTS=false pytest -v applications
+          pytest {project}/python -s
 

@@ -78,15 +78,8 @@ link_points = pd.read_csv(
     alt.resources_root() / "demo_data/link_points.csv")["link points"].tolist()
 link_path = [alt.LinkIdx(int(lp)) for lp in link_points]
 
-# TODO: uncomment and fix
-# speed_trace = alt.SpeedTrace.from_csv_file(
-#     str(alt.resources_root() / "demo_data/speed_trace.csv")
-# )
-df_speed_trace = pd.read_csv(alt.resources_root() / "demo_data/speed_trace.csv")
-speed_trace = alt.SpeedTrace(
-    df_speed_trace['time_seconds'],
-    df_speed_trace['speed_meters_per_second'],
-    None,
+speed_trace = alt.SpeedTrace.from_csv_file(
+    alt.resources_root() / "demo_data/speed_trace.csv"
 )
 
 train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(

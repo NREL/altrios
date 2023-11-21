@@ -79,8 +79,8 @@ pub fn interp3d(
     let (zi0, zi1) = find_interp_indices(&z, z_points)?;
 
     let xd = compute_interp_diff(&x, &x_points[xi0], &x_points[xi1]);
-    let yd = compute_interp_diff(&x, &x_points[xi0], &x_points[xi1]);
-    let zd = compute_interp_diff(&x, &x_points[xi0], &x_points[xi1]);
+    let yd = compute_interp_diff(&y, &y_points[yi0], &y_points[yi1]);
+    let zd = compute_interp_diff(&z, &z_points[zi0], &z_points[zi1]);
 
     let c000 = values[xi0][yi0][zi0];
     let c100 = values[xi1][yi0][zi0];

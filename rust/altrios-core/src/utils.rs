@@ -99,7 +99,7 @@ pub fn interp3d(
     let c0 = c00 * (1.0 - yd) + c10 * yd;
     let c1 = c01 * (1.0 - yd) + c11 * yd;
 
-    let c = c0 * (1.0 - yd) + c1 * zd;
+    let c = c0 * (1.0 - zd) + c1 * zd;
 
     Ok(c)
 }

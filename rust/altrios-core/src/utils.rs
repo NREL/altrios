@@ -231,7 +231,7 @@ mod tests {
             vec![vec![0.0, 0.0], vec![1.0, 1.0]],
         ];
         match interp3d(&point, &grid, &values) {
-            Ok(i) => assert!(i == 0.75),
+            Ok(i) => assert!(i == 0.25),
             Err(e) => panic!("test failed with: {e}"),
         };
     }

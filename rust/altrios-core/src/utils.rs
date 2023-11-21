@@ -79,8 +79,8 @@ pub fn interp3d(
     let (zi0, zi1) = find_interp_indices(&z, z_points)?;
 
     let xd = compute_interp_diff(&x, &x_points[xi0], &x_points[xi1]);
-    let yd = compute_interp_diff(&x, &x_points[xi0], &x_points[xi1]);
-    let zd = compute_interp_diff(&x, &x_points[xi0], &x_points[xi1]);
+    let yd = compute_interp_diff(&y, &y_points[yi0], &y_points[yi1]);
+    let zd = compute_interp_diff(&z, &z_points[zi0], &z_points[zi1]);
 
     let c000 = values[xi0][yi0][zi0];
     let c100 = values[xi1][yi0][zi0];
@@ -99,7 +99,7 @@ pub fn interp3d(
     let c0 = c00 * (1.0 - yd) + c10 * yd;
     let c1 = c01 * (1.0 - yd) + c11 * yd;
 
-    let c = c0 * (1.0 - yd) + c1 * zd;
+    let c = c0 * (1.0 - zd) + c1 * zd;
 
     Ok(c)
 }
@@ -231,7 +231,7 @@ mod tests {
             vec![vec![0.0, 0.0], vec![1.0, 1.0]],
         ];
         match interp3d(&point, &grid, &values) {
-            Ok(i) => assert!(i == 0.75),
+            Ok(i) => assert!(i == 0.25),
             Err(e) => panic!("test failed with: {e}"),
         };
     }

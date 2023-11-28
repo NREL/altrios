@@ -42,6 +42,5 @@ jobs:
       - name: Python unit tests 
         run: |
           pip install maturin pytest
-          pip install . 
+          pip install -e . 
           pytest python/altrios -s
-

@@ -12,7 +12,7 @@ SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 1
 
-train_summary = alt.TrainSummary(
+train_config = alt.TrainConfig(
     rail_vehicle_type="Manifest",
     cars_empty=50,
     cars_loaded=50,
@@ -51,19 +51,14 @@ loco_con = alt.Consist(
     loco_vec,
     SAVE_INTERVAL,
 )
-init_train_state = alt.InitTrainState(
-    # TODO: fix how `train_length_meters` is set on instantiation of `train_summary`
-    # offset_meters=train_summary.train_length_meters
-    offset_meters=666,
-)
+init_train_state = alt.InitTrainState()
 
 tsb = alt.TrainSimBuilder(
-    # TODO: make sure `train_id` is being used meaningfully
     train_id="0",
     # Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
     origin_id="Minneapolis",
     destination_id="Superior",
-    train_summary=train_summary,
+    train_config=train_config,
     loco_con=loco_con,
     init_train_state=init_train_state,
 )
@@ -73,6 +68,7 @@ rail_vehicle_file = "rolling_stock/rail_vehicles.csv"
 rail_vehicle_map = alt.import_rail_vehicles(
     str(alt.resources_root() / rail_vehicle_file)
 )
+rail_vehicle = rail_vehicle_map[train_config.rail_vehicle_type]
 
 network = alt.import_network(str(alt.resources_root() / "networks/Taconite.yaml"))
 
@@ -82,7 +78,7 @@ location_map = alt.import_locations(
 )
 
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
-    rail_vehicle_map=rail_vehicle_map,
+    rail_vehicle=rail_vehicle,
     location_map=location_map,
     save_interval=1,
 )

@@ -9,10 +9,26 @@ import numpy.typing as npt
 import logging
 from pathlib import Path
 import datetime
-import requests
 import os
+import shutil
+
+# local imports
 from altrios import __version__
 
+def package_root() -> Path:
+    """
+    Returns the package root directory.
+    """
+    path = Path(__file__).parent
+    return path
+
+
+def resources_root() -> Path:
+    """
+    Returns the resources root directory.
+    """
+    path = package_root() / "resources"
+    return path
 
 from altrios.altrios_core_py import (
     SetSpeedTrainSim,
@@ -265,9 +281,9 @@ def enable_logging():
     set_log_level(logging.WARNING)
 
 
-def download_demo_files(demo_path: Path=Path("demos")):
+def copy_demo_files(demo_path: Path=Path("demos")):
     """
-    Downloads demo files from github repo into local directory.
+    Copies demo files from package directory into local directory.
 
     # Arguments
     demo_path: path (relative or absolute in )
@@ -278,36 +294,27 @@ def download_demo_files(demo_path: Path=Path("demos")):
     """
 
     v = f"v{__version__}"
+    demo_path.mkdir(exist_ok=True)
 
-    api_url = f"https://api.github.com/repos/NREL/altrios/contents/applications/demos?reg={v}"
-    response = requests.get(api_url)
+    for src_file in (package_root() / "demos").iterdir():
+        if src_file.suffix != ".py":
+            continue
+        src_file: Path
+        dest_file = demo_path / src_file.name
+        shutil.copyfile(
+            src_file,
+            dest_file
+        )
     
-    if response.status_code == 200:
-        contents = response.json()
+        with open(dest_file, "r+") as file:
+            file_content = file.readlines()
+            prepend_str = f"# %% Copied from ALTRIOS version '{v}'. Guaranteed compatibility with this version only.\n"
+            prepend = [prepend_str]
+            file_content = prepend + file_content
+            file.seek(0)
+            file.writelines(file_content)
         
-        for item in contents:
-            if item["type"] == "file" and item["name"].endswith(".py"):
-                file_url = item["download_url"]
-                file_name = item["name"]
-
-                demo_path.mkdir(exist_ok=True)
-                
-                with open(demo_path / file_name, "wb") as file:
-                    file_content = requests.get(file_url).content
-                    file.write(file_content)
-                
-                with open(demo_path / file_name, "r+") as file:
-                    file_content = file.readlines()
-                    prepend_str = f"# %% Downloaded from ALTRIOS version '{v}'. Guaranteed compatibility with this version only.\n"
-                    prepend = [prepend_str]
-                    file_content = prepend + file_content
-                    file.seek(0)
-                    file.writelines(file_content)
-                    
-                print(f"Saved {file_name} to {str(demo_path / file_name)}")
-    else:
-        print("Failed to download demo files")
-
+    print(f"Saved {dest_file.name} to {dest_file}")
 
 def show_plots() -> bool:
     """

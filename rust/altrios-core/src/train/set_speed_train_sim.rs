@@ -10,10 +10,10 @@ use super::train_imports::*;
         Ok(Self::new(time_seconds, speed_meters_per_second, engine_on))
     }
 
-    #[classmethod]
+    #[staticmethod]
     #[pyo3(name = "from_csv_file")]
-    fn from_csv_file_py(_cls: &PyType, pathstr: String) -> anyhow::Result<Self> {
-        Self::from_csv_file(&pathstr)
+    fn from_csv_file_py(filepath: &PyAny) -> anyhow::Result<Self> {
+        Self::from_csv_file(PathBuf::extract(filepath)?)
     }
 
     fn __len__(&self) -> usize {
@@ -71,7 +71,7 @@ impl SpeedTrace {
 
     /// method to prevent rust-analyzer from complaining
     pub fn is_empty(&self) -> bool {
-        true // not really possible to create an empty SpeedTrace
+        self.time.is_empty() && self.speed.is_empty() && self.engine_on.is_none()
     }
 
     pub fn push(&mut self, speed_element: SpeedTraceElement) -> anyhow::Result<()> {
@@ -98,14 +98,14 @@ impl SpeedTrace {
         }
     }
 
-    /// Load cycle from csv file
-    pub fn from_csv_file(pathstr: &str) -> Result<Self, anyhow::Error> {
-        let pathbuf = PathBuf::from(&pathstr);
+    /// Load speed trace from csv file
+    pub fn from_csv_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
+        let filepath = filepath.as_ref();
 
-        // create empty cycle to be populated
+        // create empty SpeedTrace to be populated
         let mut st = Self::empty();
 
-        let file = File::open(pathbuf)?;
+        let file = File::open(filepath)?;
         let mut rdr = csv::ReaderBuilder::new()
             .has_headers(true)
             .from_reader(file);
@@ -113,11 +113,12 @@ impl SpeedTrace {
             let st_elem: SpeedTraceElement = result?;
             st.push(st_elem)?;
         }
-        if st.is_empty() {
-            bail!("Invalid SpeedTrace file; SpeedTrace is empty")
-        } else {
-            Ok(st)
-        }
+        ensure!(
+            !st.is_empty(),
+            "Invalid SpeedTrace file {:?}; SpeedTrace is empty",
+            filepath
+        );
+        Ok(st)
     }
 }
 

@@ -10,7 +10,30 @@ use super::LocoTrait;
 use crate::imports::*;
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, HistoryMethods)]
-#[altrios_api]
+#[altrios_api(
+    #[new]
+    pub fn __new__(
+        fuel_converter: FuelConverter,
+        generator: Generator,
+        reversible_energy_storage: ReversibleEnergyStorage,
+        electric_drivetrain: ElectricDrivetrain,
+        fuel_res_split: Option<f64>,
+        fuel_res_ratio: Option<f64>,
+        gss_interval: Option<usize>,
+    ) -> Self {
+        Self {
+            fc: fuel_converter,
+            gen: generator,
+            res: reversible_energy_storage,
+            edrv: electric_drivetrain,
+            fuel_res_split: fuel_res_split.unwrap_or(0.5),
+            fuel_res_ratio,
+            gss_interval,
+            dt: si::Time::ZERO,
+            i: 1,
+        }
+    }
+)]
 /// Hybrid locomotive with both engine and reversible energy storage (aka battery)  
 /// This type of locomotive is not likely to be widely prevalent due to modularity of consists.  
 pub struct HybridLoco {
@@ -102,7 +125,6 @@ impl LocoTrait for Box<HybridLoco> {
 }
 
 impl HybridLoco {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         fuel_converter: FuelConverter,
         generator: Generator,
@@ -112,7 +134,7 @@ impl HybridLoco {
         fuel_res_ratio: Option<f64>,
         gss_interval: Option<usize>,
     ) -> Self {
-        HybridLoco {
+        Self {
             fc: fuel_converter,
             gen: generator,
             res: reversible_energy_storage,
@@ -191,7 +213,7 @@ impl HybridLoco {
                 // then the upper bound needs to be 1, meaning 100% of the power could come from the gen.
                 // Otherwise, the upper bound needs to be less than 1.
 
-                let gss_bounds = vec![
+                let gss_bounds = [
                     (1.0 - (self.res.state.pwr_prop_out_max / self.edrv.state.pwr_elec_prop_in)
                         .get::<si::ratio>())
                     .clamp(0.0, 1.0),

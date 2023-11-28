@@ -5,7 +5,15 @@ use super::LocoTrait;
 use crate::imports::*;
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
-#[altrios_api]
+#[altrios_api(
+    #[new]
+    fn __new__(
+        res: ReversibleEnergyStorage,
+        edrv: ElectricDrivetrain,
+    ) -> Self {
+        Self { res, edrv }
+    }
+)]
 /// Battery electric locomotive
 pub struct BatteryElectricLoco {
     #[has_state]
@@ -19,7 +27,7 @@ impl BatteryElectricLoco {
         reversible_energy_storage: ReversibleEnergyStorage,
         electric_drivetrain: ElectricDrivetrain,
     ) -> Self {
-        BatteryElectricLoco {
+        Self {
             res: reversible_energy_storage,
             edrv: electric_drivetrain,
         }

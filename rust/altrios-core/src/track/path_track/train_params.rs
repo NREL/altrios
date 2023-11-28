@@ -3,6 +3,7 @@ use crate::imports::*;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, SerdeAPI)]
 #[altrios_api]
+/// Train parameters used in simulation, pre-processed from [crate::prelude::TrainConfig]
 pub struct TrainParams {
     pub length: si::Length,
     pub speed_max: si::Velocity,

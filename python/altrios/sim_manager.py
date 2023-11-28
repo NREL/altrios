@@ -62,7 +62,13 @@ def main(
             )
 
     t0_ptc = time.perf_counter()
-    train_consist_plan, loco_pool, refuelers, speed_limit_train_sims, est_time_nets = planner.run_train_planner(
+    (
+        train_consist_plan, 
+        loco_pool, 
+        refuelers, 
+        speed_limit_train_sims, 
+        est_time_nets
+    ) = planner.run_train_planner(
         rail_vehicle_map = rail_vehicle_map,
         location_map = location_map,
         network = network,
@@ -121,7 +127,8 @@ def main(
 
      #speed_limit_train_sims is 0-indexed but Train_ID starts at 1
     to_keep = train_consist_plan.unique(subset=['Train_ID']).to_series().sort()
-    for sim in speed_limit_train_sims: alt.set_param_from_path(sim, "simulation_days", simulation_days)
+    for sim in speed_limit_train_sims: 
+        alt.set_param_from_path(sim, "simulation_days", simulation_days)
     train_sims = alt.SpeedLimitTrainSimVec([speed_limit_train_sims[i-1] for i in to_keep])
     timed_paths = [timed_paths[i-1] for i in to_keep]
 

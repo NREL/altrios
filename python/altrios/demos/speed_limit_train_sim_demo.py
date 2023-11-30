@@ -55,7 +55,6 @@ init_train_state = alt.InitTrainState()
 
 tsb = alt.TrainSimBuilder(
     train_id="0",
-    # Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
     origin_id="Minneapolis",
     destination_id="Superior",
     train_config=train_config,
@@ -68,6 +67,7 @@ rail_vehicle_file = "rolling_stock/rail_vehicles.csv"
 rail_vehicle_map = alt.import_rail_vehicles(
     str(alt.resources_root() / rail_vehicle_file)
 )
+# TODO: figure out if making a rail_vehicle has been streamlined and do that if not
 rail_vehicle = rail_vehicle_map[train_config.rail_vehicle_type]
 
 network = alt.import_network(str(alt.resources_root() / "networks/Taconite.yaml"))

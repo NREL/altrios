@@ -63,15 +63,12 @@ tsb = alt.TrainSimBuilder(
 )
 
 # make sure rail_vehicle_map can be constructed from yaml file and such
-rail_vehicle_file = "rolling_stock/rail_vehicles.csv"
-rail_vehicle_map = alt.import_rail_vehicles(
+rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
+rail_vehicle = alt.RailVehicle.from_file(
     str(alt.resources_root() / rail_vehicle_file)
 )
-# TODO: figure out if making a rail_vehicle has been streamlined and do that if not
-rail_vehicle = rail_vehicle_map[train_config.rail_vehicle_type]
 
 network = alt.import_network(str(alt.resources_root() / "networks/Taconite.yaml"))
-
 
 location_map = alt.import_locations(
     str(alt.resources_root() / "networks/default_locations.csv")
@@ -86,10 +83,13 @@ train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
 # %%
 
 t0 = time.perf_counter()
-train_sim.walk()
+train_sim.walk_timed_path(
+    network=network,
+    timed_path=,
+)
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
-assert len(train_sim.history.time_seconds) > 1
+assert len(train_sim.history) > 1
 
 fig, ax = plt.subplots(3, 1, sharex=True)
 ax[0].plot(
@@ -138,3 +138,5 @@ if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
 # Impact of sweep of battery capacity
+
+# %%

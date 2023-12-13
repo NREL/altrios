@@ -26,6 +26,16 @@ impl LinkIdxTime {
     }
 }
 
+#[altrios_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+pub struct LinkIdxTimeVec(pub Vec<LinkIdxTime>);
+
+impl AsRef<[LinkIdxTime]> for LinkIdxTimeVec {
+    fn as_ref(&self) -> &[LinkIdxTime] {
+        &self.0
+    }
+}
+
 #[altrios_api(
     #[pyo3(name = "set_save_interval")]
     /// Set save interval and cascade to nested components.
@@ -86,6 +96,15 @@ impl LinkIdxTime {
 
         self.extend_path(&network, &link_path)?;
         Ok(())
+    }
+
+    #[pyo3(name = "walk_timed_path")]
+    pub fn walk_timed_path_py() -> anyhow::Result<()> {
+        walk_timed_path(
+            &mut self, 
+            network: &[Link],
+            timed_path: P,
+        )
     }
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
@@ -283,11 +302,12 @@ impl SpeedLimitTrainSim {
 
     /// Iterates `save_state` and `step` until offset >= final offset --
     /// i.e. moves train forward and extends path TPC until it reaches destination.
-    pub fn walk_timed_path(
+    pub fn walk_timed_path<P: AsRef<[LinkIdxTime]>>(
         &mut self,
         network: &[Link],
-        timed_path: &[LinkIdxTime],
+        timed_path: P,
     ) -> anyhow::Result<()> {
+        let timed_path = timed_path.as_ref();
         if timed_path.is_empty() {
             bail!("Timed path cannot be empty!");
         }

@@ -38,7 +38,19 @@ def main(
     List[List[alt.LinkIdxTime]],
 ]:
     """
-    do the module!
+    # Return
+    ```
+    return (
+        train_consist_plan,
+        loco_pool,
+        refuelers,
+        grid_emissions_factors,
+        nodal_energy_prices,
+        train_sims,
+        timed_paths,
+    )
+    ```
+
     """
 
     if debug:

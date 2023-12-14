@@ -7,10 +7,12 @@ import seaborn as sns
 import pandas as pd
 sns.set()
 
+# TODO: doesn't a timed path essentially prescribe speed?  How is this different from
+# SetSpeedTrainSim?
 
 SHOW_PLOTS = alt.utils.show_plots()
 
-SAVE_INTERVAL = 1
+SAVE_INTERVAL = 100
 
 train_config = alt.TrainConfig(
     rail_vehicle_type="Manifest",
@@ -49,9 +51,11 @@ loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7
 # instantiate consist
 loco_con = alt.Consist(
     loco_vec,
-    SAVE_INTERVAL,
 )
-init_train_state = alt.InitTrainState()
+init_train_state = alt.InitTrainState(
+    # TODO: figure out why this needs to be provided
+    time_seconds=604800.0,
+)
 
 tsb = alt.TrainSimBuilder(
     train_id="0",
@@ -68,7 +72,8 @@ rail_vehicle = alt.RailVehicle.from_file(
     str(alt.resources_root() / rail_vehicle_file)
 )
 
-network = alt.import_network(str(alt.resources_root() / "networks/Taconite.yaml"))
+network = alt.import_network(
+    str(alt.resources_root() / "networks/Taconite-NoBalloon.yaml"))
 
 location_map = alt.import_locations(
     str(alt.resources_root() / "networks/default_locations.csv")
@@ -79,13 +84,18 @@ train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
     location_map=location_map,
     save_interval=1,
 )
+train_sim.set_save_interval(SAVE_INTERVAL)
+
+timed_path = alt.LinkIdxTimeVec.from_file(
+    str(alt.resources_root() / "demo_data/timed_path.yaml")
+)
 
 # %%
 
 t0 = time.perf_counter()
 train_sim.walk_timed_path(
     network=network,
-    timed_path=,
+    timed_path=timed_path,
 )
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')

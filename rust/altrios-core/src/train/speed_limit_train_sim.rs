@@ -36,6 +36,12 @@ impl AsRef<[LinkIdxTime]> for LinkIdxTimeVec {
     }
 }
 
+impl From<&Vec<LinkIdxTime>> for LinkIdxTimeVec {
+    fn from(value: &Vec<LinkIdxTime>) -> Self {
+        LinkIdxTimeVec(value.to_vec())
+    }
+}
+
 #[altrios_api(
     #[pyo3(name = "set_save_interval")]
     /// Set save interval and cascade to nested components.
@@ -99,12 +105,19 @@ impl AsRef<[LinkIdxTime]> for LinkIdxTimeVec {
     }
 
     #[pyo3(name = "walk_timed_path")]
-    pub fn walk_timed_path_py() -> anyhow::Result<()> {
-        walk_timed_path(
-            &mut self, 
-            network: &[Link],
-            timed_path: P,
-        )
+    pub fn walk_timed_path_py(
+        &mut self, 
+        network: Vec<Link>, 
+        timed_path: &PyAny,
+    ) -> anyhow::Result<()> {
+        let timed_path = match timed_path.extract::<LinkIdxTimeVec>() {
+            Ok(tp) => tp,
+            Err(_) => {
+                let tp = timed_path.extract::<Vec<LinkIdxTime>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                LinkIdxTimeVec(tp)
+            }   
+        };
+        self.walk_timed_path(&network, timed_path)
     }
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]

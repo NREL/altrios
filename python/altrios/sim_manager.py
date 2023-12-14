@@ -112,7 +112,13 @@ def main(
 
     t0_disp = time.perf_counter()
     timed_paths = alt.run_dispatch(
-        network, alt.SpeedLimitTrainSimVec(speed_limit_train_sims), est_time_nets, False, False)
+        network, 
+        alt.SpeedLimitTrainSimVec(speed_limit_train_sims), 
+        est_time_nets, 
+        False, 
+        False,
+    )
+    timed_paths = [tp.tolist() for tp in timed_paths]
 
     t1_disp = time.perf_counter()
     if debug:

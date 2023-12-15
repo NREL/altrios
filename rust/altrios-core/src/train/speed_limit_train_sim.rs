@@ -28,6 +28,8 @@ impl LinkIdxTime {
 
 #[altrios_api]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+/// Struct that contains a `Vec<LinkIdxTime>` for the purpose of providing `SerdeAPI` for
+/// `Vec<LinkIdxTime>` in Python
 pub struct LinkIdxTimeVec(pub Vec<LinkIdxTime>);
 
 impl AsRef<[LinkIdxTime]> for LinkIdxTimeVec {

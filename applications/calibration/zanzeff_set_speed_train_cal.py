@@ -41,7 +41,6 @@ def get_train_sim_df_mods(
     df_train_sim['PacificTime'] = pd.to_datetime(
         df_train_sim['PacificTime_orig']).dt.tz_convert('UTC')
 
-    # TODO: remove this when Garrett provides updated, cleaned data!
     df_train_sim.drop_duplicates(subset='PacificTime', inplace=True)
 
     df_train_sim['time [s]'] = cval.get_delta_seconds(
@@ -150,7 +149,6 @@ def get_train_sim_inputs(df: pd.DataFrame, file_path: Path) -> bytes:
     #     loco_conventional.clone(),
     #     loco_conventional.clone(),
     #     # loco_con needs to be consistent with whatever is actually in ZANZEFF
-    #     # TODO: handle wildcard locomotives
     # ]
     loco_vec = [Locomotive.build_dummy_loco()]
     save_interval = 1

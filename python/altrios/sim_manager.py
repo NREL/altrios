@@ -118,7 +118,9 @@ def main(
         False, 
         False,
     )
-    timed_paths = [tp.tolist() for tp in timed_paths]
+    timed_paths: List[List[alt.LinkIdxTime]] = [
+        tp.tolist() for tp in timed_paths
+    ]
 
     t1_disp = time.perf_counter()
     if debug:

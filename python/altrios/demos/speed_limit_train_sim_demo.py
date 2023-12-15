@@ -7,9 +7,6 @@ import seaborn as sns
 import pandas as pd
 sns.set()
 
-# TODO: doesn't a timed path essentially prescribe speed?  How is this different from
-# SetSpeedTrainSim?
-
 SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 100
@@ -53,8 +50,8 @@ loco_con = alt.Consist(
     loco_vec,
 )
 init_train_state = alt.InitTrainState(
-    # TODO: figure out why this needs to be provided to match `sims[0]` from sim_manager_demo.py
-    time_seconds=604800.0,
+    # this corresponds to middle week of simulation period in sim_manager_demo.py
+    time_seconds=604_800.0,
 )
 
 tsb = alt.TrainSimBuilder(
@@ -144,6 +141,7 @@ ax[-1].plot(
 )
 ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')
+plt.suptitle("Speed Limit Train Sim Demo")
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()

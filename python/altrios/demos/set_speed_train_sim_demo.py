@@ -55,8 +55,10 @@ loco_con = alt.Consist(
     loco_vec,
     SAVE_INTERVAL,
 )
-
-init_train_state = alt.InitTrainState()
+init_train_state = alt.InitTrainState(
+    # this corresponds to middle week of simulation period in sim_manager_demo.py
+    time_seconds=604_800.0,
+)
 
 tsb = alt.TrainSimBuilder(
     train_id="0",
@@ -92,7 +94,6 @@ train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
     speed_trace=speed_trace,
     save_interval=SAVE_INTERVAL,
 )
-alt.set_param_from_path(train_sim, "state.time_seconds", 604_800.0)
 
 train_sim.set_save_interval(1)
 t0 = time.perf_counter()
@@ -144,8 +145,8 @@ ax[-1].plot(
 ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')
 
+plt.suptitle("Set Speed Train Sim Demo")
+
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
-
-# %%

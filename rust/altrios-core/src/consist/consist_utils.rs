@@ -131,7 +131,6 @@ fn solve_negative_traction(
 
     // fraction of consist-level max regen required to fulfill required braking power
     let regen_frac = if consist_state.pwr_regen_max == si::Power::ZERO {
-        // TODO: think carefully about whether this branch is correct
         si::Ratio::ZERO
     } else {
         (pwr_brake_req / consist_state.pwr_regen_max).min(uc::R * 1.)

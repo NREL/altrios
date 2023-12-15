@@ -81,7 +81,6 @@ def get_loco_sim(df39xx: pd.DataFrame) -> bytes:
     )
     loco_unit = alt.Locomotive.default()
 
-    # TODO: put some thought into this!
     alt.set_param_from_path(loco_unit, "pwr_aux_offset_watts", 10e3)
     alt.set_param_from_path(loco_unit, "fc.pwr_ramp_lag_seconds", 0.0000000000000001)
     alt.set_param_from_path(loco_unit, "fc.pwr_out_max_watts", 3255000.0*2)

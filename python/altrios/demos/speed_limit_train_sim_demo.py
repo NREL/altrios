@@ -53,7 +53,7 @@ loco_con = alt.Consist(
     loco_vec,
 )
 init_train_state = alt.InitTrainState(
-    # TODO: figure out why this needs to be provided
+    # TODO: figure out why this needs to be provided to match `sims[0]` from sim_manager_demo.py
     time_seconds=604800.0,
 )
 

@@ -514,7 +514,6 @@ impl Mass for Locomotive {
     }
 
     fn update_mass(&mut self, mass: Option<si::Mass>) -> anyhow::Result<()> {
-        // TODO: probably need to add something that updates `self.force_max` correspondingly
         match mass {
             Some(mass) => {
                 // set component masses to None if they aren't consistent

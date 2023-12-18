@@ -361,10 +361,12 @@ impl SpeedLimitTrainSim {
         let res_net = self.state.res_net();
 
         // Verify that train can slow down
+        // TODO: figure out if dynamic braking needs to be separately accounted for here
         if self.fric_brake.force_max + res_net <= si::Force::ZERO {
-            bail!("Train [TODO: put train id here] does not have sufficient braking to slow down at time{:?}.
+            bail!("Train {} does not have sufficient braking to slow down at time{:?}.
             Fric brake force = {:?}.
             Net resistance = {:?}",
+            self.train_id,
             self.state.time,
             self.fric_brake.force_max,
             res_net

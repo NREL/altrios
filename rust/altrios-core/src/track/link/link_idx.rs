@@ -13,6 +13,7 @@ use std::fmt;
     }
 )]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default, SerdeAPI)]
+/// See [supplementary documentation.](https://nrel.github.io/altrios/doc/rail-network.html)
 pub struct LinkIdx {
     #[api(skip_set)]
     idx: u32,

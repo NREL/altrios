@@ -47,9 +47,11 @@ def mock_conventional_loco(
         generator=gen,
         drivetrain=edrv,
         save_interval=save_interval,
-        pwr_aux_offset_watts=pwr_aux_offset_watts,
-        pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
-        force_max_newtons=force_max_newtons,
+        loco_params=alt.LocoParams(
+            pwr_aux_offset_watts=pwr_aux_offset_watts,
+            pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
+            force_max_newtons=force_max_newtons,
+        )
     )
     return loco_unit
 
@@ -85,9 +87,11 @@ def mock_hybrid_loco(
         fuel_res_split=fuel_res_split,
         fuel_res_ratio=fuel_res_ratio,
         gss_interval=gss_interval,
-        pwr_aux_offset_watts=pwr_aux_offset_watts,
-        pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
-        force_max_newtons=force_max_newtons,
+        loco_params=alt.LocoParams(
+            pwr_aux_offset_watts=pwr_aux_offset_watts,
+            pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
+            force_max_newtons=force_max_newtons,
+        )
     )
     return loco_unit
 
@@ -108,9 +112,11 @@ def mock_battery_electric_locomotive(
         reversible_energy_storage=res,
         drivetrain=edrv,
         save_interval=save_interval,
-        pwr_aux_offset_watts=pwr_aux_offset_watts,
-        pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
-        force_max_newtons=force_max_newtons,
+        loco_params=alt.LocoParams(
+            pwr_aux_offset_watts=pwr_aux_offset_watts,
+            pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
+            force_max_newtons=force_max_newtons,
+        )
     )
     return loco_unit
 
@@ -163,15 +169,11 @@ def mock_train_state() -> alt.TrainState:
     n_railcars = n_empty_cars + n_loaded_cars
 
     return alt.TrainState(
-        offset_meters=train_length,
         length_meters=train_length,
         mass_static_kilograms=mass_static_kg,
         mass_adj_kilograms=mass_static_kg + axle_inertia_kg * 4 * n_railcars,
         mass_freight_kilograms=mass_static_kg * 0.6,
-        time_seconds=None,
-        i=1,
-        speed_meters_per_second=None,
-        dt_seconds=None,
+        init_train_state=None,
     )
 
 

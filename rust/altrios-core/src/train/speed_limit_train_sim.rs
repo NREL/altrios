@@ -26,6 +26,24 @@ impl LinkIdxTime {
     }
 }
 
+#[altrios_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+/// Struct that contains a `Vec<LinkIdxTime>` for the purpose of providing `SerdeAPI` for
+/// `Vec<LinkIdxTime>` in Python
+pub struct LinkIdxTimeVec(pub Vec<LinkIdxTime>);
+
+impl AsRef<[LinkIdxTime]> for LinkIdxTimeVec {
+    fn as_ref(&self) -> &[LinkIdxTime] {
+        &self.0
+    }
+}
+
+impl From<&Vec<LinkIdxTime>> for LinkIdxTimeVec {
+    fn from(value: &Vec<LinkIdxTime>) -> Self {
+        LinkIdxTimeVec(value.to_vec())
+    }
+}
+
 #[altrios_api(
     #[pyo3(name = "set_save_interval")]
     /// Set save interval and cascade to nested components.
@@ -73,9 +91,9 @@ impl LinkIdxTime {
         self.walk()
     }
 
-    #[classmethod]
+    #[staticmethod]
     #[pyo3(name = "valid")]
-    fn valid_py(_cls: &PyType) -> Self {
+    fn valid_py() -> Self {
         Self::valid()
     }
 
@@ -86,6 +104,22 @@ impl LinkIdxTime {
 
         self.extend_path(&network, &link_path)?;
         Ok(())
+    }
+
+    #[pyo3(name = "walk_timed_path")]
+    pub fn walk_timed_path_py(
+        &mut self, 
+        network: Vec<Link>, 
+        timed_path: &PyAny,
+    ) -> anyhow::Result<()> {
+        let timed_path = match timed_path.extract::<LinkIdxTimeVec>() {
+            Ok(tp) => tp,
+            Err(_) => {
+                let tp = timed_path.extract::<Vec<LinkIdxTime>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                LinkIdxTimeVec(tp)
+            }   
+        };
+        self.walk_timed_path(&network, timed_path)
     }
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
@@ -167,15 +201,12 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn get_kilometers(&self, annualize: bool) -> f64 {
-        self.state.total_dist.get::<si::kilometer>()
-            * self.get_scaling_factor(annualize)
+        self.state.total_dist.get::<si::kilometer>() * self.get_scaling_factor(annualize)
     }
 
     pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {
         let n_res = self.loco_con.n_res_equipped() as f64;
-        self.state.total_dist.get::<si::kilometer>()
-            * n_res
-            * self.get_scaling_factor(annualize)
+        self.state.total_dist.get::<si::kilometer>() * n_res * self.get_scaling_factor(annualize)
     }
 
     pub fn get_non_res_kilometers(&mut self, annualize: bool) -> f64 {
@@ -286,11 +317,12 @@ impl SpeedLimitTrainSim {
 
     /// Iterates `save_state` and `step` until offset >= final offset --
     /// i.e. moves train forward and extends path TPC until it reaches destination.
-    pub fn walk_timed_path(
+    pub fn walk_timed_path<P: AsRef<[LinkIdxTime]>>(
         &mut self,
         network: &[Link],
-        timed_path: &[LinkIdxTime],
+        timed_path: P,
     ) -> anyhow::Result<()> {
+        let timed_path = timed_path.as_ref();
         if timed_path.is_empty() {
             bail!("Timed path cannot be empty!");
         }

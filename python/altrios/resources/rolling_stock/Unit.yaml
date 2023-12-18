@@ -1,0 +1,20 @@
+---
+Car Type: Unit
+Length (m): 10.7
+Axle Count: 4
+Brake Count: 1
+Mass Static Empty (kg): 26500.0
+Mass Static Loaded (kg): 117000.0
+Speed Max Empty (m/s): 20.0
+Speed Max Loaded (m/s): 20.0
+Braking Ratio Empty: 0.25
+Braking Ratio Loaded: 0.11
+Mass Extra per Axle (kg): 750.0
+Bearing Res per Axle (N): 80.0
+Rolling Ratio: 0.00075
+Davis B (s/m): 0.0
+Drag Area Cd*A Empty (m^2): 4.0
+Drag Area Cd*A Loaded (m^2): 4.0
+Curve Coefficient 0: 0.056
+Curve Coefficient 1: 0.4387579
+Curve Coefficient 2: 0.01025485

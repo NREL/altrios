@@ -38,7 +38,19 @@ def main(
     List[List[alt.LinkIdxTime]],
 ]:
     """
-    do the module!
+    # Return
+    ```
+    return (
+        train_consist_plan,
+        loco_pool,
+        refuelers,
+        grid_emissions_factors,
+        nodal_energy_prices,
+        train_sims,
+        timed_paths,
+    )
+    ```
+
     """
 
     if debug:
@@ -62,7 +74,13 @@ def main(
             )
 
     t0_ptc = time.perf_counter()
-    train_consist_plan, loco_pool, refuelers, speed_limit_train_sims, est_time_nets = planner.run_train_planner(
+    (
+        train_consist_plan, 
+        loco_pool, 
+        refuelers, 
+        speed_limit_train_sims, 
+        est_time_nets
+    ) = planner.run_train_planner(
         rail_vehicle_map = rail_vehicle_map,
         location_map = location_map,
         network = network,
@@ -94,7 +112,15 @@ def main(
 
     t0_disp = time.perf_counter()
     timed_paths = alt.run_dispatch(
-        network, alt.SpeedLimitTrainSimVec(speed_limit_train_sims), est_time_nets, False, False)
+        network, 
+        alt.SpeedLimitTrainSimVec(speed_limit_train_sims), 
+        est_time_nets, 
+        False, 
+        False,
+    )
+    timed_paths: List[List[alt.LinkIdxTime]] = [
+        tp.tolist() for tp in timed_paths
+    ]
 
     t1_disp = time.perf_counter()
     if debug:
@@ -121,7 +147,8 @@ def main(
 
      #speed_limit_train_sims is 0-indexed but Train_ID starts at 1
     to_keep = train_consist_plan.unique(subset=['Train_ID']).to_series().sort()
-    for sim in speed_limit_train_sims: alt.set_param_from_path(sim, "simulation_days", simulation_days)
+    for sim in speed_limit_train_sims: 
+        alt.set_param_from_path(sim, "simulation_days", simulation_days)
     train_sims = alt.SpeedLimitTrainSimVec([speed_limit_train_sims[i-1] for i in to_keep])
     timed_paths = [timed_paths[i-1] for i in to_keep]
 

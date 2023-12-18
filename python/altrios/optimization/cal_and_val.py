@@ -244,7 +244,6 @@ class ModelError(object):
                         print(
                             f"Iterating through structure {type(mod_sig)}.{elem}")
                     mod_sig = mod_sig.__getattribute__(elem)
-                # TODO: make sure `tolist` and `__list__` from pyo3 are in python API
                 mod_sig = np.array((mod_sig).tolist())
                 exp_sig = df_exp[obj[0]].to_numpy()
                 errors[key][obj[0]] = get_error(

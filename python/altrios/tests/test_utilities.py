@@ -20,12 +20,12 @@ class TestUtilities(unittest.TestCase):
 
         self.assertEqual(c.state.pwr_fuel_watts, -100)
 
-    def test_download_demo_files(self):
+    def test_copy_demo_files(self):
         v = f"v{alt.__version__}"
-        prepend_str = f"# %% Downloaded from ALTRIOS version '{v}'. Guaranteed compatibility with this version only.\n"
+        prepend_str = f"# %% Copied from ALTRIOS version '{v}'. Guaranteed compatibility with this version only.\n"
         with tempfile.TemporaryDirectory() as tmpdir:
             tf_path = Path(tmpdir)
-            alt.download_demo_files(tf_path)
+            alt.copy_demo_files(tf_path)
             with open(next(tf_path.glob("*demo*.py")), 'r') as file:
                 lines = file.readlines()
                 assert prepend_str in lines[0]

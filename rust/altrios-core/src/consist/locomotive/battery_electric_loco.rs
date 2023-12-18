@@ -5,6 +5,15 @@ use super::LocoTrait;
 use crate::imports::*;
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
+#[altrios_api(
+    #[new]
+    fn __new__(
+        res: ReversibleEnergyStorage,
+        edrv: ElectricDrivetrain,
+    ) -> Self {
+        Self { res, edrv }
+    }
+)]
 /// Battery electric locomotive
 pub struct BatteryElectricLoco {
     #[has_state]
@@ -18,7 +27,7 @@ impl BatteryElectricLoco {
         reversible_energy_storage: ReversibleEnergyStorage,
         electric_drivetrain: ElectricDrivetrain,
     ) -> Self {
-        BatteryElectricLoco {
+        Self {
             res: reversible_energy_storage,
             edrv: electric_drivetrain,
         }
@@ -44,7 +53,6 @@ impl BatteryElectricLoco {
             self.res.solve_energy_consumption(
                 self.edrv.state.pwr_elec_prop_in,
                 // limit aux power to whatever is actually available
-                // TODO: add more detail/nuance to this
                 pwr_aux
                     // whatever power is available from regen plus normal
                     .min(self.res.state.pwr_prop_out_max - self.edrv.state.pwr_elec_prop_in)
@@ -62,7 +70,7 @@ impl LocoTrait for BatteryElectricLoco {
         pwr_aux: Option<si::Power>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
-        // TODO: I think this is where I want to feed in the catenary
+        // TODO: proposed interface location to feed in the catenary
         self.res.set_cur_pwr_out_max(pwr_aux.unwrap(), None, None)?;
         self.edrv
             .set_cur_pwr_max_out(self.res.state.pwr_prop_out_max, None)?;

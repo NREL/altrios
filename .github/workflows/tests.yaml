@@ -4,6 +4,7 @@ on:
   push:
       branches: [ main ]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -41,10 +42,5 @@ jobs:
       - name: Python unit tests 
         run: |
           pip install maturin pytest
-          pip install . 
-          pytest tests/ -v
-
-      - name: Python functional tests 
-        run: |
-          SHOW_PLOTS=false pytest -v applications
-
+          pip install -e ".[dev]" 
+          pytest python/altrios -s

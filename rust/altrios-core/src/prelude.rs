@@ -13,7 +13,8 @@ pub use crate::consist::locomotive::powertrain::reversible_energy_storage::{
 
 pub use crate::consist::locomotive::loco_sim::{LocomotiveSimulation, PowerTrace};
 pub use crate::consist::locomotive::{
-    LocoParams, Locomotive, LocomotiveState, LocomotiveStateHistoryVec,
+    BatteryElectricLoco, ConventionalLoco, DummyLoco, HybridLoco, LocoParams, Locomotive,
+    LocomotiveState, LocomotiveStateHistoryVec,
 };
 
 pub use crate::consist::consist_sim::ConsistSimulation;
@@ -35,9 +36,9 @@ pub use crate::train::{
 pub use crate::meet_pass::est_times::{make_est_times, EstTimeNet};
 
 pub use crate::train::{
-    InitTrainState, LinkIdxTime, RailVehicle, RailVehicleMap, SetSpeedTrainSim, SpeedLimitTrainSim,
-    SpeedLimitTrainSimVec, SpeedTrace, TrainSimBuilder, TrainState, TrainStateHistoryVec,
-    TrainSummary,
+    InitTrainState, LinkIdxTime, LinkIdxTimeVec, RailVehicle, RailVehicleMap, SetSpeedTrainSim,
+    SpeedLimitTrainSim, SpeedLimitTrainSimVec, SpeedTrace, TrainConfig, TrainSimBuilder,
+    TrainState, TrainStateHistoryVec,
 };
 
 pub use crate::track::{Link, LinkIdx, LinkPoint, Location, TrainParams, TrainType};

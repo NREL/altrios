@@ -16,9 +16,9 @@ use crate::imports::*;
         Ok(Self::new(time_seconds, pwr_watts, engine_on))
     }
 
-    #[classmethod]
+    #[staticmethod]
     #[pyo3(name = "from_csv_file")]
-    fn from_csv_file_py(_cls: &PyType, pathstr: String) -> anyhow::Result<Self> {
+    fn from_csv_file_py(pathstr: String) -> anyhow::Result<Self> {
         Self::from_csv_file(&pathstr)
     }
 
@@ -336,7 +336,7 @@ impl LocomotiveSimulationVec {
 #[cfg(test)]
 mod tests {
     use super::{Locomotive, LocomotiveSimulation, LocomotiveSimulationVec, PowerTrace};
-    use crate::consist::locomotive::LocoType;
+    use crate::consist::locomotive::PowertrainType;
 
     #[test]
     fn test_loco_sim_vec_par() {
@@ -379,7 +379,7 @@ mod tests {
     #[test]
     fn test_hybrid_locomotive_sim() {
         // let hel = Locomotive::new(
-        //     LocoType::HybridLoco(Box::default()),
+        //     PowertrainType::HybridLoco(Box::default()),
 
         // );
 
@@ -403,7 +403,7 @@ mod tests {
         assert!(ls.get_save_interval().is_none());
         assert!(ls.loco_unit.get_save_interval().is_none());
         assert!(match &ls.loco_unit.loco_type {
-            LocoType::ConventionalLoco(loco) => {
+            PowertrainType::ConventionalLoco(loco) => {
                 loco.fc.save_interval
             }
             _ => None,
@@ -416,7 +416,7 @@ mod tests {
         assert_eq!(ls.loco_unit.get_save_interval(), Some(1));
         assert_eq!(
             match &ls.loco_unit.loco_type {
-                LocoType::ConventionalLoco(loco) => {
+                PowertrainType::ConventionalLoco(loco) => {
                     loco.fc.save_interval
                 }
                 _ => None,
@@ -430,7 +430,7 @@ mod tests {
         assert_eq!(ls.loco_unit.get_save_interval(), Some(1));
         assert_eq!(
             match &ls.loco_unit.loco_type {
-                LocoType::ConventionalLoco(loco) => {
+                PowertrainType::ConventionalLoco(loco) => {
                     loco.fc.save_interval
                 }
                 _ => None,

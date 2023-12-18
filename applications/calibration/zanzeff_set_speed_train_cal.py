@@ -12,7 +12,7 @@ from scipy.signal import savgol_filter
 from altrios.optimization import cal_and_val as cval
 from altrios.optimization.cal_and_val import StarmapParallelization
 from altrios import Consist, Locomotive, SetSpeedTrainSim, SpeedTrace
-from altrios import InitTrainState, TrainSimBuilder, TrainSummary
+from altrios import InitTrainState, TrainSimBuilder, TrainConfig
 import altrios as alt
 import utils
 
@@ -41,7 +41,6 @@ def get_train_sim_df_mods(
     df_train_sim['PacificTime'] = pd.to_datetime(
         df_train_sim['PacificTime_orig']).dt.tz_convert('UTC')
 
-    # TODO: remove this when Garrett provides updated, cleaned data!
     df_train_sim.drop_duplicates(subset='PacificTime', inplace=True)
 
     df_train_sim['time [s]'] = cval.get_delta_seconds(
@@ -150,7 +149,6 @@ def get_train_sim_inputs(df: pd.DataFrame, file_path: Path) -> bytes:
     #     loco_conventional.clone(),
     #     loco_conventional.clone(),
     #     # loco_con needs to be consistent with whatever is actually in ZANZEFF
-    #     # TODO: handle wildcard locomotives
     # ]
     loco_vec = [Locomotive.build_dummy_loco()]
     save_interval = 1
@@ -166,7 +164,7 @@ def get_train_sim_inputs(df: pd.DataFrame, file_path: Path) -> bytes:
     # last locomotive and the rest of the train
     train_mass_kilograms = df['Weight'].iloc[0] * alt.utils.KG_PER_TON
 
-    train_summary = TrainSummary(
+    train_config = TrainConfig(
         rail_vehicle_type=train_type,
         cars_empty=df['Empties'].iloc[0],
         cars_loaded=df['Loads'].iloc[0],
@@ -184,7 +182,7 @@ def get_train_sim_inputs(df: pd.DataFrame, file_path: Path) -> bytes:
         file_path.stem,
         origin_id=origin_id,
         destination_id=destination_id,
-        train_summary=train_summary,
+        train_config=train_config,
         loco_con=loco_con,
         init_train_state=init_train_state
     )

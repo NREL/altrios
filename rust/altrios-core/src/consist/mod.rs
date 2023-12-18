@@ -20,4 +20,4 @@ pub mod tests;
 
 pub(crate) use self::locomotive::powertrain::powertrain_traits::*;
 use self::locomotive::BatteryElectricLoco;
-use crate::consist::locomotive::{LocoType, Locomotive};
+use crate::consist::locomotive::{Locomotive, PowertrainType};

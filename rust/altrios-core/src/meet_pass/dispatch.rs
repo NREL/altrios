@@ -5,6 +5,7 @@ use crate::train::LinkIdxTime;
 
 use super::disp_imports::*;
 use super::train_disp::{FreePathStatus, TrainDisp};
+use crate::train::LinkIdxTimeVec;
 
 #[readonly::make]
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -274,14 +275,17 @@ pub fn run_dispatch_py(
     est_time_vec: Vec<EstTimeNet>,
     print_train_move: bool,
     print_train_exit: bool,
-) -> anyhow::Result<Vec<Vec<LinkIdxTime>>> {
-    run_dispatch(
+) -> anyhow::Result<Vec<LinkIdxTimeVec>> {
+    Ok(run_dispatch(
         &network,
         &speed_limit_train_sims.0,
         est_time_vec,
         print_train_move,
         print_train_exit,
-    )
+    )?
+    .iter()
+    .map(LinkIdxTimeVec::from)
+    .collect::<Vec<LinkIdxTimeVec>>())
 }
 
 #[cfg(test)]

@@ -7,8 +7,9 @@ import logging
 
 from altrios.loaders.powertrain_components import _res_from_excel
 from altrios.utilities import set_param_from_path  # noqa: F401
-from altrios.utilities import download_demo_files  # noqa: F401
+from altrios.utilities import copy_demo_files  # noqa: F401
 from altrios import utilities as utils
+from altrios.utilities import package_root, resources_root
 # make everything in altrios_core_py available here
 from altrios.altrios_core_py import *
 
@@ -19,23 +20,6 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 utils.enable_logging()
-
-
-def package_root() -> Path:
-    """
-    Returns the package root directory.
-    """
-    path = Path(__file__).parent
-    return path
-
-
-def resources_root() -> Path:
-    """
-    Returns the resources root directory.
-    """
-    path = package_root() / "resources"
-    return path
-
 
 def __array__(self):
     return np.array(self.tolist())

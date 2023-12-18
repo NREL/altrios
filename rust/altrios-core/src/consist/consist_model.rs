@@ -225,7 +225,7 @@ impl Consist {
         self.loco_vec
             .iter()
             .map(|loco| match loco.loco_type {
-                LocoType::BatteryElectricLoco(_) => si::Energy::ZERO,
+                PowertrainType::BatteryElectricLoco(_) => si::Energy::ZERO,
                 _ => loco.fuel_converter().unwrap().state.energy_fuel,
             })
             .sum::<si::Energy>()
@@ -235,8 +235,8 @@ impl Consist {
         self.loco_vec
             .iter()
             .map(|lt| match &lt.loco_type {
-                LocoType::BatteryElectricLoco(loco) => loco.res.state.energy_out_chemical,
-                LocoType::HybridLoco(loco) => loco.res.state.energy_out_chemical,
+                PowertrainType::BatteryElectricLoco(loco) => loco.res.state.energy_out_chemical,
+                PowertrainType::HybridLoco(loco) => loco.res.state.energy_out_chemical,
                 _ => si::Energy::ZERO,
             })
             .sum::<si::Energy>()
@@ -284,11 +284,11 @@ impl Consist {
             .loco_vec
             .iter()
             .map(|loco| match &loco.loco_type {
-                LocoType::ConventionalLoco(conv) => conv.edrv.pwr_out_max,
-                LocoType::HybridLoco(hel) => hel.edrv.pwr_out_max,
-                LocoType::BatteryElectricLoco(bel) => bel.edrv.pwr_out_max,
+                PowertrainType::ConventionalLoco(conv) => conv.edrv.pwr_out_max,
+                PowertrainType::HybridLoco(hel) => hel.edrv.pwr_out_max,
+                PowertrainType::BatteryElectricLoco(bel) => bel.edrv.pwr_out_max,
                 // really big number that is not inf to avoid null in json
-                LocoType::Dummy(_) => uc::W * 1e15,
+                PowertrainType::DummyLoco(_) => uc::W * 1e15,
             })
             .sum();
 
@@ -344,10 +344,10 @@ impl Consist {
             .loco_vec
             .iter()
             .map(|loco| match &loco.loco_type {
-                LocoType::ConventionalLoco(cl) => cl.fc.state.pwr_fuel,
-                LocoType::HybridLoco(hel) => hel.fc.state.pwr_fuel,
-                LocoType::BatteryElectricLoco(_) => si::Power::ZERO,
-                LocoType::Dummy(_) => f64::NAN * uc::W,
+                PowertrainType::ConventionalLoco(cl) => cl.fc.state.pwr_fuel,
+                PowertrainType::HybridLoco(hel) => hel.fc.state.pwr_fuel,
+                PowertrainType::BatteryElectricLoco(_) => si::Power::ZERO,
+                PowertrainType::DummyLoco(_) => f64::NAN * uc::W,
             })
             .sum();
 
@@ -355,10 +355,10 @@ impl Consist {
             .loco_vec
             .iter()
             .map(|loco| match &loco.loco_type {
-                LocoType::ConventionalLoco(_cl) => si::Power::ZERO,
-                LocoType::HybridLoco(hel) => hel.res.state.pwr_out_chemical,
-                LocoType::BatteryElectricLoco(bel) => bel.res.state.pwr_out_chemical,
-                LocoType::Dummy(_) => f64::NAN * uc::W,
+                PowertrainType::ConventionalLoco(_cl) => si::Power::ZERO,
+                PowertrainType::HybridLoco(hel) => hel.res.state.pwr_out_chemical,
+                PowertrainType::BatteryElectricLoco(bel) => bel.res.state.pwr_out_chemical,
+                PowertrainType::DummyLoco(_) => f64::NAN * uc::W,
             })
             .sum();
 
@@ -376,11 +376,10 @@ impl Consist {
 
 impl Default for Consist {
     fn default() -> Self {
-        let bel_type = LocoType::BatteryElectricLoco(BatteryElectricLoco::default());
+        let bel_type = PowertrainType::BatteryElectricLoco(BatteryElectricLoco::default());
         let mut bel = Locomotive::default();
         bel.loco_type = bel_type;
         bel.set_save_interval(Some(1));
-        // TODO: change PowerDistributionControlType to whatever ends up being best
         let mut consist = Self {
             state: Default::default(),
             history: Default::default(),
@@ -440,11 +439,11 @@ impl LocoTrait for Consist {
             .loco_vec
             .iter()
             .map(|loco| match &loco.loco_type {
-                LocoType::ConventionalLoco(_) => si::Power::ZERO,
-                LocoType::HybridLoco(_) => loco.state.pwr_out_max,
-                LocoType::BatteryElectricLoco(_) => loco.state.pwr_out_max,
+                PowertrainType::ConventionalLoco(_) => si::Power::ZERO,
+                PowertrainType::HybridLoco(_) => loco.state.pwr_out_max,
+                PowertrainType::BatteryElectricLoco(_) => loco.state.pwr_out_max,
                 // really big number that is not inf to avoid null in json
-                LocoType::Dummy(_) => 1e15 * uc::W,
+                PowertrainType::DummyLoco(_) => 1e15 * uc::W,
             })
             .sum();
         self.state.pwr_out_max_non_reves = self.state.pwr_out_max - self.state.pwr_out_max_reves;

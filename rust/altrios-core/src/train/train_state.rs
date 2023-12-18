@@ -7,31 +7,27 @@ use crate::imports::*;
         time_seconds: Option<f64>,
         offset_meters: Option<f64>,
         speed_meters_per_second: Option<f64>,
-        dt_seconds: Option<f64>,
     ) -> Self {
         Self::new(
             time_seconds.map(|x| x * uc::S),
             offset_meters.map(|x| x * uc::M),
             speed_meters_per_second.map(|x| x * uc::MPS),
-            dt_seconds.map(|x| x * uc::S),
         )
     }
 )]
+/// For `SetSpeedTrainSim`, it is typically best to use the default for this.
 pub struct InitTrainState {
     pub time: si::Time,
     pub offset: si::Length,
     pub speed: si::Velocity,
-    pub dt: si::Time,
 }
 
-// TODO: get rid of this function
 impl Default for InitTrainState {
     fn default() -> Self {
         Self {
             time: si::Time::ZERO,
             offset: f64::NAN * uc::M,
             speed: si::Velocity::ZERO,
-            dt: uc::S,
         }
     }
 }
@@ -41,14 +37,12 @@ impl InitTrainState {
         time: Option<si::Time>,
         offset: Option<si::Length>,
         speed: Option<si::Velocity>,
-        dt: Option<si::Time>,
     ) -> Self {
         let base = InitTrainState::default();
         Self {
             time: time.unwrap_or(base.time),
             offset: offset.unwrap_or(base.offset),
             speed: speed.unwrap_or(base.speed),
-            dt: dt.unwrap_or(base.dt),
         }
     }
 }
@@ -58,26 +52,18 @@ impl InitTrainState {
     #[new]
     #[allow(clippy::too_many_arguments)]
     fn __new__(
-        offset_meters: f64,
         length_meters: f64,
         mass_static_kilograms: f64,
         mass_adj_kilograms: f64,
         mass_freight_kilograms: f64,
-        time_seconds: Option<f64>,
-        i: Option<usize>,
-        speed_meters_per_second: Option<f64>,
-        dt_seconds: Option<f64>,
+        init_train_state: Option<InitTrainState>,
     ) -> Self {
         Self::new(
-            time_seconds.map(|x| x * uc::S),
-            i,
-            offset_meters * uc::M,
-            speed_meters_per_second.map(|x| x * uc::MPS),
-            dt_seconds.map(|x| x * uc::S),
             length_meters * uc::M,
             mass_static_kilograms * uc::KG,
             mass_adj_kilograms * uc::KG,
             mass_freight_kilograms * uc::KG,
+            init_train_state,
         )
     }
 )]
@@ -86,6 +72,8 @@ pub struct TrainState {
     pub time: si::Time,
     /// index for time steps
     pub i: usize,
+    /// If this is provided in [InitTrainState::new], it gets set as the train length or the value,
+    /// whichever is larger, and if it is not provided, then it defaults to the train length.
     pub offset: si::Length,
     pub offset_back: si::Length,
     pub total_dist: si::Length,
@@ -164,26 +152,24 @@ impl Default for TrainState {
 impl TrainState {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        time: Option<si::Time>,
-        i: Option<usize>,
-        offset: si::Length,
-        speed: Option<si::Velocity>,
-        dt: Option<si::Time>,
-        // the following variables probably won't ever change so it'd be good to have a separate train params object
         length: si::Length,
         mass_static: si::Mass,
         mass_adj: si::Mass,
         mass_freight: si::Mass,
+        init_train_state: Option<InitTrainState>,
     ) -> Self {
+        let init_train_state = init_train_state.unwrap_or_default();
+        let offset = init_train_state.offset.max(length);
         Self {
-            time: time.unwrap_or_default(),
-            i: i.unwrap_or(1),
+            time: init_train_state.time,
+            i: 1,
             offset,
             offset_back: offset - length,
             total_dist: si::Length::ZERO,
-            speed: speed.unwrap_or_default(),
-            speed_limit: speed.unwrap_or_default(),
-            dt: dt.unwrap_or(uc::S),
+            speed: init_train_state.speed,
+            // this needs to be set to something greater than or equal to actual speed and will be
+            // updated after the first time step anyway
+            speed_limit: init_train_state.speed,
             length,
             mass_static,
             mass_adj,

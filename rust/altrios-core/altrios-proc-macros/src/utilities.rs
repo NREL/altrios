@@ -39,7 +39,7 @@ pub fn parse_ts_as_fn_defs(
 ) -> TokenStream2 {
     let attr = TokenStream2::from(attr);
     let impl_block = quote! {
-        impl Dummy { // this name doesn't really matter as it won't get used
+        impl DummyLoco { // this name doesn't really matter as it won't get used
             #attr
         }
     }

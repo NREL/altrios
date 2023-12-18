@@ -123,10 +123,18 @@ def simulate_prescribed_rollout(
             print(f"Elapsed time to run `run_speed_limit_train_sims()` for year {scenario_year}: {t2-t1:.3g} s")
 
         if write_complete_results:
-            print(results_folder +'/RolloutResults_Year {}_Demand {}.json'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv',''))
-            sims.to_file(results_folder +'/RolloutResults_Year {}_Demand {}.json'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv',''))
+            sims.to_file(
+                str(results_folder / 'RolloutResults_Year {}_Demand {}.json'
+                    .format(scenario_year, Path(demand_file_path).name)
+                )
+                .replace('.csv',''))
             
-            train_consist_plan.write_csv(results_folder +'/ConsistPlan_Year {}_Demand {}.csv'.format(scenario_year, os.path.basename(demand_file_path)).replace('.csv','')+ '.csv')
+            train_consist_plan.write_csv(
+                str(results_folder / 'ConsistPlan_Year {}_Demand {}.csv'
+                    .format(scenario_year, Path(demand_file_path).name)
+                )
+                .replace('.csv','') + '.csv')
+            
             t3 = time.perf_counter()
 
             if DEBUG:

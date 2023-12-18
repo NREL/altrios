@@ -179,7 +179,9 @@ pub struct ReversibleEnergyStorage {
 impl Default for ReversibleEnergyStorage {
     fn default() -> Self {
         let file_contents = include_str!("reversible_energy_storage.default.yaml");
-        Self::from_yaml(file_contents).unwrap()
+        let mut res = Self::from_yaml(file_contents).unwrap();
+        res.state.soc = res.max_soc;
+        res
     }
 }
 
@@ -687,8 +689,7 @@ impl ReversibleEnergyStorage {
 /// ReversibleEnergyStorage state variables
 pub struct ReversibleEnergyStorageState {
     // limits
-    // TODO: create separate binning for cat power and
-    /// maximum catenary power capability
+    // TODO: create separate binning for cat power and maximum catenary power capability
     pub pwr_cat_max: si::Power,
     /// max output power for propulsion during positive traction
     pub pwr_prop_out_max: si::Power,
@@ -710,6 +711,7 @@ pub struct ReversibleEnergyStorageState {
     pub soh: f64,
 
     // TODO: add `pwr_out_neg_electrical` and `pwr_out_pos_electrical` and corresponding energies
+    
     // powers
     /// total electrical power; positive is discharging
     pub pwr_out_electrical: si::Power,

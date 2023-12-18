@@ -380,7 +380,6 @@ impl Default for Consist {
         let mut bel = Locomotive::default();
         bel.loco_type = bel_type;
         bel.set_save_interval(Some(1));
-        // TODO: change PowerDistributionControlType to whatever ends up being best
         let mut consist = Self {
             state: Default::default(),
             history: Default::default(),

@@ -38,7 +38,19 @@ def main(
     List[List[alt.LinkIdxTime]],
 ]:
     """
-    do the module!
+    # Return
+    ```
+    return (
+        train_consist_plan,
+        loco_pool,
+        refuelers,
+        grid_emissions_factors,
+        nodal_energy_prices,
+        train_sims,
+        timed_paths,
+    )
+    ```
+
     """
 
     if debug:
@@ -100,7 +112,15 @@ def main(
 
     t0_disp = time.perf_counter()
     timed_paths = alt.run_dispatch(
-        network, alt.SpeedLimitTrainSimVec(speed_limit_train_sims), est_time_nets, False, False)
+        network, 
+        alt.SpeedLimitTrainSimVec(speed_limit_train_sims), 
+        est_time_nets, 
+        False, 
+        False,
+    )
+    timed_paths: List[List[alt.LinkIdxTime]] = [
+        tp.tolist() for tp in timed_paths
+    ]
 
     t1_disp = time.perf_counter()
     if debug:

@@ -22,12 +22,11 @@ import utils
 
 class CalibrationProblem(cval.CalibrationProblem):
     def _evaluate(self, x, out, *args, **kwargs):
-        # There may be cases where update_params could fail but we want
-        # to keep running: e.g. `PyValueError::new_err("FuelConverter
-        # `eta_max` must be between 0 and 1" from fuel_converter: line
-        # 69`. 
-        # TODO: figure out how to
-        # catch that error and keep running but fail for other errors
+        # There may be cases where update_params could fail but we want to keep running: e.g.
+        # `PyValueError::new_err("FuelConverter `eta_max` must be between 0 and 1" from
+        # fuel_converter: line 69`.  
+        #  TODO: figure out how to catch above-described error and keep running but fail for other
+        # errors
         try:
             model_dict = self.mod_err.update_params(x)
             err = self.mod_err.get_errors(model_dict)
@@ -79,7 +78,7 @@ def get_loco_sim(
     powertrace3000 = alt.PowerTrace(
         df3000['time [s]'].to_numpy(),
         df3000['Tractive Power [W]'].to_numpy(),
-        [None] * len(df3000),  # TODO: check what this is doing
+        [None] * len(df3000),  
     )
 
     reves = alt.ReversibleEnergyStorage.default()

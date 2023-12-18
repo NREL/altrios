@@ -147,6 +147,8 @@ pub struct SpeedTraceElement {
 }
 
 #[altrios_api(
+    // TODO: consider whether this method should exist after verifying that it is not used anywhere
+    // and should be superseded by `make_set_speed_train_sim`
     #[new]
     fn __new__(
         loco_con: Consist,
@@ -231,6 +233,7 @@ pub struct SetSpeedTrainSim {
     pub state: TrainState,
     pub speed_trace: SpeedTrace,
     #[api(skip_get, skip_set)]
+    /// train resistance calculation
     pub train_res: TrainRes,
     #[api(skip_get, skip_set)]
     path_tpc: PathTpc,

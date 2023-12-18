@@ -582,7 +582,7 @@ impl Locomotive {
     }
 
     pub fn force_max(&self) -> anyhow::Result<Option<si::Force>> {
-        self.check_force_max()?; // TODO: might want to copy this to `from_file` method
+        self.check_force_max()?;
         Ok(self.force_max)
     }
 
@@ -594,8 +594,7 @@ impl Locomotive {
     }
 
     pub fn default_battery_electric_loco() -> Self {
-        // TODO: make need to add `pwr_aux_offset` and
-        // `pwr_aux_traction_coeff` based on calibration
+        // TODO: add `pwr_aux_offset` and `pwr_aux_traction_coeff` based on calibration
         let bel_type = PowertrainType::BatteryElectricLoco(BatteryElectricLoco::default());
         let mut bel = Locomotive::default();
         bel.loco_type = bel_type;
@@ -603,8 +602,7 @@ impl Locomotive {
     }
 
     pub fn default_hybrid_electric_loco() -> Self {
-        // TODO: make need to add `pwr_aux_offset` and
-        // `pwr_aux_traction_coeff` based on calibration
+        // TODO: add `pwr_aux_offset` and `pwr_aux_traction_coeff` based on calibration
         let hel_type = PowertrainType::HybridLoco(Box::default());
         let mut hel = Locomotive::default();
         hel.loco_type = hel_type;
@@ -988,18 +986,14 @@ impl LocoTrait for Locomotive {
             .set_cur_pwr_max_out(Some(self.state.pwr_aux), dt)?;
         match &self.loco_type {
             PowertrainType::ConventionalLoco(loco) => {
-                // TODO: Coordinate with Geordie on the rate
                 set_pwr_lims(&mut self.state, &loco.edrv);
                 assert_eq!(self.state.pwr_regen_max, si::Power::ZERO);
             }
             PowertrainType::HybridLoco(loco) => {
                 set_pwr_lims(&mut self.state, &loco.edrv);
-                // TODO: Coordinate with Geordie on rate
             }
             PowertrainType::BatteryElectricLoco(loco) => {
                 set_pwr_lims(&mut self.state, &loco.edrv);
-                // TODO: Coordinate with Geordie on rate; INCOMPLETE ON
-                // RATE (Jinghu as of 06/06/2022)
             }
             PowertrainType::DummyLoco(_) => {
                 // this locomotive has the power of 1,000 suns and more

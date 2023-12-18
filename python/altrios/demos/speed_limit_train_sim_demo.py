@@ -7,10 +7,9 @@ import seaborn as sns
 import pandas as pd
 sns.set()
 
-
 SHOW_PLOTS = alt.utils.show_plots()
 
-SAVE_INTERVAL = 1
+SAVE_INTERVAL = 100
 
 train_config = alt.TrainConfig(
     rail_vehicle_type="Manifest",
@@ -49,13 +48,14 @@ loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7
 # instantiate consist
 loco_con = alt.Consist(
     loco_vec,
-    SAVE_INTERVAL,
 )
-init_train_state = alt.InitTrainState()
+init_train_state = alt.InitTrainState(
+    # this corresponds to middle week of simulation period in sim_manager_demo.py
+    time_seconds=604_800.0,
+)
 
 tsb = alt.TrainSimBuilder(
     train_id="0",
-    # Question: what happens if we use arbitrary nonsense for `origin_id` and `destination_id`?
     origin_id="Minneapolis",
     destination_id="Superior",
     train_config=train_config,
@@ -64,14 +64,13 @@ tsb = alt.TrainSimBuilder(
 )
 
 # make sure rail_vehicle_map can be constructed from yaml file and such
-rail_vehicle_file = "rolling_stock/rail_vehicles.csv"
-rail_vehicle_map = alt.import_rail_vehicles(
+rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
+rail_vehicle = alt.RailVehicle.from_file(
     str(alt.resources_root() / rail_vehicle_file)
 )
-rail_vehicle = rail_vehicle_map[train_config.rail_vehicle_type]
 
-network = alt.import_network(str(alt.resources_root() / "networks/Taconite.yaml"))
-
+network = alt.import_network(
+    str(alt.resources_root() / "networks/Taconite-NoBalloon.yaml"))
 
 location_map = alt.import_locations(
     str(alt.resources_root() / "networks/default_locations.csv")
@@ -82,13 +81,22 @@ train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
     location_map=location_map,
     save_interval=1,
 )
+train_sim.set_save_interval(SAVE_INTERVAL)
+
+timed_path = alt.LinkIdxTimeVec.from_file(
+    str(alt.resources_root() / "demo_data/timed_path.yaml")
+)
 
 # %%
 
 t0 = time.perf_counter()
-train_sim.walk()
+train_sim.walk_timed_path(
+    network=network,
+    timed_path=timed_path,
+)
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
+assert len(train_sim.history) > 1
 
 fig, ax = plt.subplots(3, 1, sharex=True)
 ax[0].plot(
@@ -133,7 +141,10 @@ ax[-1].plot(
 )
 ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')
+plt.suptitle("Speed Limit Train Sim Demo")
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
 # Impact of sweep of battery capacity
+
+# %%

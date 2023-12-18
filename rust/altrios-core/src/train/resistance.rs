@@ -16,7 +16,10 @@ pub trait ResMethod {
     fn fix_cache(&mut self, link_point_del: &LinkPoint);
 }
 
-/// Train resistance calculator
+/// Train resistance calculator that calculates resistive powers due to rolling, curvature, flange,
+/// grade, and bearing resistances.  
+///
+// TODO: May also include inertial -- figure this out
 #[enum_dispatch(ResMethod)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 pub enum TrainRes {

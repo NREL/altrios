@@ -1,24 +1,28 @@
 use super::super::LinkIdx;
 use crate::imports::*;
 
-/// Specifies the relative start of a link within the `PathTpc`
+/// Point along PathTpc representing the start of a link and the number of grade, curve, and cat
+/// power limit points contained within the same link,`link_idx`, in the PathTpc.
+///
+/// Note that for the `*_count` fields, these represent points contained in the link for which grade,
+/// curve, ... information is known, not including the final point in the link.
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, SerdeAPI)]
 #[altrios_api]
 pub struct LinkPoint {
-    /// TODO: Geordie, doc string.  What does offset mean here?  distance from start of link to front
-    /// of train?  Something else?
+    /// Distance relative to the start of the PathTpc where `link_idx` starts
     #[api(skip_set)]
     pub offset: si::Length,
     #[api(skip_set)]
-    /// TODO: Geordie, doc string.
+    /// Number of grade points in the current link
     pub grade_count: usize,
     #[api(skip_set)]
-    /// TODO: Geordie, doc string.
+    /// Number of curve points in the current link
     pub curve_count: usize,
     #[api(skip_set)]
-    /// TODO: Geordie, doc string.
+    /// Number of catenary power limit points in the current link
     pub cat_power_count: usize,
     #[api(skip_set)]
+    /// [LinkIdx] of current link
     pub link_idx: LinkIdx,
 }
 

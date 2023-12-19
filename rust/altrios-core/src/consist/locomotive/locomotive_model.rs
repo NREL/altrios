@@ -15,6 +15,7 @@ impl From<HybridLoco> for PowertrainType {
     }
 }
 
+#[cfg(feature="pyo3")]
 impl TryFrom<&PyAny> for PowertrainType {
     type Error = PyErr;
     /// This allows us to construct PowertrainType any struct that can be converted into PowertrainType

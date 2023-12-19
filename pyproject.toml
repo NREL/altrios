@@ -4,12 +4,13 @@ build-backend = "maturin"
 
 [project]
 name = "altrios"
-version = "0.1.3"
+version = "0.1.4"
 authors = [
     { name = "ALTRIOS Team", email = "altrios@nrel.gov" },
     { name = "Chad Baker, Lead Developer" },
     { name = "Nick Reinicke, Developer" },
     { name = "Matt Bruchon, Developer" },
+    { name = "Saad Akhtar, Developer" },
     { name = "Jinghu Hu, Developer" },
     { name = "Grant Payne, Developer" },
     { name = "Jason Lustbader, PI" },

@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 mod braking_point;
 mod friction_brakes;
 mod rail_vehicle;

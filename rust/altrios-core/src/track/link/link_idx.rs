@@ -13,7 +13,8 @@ use std::fmt;
     }
 )]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default, SerdeAPI)]
-/// TODO: Geordie, put a doc string here
+/// See [supplementary documentation.](https://nrel.github.io/altrios/doc/rail-network.html)
+// TODO: Geordie, put a doc string here
 pub struct LinkIdx {
     #[api(skip_set)]
     idx: u32,

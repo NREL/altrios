@@ -1,18 +1,23 @@
 use crate::imports::*;
 
-/// Struct containing linear resistance coefficients for a particular offset w.r.t. `PathTpc`
-#[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize, SerdeAPI)]
 #[altrios_api]
+#[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize, SerdeAPI)]
+/// Struct containing linear resistance coefficients for a particular offset with respect to start
+/// of `PathTpc`
 pub struct PathResCoeff {
     #[api(skip_set)]
+    /// Distance from start of `PathTpc`
     pub offset: si::Length,
     #[api(skip_set)]
+    /// Non-dimensional grade/curve resistance.  
     pub res_coeff: si::Ratio,
     #[api(skip_set)]
+    /// Cumulative sum of `res_coeff` times length up to this `PathResCoeff` along `PathTpc`
     pub res_net: si::Length,
 }
 
 impl PathResCoeff {
+    /// Cumulative sum of `res_coeff` times length up to this `offset` along `PathTpc`
     pub fn calc_res_val(&self, offset: si::Length) -> si::Length {
         self.res_net + self.res_coeff * (offset - self.offset)
     }

@@ -1,5 +1,8 @@
+/// TODO: Geordie, provide doc string for `disp_structs`, just a short sentence or two explaining
+/// what this module comprises
 use super::{disp_imports::*, est_times::EstTime};
 
+// TODO: Geordie, what's goin on with these TODOs?
 // TODO:  Could possibly implement this as Option<NonZeroU16>, and...
 pub type EstIdx = u32;
 // TODO:  This as None
@@ -7,7 +10,7 @@ pub const EST_IDX_NA: EstIdx = 0;
 
 /// Type of estimated time node
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI)]
-#[repr(u8)]
+#[repr(u8)] // TODO: Geordie, could you explain what this does by replacing this comment?
 pub enum EstType {
     /// Train arrives at entry point to link
     Arrive,
@@ -58,17 +61,19 @@ pub struct DispAuth {
     pub arrive_entry: si::Time,
     /// Arrive Exit Time
     pub arrive_exit: si::Time,
-    /// Clear Entry Time
+    /// Clear Entry Time, TODO: Geordie, what does "Clear" mean here?
     pub clear_entry: si::Time,
-    /// Clear Exit Time
+    /// Clear Exit Time, TODO: Geordie, what does "Clear" mean here?
     pub clear_exit: si::Time,
 
-    /// Offset Front
+    /// Offset (distance) between start of track link and front of train
+    /// TODO: Geordie, is the above accurate?
     pub offset_front: si::Length,
-    /// Offset Back
+    /// Offset (distance) between start of track link and front of train
+    /// TODO: Geordie, is the above accurate?
     pub offset_back: si::Length,
 
-    /// Train Index
+    // this is a locally defined package so it's probably ok without a field-level doc string
     pub train_idx: TrainIdx,
 }
 
@@ -83,6 +88,7 @@ impl DispAuth {
 }
 
 impl Default for DispAuth {
+    /// TODO: Geordie, explain why `f64::INFINITY` is being used below.  
     fn default() -> Self {
         Self {
             arrive_entry: f64::INFINITY * uc::S,
@@ -99,6 +105,7 @@ impl Default for DispAuth {
 type TrainIdxsViewIdx = u32;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, SerdeAPI)]
+/// TODO: Geordie, put a doc string here
 pub struct TrainIdxsView {
     pub idx_begin: TrainIdxsViewIdx,
     pub idx_end: TrainIdxsViewIdx,
@@ -120,6 +127,7 @@ impl TrainIdxsView {
 }
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, SerdeAPI)]
+/// TODO: Geordie, put a doc string here
 pub struct EstTimeStatus {
     pub train_idxs_view: TrainIdxsView,
     pub link_idx: LinkIdx,
@@ -153,8 +161,9 @@ impl EstTimeStatus {
     }
 }
 
-// TODO: switch to using single train_idx per node with duplicate disp_node_idx
+// TODO: Geordie, switch to using single train_idx per node with duplicate disp_node_idx
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, SerdeAPI)]
+/// TODO: Geordie, put a doc string here and adddress the todo above
 pub struct DivergeNode {
     pub train_idx: TrainIdx,        // default to: None, which is 0.
     pub disp_node_idx: DispNodeIdx, // default to: None, which is 0.
@@ -170,7 +179,10 @@ impl DivergeNode {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, SerdeAPI)]
+/// TODO: Geordie, put a doc string here.  What is `Disp` short for in this context?
 pub struct DispNode {
+    /// TODO: Geordie, what does this offset represent?   distance from beginning of link to front
+    /// of train?
     pub offset: si::Length,
     pub time_pass: si::Time, // = units::numPosInf * units::s
 

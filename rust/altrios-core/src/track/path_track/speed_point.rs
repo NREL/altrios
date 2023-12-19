@@ -4,8 +4,10 @@ use crate::imports::*;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, SerdeAPI)]
 #[altrios_api]
+/// TODO: Geordie, doc string.
 pub struct SpeedLimitPoint {
     #[api(skip_set)]
+    /// TODO: Geordie, doc string.
     pub offset: si::Length,
     #[api(skip_set)]
     pub speed_limit: si::Velocity,
@@ -28,7 +30,7 @@ impl ObjState for SpeedLimitPoint {
 
 #[ext(InsertSpeed)]
 pub impl Vec<SpeedLimitPoint> {
-    /// Add a speed limit to speed points.
+    /// Add a speed limit to speed points.  
     /// The new speed limit must not start before the beginning of the current speed points.
     fn insert_speed(&mut self, speed_limit: &SpeedLimit) {
         debug_assert!(speed_limit.is_valid());

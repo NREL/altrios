@@ -3,8 +3,11 @@ use crate::imports::*;
 /// Struct containing elevation for a particular offset w.r.t. `Link`
 #[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize, SerdeAPI)]
 #[altrios_api]
+/// TODO: Geordie, put a doc string here
 pub struct Elev {
+    /// TODO: Geordie, put a doc string here.  Offset for front or rear of train?  Something else?
     pub offset: si::Length,
+    /// TODO: Geordie, put a doc string here, same questions as previous field
     pub elev: si::Length,
 }
 

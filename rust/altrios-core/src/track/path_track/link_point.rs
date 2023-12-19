@@ -1,19 +1,28 @@
 use super::super::LinkIdx;
 use crate::imports::*;
 
-/// Specifies the relative location of a link within the PathTpc
+/// Point along PathTpc representing the start of a link and the number of grade, curve, and cat
+/// power limit points contained within the same link,`link_idx`, in the PathTpc.
+///
+/// Note that for the `*_count` fields, these represent points contained in the link for which grade,
+/// curve, ... information is known, not including the final point in the link.
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, SerdeAPI)]
 #[altrios_api]
 pub struct LinkPoint {
+    /// Distance relative to the start of the PathTpc where `link_idx` starts
     #[api(skip_set)]
     pub offset: si::Length,
     #[api(skip_set)]
+    /// Number of grade points in the current link
     pub grade_count: usize,
     #[api(skip_set)]
+    /// Number of curve points in the current link
     pub curve_count: usize,
     #[api(skip_set)]
+    /// Number of catenary power limit points in the current link
     pub cat_power_count: usize,
     #[api(skip_set)]
+    /// [LinkIdx] of current link
     pub link_idx: LinkIdx,
 }
 

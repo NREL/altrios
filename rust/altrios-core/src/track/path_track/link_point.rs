@@ -1,7 +1,7 @@
 use super::super::LinkIdx;
 use crate::imports::*;
 
-/// Specifies the relative location of a link within the PathTpc
+/// Specifies the relative start of a link within the `PathTpc`
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, SerdeAPI)]
 #[altrios_api]
 pub struct LinkPoint {

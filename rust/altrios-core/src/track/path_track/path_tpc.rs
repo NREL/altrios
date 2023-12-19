@@ -5,9 +5,8 @@ use super::speed_point::*;
 use super::train_params::*;
 use crate::imports::*;
 
-// TODO: make PathTPC robust to `Vec<LinkPoint>` that ends with `0`
-/// Contains all of the train path parameters in vector form
-/// e.g. -  link points, elevations, speed points, and TrainParams
+// TODO: make PathTpc robust to `Vec<LinkPoint>` that ends with `0`
+/// Train resistance
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 #[altrios_api]
 pub struct PathTpc {

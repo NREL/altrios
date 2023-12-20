@@ -5,9 +5,10 @@ use super::speed_point::*;
 use super::train_params::*;
 use crate::imports::*;
 
-/// Contains all of the train path parameters in vector form
-/// e.g. -  link points, elevations, speed points, and TrainParams
-/// TODO: make PathTPC robust to `Vec<LinkPoint>` that ends with `0`
+// TODO: make PathTpc robust to `Vec<LinkPoint>` that ends with `0`
+/// Vector data used to represent track-dependent train performance parameters along the path the
+/// train will follow.  This contains all the positionally important data for the train resistance
+/// model.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 #[altrios_api]
 pub struct PathTpc {
@@ -190,6 +191,10 @@ impl PathTpc {
                 let mut res_net_prev = self.curves.last().unwrap().res_net;
                 for (prev, curr) in link.headings.windows(2).map(|x| (&x[0], &x[1])) {
                     let length = curr.offset - prev.offset;
+
+                    // TODO: Geordie, provide some explanation here as a comment, and then I can
+                    // extract the code into a method that I'll document Curve resistance calculated
+                    // using AAR's train energy model:
                     let curvature = (-uc::REV / 2.0
                         + (curr.heading - prev.heading + uc::REV / 2.0) % uc::REV)
                         .abs()
@@ -272,6 +277,7 @@ impl PathTpc {
         Ok(link_point_del)
     }
 
+    /// TODO: Geordie, doc string.
     pub fn finish(&mut self) {
         self.grades.push(PathResCoeff {
             offset: uc::M * f64::INFINITY,
@@ -286,6 +292,7 @@ impl PathTpc {
         self.is_finished = true;
     }
 
+    /// TODO: Geordie, doc string.
     pub fn recalc_speeds(&mut self, links: &[Link]) {
         self.speed_points.clear();
         self.speed_points.push(SpeedLimitPoint {
@@ -302,6 +309,7 @@ impl PathTpc {
         }
     }
 
+    /// TODO: Geordie, doc string.
     pub fn reindex(&mut self, link_idxs: &[LinkIdx]) -> anyhow::Result<()> {
         let idx_end = self.link_points.len() - 1;
         for link_point in &mut self.link_points[..idx_end] {
@@ -311,6 +319,7 @@ impl PathTpc {
         Ok(())
     }
 
+    /// TODO: Geordie, doc string.
     fn add_speeds(
         speed_points: &mut Vec<SpeedLimitPoint>,
         train_params: &TrainParams,
@@ -347,7 +356,6 @@ impl Default for PathTpc {
     }
 }
 
-//TODO: Ask how to handle failed call to extend
 impl Valid for PathTpc {
     fn valid() -> Self {
         let mut path_tpc = Self::default();

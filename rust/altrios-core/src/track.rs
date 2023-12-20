@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 mod link;
 mod path_track;
 

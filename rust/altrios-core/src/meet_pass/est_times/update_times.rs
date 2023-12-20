@@ -1,12 +1,19 @@
+//! TODO: Geordie, provide doc for `update_times`, just a short description
+
 use super::super::disp_imports::*;
 
-#[readonly::make]
+#[readonly::make] // TODO: Geordie, update this comment to explain this attribute
 #[derive(Debug, PartialEq, Clone, Copy)]
+/// TODO: Geordie, put a doc string here
 struct EstTimeNext {
+    /// TODO: Geordie, put a doc string here
     pub time_next: si::Time,
+    /// TODO: Geordie, put a doc string here
     pub est_idx: EstIdx,
 }
 impl EstTimeNext {
+    /// # Arguments
+    /// see fields of [Self]
     pub fn new(time_next: si::Time, est_idx: EstIdx) -> Self {
         assert!(!time_next.is_nan());
         EstTimeNext { time_next, est_idx }
@@ -33,12 +40,17 @@ impl Ord for EstTimeNext {
 
 #[readonly::make]
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
+/// TODO: Geordie, provide doc string
 struct EstTimePrev {
+    /// TODO: Geordie, doc string, time for what?
     pub time_prev: si::Time,
+    /// TODO: Geordie, provide doc string.  What does `_sub` mean?
     pub time_sub: si::Time,
     pub est_idx: EstIdx,
 }
 impl EstTimePrev {
+    /// # Arguments
+    /// see fields of [Self]
     pub fn new(time_prev: si::Time, time_sub: si::Time, est_idx: EstIdx) -> Self {
         assert!(!time_prev.is_nan());
         assert!(!time_sub.is_nan());
@@ -59,8 +71,8 @@ impl Ord for EstTimePrev {
     }
 }
 
-/// Run shortest path forward on estimated time network
-/// This adjusts the linking of all join nodes and sets the scheduled times
+/// Run shortest path forward on estimated time network.  
+/// This adjusts the linking of all join nodes and sets the scheduled times.
 pub(super) fn update_times_forward(est_times: &mut [EstTime], time_depart: si::Time) {
     est_times[0].time_sched = time_depart;
     est_times[1].time_sched = time_depart;
@@ -144,9 +156,9 @@ pub(super) fn update_times_forward(est_times: &mut [EstTime], time_depart: si::T
     }
 }
 
-/// Run shortest path backward on estimated time network
+/// Run shortest path backward on estimated time network.  
 /// This adjusts the linking of all split nodes
-/// and adjusts the scheduled times to reflects the shortest paths
+/// and adjusts the scheduled times to reflects the shortest paths.
 pub(super) fn update_times_backward(est_times: &mut [EstTime]) {
     let mut is_est_passed = vec![false; est_times.len()];
 

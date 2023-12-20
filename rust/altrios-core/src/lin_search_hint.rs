@@ -1,6 +1,7 @@
 use crate::imports::*;
 use crate::si;
 
+// Per Geordie, we could probably get rid of this `DirT` code
 pub type DirT = u8;
 
 #[allow(non_snake_case)]
@@ -14,11 +15,17 @@ pub mod Dir {
     pub const Bwd: DirT = 2;
 }
 
+/// Has method that returns offset from start of PathTpc
 pub trait GetOffset {
+    /// Returns offset from start of PathTpc
     fn get_offset(&self) -> si::Length;
 }
 
+/// Contains method to calculate the index immediately before `offset` given the previous calculated
+/// index, `idx`, and a direction `DirT`.
 pub trait LinSearchHint {
+    /// Calculate the index immediately before `offset` given the previous calculated index, `idx`,
+    /// and a direction `DirT`.
     fn calc_idx<const DIR: DirT>(&self, offset: si::Length, idx: usize) -> anyhow::Result<usize>;
 }
 

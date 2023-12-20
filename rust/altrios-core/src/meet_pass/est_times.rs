@@ -22,14 +22,15 @@ pub struct EstTime {
     /// Speed at which the train will pass this node assuming no delays
     pub speed: si::Velocity,
 
-    /// Index of the next node in the network when traveling along the shortest path from this node
+    // TODO: Geordie, I reworded these to be consistent with my understanding
+    /// Index of link leaving the next node in the network when traveling along the shortest path from this node
     pub idx_next: EstIdx,
-    /// Index of the alternate next node (if it exists)
+    /// Index of alternative link leaving next node (if it exists)  
     /// Used if the shortest path is blocked up ahead
     pub idx_next_alt: EstIdx,
-    /// Index of the previous node if the shortest path was taken to reach this node
+    /// Index of link leaving the previous node if the shortest path was taken to reach this node
     pub idx_prev: EstIdx,
-    /// Index of the alternate previous node (if it exists)
+    /// Index of link leaving the alternate previous node (if it exists)
     pub idx_prev_alt: EstIdx,
 
     /// Combination of link index and est type for this node
@@ -64,6 +65,7 @@ impl Default for EstTime {
         (self.val.last().unwrap().time_sched - self.val.first().unwrap().time_sched).get::<si::hour>()
     }
 )]
+// TODO: Geordie, what does the `Net` mean in this context?
 pub struct EstTimeNet {
     #[api(skip_get, skip_set)]
     pub val: Vec<EstTime>,
@@ -90,6 +92,10 @@ pub fn check_od_pair_valid(
 
 /// Get link indexes that lead to the destination (CURRENTLY ALLOWS LOOPS THAT
 /// ARE TOO SMALL TO FIT THE TRAIN!)
+/// # Arguments
+/// - `origs`: TODO: Geordie, put some words here
+/// - `dests`: TODO: Geordie, put some words here
+/// - `links`: TODO: Geordie, put some words here.  What do the links represent in this context?  
 pub fn get_link_idx_options(
     origs: &[Location],
     dests: &[Location],

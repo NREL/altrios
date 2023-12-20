@@ -10,7 +10,7 @@ on:
 
 jobs:
   test:
-    if: github.repository == 'nrel/altrios'
+    if: github.repository == 'nrel/altrios' || github.repository == 'nrel/altrios-private'
 
     runs-on: ubuntu-latest
 

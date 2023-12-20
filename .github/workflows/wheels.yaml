@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    if: github.repository == 'nrel/altrios'
+    if: github.repository == 'nrel/altrios' || github.repository == 'nrel/altrios-private'
     name: build py3.${{ matrix.python-version }} on ${{ matrix.platform || matrix.os }}
     strategy:
       fail-fast: false
@@ -84,7 +84,7 @@ jobs:
           path: dist 
 
   upload:
-    if: github.repository == 'nrel/altrios'
+    if: github.repository == 'nrel/altrios' || github.repository == 'nrel/altrios-private'
     needs: build
     runs-on: ubuntu-latest
     environment:

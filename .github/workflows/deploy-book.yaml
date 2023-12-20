@@ -26,6 +26,7 @@ concurrency:
 jobs:
   # Build job
   build:
+    if: github.repository == 'nrel/altrios'
     runs-on: ubuntu-latest
     env:
       MDBOOK_VERSION: 0.4.21
@@ -49,6 +50,7 @@ jobs:
 
   # Deployment job
   deploy:
+    if: github.repository == 'nrel/altrios'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -7,11 +7,6 @@ on:
     paths:
       - "docs/**"
       - ".github/workflows/deploy-book.yaml"
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "docs/**"
-      - ".github/workflows/deploy-book.yaml"
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -31,6 +26,7 @@ concurrency:
 jobs:
   # Build job
   build:
+    if: github.repository == 'nrel/altrios' || github.repository == 'nrel/altrios-private'
     runs-on: ubuntu-latest
     env:
       MDBOOK_VERSION: 0.4.21
@@ -54,6 +50,7 @@ jobs:
 
   # Deployment job
   deploy:
+    if: github.repository == 'nrel/altrios' || github.repository == 'nrel/altrios-private'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

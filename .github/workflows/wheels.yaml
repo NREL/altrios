@@ -3,12 +3,10 @@ name: wheels
 on:
   release:
     types: [published]
-  workflow_run: 
-    workflows: ["tests"]
-    types:
-      - completed
 
 jobs:
+  call-tests:
+    uses: nrel/altrios/.github/workflows/tests.yaml
   build:
     name: build py3.${{ matrix.python-version }} on ${{ matrix.platform || matrix.os }}
     strategy:
@@ -26,7 +24,6 @@ jobs:
             platform: linux
           - os: windows
             ls: dir
-    if: github.event_name == 'release' && github.event.action == 'published' && github.event.workflow_run.conclusion == 'success'
     runs-on: ${{ format('{0}-latest', matrix.os) }}
     steps:
       - uses: actions/checkout@v3
@@ -83,6 +80,7 @@ jobs:
           path: dist 
 
   upload:
+    if: github.repository == 'nrel/altrios' || github.repository == 'nrel/altrios-private'
     needs: build
     runs-on: ubuntu-latest
     environment:

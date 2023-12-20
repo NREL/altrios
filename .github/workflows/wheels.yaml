@@ -46,13 +46,7 @@ jobs:
       - run: rustup target add aarch64-apple-darwin
         if: matrix.os == 'macos'
 
-      - name: run cargo tests
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly 
-          override: true
-      - run: cd rust/ && cargo test
+      # no need to run cargo or python tests because dependence on test workflow should take care of this
 
       - name: install python dependencies
         run: pip install -U maturin wheel twine cibuildwheel
@@ -68,8 +62,6 @@ jobs:
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
           CIBW_SKIP: "*-win32 *-musllinux* *i686 *ppc64le *s390x *aarch64"
           CIBW_PLATFORM: ${{ matrix.platform || matrix.os }}
-          CIBW_TEST_REQUIRES: "pytest"
-          CIBW_TEST_COMMAND: "pytest {project}/python -s"
           CIBW_ENVIRONMENT: 'PATH="$HOME/.cargo/bin:$PATH"'
           CIBW_ENVIRONMENT_WINDOWS: 'PATH="$UserProfile\.cargo\bin;$PATH"'
           CIBW_ARCHS_MACOS: 'universal2'

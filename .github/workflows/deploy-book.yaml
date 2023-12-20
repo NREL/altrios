@@ -45,7 +45,7 @@ jobs:
         id: pages
         uses: actions/configure-pages@v3
       - name: Build with mdBook
-        working-directory: ${{runner.workspace}}/mbap-computing/docs/
+        working-directory: ${{runner.workspace}}/altrios/docs/
         run: mdbook build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1

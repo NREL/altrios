@@ -9,6 +9,7 @@ jobs:
     uses: nrel/altrios/.github/workflows/tests.yaml@main
   build:
     name: build py3.${{ matrix.python-version }} on ${{ matrix.platform || matrix.os }}
+    needs: call-tests
     strategy:
       fail-fast: false
       matrix:

@@ -5,8 +5,8 @@ on:
       branches: [ main ]
   pull_request:
   workflow_dispatch:
-  release:
-    types: [published]
+  workflow_call:
+
 
 jobs:
   test:

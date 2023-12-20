@@ -3,7 +3,7 @@ authors = ["Chad Baker"]
 language = "en"
 multilingual = false
 src = "src"
-title = "FASTSim Documentation"
+title = "ALTRIOS Documentation"
 
 [output.html.fold]
 enable = true

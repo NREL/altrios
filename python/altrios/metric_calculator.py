@@ -86,7 +86,7 @@ def value_from_metrics(metrics: MetricType,
 def main(
         scenario_infos: List[ScenarioInfo],
         annual_metrics: dict = {
-            'Metric': ['TKM', 'GHG', 'Count_Locomotives', 'Count_Refuelers', 'Energy_Costs'],
+            'Metric': ['Mt-km', 'GHG', 'Count_Locomotives', 'Count_Refuelers', 'Energy_Costs'],
             'Units': ['million_tonne_km', 'tonne_co2eq', 'Locomotives', 'Refuelers', 'USD']}
 ) -> pl.DataFrame:
     """
@@ -161,11 +161,11 @@ def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
                   .with_columns(((1+defaults.DISCOUNT_RATE)**pl.col("Year_Offset")).alias("Discounting_Factor"))
                   .with_columns(
                     (pl.col("Cost_Total") / pl.col("Discounting_Factor")).alias("Cost_Total_Discounted"),
-                    (pl.col("Mt-km") / pl.col("Discounting_Factor")).alias("TKM_Discounted"))
+                    (pl.col("Mt-km") / pl.col("Discounting_Factor")).alias("Mt-km_Discounted"))
                   .with_columns(pl.col("Year").cast(pl.Utf8)))           
     
     cost_total = timeseries.get_column("Cost_Total_Discounted").sum()
-    tkm_total = timeseries.get_column("TKM_Discounted").sum()
+    tkm_total = timeseries.get_column("Mt-km_Discounted").sum()
     lcotkm_all = cost_total/tkm_total if tkm_total > 0 else math.nan
 
     cost_discounted = timeseries.select(
@@ -177,15 +177,15 @@ def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
     )
     tkm_discounted = timeseries.select(
             pl.col("Year"),
-            Value = pl.col("TKM_Discounted"),
-            Metric = pl.lit("TKM_Discounted"),
+            Value = pl.col("Mt-km_Discounted"),
+            Metric = pl.lit("Mt-km_Discounted"),
             Subset = pl.lit("All"),
             Units = pl.lit("Million_Tonne-KM_Discounted")
     )
     cotkm_annual = timeseries.select(
             pl.col("Year"),
             Value = pl.col("Cost_Total")/pl.col("Mt-km"),
-            Metric = pl.lit("Cost_Per_TKM"),
+            Metric = pl.lit("Cost_Per_Mt-km"),
             Subset = pl.lit("All"),
             Units = pl.lit("USD_Per_Million_Tonne-KM")
     )
@@ -325,18 +325,18 @@ def calculate_electricity_use(
        disagg_energy])
 
 
-def calculate_tkm(
+def calculate_freight(
         info: ScenarioInfo,
         units: str) -> MetricType:
     """
-    Given a years' worth of simulation results, computes a single year gross tonne-km of freight delivered
+    Given a years' worth of simulation results, computes a single year gross million tonne-km of freight delivered
     Arguments:
     ----------
     info: A scenario information object representing parameters and results for a single year
     units: Requested units
     Outputs:
     ----------
-    DataFrame of gross tonne-km of freight (metric name, units, value, and scenario year)
+    DataFrame of gross million tonne-km of freight (metric name, units, value, and scenario year)
     """
     return metric("Mt-km", units, info.sims.get_megagram_kilometers(annualize=True)/1.0e6)
 
@@ -854,7 +854,7 @@ def add_battery_costs(loco_info: pd.DataFrame, year: int) -> pd.DataFrame:
 
 
 function_mappings = {'Energy_Costs': calculate_energy_cost,
-    'TKM': calculate_tkm,
+    'Mt-km': calculate_freight,
     'GHG': calculate_ghg,
     'Count_Locomotives': calculate_locomotive_counts,
     'Count_Refuelers': calculate_refueler_counts

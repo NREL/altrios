@@ -22,6 +22,6 @@ class TestMetricCalculator(unittest.TestCase):
                 False))
             
         for info in scenario_infos:
-            tkm = metric_calculator.calculate_tkm(info,'million_tonne_km')
-            self.assertEqual(tkm.filter(pl.col("Metric") == 'TKM').get_column("Units").len(), 0)
+            tkm = metric_calculator.calculate_freight(info,'Million_Tonne-KM')
+            self.assertEqual(tkm.filter(pl.col("Metric") == 'Mt-km').get_column("Units").len(), 0)
 

@@ -160,47 +160,49 @@ def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
                   .with_columns((pl.col("Year") - pl.col("Year").min()).alias("Year_Offset"))
                   .with_columns(((1+defaults.DISCOUNT_RATE)**pl.col("Year_Offset")).alias("Discounting_Factor"))
                   .with_columns(
-                    (pl.col("Cost_Total") / pl.col("Discounting_Factor")).alias("Cost_Discounted"),
+                    (pl.col("Cost_Total") / pl.col("Discounting_Factor")).alias("Cost_Total_Discounted"),
                     (pl.col("Mt-km") / pl.col("Discounting_Factor")).alias("TKM_Discounted"))
                   .with_columns(pl.col("Year").cast(pl.Utf8)))           
     
-    cost_total = timeseries.get_column("Cost_Discounted").sum()
+    cost_total = timeseries.get_column("Cost_Total_Discounted").sum()
     tkm_total = timeseries.get_column("TKM_Discounted").sum()
     lcotkm_all = cost_total/tkm_total if tkm_total > 0 else math.nan
 
-    cost_discounted = (timeseries
-        .select(["Year","Cost_Discounted"])
-        .rename({"Cost_Discounted": "Value"})
-        .with_columns(pl.lit("Cost_Total_Discounted").alias("Metric"),
-                      pl.lit("All").alias("Subset"),
-                      pl.lit("USD").alias("Units")))
-    tkm_discounted = (timeseries
-        .select(["Year","TKM_Discounted"])
-        .rename({"TKM_Discounted": "Value"})
-        .with_columns(pl.lit("TKM_Discounted").alias("Metric"),
-                      pl.lit("All").alias("Subset"),
-                      pl.lit("USD").alias("Units")))
-    cotkm_annual = (timeseries
-        .with_columns((pl.col("Cost_Total")/pl.col("Mt-km")).alias("Cost_Per_TKM"))
-        .select(["Year","Cost_Per_TKM"])
-        .rename({"Cost_Per_TKM": "Value"})
-        .with_columns(pl.lit("Cost_Per_TKM").alias("Metric"),
-                      pl.lit("All").alias("Subset"),
-                      pl.lit("USD").alias("Units")))
-    discount = (timeseries
-        .select(["Year","Discounting_Factor"])
-        .rename({"Discounting_Factor": "Value"})
-        .with_columns(pl.lit("Discounting_Factor").alias("Metric"),
-                      pl.lit("All").alias("Subset"),
-                      pl.lit("USD").alias("Units")))
-    
+    cost_discounted = timeseries.select(
+            pl.col("Year"),
+            Value = pl.col("Cost_Total_Discounted"),
+            Metric = pl.lit("Cost_Total_Discounted"),
+            Subset = pl.lit("All"),
+            Units = pl.lit("USD_Discounted")
+    )
+    tkm_discounted = timeseries.select(
+            pl.col("Year"),
+            Value = pl.col("TKM_Discounted"),
+            Metric = pl.lit("TKM_Discounted"),
+            Subset = pl.lit("All"),
+            Units = pl.lit("Million_Tonne-KM_Discounted")
+    )
+    cotkm_annual = timeseries.select(
+            pl.col("Year"),
+            Value = pl.col("Cost_Total")/pl.col("Mt-km"),
+            Metric = pl.lit("Cost_Per_TKM"),
+            Subset = pl.lit("All"),
+            Units = pl.lit("USD_Per_Million_Tonne-KM")
+    )
+    discount = timeseries.select(
+            pl.col("Year"),
+            Value = pl.col("Discounting_Factor"),
+            Metric = pl.lit("Discounting_Factor"),
+            Subset = pl.lit("All"),
+            Units = pl.lit("Fraction (0-1)")
+    )
     return metrics_from_list([
         values.with_columns(pl.col("Year").cast(pl.Utf8)),
         cost_discounted,
         tkm_discounted,
         cotkm_annual,
         discount,
-        metric("LCOTKM", "USD_Per_Million_Tonne-KM", lcotkm_all)
+        metric("LCOTKM", "USD_Per_Million_Tonne-KM_Levelized", lcotkm_all)
     ])
 
 def calculate_energy_cost(info: ScenarioInfo,

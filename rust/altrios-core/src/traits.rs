@@ -109,30 +109,31 @@ pub trait Linspace {
 impl Linspace for Vec<f64> {}
 
 pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
-    /// runs any initialization steps that may be needed.
+    const ACCEPTED_BYTE_FORMATS: &'static [&'static str] = &["yaml", "json", "bin"];
+    const ACCEPTED_STR_FORMATS: &'static [&'static str] = &["yaml", "json"];
+
+    /// Runs any initialization steps that might be needed
     fn init(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
 
-    #[allow(clippy::wrong_self_convention)]
     /// Save current data structure to file. Method adaptively calls serialization methods
-    /// dependent on the suffix of the file given as str.
-    ///
-    /// # Argument:
-    ///
-    /// * `filename`: a `str` storing the targeted file name. Currently `.json` and `.yaml` suffixes are
-    /// supported
-    ///
-    /// # Returns:
-    ///
-    /// A Rust Result
-    fn to_file(&self, filename: &str) -> Result<(), anyhow::Error> {
-        let file = PathBuf::from(filename);
-        match file.extension().unwrap().to_str().unwrap() {
-            "json" => serde_json::to_writer(&File::create(file)?, self)?,
-            "yaml" => serde_yaml::to_writer(&File::create(file)?, self)?,
-            _ => serde_json::to_writer(&File::create(file)?, self)?,
-        };
+    /// dependent on the suffix of the filepath.
+    fn to_file<P: AsRef<Path>>(&self, filepath: P) -> anyhow::Result<()> {
+        let filepath = filepath.as_ref();
+        let extension = filepath
+            .extension()
+            .and_then(OsStr::to_str)
+            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
+        match extension.trim_start_matches('.').to_lowercase().as_str() {
+            "yaml" | "yml" => serde_yaml::to_writer(&File::create(filepath)?, self)?,
+            "json" => serde_json::to_writer(&File::create(filepath)?, self)?,
+            "bin" => bincode::serialize_into(&File::create(filepath)?, self)?,
+            _ => bail!(
+                "Unsupported format {extension:?}, must be one of {:?}",
+                Self::ACCEPTED_BYTE_FORMATS
+            ),
+        }
         Ok(())
     }
 
@@ -142,68 +143,96 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     ///
     /// # Argument:
     ///
-    /// * `filename`: a `str` storing the targeted file name. Currently `.json` and `.yaml` suffixes are
+    /// * `filepath`: a `str` storing the targeted file name. Currently `.json` and `.yaml` suffixes are
     /// supported
     ///
     /// # Returns:
     ///
     /// A Rust Result wrapping data structure if method is called successfully; otherwise a dynamic
     /// Error.
-    fn from_file(filename: &str) -> Result<Self, anyhow::Error>
-    where
-        Self: std::marker::Sized,
-        for<'de> Self: Deserialize<'de>,
-    {
-        let extension = Path::new(filename)
+    fn from_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
+        let filepath = filepath.as_ref();
+        let extension = filepath
             .extension()
             .and_then(OsStr::to_str)
-            .unwrap_or("");
-
-        let file = File::open(filename)?;
+            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
+        let file = File::open(filepath).with_context(|| {
+            if !filepath.exists() {
+                format!("File not found: {filepath:?}")
+            } else {
+                format!("Could not open file: {filepath:?}")
+            }
+        })?;
         // deserialized file
-        let mut file_de: Self = match extension {
-            "yaml" => serde_yaml::from_reader(file)?,
-            "json" => serde_json::from_reader(file)?,
-            _ => bail!("Unsupported file extension {}", extension),
-        };
-        file_de.init()?;
-        Ok(file_de)
+        let mut deserialized = Self::from_reader(file, extension)?;
+        deserialized.init()?;
+        Ok(deserialized)
     }
 
-    /// json serialization method.
-    fn to_json(&self) -> String {
-        serde_json::to_string(&self).unwrap()
+    fn from_reader<R: std::io::Read>(rdr: R, format: &str) -> anyhow::Result<Self> {
+        Ok(
+            match format.trim_start_matches('.').to_lowercase().as_str() {
+                "yaml" | "yml" => serde_yaml::from_reader(rdr)?,
+                "json" => serde_json::from_reader(rdr)?,
+                "bin" => bincode::deserialize_from(rdr)?,
+                _ => bail!(
+                    "Unsupported format {format:?}, must be one of {:?}",
+                    Self::ACCEPTED_BYTE_FORMATS
+                ),
+            },
+        )
     }
 
-    /// json deserialization method.
-    fn from_json(json_str: &str) -> Result<Self, anyhow::Error> {
-        let mut json_de: Self = serde_json::from_str(json_str)?;
-        json_de.init()?;
-        Ok(json_de)
+    fn to_str(&self, format: &str) -> anyhow::Result<String> {
+        match format.trim_start_matches('.').to_lowercase().as_str() {
+            "yaml" | "yml" => self.to_yaml(),
+            "json" => self.to_json(),
+            _ => bail!(
+                "Unsupported format {format:?}, must be one of {:?}",
+                Self::ACCEPTED_STR_FORMATS
+            ),
+        }
     }
 
-    /// yaml serialization method.
-    fn to_yaml(&self) -> String {
-        serde_yaml::to_string(&self).unwrap()
+    fn from_str(contents: &str, format: &str) -> anyhow::Result<Self> {
+        match format.trim_start_matches('.').to_lowercase().as_str() {
+            "yaml" | "yml" => Self::from_yaml(contents),
+            "json" => Self::from_json(contents),
+            _ => bail!(
+                "Unsupported format {format:?}, must be one of {:?}",
+                Self::ACCEPTED_STR_FORMATS
+            ),
+        }
     }
 
-    /// yaml deserialization method.
-    fn from_yaml(yaml_str: &str) -> Result<Self, anyhow::Error> {
-        let mut yaml_de: Self = serde_yaml::from_str(yaml_str)?;
-        yaml_de.init()?;
-        Ok(yaml_de)
+    /// JSON serialization method
+    fn to_json(&self) -> anyhow::Result<String> {
+        Ok(serde_json::to_string(&self)?)
     }
 
-    /// bincode serialization method.
-    fn to_bincode(&self) -> Vec<u8> {
-        serialize(&self).unwrap()
+    /// JSON deserialization method
+    fn from_json(json_str: &str) -> anyhow::Result<Self> {
+        Ok(serde_json::from_str(json_str)?)
     }
 
-    /// bincode deserialization method.
-    fn from_bincode(encoded: &[u8]) -> Result<Self, anyhow::Error> {
-        let mut bincode_de: Self = deserialize(encoded)?;
-        bincode_de.init()?;
-        Ok(bincode_de)
+    /// YAML serialization method
+    fn to_yaml(&self) -> anyhow::Result<String> {
+        Ok(serde_yaml::to_string(&self)?)
+    }
+
+    /// YAML deserialization method
+    fn from_yaml(yaml_str: &str) -> anyhow::Result<Self> {
+        Ok(serde_yaml::from_str(yaml_str)?)
+    }
+
+    /// bincode serialization method
+    fn to_bincode(&self) -> anyhow::Result<Vec<u8>> {
+        Ok(bincode::serialize(&self)?)
+    }
+
+    /// bincode deserialization method
+    fn from_bincode(encoded: &[u8]) -> anyhow::Result<Self> {
+        Ok(bincode::deserialize(encoded)?)
     }
 }
 

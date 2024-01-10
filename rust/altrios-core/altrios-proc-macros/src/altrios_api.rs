@@ -108,23 +108,23 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
                                 }
                                 /// Rust-defined `__getitem__` magic method for Python used exposed via PyO3.
                                 /// Prevents the Python user getting item directly using indexing.
-                                fn __getitem__(&self, _idx: usize) -> PyResult<()> {
-                                    Err(PyNotImplementedError::new_err(
+                                fn __getitem__(&self, _idx: usize) -> anyhow::Result<()> {
+                                    bail!(PyNotImplementedError::new_err(
                                         "Getting Rust vector value at index is not implemented.
                                         Run `tolist` method to convert to standalone Python list.",
                                     ))
                                 }
                                 /// Rust-defined `__setitem__` magic method for Python used exposed via PyO3.
                                 /// Prevents the Python user setting item using indexing.
-                                fn __setitem__(&mut self, _idx: usize, _new_value: #contained_dtype) -> PyResult<()> {
-                                    Err(PyNotImplementedError::new_err(
+                                fn __setitem__(&mut self, _idx: usize, _new_value: #contained_dtype) -> anyhow::Result<()> {
+                                    bail!(PyNotImplementedError::new_err(
                                         "Setting list value at index is not implemented.
                                         Run `tolist` method, modify value at index, and
                                         then set entire list.",
                                     ))
                                 }
                                 /// PyO3-exposed method to convert vec-containing struct to Python list. 
-                                fn tolist(&self) -> PyResult<Vec<#contained_dtype>> {
+                                fn tolist(&self) -> anyhow::Result<Vec<#contained_dtype>> {
                                     Ok(self.0.clone())
                                 }
                                 /// Rust-defined `__len__` magic method for Python used exposed via PyO3.
@@ -164,47 +164,47 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[staticmethod]
         #[pyo3(name = "default")]
         /// Exposes `default` to python.
-        fn default_py() -> PyResult<Self> {
+        fn default_py() -> anyhow::Result<Self> {
             Ok(Self::default())
         }
 
         /// json serialization method.
         #[pyo3(name = "to_json")]
-        fn to_json_py(&self) -> PyResult<String> {
-            Ok(self.to_json())
+        fn to_json_py(&self) -> anyhow::Result<String> {
+            self.to_json()
         }
 
         #[staticmethod]
         /// json deserialization method.
         #[pyo3(name = "from_json")]
-        fn from_json_py(json_str: &str) -> PyResult<Self> {
+        fn from_json_py(json_str: &str) -> anyhow::Result<Self> {
             Ok(Self::from_json(json_str)?)
         }
 
         /// yaml serialization method.
         #[pyo3(name = "to_yaml")]
-        fn to_yaml_py(&self) -> PyResult<String> {
+        fn to_yaml_py(&self) -> anyhow::Result<String> {
             Ok(self.to_yaml())
         }
 
         #[staticmethod]
         /// yaml deserialization method.
         #[pyo3(name = "from_yaml")]
-        fn from_yaml_py(yaml_str: &str) -> PyResult<Self> {
+        fn from_yaml_py(yaml_str: &str) -> anyhow::Result<Self> {
             Ok(Self::from_yaml(yaml_str)?)
         }
 
         /// bincode serialization method.
         #[pyo3(name = "to_bincode")]
-        fn to_bincode_py<'py>(&self, py: Python<'py>) -> PyResult<&'py PyBytes> {
-            Ok(PyBytes::new(py, &self.to_bincode()))
+        fn to_bincode_py<'py>(&self, py: Python<'py>) -> anyhow::Result<&'py PyBytes> {
+            Ok(PyBytes::new(py, &self.to_bincode()?))
         }
 
         #[staticmethod]
         /// bincode deserialization method.
         #[pyo3(name = "from_bincode")]
-        fn from_bincode_py(encoded: &PyBytes) -> PyResult<Self> {
-            Ok(Self::from_bincode(encoded.as_bytes())?)
+        fn from_bincode_py(encoded: &PyBytes) -> anyhow::Result<Self> {
+            Self::from_bincode(encoded.as_bytes())
         }
 
         /// `__copy__` magic method that uses `clone`.
@@ -234,14 +234,14 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             #[staticmethod]
             #[pyo3(name = "from_file")]
             /// Exposes `from_file` to Python.
-            fn from_file_py(filename: String) -> PyResult<Self> {
-                Ok(Self::from_file(&filename)?)
+            pub fn from_file_py(filepath: &PyAny) -> anyhow::Result<Self> {
+                Self::from_file(PathBuf::extract(filepath)?)
             }
 
             #[pyo3(name = "to_file")]
             /// Exposes `to_file` to Python.
-            fn to_file_py(&self, filename: &str) -> PyResult<()> {
-                Ok(self.to_file(filename)?)
+            pub fn to_file_py(&self, filepath: &PyAny) -> anyhow::Result<()> {
+                self.to_file(PathBuf::extract(filepath)?)
             }
         }
     };

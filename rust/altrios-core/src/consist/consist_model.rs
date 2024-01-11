@@ -5,36 +5,36 @@ use super::*;
     fn __new__(
         loco_vec: Vec<Locomotive>,
         save_interval: Option<usize>
-    ) -> PyResult<Self> {
+    ) -> anyhow::Result<Self> {
         Ok(Self::new(loco_vec, save_interval, PowerDistributionControlType::default()))
     }
 
     #[getter("loco_vec")]
-    fn get_loco_vec_py(&self) -> PyResult<Pyo3VecLocoWrapper> {
+    fn get_loco_vec_py(&self) -> anyhow::Result<Pyo3VecLocoWrapper> {
         Ok(Pyo3VecLocoWrapper(self.loco_vec.clone()))
     }
 
     #[setter("loco_vec")]
-    fn set_loco_vec_py(&mut self, loco_vec: Vec<Locomotive>) -> PyResult<()> {
+    fn set_loco_vec_py(&mut self, loco_vec: Vec<Locomotive>) -> anyhow::Result<()> {
         self.set_loco_vec(loco_vec);
         Ok(())
     }
 
     #[pyo3(name="drain_loco_vec")]
-    fn drain_loco_vec_py(&mut self, start: usize, end: usize) -> PyResult<Pyo3VecLocoWrapper> {
+    fn drain_loco_vec_py(&mut self, start: usize, end: usize) -> anyhow::Result<Pyo3VecLocoWrapper> {
         Ok(Pyo3VecLocoWrapper(self.drain_loco_vec(start, end)))
     }
 
     #[pyo3(name = "set_save_interval")]
     /// Set save interval and cascade to nested components.
-    fn set_save_interval_py(&mut self, save_interval: Option<usize>) -> PyResult<()> {
+    fn set_save_interval_py(&mut self, save_interval: Option<usize>) -> anyhow::Result<()> {
         self.set_save_interval(save_interval);
         Ok(())
     }
 
     #[pyo3(name = "get_save_interval")]
     /// Set save interval and cascade to nested components.
-    fn get_save_interval_py(&self) -> PyResult<Option<usize>> {
+    fn get_save_interval_py(&self) -> anyhow::Result<Option<usize>> {
         Ok(self.get_save_interval())
     }
 
@@ -82,17 +82,17 @@ use super::*;
     }
 
     #[getter("force_max_lbs")]
-    fn get_force_max_pounds_py(&self) -> PyResult<f64> {
+    fn get_force_max_pounds_py(&self) -> anyhow::Result<f64> {
         Ok(self.force_max()?.get::<si::pound_force>())
     }
 
     #[getter("force_max_newtons")]
-    fn get_force_max_newtons_py(&self) -> PyResult<f64> {
+    fn get_force_max_newtons_py(&self) -> anyhow::Result<f64> {
         Ok(self.force_max()?.get::<si::newton>())
     }
 
     #[getter("mass_kg")]
-    fn get_mass_kg_py(&self) -> PyResult<Option<f64>> {
+    fn get_mass_kg_py(&self) -> anyhow::Result<Option<f64>> {
         Ok(self.mass()?.map(|m| m.get::<si::kilogram>()))
     }
 )]

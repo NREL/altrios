@@ -12,7 +12,7 @@ use crate::imports::*;
         time_seconds: Vec<f64>,
         pwr_watts: Vec<f64>,
         engine_on: Vec<Option<bool>>,
-    ) -> PyResult<Self> {
+    ) -> anyhow::Result<Self> {
         Ok(Self::new(time_seconds, pwr_watts, engine_on))
     }
 
@@ -157,18 +157,18 @@ pub struct PowerTraceElement {
 
     #[pyo3(name = "set_save_interval")]
     /// Set save interval and cascade to nested components.
-    fn set_save_interval_py(&mut self, save_interval: Option<usize>) -> PyResult<()> {
+    fn set_save_interval_py(&mut self, save_interval: Option<usize>) -> anyhow::Result<()> {
         self.set_save_interval(save_interval);
         Ok(())
     }
 
     #[pyo3(name = "get_save_interval")]
-    fn get_save_interval_py(&self) -> PyResult<Option<usize>> {
+    fn get_save_interval_py(&self) -> anyhow::Result<Option<usize>> {
         Ok(self.loco_unit.get_save_interval())
     }
 
     #[pyo3(name = "trim_failed_steps")]
-    fn trim_failed_steps_py(&mut self) -> PyResult<()> {
+    fn trim_failed_steps_py(&mut self) -> anyhow::Result<()> {
         self.trim_failed_steps()?;
         Ok(())
     }

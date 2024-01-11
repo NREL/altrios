@@ -35,7 +35,7 @@ use pyo3_polars::PyDataFrame;
     }
 
     #[pyo3(name = "make_train_params")]
-    fn make_train_params_py(&self, rail_vehicle: RailVehicle) -> PyResult<TrainParams> {
+    fn make_train_params_py(&self, rail_vehicle: RailVehicle) -> anyhow::Result<TrainParams> {
         Ok(self.make_train_params(&rail_vehicle))
     }
 
@@ -45,7 +45,7 @@ use pyo3_polars::PyDataFrame;
     }
 
     #[setter]
-    fn set_train_length_meters(&mut self, train_length: f64) -> PyResult<()> {
+    fn set_train_length_meters(&mut self, train_length: f64) -> anyhow::Result<()> {
         self.train_length = Some(train_length * uc::M);
         Ok(())
     }
@@ -56,7 +56,7 @@ use pyo3_polars::PyDataFrame;
     }
 
     #[setter]
-    fn set_train_mass_kilograms(&mut self, train_mass: f64) -> PyResult<()> {
+    fn set_train_mass_kilograms(&mut self, train_mass: f64) -> anyhow::Result<()> {
         self.train_mass = Some(train_mass * uc::KG);
         Ok(())
     }
@@ -87,7 +87,6 @@ impl TrainConfig {
         cars_empty: u32,
         cars_loaded: u32,
         train_type: TrainType,
-
         train_length: Option<si::Length>,
         train_mass: Option<si::Mass>,
     ) -> Self {
@@ -193,7 +192,7 @@ impl Valid for TrainConfig {
         save_interval: Option<usize>,
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
-    ) -> PyResult<SpeedLimitTrainSim> {
+    ) -> anyhow::Result<SpeedLimitTrainSim> {
         Ok(self.make_speed_limit_train_sim(
             &rail_vehicle,
             &location_map,

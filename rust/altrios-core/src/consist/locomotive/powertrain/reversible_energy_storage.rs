@@ -42,23 +42,23 @@ const TOL: f64 = 1e-3;
 
     /// pyo3 getter for soc_lo_ramp_start
     #[getter]
-    pub fn get_soc_lo_ramp_start(&self) -> PyResult<f64> {
+    pub fn get_soc_lo_ramp_start(&self) -> anyhow::Result<f64> {
         Ok(self.soc_lo_ramp_start.unwrap().get::<si::ratio>())
     }
     /// pyo3 setter for soc_lo_ramp_start
     #[setter]
-    pub fn set_soc_lo_ramp_start(&mut self, new_value: f64) -> PyResult<()> {
+    pub fn set_soc_lo_ramp_start(&mut self, new_value: f64) -> anyhow::Result<()> {
         self.soc_lo_ramp_start = Some(new_value * uc::R);
         Ok(())
     }
     /// pyo3 getter for soc_hi_ramp_start
     #[getter]
-    pub fn get_soc_hi_ramp_start(&self) -> PyResult<f64> {
+    pub fn get_soc_hi_ramp_start(&self) -> anyhow::Result<f64> {
         Ok(self.soc_hi_ramp_start.unwrap().get::<si::ratio>())
     }
     /// pyo3 setter for soc_hi_ramp_start
     #[setter]
-    pub fn set_soc_hi_ramp_start(&mut self, new_value: f64) -> PyResult<()> {
+    pub fn set_soc_hi_ramp_start(&mut self, new_value: f64) -> anyhow::Result<()> {
         self.soc_hi_ramp_start = Some(new_value * uc::R);
         Ok(())
     }
@@ -69,8 +69,8 @@ const TOL: f64 = 1e-3;
     }
 
     #[setter("__eta_max")]
-    fn set_eta_max_py(&mut self, eta_max: f64) -> PyResult<()> {
-        self.set_eta_max(eta_max).map_err(PyValueError::new_err)
+    fn set_eta_max_py(&mut self, eta_max: f64) -> anyhow::Result<()> {
+        Ok(self.set_eta_max(eta_max).map_err(PyValueError::new_err)?)
     }
 
     #[getter("eta_min")]
@@ -711,7 +711,7 @@ pub struct ReversibleEnergyStorageState {
     pub soh: f64,
 
     // TODO: add `pwr_out_neg_electrical` and `pwr_out_pos_electrical` and corresponding energies
-    
+
     // powers
     /// total electrical power; positive is discharging
     pub pwr_out_electrical: si::Power,

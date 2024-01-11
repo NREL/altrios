@@ -69,7 +69,7 @@ fn impl_get_set_si(
 
         impl_block.extend::<TokenStream2>(quote! {
             #[getter]
-            fn #get_name(&self) -> PyResult<#get_type> {
+            fn #get_name(&self) -> anyhow::Result<#get_type> {
                 Ok(#field_val)
             }
         });
@@ -82,7 +82,7 @@ fn impl_get_set_si(
 
         impl_block.extend::<TokenStream2>(quote! {
             #[setter(#setter_rename)]
-            fn #set_err(&mut self, new_val: f64) -> PyResult<()> {
+            fn #set_err(&mut self, new_val: f64) -> anyhow::Result<()> {
                 self.#field = #field_type::new::<#field_units>(new_val);
                 Ok(())
             }
@@ -91,8 +91,8 @@ fn impl_get_set_si(
         // Directly setting value raises error to prevent nested struct issues
         impl_block.extend::<TokenStream2>(quote! {
             #[setter]
-            fn #set_name(&mut self, new_val: f64) -> PyResult<()> {
-                Err(PyAttributeError::new_err(DIRECT_SET_ERR))
+            fn #set_name(&mut self, new_val: f64) -> anyhow::Result<()> {
+                bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
             }
         });
     }
@@ -126,7 +126,7 @@ fn impl_get_body(
 
         impl_block.extend::<TokenStream2>(quote! {
             #[getter]
-            fn #get_name(&self) -> PyResult<#field_type> {
+            fn #get_name(&self) -> anyhow::Result<#field_type> {
                 Ok(#field_val)
             }
         });
@@ -152,7 +152,7 @@ fn impl_set_body(
 
         impl_block.extend::<TokenStream2>(quote! {
             #[setter(#setter_rename)]
-            fn #set_err(&mut self, new_val: #field_type) -> PyResult<()> {
+            fn #set_err(&mut self, new_val: #field_type) -> anyhow::Result<()> {
                 self.#field = new_val;
                 Ok(())
             }
@@ -161,8 +161,8 @@ fn impl_set_body(
         // Directly setting value raises error to prevent nested struct issues
         impl_block.extend::<TokenStream2>(quote! {
             #[setter]
-            fn #set_name(&mut self, new_val: #field_type) -> PyResult<()> {
-                Err(PyAttributeError::new_err(DIRECT_SET_ERR))
+            fn #set_name(&mut self, new_val: #field_type) -> anyhow::Result<()> {
+                bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
             }
         });
     }

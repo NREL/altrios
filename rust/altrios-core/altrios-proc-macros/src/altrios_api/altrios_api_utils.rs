@@ -92,7 +92,7 @@ fn impl_get_set_si(
         impl_block.extend::<TokenStream2>(quote! {
             #[setter]
             fn #set_name(&mut self, new_val: f64) -> anyhow::Result<()> {
-                Err(PyAttributeError::new_err(DIRECT_SET_ERR))
+                bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
             }
         });
     }
@@ -162,7 +162,7 @@ fn impl_set_body(
         impl_block.extend::<TokenStream2>(quote! {
             #[setter]
             fn #set_name(&mut self, new_val: #field_type) -> anyhow::Result<()> {
-                Err(PyAttributeError::new_err(DIRECT_SET_ERR))
+                bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
             }
         });
     }

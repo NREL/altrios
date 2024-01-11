@@ -34,7 +34,7 @@ use crate::pyo3::*;
 
     #[setter("__eta_max")]
     fn set_eta_max_py(&mut self, eta_max: f64) -> anyhow::Result<()> {
-        self.set_eta_max(eta_max).map_err(PyValueError::new_err)
+        Ok(self.set_eta_max(eta_max).map_err(PyValueError::new_err)?)
     }
 
     #[getter("eta_min")]
@@ -49,7 +49,7 @@ use crate::pyo3::*;
 
     #[setter("__eta_range")]
     fn set_eta_range_py(&mut self, eta_range: f64) -> anyhow::Result<()> {
-        self.set_eta_range(eta_range).map_err(PyValueError::new_err)
+        Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
     }
 
     #[setter("__mass_kg")]

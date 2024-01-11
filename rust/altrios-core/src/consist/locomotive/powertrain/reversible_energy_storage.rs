@@ -70,7 +70,7 @@ const TOL: f64 = 1e-3;
 
     #[setter("__eta_max")]
     fn set_eta_max_py(&mut self, eta_max: f64) -> anyhow::Result<()> {
-        self.set_eta_max(eta_max).map_err(PyValueError::new_err)
+        Ok(self.set_eta_max(eta_max).map_err(PyValueError::new_err)?)
     }
 
     #[getter("eta_min")]

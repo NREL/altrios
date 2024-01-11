@@ -334,12 +334,12 @@ impl LocoTrait for DummyLoco {
     }
     #[setter]
     fn set_fc(&mut self, _fc: FuelConverter) -> anyhow::Result<()> {
-        Err(PyAttributeError::new_err(DIRECT_SET_ERR))
+        bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
     }
 
     #[setter(__fc)]
     fn set_fc_hidden(&mut self, fc: FuelConverter) -> anyhow::Result<()> {
-        self.set_fuel_converter(fc).map_err(|e| PyAttributeError::new_err(e.to_string()))
+        Ok(self.set_fuel_converter(fc).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
     #[getter]
     fn get_gen(&self) -> Option<Generator> {
@@ -348,11 +348,11 @@ impl LocoTrait for DummyLoco {
 
     #[setter]
     fn set_gen(&mut self, _gen: Generator) -> anyhow::Result<()> {
-        Err(PyAttributeError::new_err(DIRECT_SET_ERR))
+        bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
     }
     #[setter(__gen)]
     fn set_gen_hidden(&mut self, gen: Generator) -> anyhow::Result<()> {
-        self.set_generator(gen).map_err(|e| PyAttributeError::new_err(e.to_string()))
+        Ok(self.set_generator(gen).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
     #[getter]
     fn get_res(&self) -> Option<ReversibleEnergyStorage> {
@@ -360,12 +360,12 @@ impl LocoTrait for DummyLoco {
     }
     #[setter]
     fn set_res(&mut self, _res: ReversibleEnergyStorage) -> anyhow::Result<()> {
-        Err(PyAttributeError::new_err(DIRECT_SET_ERR))
+        bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
     }
 
     #[setter(__res)]
     fn set_res_hidden(&mut self, res: ReversibleEnergyStorage) -> anyhow::Result<()> {
-        self.set_reversible_energy_storage(res).map_err(|e| PyAttributeError::new_err(e.to_string()))
+        Ok(self.set_reversible_energy_storage(res).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
     #[getter]
     fn get_edrv(&self) -> Option<ElectricDrivetrain> {
@@ -373,11 +373,11 @@ impl LocoTrait for DummyLoco {
     }
     #[setter]
     fn set_edrv(&mut self, _edrv: ElectricDrivetrain) -> anyhow::Result<()> {
-        Err(PyAttributeError::new_err(DIRECT_SET_ERR))
+        bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
     }
     #[setter(__edrv)]
     fn set_edrv_hidden(&mut self, edrv: ElectricDrivetrain) -> anyhow::Result<()> {
-        self.set_electric_drivetrain(edrv).map_err(|e| PyAttributeError::new_err(e.to_string()))
+        Ok(self.set_electric_drivetrain(edrv).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
 
     fn loco_type(&self) -> anyhow::Result<String> {

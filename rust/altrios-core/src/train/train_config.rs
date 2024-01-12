@@ -87,7 +87,6 @@ impl TrainConfig {
         cars_empty: u32,
         cars_loaded: u32,
         train_type: TrainType,
-
         train_length: Option<si::Length>,
         train_mass: Option<si::Mass>,
     ) -> Self {

@@ -82,7 +82,7 @@ pub fn check_od_pair_valid(
     origs: Vec<Location>,
     dests: Vec<Location>,
     network: Vec<Link>,
-) -> PyResult<()> {
+) -> anyhow::Result<()> {
     if let Err(error) = get_link_idx_options(&origs, &dests, &network) {
         Err(error.into())
     } else {
@@ -744,6 +744,6 @@ pub fn make_est_times(
 pub fn make_est_times_py(
     speed_limit_train_sim: SpeedLimitTrainSim,
     network: Vec<Link>,
-) -> PyResult<(EstTimeNet, Consist)> {
+) -> anyhow::Result<(EstTimeNet, Consist)> {
     Ok(make_est_times(&speed_limit_train_sim, &network)?)
 }

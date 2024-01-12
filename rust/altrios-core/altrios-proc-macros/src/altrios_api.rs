@@ -108,23 +108,23 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
                                 }
                                 /// Rust-defined `__getitem__` magic method for Python used exposed via PyO3.
                                 /// Prevents the Python user getting item directly using indexing.
-                                fn __getitem__(&self, _idx: usize) -> PyResult<()> {
-                                    Err(PyNotImplementedError::new_err(
+                                fn __getitem__(&self, _idx: usize) -> anyhow::Result<()> {
+                                    bail!(PyNotImplementedError::new_err(
                                         "Getting Rust vector value at index is not implemented.
                                         Run `tolist` method to convert to standalone Python list.",
                                     ))
                                 }
                                 /// Rust-defined `__setitem__` magic method for Python used exposed via PyO3.
                                 /// Prevents the Python user setting item using indexing.
-                                fn __setitem__(&mut self, _idx: usize, _new_value: #contained_dtype) -> PyResult<()> {
-                                    Err(PyNotImplementedError::new_err(
+                                fn __setitem__(&mut self, _idx: usize, _new_value: #contained_dtype) -> anyhow::Result<()> {
+                                    bail!(PyNotImplementedError::new_err(
                                         "Setting list value at index is not implemented.
                                         Run `tolist` method, modify value at index, and
                                         then set entire list.",
                                     ))
                                 }
                                 /// PyO3-exposed method to convert vec-containing struct to Python list. 
-                                fn tolist(&self) -> PyResult<Vec<#contained_dtype>> {
+                                fn tolist(&self) -> anyhow::Result<Vec<#contained_dtype>> {
                                     Ok(self.0.clone())
                                 }
                                 /// Rust-defined `__len__` magic method for Python used exposed via PyO3.
@@ -164,47 +164,86 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[staticmethod]
         #[pyo3(name = "default")]
         /// Exposes `default` to python.
-        fn default_py() -> PyResult<Self> {
+        fn default_py() -> anyhow::Result<Self> {
             Ok(Self::default())
         }
 
-        /// json serialization method.
+        /// Write (serialize) an object into a string
+        ///
+        /// # Arguments:
+        ///
+        /// * `format`: `str` - The target format, any of those listed in [`ACCEPTED_STR_FORMATS`](`SerdeAPI::ACCEPTED_STR_FORMATS`)
+        ///
+        #[pyo3(name = "to_str")]
+        pub fn to_str_py(&self, format: &str) -> anyhow::Result<String> {
+            self.to_str(format)
+        }
+
+        /// Read (deserialize) an object from a string
+        ///
+        /// # Arguments:
+        ///
+        /// * `contents`: `str` - The string containing the object data
+        /// * `format`: `str` - The source format, any of those listed in [`ACCEPTED_STR_FORMATS`](`SerdeAPI::ACCEPTED_STR_FORMATS`)
+        ///
+        #[staticmethod]
+        #[pyo3(name = "from_str")]
+        pub fn from_str_py(contents: &str, format: &str) -> anyhow::Result<Self> {
+            Self::from_str(contents, format)
+        }
+
+        /// Write (serialize) an object to a JSON string
         #[pyo3(name = "to_json")]
-        fn to_json_py(&self) -> PyResult<String> {
-            Ok(self.to_json())
+        fn to_json_py(&self) -> anyhow::Result<String> {
+            self.to_json()
         }
 
+        /// Read (deserialize) an object to a JSON string
+        ///
+        /// # Arguments
+        ///
+        /// * `json_str`: `str` - JSON-formatted string to deserialize from
+        ///
         #[staticmethod]
-        /// json deserialization method.
         #[pyo3(name = "from_json")]
-        fn from_json_py(json_str: &str) -> PyResult<Self> {
-            Ok(Self::from_json(json_str)?)
+        fn from_json_py(json_str: &str) -> anyhow::Result<Self> {
+            Self::from_json(json_str)
         }
 
-        /// yaml serialization method.
+        /// Write (serialize) an object to a YAML string
         #[pyo3(name = "to_yaml")]
-        fn to_yaml_py(&self) -> PyResult<String> {
-            Ok(self.to_yaml())
+        fn to_yaml_py(&self) -> anyhow::Result<String> {
+            self.to_yaml()
         }
 
+        /// Read (deserialize) an object from a YAML string
+        ///
+        /// # Arguments
+        ///
+        /// * `yaml_str`: `str` - YAML-formatted string to deserialize from
+        ///
         #[staticmethod]
-        /// yaml deserialization method.
         #[pyo3(name = "from_yaml")]
-        fn from_yaml_py(yaml_str: &str) -> PyResult<Self> {
-            Ok(Self::from_yaml(yaml_str)?)
+        fn from_yaml_py(yaml_str: &str) -> anyhow::Result<Self> {
+            Self::from_yaml(yaml_str)
         }
 
-        /// bincode serialization method.
+        /// Write (serialize) an object to bincode-encoded `bytes`
         #[pyo3(name = "to_bincode")]
-        fn to_bincode_py<'py>(&self, py: Python<'py>) -> PyResult<&'py PyBytes> {
-            Ok(PyBytes::new(py, &self.to_bincode()))
+        fn to_bincode_py<'py>(&self, py: Python<'py>) -> anyhow::Result<&'py PyBytes> {
+            Ok(PyBytes::new(py, &self.to_bincode()?))
         }
 
+        /// Read (deserialize) an object from bincode-encoded `bytes`
+        ///
+        /// # Arguments
+        ///
+        /// * `encoded`: `bytes` - Encoded bytes to deserialize from
+        ///
         #[staticmethod]
-        /// bincode deserialization method.
         #[pyo3(name = "from_bincode")]
-        fn from_bincode_py(encoded: &PyBytes) -> PyResult<Self> {
-            Ok(Self::from_bincode(encoded.as_bytes())?)
+        fn from_bincode_py(encoded: &PyBytes) -> anyhow::Result<Self> {
+            Self::from_bincode(encoded.as_bytes())
         }
 
         /// `__copy__` magic method that uses `clone`.
@@ -231,17 +270,30 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         impl #ident {
             #py_impl_block
 
-            #[staticmethod]
-            #[pyo3(name = "from_file")]
-            /// Exposes `from_file` to Python.
-            fn from_file_py(filename: String) -> PyResult<Self> {
-                Ok(Self::from_file(&filename)?)
+            /// Write (serialize) an object to a file.
+            /// Supported file extensions are listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`).
+            /// Creates a new file if it does not already exist, otherwise truncates the existing file.
+            ///
+            /// # Arguments
+            ///
+            /// * `filepath`: `str | pathlib.Path` - The filepath at which to write the object
+            ///
+            #[pyo3(name = "to_file")]
+            pub fn to_file_py(&self, filepath: &PyAny) -> anyhow::Result<()> {
+                self.to_file(PathBuf::extract(filepath)?)
             }
 
-            #[pyo3(name = "to_file")]
-            /// Exposes `to_file` to Python.
-            fn to_file_py(&self, filename: &str) -> PyResult<()> {
-                Ok(self.to_file(filename)?)
+            /// Read (deserialize) an object from a file.
+            /// Supported file extensions are listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`).
+            ///
+            /// # Arguments:
+            ///
+            /// * `filepath`: `str | pathlib.Path` - The filepath from which to read the object
+            ///
+            #[staticmethod]
+            #[pyo3(name = "from_file")]
+            pub fn from_file_py(filepath: &PyAny) -> anyhow::Result<Self> {
+                Self::from_file(PathBuf::extract(filepath)?)
             }
         }
     };

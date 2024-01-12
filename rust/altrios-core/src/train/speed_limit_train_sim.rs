@@ -52,7 +52,7 @@ impl From<&Vec<LinkIdxTime>> for LinkIdxTimeVec {
     }
 
     #[pyo3(name = "get_save_interval")]
-    fn get_save_interval_py(&self) -> PyResult<Option<usize>> {
+    fn get_save_interval_py(&self) -> anyhow::Result<Option<usize>> {
         Ok(self.get_save_interval())
     }
 

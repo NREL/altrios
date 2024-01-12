@@ -32,12 +32,12 @@ use crate::imports::*;
     }
 
     #[pyo3(name = "get_save_interval")]
-    fn get_save_interval_py(&self) -> PyResult<Option<usize>> {
+    fn get_save_interval_py(&self) -> anyhow::Result<Option<usize>> {
         Ok(self.loco_con.get_save_interval())
     }
 
     #[pyo3(name = "trim_failed_steps")]
-    fn trim_failed_steps_py(&mut self) -> PyResult<()> {
+    fn trim_failed_steps_py(&mut self) -> anyhow::Result<()> {
         self.trim_failed_steps()?;
         Ok(())
     }

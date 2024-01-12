@@ -1,9 +1,12 @@
+# test, build, and release python wheels
 name: wheels
 
+# trigger whenever a release is published
 on:
   release:
     types: [published]
 
+# run tests, build, upload
 jobs:
   call-tests:
     uses: nrel/altrios/.github/workflows/tests.yaml@main

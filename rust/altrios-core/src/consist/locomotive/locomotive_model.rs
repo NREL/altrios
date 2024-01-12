@@ -15,7 +15,7 @@ impl From<HybridLoco> for PowertrainType {
     }
 }
 
-#[cfg(feature="pyo3")]
+#[cfg(feature = "pyo3")]
 impl TryFrom<&PyAny> for PowertrainType {
     type Error = PyErr;
     /// This allows us to construct PowertrainType any struct that can be converted into PowertrainType
@@ -168,7 +168,7 @@ impl LocoTrait for DummyLoco {
         loco_type: &PyAny,
         loco_params: LocoParams,
         save_interval: Option<usize>,
-    ) -> PyResult<Self> {
+    ) -> anyhow::Result<Self> {
         Ok(Self {
             loco_type: PowertrainType::try_from(loco_type)?,
             state: Default::default(),
@@ -189,7 +189,7 @@ impl LocoTrait for DummyLoco {
         drivetrain: ElectricDrivetrain,
         loco_params: LocoParams,
         save_interval: Option<usize>,
-    ) -> PyResult<Self> {
+    ) -> anyhow::Result<Self> {
         let mut loco = Self {
             loco_type: PowertrainType::ConventionalLoco(ConventionalLoco::new(
                 fuel_converter,
@@ -223,7 +223,7 @@ impl LocoTrait for DummyLoco {
         gss_interval: Option<usize>,
         save_interval: Option<usize>,
 
-    ) -> PyResult<Self> {
+    ) -> anyhow::Result<Self> {
         let mut loco = Self {
             loco_type: PowertrainType::HybridLoco(Box::new(HybridLoco::new(
                 fuel_converter,
@@ -250,7 +250,7 @@ impl LocoTrait for DummyLoco {
 
     #[staticmethod]
     #[pyo3(name = "default_battery_electric_loco")]
-    fn default_battery_electric_loco_py () -> PyResult<Self> {
+    fn default_battery_electric_loco_py () -> anyhow::Result<Self> {
         Ok(Self::default_battery_electric_loco())
     }
 
@@ -300,7 +300,7 @@ impl LocoTrait for DummyLoco {
     }
 
     #[getter]
-    fn get_fuel_res_split(&self) -> PyResult<Option<f64>> {
+    fn get_fuel_res_split(&self) -> anyhow::Result<Option<f64>> {
         match &self.loco_type {
             PowertrainType::HybridLoco(loco) => Ok(Some(loco.fuel_res_split)),
             _ => Ok(None),
@@ -308,7 +308,7 @@ impl LocoTrait for DummyLoco {
     }
 
     #[getter]
-    fn get_fuel_res_ratio(&self) -> PyResult<Option<f64>> {
+    fn get_fuel_res_ratio(&self) -> anyhow::Result<Option<f64>> {
         match &self.loco_type {
             PowertrainType::HybridLoco(loco) => Ok(loco.fuel_res_ratio),
             _ => Ok(None),
@@ -317,14 +317,14 @@ impl LocoTrait for DummyLoco {
 
     #[pyo3(name = "set_save_interval")]
     /// Set save interval and cascade to nested components.
-    fn set_save_interval_py(&mut self, save_interval: Option<usize>) -> PyResult<()> {
+    fn set_save_interval_py(&mut self, save_interval: Option<usize>) -> anyhow::Result<()> {
         self.set_save_interval(save_interval);
         Ok(())
     }
 
     #[pyo3(name = "get_save_interval")]
     /// Set save interval and cascade to nested components.
-    fn get_save_interval_py(&self) -> PyResult<Option<usize>> {
+    fn get_save_interval_py(&self) -> anyhow::Result<Option<usize>> {
         Ok(self.get_save_interval())
     }
 
@@ -333,13 +333,13 @@ impl LocoTrait for DummyLoco {
         self.fuel_converter().cloned()
     }
     #[setter]
-    fn set_fc(&mut self, _fc: FuelConverter) -> PyResult<()> {
-        Err(PyAttributeError::new_err(DIRECT_SET_ERR))
+    fn set_fc(&mut self, _fc: FuelConverter) -> anyhow::Result<()> {
+        bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
     }
 
     #[setter(__fc)]
-    fn set_fc_hidden(&mut self, fc: FuelConverter) -> PyResult<()> {
-        self.set_fuel_converter(fc).map_err(|e| PyAttributeError::new_err(e.to_string()))
+    fn set_fc_hidden(&mut self, fc: FuelConverter) -> anyhow::Result<()> {
+        Ok(self.set_fuel_converter(fc).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
     #[getter]
     fn get_gen(&self) -> Option<Generator> {
@@ -347,40 +347,40 @@ impl LocoTrait for DummyLoco {
     }
 
     #[setter]
-    fn set_gen(&mut self, _gen: Generator) -> PyResult<()> {
-        Err(PyAttributeError::new_err(DIRECT_SET_ERR))
+    fn set_gen(&mut self, _gen: Generator) -> anyhow::Result<()> {
+        bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
     }
     #[setter(__gen)]
-    fn set_gen_hidden(&mut self, gen: Generator) -> PyResult<()> {
-        self.set_generator(gen).map_err(|e| PyAttributeError::new_err(e.to_string()))
+    fn set_gen_hidden(&mut self, gen: Generator) -> anyhow::Result<()> {
+        Ok(self.set_generator(gen).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
     #[getter]
     fn get_res(&self) -> Option<ReversibleEnergyStorage> {
         self.reversible_energy_storage().cloned()
     }
     #[setter]
-    fn set_res(&mut self, _res: ReversibleEnergyStorage) -> PyResult<()> {
-        Err(PyAttributeError::new_err(DIRECT_SET_ERR))
+    fn set_res(&mut self, _res: ReversibleEnergyStorage) -> anyhow::Result<()> {
+        bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
     }
 
     #[setter(__res)]
-    fn set_res_hidden(&mut self, res: ReversibleEnergyStorage) -> PyResult<()> {
-        self.set_reversible_energy_storage(res).map_err(|e| PyAttributeError::new_err(e.to_string()))
+    fn set_res_hidden(&mut self, res: ReversibleEnergyStorage) -> anyhow::Result<()> {
+        Ok(self.set_reversible_energy_storage(res).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
     #[getter]
     fn get_edrv(&self) -> Option<ElectricDrivetrain> {
         self.electric_drivetrain()
     }
     #[setter]
-    fn set_edrv(&mut self, _edrv: ElectricDrivetrain) -> PyResult<()> {
-        Err(PyAttributeError::new_err(DIRECT_SET_ERR))
+    fn set_edrv(&mut self, _edrv: ElectricDrivetrain) -> anyhow::Result<()> {
+        bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
     }
     #[setter(__edrv)]
-    fn set_edrv_hidden(&mut self, edrv: ElectricDrivetrain) -> PyResult<()> {
-        self.set_electric_drivetrain(edrv).map_err(|e| PyAttributeError::new_err(e.to_string()))
+    fn set_edrv_hidden(&mut self, edrv: ElectricDrivetrain) -> anyhow::Result<()> {
+        Ok(self.set_electric_drivetrain(edrv).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
 
-    fn loco_type(&self) -> PyResult<String> {
+    fn loco_type(&self) -> anyhow::Result<String> {
         Ok(self.loco_type.to_string())
     }
 
@@ -390,29 +390,29 @@ impl LocoTrait for DummyLoco {
     }
 
     #[getter("force_max_pounds")]
-    fn get_force_max_pounds_py(&self) -> PyResult<Option<f64>> {
+    fn get_force_max_pounds_py(&self) -> anyhow::Result<Option<f64>> {
         Ok(self.force_max()?.map(|f| f.get::<si::pound_force>()))
     }
 
     #[getter("force_max_newtons")]
-    fn get_force_max_newtons_py(&self) -> PyResult<Option<f64>> {
+    fn get_force_max_newtons_py(&self) -> anyhow::Result<Option<f64>> {
         Ok(
             self.force_max()?.map(|f| f.get::<si::newton>())
         )
     }
 
     #[getter]
-    fn get_mass_kg(&self) -> PyResult<Option<f64>> {
+    fn get_mass_kg(&self) -> anyhow::Result<Option<f64>> {
         Ok(self.mass()?.map(|m| m.get::<si::kilogram>()))
     }
 
     #[getter]
-    fn get_ballast_mass_kg(&self) -> PyResult<Option<f64>> {
+    fn get_ballast_mass_kg(&self) -> anyhow::Result<Option<f64>> {
         Ok(self.ballast_mass.map(|m| m.get::<si::kilogram>()))
     }
 
     #[getter]
-    fn get_baseline_mass_kg(&self) -> PyResult<Option<f64>> {
+    fn get_baseline_mass_kg(&self) -> anyhow::Result<Option<f64>> {
         Ok(self.baseline_mass.map(|m| m.get::<si::kilogram>()))
     }
 )]

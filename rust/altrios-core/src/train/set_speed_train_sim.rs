@@ -6,7 +6,7 @@ use super::train_imports::*;
         time_seconds: Vec<f64>,
         speed_meters_per_second: Vec<f64>,
         engine_on: Option<Vec<bool>>
-    ) -> PyResult<Self> {
+    ) -> anyhow::Result<Self> {
         Ok(Self::new(time_seconds, speed_meters_per_second, engine_on))
     }
 
@@ -171,19 +171,19 @@ pub struct SpeedTraceElement {
     }
 
     #[setter]
-    pub fn set_res_strap(&mut self, res_strap: method::Strap) -> PyResult<()> {
+    pub fn set_res_strap(&mut self, res_strap: method::Strap) -> anyhow::Result<()> {
         self.train_res = TrainRes::Strap(res_strap);
         Ok(())
     }
 
     #[setter]
-    pub fn set_res_point(&mut self, res_point: method::Point) -> PyResult<()> {
+    pub fn set_res_point(&mut self, res_point: method::Point) -> anyhow::Result<()> {
         self.train_res = TrainRes::Point(res_point);
         Ok(())
     }
 
     #[getter]
-    pub fn get_res_strap(&self) -> PyResult<Option<method::Strap>> {
+    pub fn get_res_strap(&self) -> anyhow::Result<Option<method::Strap>> {
         match &self.train_res {
             TrainRes::Strap(strap) => Ok(Some(strap.clone())),
             _ => Ok(None),
@@ -191,7 +191,7 @@ pub struct SpeedTraceElement {
     }
 
     #[getter]
-    pub fn get_res_point(&self) -> PyResult<Option<method::Point>> {
+    pub fn get_res_point(&self) -> anyhow::Result<Option<method::Point>> {
         match &self.train_res {
             TrainRes::Point(point) => Ok(Some(point.clone())),
             _ => Ok(None),
@@ -216,12 +216,12 @@ pub struct SpeedTraceElement {
     }
 
     #[pyo3(name = "get_save_interval")]
-    fn get_save_interval_py(&self) -> PyResult<Option<usize>> {
+    fn get_save_interval_py(&self) -> anyhow::Result<Option<usize>> {
         Ok(self.get_save_interval())
     }
 
     #[pyo3(name = "trim_failed_steps")]
-    fn trim_failed_steps_py(&mut self) -> PyResult<()> {
+    fn trim_failed_steps_py(&mut self) -> anyhow::Result<()> {
         self.trim_failed_steps()?;
         Ok(())
     }

@@ -275,6 +275,7 @@ impl SpeedLimitTrainSim {
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         self.loco_con
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
+        self.loco_con.set_pwr_aux(Some(true))?;
         self.loco_con.set_cur_pwr_max_out(None, self.state.dt)?;
         self.train_res
             .update_res::<{ Dir::Fwd }>(&mut self.state, &self.path_tpc)?;

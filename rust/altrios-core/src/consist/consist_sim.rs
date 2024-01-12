@@ -83,6 +83,7 @@ impl ConsistSimulation {
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
+        self.loco_con.set_pwr_aux(Some(true))?;
         self.loco_con
             .set_cur_pwr_max_out(None, self.power_trace.dt(self.i))?;
         self.solve_energy_consumption(self.power_trace.pwr[self.i], self.power_trace.dt(self.i))?;

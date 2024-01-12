@@ -93,8 +93,10 @@ impl LocoTrait for ConventionalLoco {
         dt: si::Time,
     ) -> anyhow::Result<()> {
         self.fc.set_cur_pwr_out_max(dt)?;
-        self.gen
-            .set_cur_pwr_max_out(self.fc.state.pwr_out_max, pwr_aux)?;
+        self.gen.set_cur_pwr_max_out(
+            self.fc.state.pwr_out_max,
+            Some(pwr_aux.ok_or(anyhow!(format_dbg!("`pwr_aux` not provided")))?),
+        )?;
         self.edrv
             .set_cur_pwr_max_out(self.gen.state.pwr_elec_prop_out_max, None)?;
         self.gen

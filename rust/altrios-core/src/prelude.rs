@@ -17,6 +17,8 @@ pub use crate::consist::locomotive::{
     LocomotiveState, LocomotiveStateHistoryVec,
 };
 
+pub use crate::consist::locomotive::powertrain::powertrain_traits::*;
+
 pub use crate::consist::consist_sim::ConsistSimulation;
 pub use crate::consist::{Consist, ConsistState, ConsistStateHistoryVec};
 

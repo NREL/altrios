@@ -87,7 +87,7 @@ def main(
         scenario_infos: List[ScenarioInfo],
         annual_metrics: dict = {
             'Metric': ['Mt-km', 'GHG', 'Count_Locomotives', 'Count_Refuelers', 'Energy_Costs'],
-            'Units': ['million_tonne_km', 'tonne_co2eq', 'Locomotives', 'Refuelers', 'USD']}
+            'Units': ['million tonne-km', 'tonne CO2-eq', 'assets', 'assets', 'USD']}
 ) -> pl.DataFrame:
     """
     Given a set of simulation results and the associated consist plans, computes economic and environmental metrics.
@@ -173,21 +173,21 @@ def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
             Value = pl.col("Cost_Total_Discounted"),
             Metric = pl.lit("Cost_Total_Discounted"),
             Subset = pl.lit("All"),
-            Units = pl.lit("USD_Discounted")
+            Units = pl.lit("USD (discounted)")
     )
     tkm_discounted = timeseries.select(
             pl.col("Year"),
             Value = pl.col("Mt-km_Discounted"),
             Metric = pl.lit("Mt-km_Discounted"),
             Subset = pl.lit("All"),
-            Units = pl.lit("Million_Tonne-KM_Discounted")
+            Units = pl.lit("million tonne-km (discounted)")
     )
     cotkm_annual = timeseries.select(
             pl.col("Year"),
             Value = pl.col("Cost_Total")/pl.col("Mt-km"),
             Metric = pl.lit("Cost_Per_Mt-km"),
             Subset = pl.lit("All"),
-            Units = pl.lit("USD_Per_Million_Tonne-KM")
+            Units = pl.lit("USD per million tonne-km")
     )
     discount = timeseries.select(
             pl.col("Year"),
@@ -202,7 +202,7 @@ def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
         tkm_discounted,
         cotkm_annual,
         discount,
-        metric("LCOTKM", "USD_Per_Million_Tonne-KM_Levelized", lcotkm_all)
+        metric("LCOTKM", "USD per million tonne-km (levelized)", lcotkm_all)
     ])
 
 def calculate_energy_cost(info: ScenarioInfo,
@@ -420,8 +420,10 @@ def calculate_locomotive_counts(
                     pl.when(pl.col("Metric") == "Unit_Cost")
                         .then("USD")
                         .when(pl.col("Metric") == "Lifespan")
-                        .then("Years")
-                        .otherwise("Locomotives")
+                        .then("years")
+                        .when(pl.col("Metric")=="Pct_Locomotives")
+                        .then("fraction (0-1)")
+                        .otherwise("assets")
                     .alias("Units"),
                     pl.lit("All").alias("Year"))
                 .rename({"Locomotive_Type": "Subset"})
@@ -473,8 +475,8 @@ def calculate_refueler_counts(
                     pl.when(pl.col("Metric") == "Unit_Cost")
                         .then("USD")
                         .when(pl.col("Metric") == "Lifespan")
-                        .then("Years")
-                        .otherwise("Refuelers")
+                        .then("years")
+                        .otherwise("assets")
                     .alias("Units"),
                     pl.lit("All").alias("Year"))
                  .rename({"Refueler_Type": "Subset"})
@@ -492,9 +494,9 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
     ----------
     DataFrame of across-year locomotive fleet composition metrics (metric name, units, value, and scenario year)
     """
-    item_id_cols = ["Subset","Unit_Cost","Lifespan"]
+    item_id_cols = ["Subset"]
     loco_types = (values
-        .filter((pl.col("Units")=="Locomotives") & (pl.col("Subset") != "All"))
+        .filter((pl.col("Units")=="Assets") & (pl.col("Subset") != "All"))
         .get_column("Subset")
         .unique())
     costs = (values
@@ -510,86 +512,118 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
         .drop(["Metric","Units"])
         .rename({"Value": "Count"}))
     
+    #TODO: add a check for whether the # of unique combos of subset-lifespan differs from the combos of subset.
+    # Calculations are not yet implemented for that case.
     years = values.get_column("Year").unique().sort()
     years = years.extend_constant(years.max()+1, 1)
     age_values = pl.DataFrame({"Age": range(1, 1 + lifespans.get_column("Lifespan").max())}, schema=[("Age", pl.Int32)])
-    
-    counts = (stock_values.select("Subset").unique()
-        .join(stock_values.select("Year").unique(), how="cross")
-        .join(stock_values, on=["Subset","Year"], how="left")
-        .with_columns(cs.numeric().fill_null(0))
-        .join(costs, on=["Subset","Year"], how="left")
-        .join(lifespans, on=["Subset","Year"], how="left")
-        .sort(["Subset","Year"])
-         #.with_columns((pl.col("Count") - pl.col("Count").shift().over(["Subset"])).alias('Change'))
-        .with_columns(cs.numeric().fill_null(0)))
-    item_list = counts.select(item_id_cols).unique()
+    vintage_values = pl.DataFrame({"Age": range(years.min() - age_values.get_column("Age").max(), years.max())}, schema=[("Vintage", pl.Int32)])
+
     year_zero_fleet_size = (values
         .filter((pl.col("Metric")=="Count_Locomotives") & 
                 (pl.col("Subset").is_in(loco_types)) &
                 (pl.col("Year") == years.min()))
         .get_column("Value")
-        .sum())
+        .sum()
+    )
+    counts = (stock_values
+        .select(item_id_cols).unique()
+        .join(stock_values.select("Year").unique(), how="cross")
+        .join(stock_values, on = item_id_cols + ["Year"], how="left")
+        .with_columns(cs.numeric().fill_null(0))
+        .sort(item_id_cols + ["Year"])
+    )
+    item_list = counts.select(item_id_cols).unique()
     incumbents = (counts
         .filter((pl.col("Subset").str.contains("Diesel")) & (pl.col("Year") == years.min()))
-        .select(["Subset","Unit_Cost","Lifespan","Count"])
+        .select(item_id_cols + ["Count"])
         .with_columns(pl.when(pl.col("Subset") == "Diesel_Large")
             .then(pl.lit(year_zero_fleet_size))
             .otherwise(pl.col("Count"))
-            .alias("Count")))
+            .alias("Count"))
+    )
     
     #Initialize to only include incumbent asset counts; all else = 0
     # Start at year -1: all-incumbent fleet,
     # then immediately increment ages to get year 0 incumbent fleet
-    age_tracker = (item_list
-        .select(item_id_cols)
-        .unique()
-        .join(age_values, how="cross")
-        .filter(pl.col("Age") <= pl.col("Lifespan"))
-        .join(incumbents, on=item_id_cols, how="left")
-        .with_columns((pl.col("Count") * (pl.col("Age").truediv(pl.col("Lifespan")))).round().alias("Count"))
+    age_tracker = (item_list.select(item_id_cols).unique()
+        .join(vintage_values, how="cross")
+        .join(costs, how="left", left_on=item_id_cols + ["Vintage"], right_on = item_id_cols + ["Year"])
+        .join(lifespans, how="left", left_on=item_id_cols + ["Vintage"], right_on = item_id_cols + ["Year"])
+        .with_columns(
+            pl.col("*").backward_fill().over(item_id_cols),
+            (pl.lit(years.min())-pl.col("Vintage")).alias("Age"))
+        .join(incumbents, how="left", on=item_id_cols)
+        .with_columns(
+            (pl.col("Count") * (pl.col("Age").truediv(pl.col("Lifespan")))).round().alias("Count"),
+            (pl.col("Vintage") + pl.col("Lifespan") - 1).alias("Scheduled_Final_Year"))
+        .sort(item_id_cols + ["Age"])
         .with_columns(pl.when(pl.col("Age")==1)
                       .then(pl.col("Count"))
-                      .otherwise(pl.col("Count") - (pl.col("Count").shift().over(item_id_cols))))
-        .with_columns(pl.col("Count").fill_null(0))
+                      .when(pl.col("Age") <= 0)
+                      .then(pl.lit(0.0))
+                      .otherwise(pl.col("Count") - (pl.col("Count").shift().over(item_id_cols))).fill_null(0))
         #Increment ages to get year 0 incumbent fleet
-        .with_columns(pl.col("Count").shift().over(item_id_cols))
-        .with_columns(pl.col("Count").fill_null(0)))
+        .with_columns(pl.col("Age") + 1)
+        .filter((pl.col("Vintage") >= pl.lit(years.min())) | (pl.col("Count") > 0.0))
+        .sort(item_id_cols + ["Scheduled_Final_Year"])
+    )
+        
+    scheduled_retirements_year_zero = (age_tracker
+        .filter(pl.col("Scheduled_Final_Year") == years.min() - 1)
+        .groupby(item_id_cols)
+        .agg(pl.col("Count").sum().alias("Value"))
+        .with_columns(pl.lit("Retirements_Scheduled").alias("Metric"),
+                        pl.lit("assets").alias("Units"),
+                        pl.lit(years.min()).alias("Year"))
+        .select(metric_columns))
+    
+    age_tracker = (age_tracker
+        .with_columns(
+            pl.when(pl.col("Scheduled_Final_Year") < years.min())
+                .then(0.0)
+                .otherwise(pl.col("Count"))
+                .alias("Count")
+        )
+    )
 
+    purchase_metrics = [scheduled_retirements_year_zero]
     for year in years: 
         #If year 1, this includes incumbents only (prior-year retirements already removed)
         #So, we should do the same for subsequent years
-        counts_end_of_prior_year = age_tracker.groupby(item_id_cols).agg(pl.col("Count").sum())
-        counts_current_year = counts.filter(pl.col("Year") == year).drop("Year")
+        counts_prior_year_end = age_tracker.groupby(item_id_cols).agg(pl.col("Count").sum())
+        counts_current_year_start = counts.filter(pl.col("Year") == year).drop("Year")
         changes = (item_list
-            .join(counts_end_of_prior_year, on=item_id_cols, how="left")
-            .join(counts_current_year, on=item_id_cols, how="left", suffix="_Current")
+            .join(counts_prior_year_end, on=item_id_cols, how="left")
+            .join(counts_current_year_start, on=item_id_cols, how="left", suffix="_Current")
             .with_columns(cs.numeric().fill_null(0))
             .with_columns((pl.col("Count_Current") - pl.col("Count")).alias("Change"))
             .drop(["Count","Count_Current"]))
-        new = changes.filter(pl.col("Change") > 0).with_columns(pl.lit(1).alias("Age"))
+        purchases = changes.filter(pl.col("Change") > 0).with_columns(pl.lit(1).alias("Age"))
         early_retirements = changes.filter(pl.col("Change") < 0).with_columns(pl.col("Change")*-1)
         age_tracker = (age_tracker
-            .join(new, on=item_id_cols + ["Age"], how="left")
-            .with_columns(pl.when((pl.col("Change") > 0) & (pl.col("Age") == 1))
-                            .then(pl.col("Change"))
+            .join(purchases, on=item_id_cols + ["Age"], how="left")
+            .with_columns(pl.when((pl.col("Change") > 0))
+                            .then(pl.col("Count") + pl.col("Change"))
                             .otherwise(pl.col("Count"))
                             .alias("Count"))
             .drop("Change")
             .join(early_retirements, on=item_id_cols, how="left")
-            .sort(item_id_cols + ["Age"], descending = True)
-            .with_columns(pl.col("Count").cumsum().over(item_id_cols).alias("To_Retire_Cumsum"))
+            .with_columns(pl.col("Count").cumsum().over(item_id_cols).alias("Retirements_Early_Cumsum"))
             .with_columns(pl.when(pl.col("Change") > 0)
-                            .then(pl.when(pl.col("To_Retire_Cumsum") <= pl.col("Change"))
+                            .then(pl.when(pl.col("Retirements_Early_Cumsum") <= pl.col("Change"))
                                     .then(pl.col("Count"))
-                                    .otherwise(pl.max([0,
-                                                       pl.min([
+                                    .otherwise(pl.max_horizontal([0,
+                                                       pl.min_horizontal([
                                                            pl.col("Count"), 
-                                                           pl.col("Change") - (pl.col("To_Retire_Cumsum")-pl.col("Count"))])])))
+                                                           pl.col("Change") - (pl.col("Retirements_Early_Cumsum")-pl.col("Count"))])])))
                             .otherwise(pl.lit(0))
-                            .alias("To_Retire"))
-            .drop("To_Retire_Cumsum")
-            .sort(item_id_cols + ["Age"], descending=False)
+                            .alias("Retirements_Early"))
+            .with_columns(pl.when(pl.col("Retirements_Early")>0)
+                .then(pl.col("Count") - pl.col("Retirements_Early"))
+                .otherwise(pl.col("Count"))
+                .alias("Count"))
+            .drop(["Change","Retirements_Early_Cumsum"])
         )
 
         recovery_share = defaults.STRANDED_ASSET_RESALE_PCT
@@ -599,52 +633,69 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
             retirement_label = "Retirements_End_Of_Rollout"
 
         early_retirements = (age_tracker
-            .filter(pl.col("To_Retire") > 0)
-            .groupby("Subset")
-            .agg(pl.col("To_Retire").sum().alias("Value"))
+            .filter((pl.col("Retirements_Early") > 0) & (pl.col("Scheduled_Final_Year") >= year))
+            .groupby(item_id_cols)
+            .agg(pl.col("Retirements_Early").sum().alias("Value"))
             .with_columns(pl.lit(retirement_label).alias("Metric"),
-                          pl.lit("Locomotives").alias("Units"),
+                          pl.lit("assets").alias("Units"),
                           pl.lit(year).alias("Year"))
+            .select(metric_columns))
+        
+        scheduled_retirements = (age_tracker
+            .filter((pl.col("Scheduled_Final_Year") == year) & (pl.col("Count") > 0))
+            .groupby(item_id_cols)
+            .agg(pl.col("Count").sum().alias("Value"))
+            .with_columns(pl.lit("Retirements_Scheduled").alias("Metric"),
+                          pl.lit("assets").alias("Units"),
+                          pl.lit(year+1).alias("Year"))
             .select(metric_columns))
             
         early_retirement_costs = (age_tracker
-            .filter(pl.col("To_Retire") > 0)
+            .filter(pl.col("Retirements_Early") > 0)
             .with_columns(
                 pl.lit("Cost_Retired_Assets").alias("Metric"),
                 pl.lit("USD").alias("Units"),
                 pl.lit(year).alias("Year"),
                 pl.when((pl.col("Age") <= pl.lit(year - years.min() + 1)) | (defaults.INCLUDE_EXISTING_ASSETS))
-                    .then(pl.col("To_Retire") * -1.0 * (1.0 - pl.col("Age")*1.0 / pl.col("Lifespan")*1.0) * pl.col("Unit_Cost") * pl.lit(recovery_share))
-                    .otherwise(0)
+                    .then(pl.col("Retirements_Early") * -1.0 * (1.0 - pl.col("Age")*1.0 / pl.col("Lifespan")*1.0) * pl.col("Unit_Cost") * pl.lit(recovery_share))
+                    .otherwise(0.0)
                     .alias("Value"))
             .groupby("Metric","Units","Year","Subset")
             .agg(pl.col("Value").sum())
             .select(metric_columns))                     
-        purchases = (new
-            .filter(pl.col("Change") > 0)
+        purchases = (purchases
             .with_columns(pl.lit("Purchases").alias("Metric"),
-                          pl.lit("Locomotives").alias("Units"),
+                          pl.lit("assets").alias("Units"),
                           pl.lit(year).alias("Year"),
                           pl.col("Change").alias("Value"))
             .select(metric_columns))
         purchase_costs = (purchases
-            .join(values.filter(pl.col("Metric") == "Unit_Cost"), on=["Subset","Year"], how="left")
+            .join(values.filter(pl.col("Metric") == "Unit_Cost"), on= item_id_cols + ["Year"], how="left")
             .with_columns((pl.col("Value") * pl.col("Value_right")).alias("Value"),
                           pl.lit("Cost_Purchases").alias("Metric"),
                           pl.lit("USD").alias("Units"))
             .select(metric_columns))
         # Remove temporary columns and increment item ages to prep for the next year
         age_tracker = (age_tracker
-            .with_columns((pl.col("Count") - pl.col("To_Retire")).alias("Count"))
-            .with_columns(pl.col("Count").shift().fill_null(0))
-            .drop(["Change","To_Retire"]))
-        
+            .with_columns(
+                pl.col("Age") + 1,
+                pl.when(pl.col("Scheduled_Final_Year") <= year)
+                    .then(0.0)
+                    .otherwise(pl.col("Count"))# - pl.col("Retirements_Early"))
+                    .alias("Count")
+            )
+            .drop(["Retirements_Early"])
+        )
         # Add metrics for early retirements, purchases, and incurred costs
-        values = pl.concat([values, 
-                            early_retirements,
-                            early_retirement_costs,
-                            purchases,
-                            purchase_costs], how="diagonal")
+        purchase_metrics.extend([
+            scheduled_retirements,
+            early_retirements,
+            early_retirement_costs,
+            purchases,
+            purchase_costs
+        ])
+
+    values = pl.concat([values] + purchase_metrics, how="diagonal")
 
     total_costs = (values
         .filter(pl.col("Metric").is_in(["Cost_Retired_Assets","Cost_Purchases"]))

@@ -155,7 +155,7 @@ def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
                       .filter(pl.col("Metric")==pl.lit("Mt-km"))
                       .select(["Year", "Value"])
                       .rename({"Value": "Mt-km"}))
-    timeseries = cost_timeseries.join(tkm_timeseries, on="Year", how="inner")
+    timeseries = cost_timeseries.join(tkm_timeseries, on="Year", how="outer")
     timeseries = (timeseries
                   .with_columns((pl.col("Year") - pl.col("Year").min()).alias("Year_Offset"))
                   .with_columns(((1+defaults.DISCOUNT_RATE)**pl.col("Year_Offset")).alias("Discounting_Factor"))
@@ -163,10 +163,14 @@ def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
                     (pl.col("Cost_Total") / pl.col("Discounting_Factor")).alias("Cost_Total_Discounted"),
                     (pl.col("Mt-km") / pl.col("Discounting_Factor")).alias("Mt-km_Discounted"))
                   .with_columns(pl.col("Year").cast(pl.Utf8)))           
-    
     cost_total = timeseries.get_column("Cost_Total_Discounted").sum()
+    starting_residual_value_to_subtract = (values
+        .filter(pl.col("Metric")==pl.lit("Asset_Value_Initial"))
+        .get_column("Value")[0]
+    )
+    cost_minus_residual_baseline = cost_total + starting_residual_value_to_subtract / timeseries.get_column("Discounting_Factor").max()
     tkm_total = timeseries.get_column("Mt-km_Discounted").sum()
-    lcotkm_all = cost_total/tkm_total if tkm_total > 0 else math.nan
+    lcotkm_all = cost_minus_residual_baseline/tkm_total if tkm_total > 0 else math.nan
 
     cost_discounted = timeseries.select(
             pl.col("Year"),
@@ -194,7 +198,7 @@ def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
             Value = pl.col("Discounting_Factor"),
             Metric = pl.lit("Discounting_Factor"),
             Subset = pl.lit("All"),
-            Units = pl.lit("Fraction (0-1)")
+            Units = pl.lit("fraction (0-1)")
     )
     return metrics_from_list([
         values.with_columns(pl.col("Year").cast(pl.Utf8)),
@@ -353,7 +357,7 @@ def calculate_ghg(
     ----------
     DataFrame of GHG emissions from energy use (metric name, units, value, and scenario year)
     """
-    if units != 'tonne_co2eq' :
+    if units != 'tonne CO2-eq' :
         return metric("GHG_Energy", units, math.nan)
 
     if info.emissions_factors.height == 0:
@@ -496,7 +500,7 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
     """
     item_id_cols = ["Subset"]
     loco_types = (values
-        .filter((pl.col("Units")=="Assets") & (pl.col("Subset") != "All"))
+        .filter((pl.col("Units")=="assets") & (pl.col("Subset") != "All"))
         .get_column("Subset")
         .unique())
     costs = (values
@@ -563,12 +567,24 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
                       .when(pl.col("Age") <= 0)
                       .then(pl.lit(0.0))
                       .otherwise(pl.col("Count") - (pl.col("Count").shift().over(item_id_cols))).fill_null(0))
-        #Increment ages to get year 0 incumbent fleet
+    )
+        
+    portfolio_value_initial = (age_tracker
+        .select((pl.col("Count") * 1.0 * (1.0 - pl.col("Age")*1.0 / pl.col("Lifespan")*1.0) * pl.col("Unit_Cost")).sum().alias("Value"))
+        .with_columns(pl.lit("Asset_Value_Initial").alias("Metric"),
+                        pl.lit("USD").alias("Units"),
+                        pl.lit("All").alias("Subset"),
+                        pl.lit(years.min()-1).alias("Year"))
+        .select(metric_columns)
+    )
+
+    #Increment ages to get year 0 incumbent fleet
+    age_tracker = (age_tracker
         .with_columns(pl.col("Age") + 1)
         .filter((pl.col("Vintage") >= pl.lit(years.min())) | (pl.col("Count") > 0.0))
         .sort(item_id_cols + ["Scheduled_Final_Year"])
     )
-        
+
     scheduled_retirements_year_zero = (age_tracker
         .filter(pl.col("Scheduled_Final_Year") == years.min() - 1)
         .groupby(item_id_cols)
@@ -576,8 +592,9 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
         .with_columns(pl.lit("Retirements_Scheduled").alias("Metric"),
                         pl.lit("assets").alias("Units"),
                         pl.lit(years.min()).alias("Year"))
-        .select(metric_columns))
-    
+        .select(metric_columns)
+    )
+
     age_tracker = (age_tracker
         .with_columns(
             pl.when(pl.col("Scheduled_Final_Year") < years.min())
@@ -587,7 +604,7 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
         )
     )
 
-    purchase_metrics = [scheduled_retirements_year_zero]
+    purchase_metrics = [portfolio_value_initial, scheduled_retirements_year_zero]
     for year in years: 
         #If year 1, this includes incumbents only (prior-year retirements already removed)
         #So, we should do the same for subsequent years
@@ -681,7 +698,7 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
                 pl.col("Age") + 1,
                 pl.when(pl.col("Scheduled_Final_Year") <= year)
                     .then(0.0)
-                    .otherwise(pl.col("Count"))# - pl.col("Retirements_Early"))
+                    .otherwise(pl.col("Count"))
                     .alias("Count")
             )
             .drop(["Retirements_Early"])

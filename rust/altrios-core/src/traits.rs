@@ -284,3 +284,12 @@ impl<T: SerdeAPI> SerdeAPI for Vec<T> {
         Ok(())
     }
 }
+
+/// Provides method for checking if an instance of `Self` is equal to `Self::default`
+pub trait EqDefault: Default + PartialEq {
+    /// Checks if an instance of `Self` is equal to `Self::default`
+    fn eq_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+impl<T: Default + PartialEq> EqDefault for T {}

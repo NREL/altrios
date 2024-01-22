@@ -69,12 +69,12 @@ pub struct RailVehicle {
 pub type RailVehicleMap = HashMap<String, RailVehicle>;
 
 #[cfg_attr(feature = "pyo3", pyfunction(name = "import_rail_vehicles"))]
-pub fn import_rail_vehicles_py(filename: String) -> anyhow::Result<RailVehicleMap> {
-    import_rail_vehicles(&PathBuf::from(filename))
+pub fn import_rail_vehicles_py(filepath: &PyAny) -> anyhow::Result<RailVehicleMap> {
+    import_rail_vehicles(PathBuf::extract(filepath)?)
 }
 
-pub fn import_rail_vehicles(filename: &Path) -> anyhow::Result<RailVehicleMap> {
-    let file_read = File::open(filename)?;
+pub fn import_rail_vehicles<P: AsRef<Path>>(filename: P) -> anyhow::Result<RailVehicleMap> {
+    let file_read = File::open(filename.as_ref())?;
     let mut reader = csv::Reader::from_reader(file_read);
     let mut rail_vehicle_map = RailVehicleMap::default();
     for result in reader.deserialize() {

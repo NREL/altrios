@@ -99,7 +99,7 @@ impl From<&Vec<LinkIdxTime>> for LinkIdxTimeVec {
 
     #[pyo3(name = "extend_path")]
     pub fn extend_path_py(&mut self, network_file_path: String, link_path: Vec<LinkIdx>) -> anyhow::Result<()> {
-        let network = Vec::<Link>::from_file(&network_file_path).unwrap();
+        let network = Vec::<Link>::from_file(network_file_path).unwrap();
         network.validate().unwrap();
 
         self.extend_path(&network, &link_path)?;
@@ -589,8 +589,10 @@ impl Default for SpeedLimitTrainSim {
 
 impl Valid for SpeedLimitTrainSim {
     fn valid() -> Self {
-        let mut train_sim = Self::default();
-        train_sim.path_tpc = PathTpc::valid();
+        let mut train_sim = Self{
+            path_tpc: PathTpc::valid(),
+            ..Default::default()
+        };
         train_sim.recalc_braking_points().unwrap();
         train_sim
     }

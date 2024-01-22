@@ -26,12 +26,12 @@ pub struct Location {
 pub type LocationMap = HashMap<String, Vec<Location>>;
 
 #[cfg_attr(feature = "pyo3", pyfunction(name = "import_locations"))]
-pub fn import_locations_py(filename: String) -> anyhow::Result<LocationMap> {
-    import_locations(&PathBuf::from(filename))
+pub fn import_locations_py(filepath: &PyAny) -> anyhow::Result<LocationMap> {
+    import_locations(PathBuf::extract(filepath)?)
 }
 
-pub fn import_locations(filename: &Path) -> anyhow::Result<LocationMap> {
-    let file_read = File::open(filename)?;
+pub fn import_locations<P: AsRef<Path>>(filepath: P) -> anyhow::Result<LocationMap> {
+    let file_read = File::open(filepath.as_ref())?;
     let mut reader = csv::Reader::from_reader(file_read);
     let mut location_map = LocationMap::default();
     for result in reader.deserialize() {

@@ -22,9 +22,7 @@ train_config = alt.TrainConfig(
 
 # instantiate battery model
 res = alt.ReversibleEnergyStorage.from_file(
-    str(alt.resources_root() / 
-        "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
-    )
+    alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
 )
 # instantiate electric drivetrain (motors and any gearboxes)
 edrv = alt.ElectricDrivetrain(
@@ -60,16 +58,11 @@ tsb = alt.TrainSimBuilder(
 
 # make sure rail_vehicle_map can be constructed from yaml file and such
 rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
-rail_vehicle = alt.RailVehicle.from_file(
-    str(alt.resources_root() / rail_vehicle_file)
-)
+rail_vehicle = alt.RailVehicle.from_file(alt.resources_root() / rail_vehicle_file)
 
-network = alt.import_network(
-    str(alt.resources_root() / "networks/Taconite-NoBalloon.yaml"))
+network = alt.import_network(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 
-location_map = alt.import_locations(
-    str(alt.resources_root() / "networks/default_locations.csv")
-)
+location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")
 
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
     rail_vehicle=rail_vehicle,
@@ -78,9 +71,7 @@ train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
 )
 train_sim.set_save_interval(SAVE_INTERVAL)
 
-timed_path = alt.LinkIdxTimeVec.from_file(
-    str(alt.resources_root() / "demo_data/timed_path.yaml")
-)
+timed_path = alt.LinkIdxTimeVec.from_file(alt.resources_root() / "demo_data/timed_path.yaml")
 
 # %%
 

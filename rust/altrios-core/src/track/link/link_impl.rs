@@ -3,6 +3,7 @@ use super::elev::*;
 use super::heading::*;
 use super::link_idx::*;
 use super::speed::*;
+#[allow(unused_imports)]
 use crate::meet_pass::est_times::EstTime;
 
 use crate::imports::*;
@@ -174,8 +175,8 @@ impl ObjState for Link {
 }
 
 #[cfg_attr(feature = "pyo3", pyfunction(name = "import_network"))]
-pub fn import_network_py(filename: String) -> anyhow::Result<Vec<Link>> {
-    let network = Vec::<Link>::from_file(&filename)?;
+pub fn import_network_py(filepath: &PyAny) -> anyhow::Result<Vec<Link>> {
+    let network = Vec::<Link>::from_file(PathBuf::extract(filepath)?)?;
     network.validate()?;
     Ok(network)
 }

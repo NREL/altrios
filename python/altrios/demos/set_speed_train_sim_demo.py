@@ -55,16 +55,11 @@ loco_con = alt.Consist(
     loco_vec,
     SAVE_INTERVAL,
 )
-init_train_state = alt.InitTrainState(
-    # this corresponds to middle week of simulation period in sim_manager_demo.py
-    time_seconds=604_800.0,
-)
 
 tsb = alt.TrainSimBuilder(
     train_id="0",
     train_config=train_config,
     loco_con=loco_con,
-    init_train_state=init_train_state,
 )
 
 rail_vehicle_file = "rolling_stock/rail_vehicles.csv"

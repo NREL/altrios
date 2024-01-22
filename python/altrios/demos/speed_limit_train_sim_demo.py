@@ -49,10 +49,6 @@ loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7
 loco_con = alt.Consist(
     loco_vec,
 )
-init_train_state = alt.InitTrainState(
-    # this corresponds to middle week of simulation period in sim_manager_demo.py
-    time_seconds=604_800.0,
-)
 
 tsb = alt.TrainSimBuilder(
     train_id="0",
@@ -60,7 +56,6 @@ tsb = alt.TrainSimBuilder(
     destination_id="Superior",
     train_config=train_config,
     loco_con=loco_con,
-    init_train_state=init_train_state,
 )
 
 # make sure rail_vehicle_map can be constructed from yaml file and such

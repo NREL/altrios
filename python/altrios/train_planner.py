@@ -282,19 +282,25 @@ def generate_demand_trains(
         demand_rebalancing],
         how="diagonal")
     #MPrepare ton_per_car requirements to merge onto the demand DataFrame
-    get_kg_empty = lambda veh: veh.mass_static_empty_kilograms + veh.axle_count * veh.mass_extra_per_axle_kilograms
-    get_kg_loaded = lambda veh: veh.mass_static_loaded_kilograms + veh.axle_count * veh.mass_extra_per_axle_kilograms
-    vehicle_types = demand.get_column("Train_Type").unique().to_list()
+    def get_kg_empty(veh):
+        return veh.mass_static_empty_kilograms + veh.axle_count * veh.mass_extra_per_axle_kilograms
+    def get_kg_loaded(veh):
+        return veh.mass_static_loaded_kilograms + veh.axle_count * veh.mass_extra_per_axle_kilograms
+    vehicle_types = [
+        vt.replace("_Empty", "") for vt in demand.get_column("Train_Type").unique().to_list()
+    ]
     kg_empty = [get_kg_empty(rail_vehicle_map[veh_type]) for veh_type in vehicle_types]
     kg_loaded = [get_kg_loaded(rail_vehicle_map[veh_type]) for veh_type in vehicle_types]
-    ton_per_car = (pl.DataFrame({"Train_Type": vehicle_types,
-                                "KG_Empty": kg_empty,
-                                "KG_Loaded": kg_loaded})
-                    .with_columns(pl.when(pl.col("Train_Type").str.contains("_Empty"))
-                                        .then(pl.col("KG_Empty") / utilities.KG_PER_TON)
-                                        .otherwise(pl.col("KG_Loaded") / utilities.KG_PER_TON)
-                                        .alias("Tons_Per_Car"))
-                    .drop(["KG_Empty","KG_Loaded"]))
+    ton_per_car = (
+        pl.DataFrame({"Train_Type": vehicle_types,
+                        "KG_Empty": kg_empty,
+                        "KG_Loaded": kg_loaded})
+            .with_columns(pl.when(pl.col("Train_Type").str.contains("_Empty"))
+                                .then(pl.col("KG_Empty") / utilities.KG_PER_TON)
+                                .otherwise(pl.col("KG_Loaded") / utilities.KG_PER_TON)
+                                .alias("Tons_Per_Car"))
+            .drop(["KG_Empty","KG_Loaded"])
+    )
     demand = demand.join(ton_per_car, on="Train_Type", how="left")
     #Prepare hp_per_ton requirements to merge onto the demand DataFrame
     hp_per_ton = (

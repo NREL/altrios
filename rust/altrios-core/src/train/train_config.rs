@@ -193,13 +193,13 @@ impl Valid for TrainConfig {
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
     ) -> anyhow::Result<SpeedLimitTrainSim> {
-        Ok(self.make_speed_limit_train_sim(
+        self.make_speed_limit_train_sim(
             &rail_vehicle,
             &location_map,
             save_interval,
             simulation_days,
             scenario_year,
-        )?)
+        )
     }
 
 )]

@@ -1,5 +1,3 @@
-//! TODO: Geordie, put a doc string here
-
 use crate::combo_error::ComboErrors;
 use crate::train::LinkIdxTime;
 
@@ -9,7 +7,6 @@ use crate::train::LinkIdxTimeVec;
 
 #[readonly::make]
 #[derive(Debug, PartialEq, Clone, Copy)]
-/// TODO: Geordie, put a doc string here.  What is `Disp` in full word?  What does Next mean here?
 struct TrainDispNext {
     pub time: si::Time,
     pub train_idx: TrainIdx,
@@ -93,11 +90,6 @@ fn check_deadlock(
     }
 }
 
-
-/// TODO: Geordie, put a doc string here explaining what this does
-/// # Arguments (excluding args with custom structs)
-/// - `print_train_move`: TODO: Geordie, what does this do?
-/// - `print_train_exit`: TODO: Geordie, what does this do?
 pub fn run_dispatch(
     network: &[Link],
     speed_limit_train_sims: &[SpeedLimitTrainSim],
@@ -265,10 +257,6 @@ pub fn run_dispatch(
 }
 
 #[cfg_attr(feature = "pyo3", pyfunction(name = "run_dispatch"))]
-/// TODO: Geordie, put a doc string here explaining what this does
-/// # Arguments
-/// - `print_train_move`: TODO: Geordie, what does this do?
-/// - `print_train_exit`: TODO: Geordie, what does this do?
 pub fn run_dispatch_py(
     network: Vec<Link>,
     speed_limit_train_sims: crate::train::SpeedLimitTrainSimVec,

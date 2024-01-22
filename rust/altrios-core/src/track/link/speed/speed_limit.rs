@@ -1,10 +1,6 @@
-//! TODO: Geordie, give an explanation of what's in this module
-
 use crate::imports::*;
 
-// TODO: Geordie, what is this function used for?
 pub fn min_speed(speed_old: si::Velocity, speed_new: si::Velocity) -> si::Velocity {
-    // TODO: Geordie, put a comment here explaining this if statement logic.  Like, why do this?
     if speed_old.is_sign_positive() & speed_new.is_sign_positive() {
         speed_old.min(speed_new)
     } else {
@@ -14,16 +10,10 @@ pub fn min_speed(speed_old: si::Velocity, speed_new: si::Velocity) -> si::Veloci
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, SerdeAPI)]
 #[altrios_api]
-/// TODO: Geordie, put a doc string here
 pub struct SpeedLimit {
-    /// TODO: Geordie, put a doc string here.  What's `offset`, `start`? Front of train to offset at
-    /// which speed limit starts?  
     pub offset_start: si::Length,
-    /// TODO: Geordie, put a doc string here.  What's `offset`, `end`? Front (or maybe rear?) of
-    /// train to offset at which speed limit starts?
     pub offset_end: si::Length,
     /// Speed limit value  
-    /// TODO: Geordie, is this reasonable?
     pub speed: si::Velocity,
 }
 

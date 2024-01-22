@@ -5,26 +5,15 @@ use crate::imports::*;
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI)]
 #[repr(u8)]
 #[cfg_attr(feature = "pyo3", pyclass)]
-/// TODO: expose enum variants for python somehow, if deemed necessary
-/// TODO: Geordie explain in a comment or in the doc string why this uses this style of enum,
-/// i.e. where `None = 0` is a variant
 /// Enum with variants representing train types
 pub enum TrainType {
-    /// TODO: Geordie, put a doc string here
     #[default]
-    /// TODO: Geordie, put a doc string here
     None = 0,
-    /// TODO: Geordie, put a doc string here
     Freight = 1,
-    /// TODO: Geordie, put a doc string here
     Passenger = 2,
-    /// TODO: Geordie, put a doc string here
     Intermodal = 3,
-    /// TODO: Geordie, put a doc string here
     HighSpeedPassenger = 4,
-    /// TODO: Geordie, put a doc string here
     TiltTrain = 5,
-    /// TODO: Geordie, put a doc string here
     Commuter = 6,
 }
 
@@ -42,7 +31,6 @@ impl ObjState for TrainType {
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 #[altrios_api]
-/// TODO: Geordie, put a doc string here
 pub struct SpeedSet {
     pub speed_limits: Vec<SpeedLimit>,
     #[api(skip_get, skip_set)]

@@ -4,13 +4,9 @@ use crate::imports::*;
 #[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize, SerdeAPI)]
 #[altrios_api]
 pub struct Heading {
-    /// TODO: Geordie, put a doc string here.  What is offset?  start of link to front of train?
-    /// rear of train?
     #[api(skip_set)]
     pub offset: si::Length,
     #[api(skip_set)]
-    /// TODO: Geordie, put a doc string here.  What is heading?  Relative compass heading?  would
-    /// this be at the front of the train? rear of train?
     pub heading: si::Angle,
 }
 

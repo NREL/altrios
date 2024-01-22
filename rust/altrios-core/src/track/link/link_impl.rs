@@ -19,7 +19,6 @@ pub struct Link {
     pub cat_power_limits: Vec<CatPowerLimit>,
     pub length: si::Length,
 
-    // TODO: Geordie, do these all make sense?
     /// see [EstTime::idx_next]
     pub idx_next: LinkIdx,
     /// see [EstTime::idx_next_alt]
@@ -28,13 +27,10 @@ pub struct Link {
     pub idx_prev: LinkIdx,
     /// see [EstTime::idx_prev_alt]
     pub idx_prev_alt: LinkIdx,
-    /// TODO: Geordie, is this good?
     /// Index of current link
     pub idx_curr: LinkIdx,
-    /// TODO: Geordie, is this good?
     /// Index of adjacent link in reverse direction
     pub idx_flip: LinkIdx,
-    // TODO:  Geordie, add this
     #[serde(default)]
     pub link_idxs_lockout: Vec<LinkIdx>,
 }

@@ -192,9 +192,6 @@ impl PathTpc {
                 for (prev, curr) in link.headings.windows(2).map(|x| (&x[0], &x[1])) {
                     let length = curr.offset - prev.offset;
 
-                    // TODO: Geordie, provide some explanation here as a comment, and then I can
-                    // extract the code into a method that I'll document Curve resistance calculated
-                    // using AAR's train energy model:
                     let curvature = (-uc::REV / 2.0
                         + (curr.heading - prev.heading + uc::REV / 2.0) % uc::REV)
                         .abs()
@@ -277,7 +274,6 @@ impl PathTpc {
         Ok(link_point_del)
     }
 
-    /// TODO: Geordie, doc string.
     pub fn finish(&mut self) {
         self.grades.push(PathResCoeff {
             offset: uc::M * f64::INFINITY,
@@ -292,7 +288,6 @@ impl PathTpc {
         self.is_finished = true;
     }
 
-    /// TODO: Geordie, doc string.
     pub fn recalc_speeds(&mut self, links: &[Link]) {
         self.speed_points.clear();
         self.speed_points.push(SpeedLimitPoint {
@@ -309,7 +304,6 @@ impl PathTpc {
         }
     }
 
-    /// TODO: Geordie, doc string.
     pub fn reindex(&mut self, link_idxs: &[LinkIdx]) -> anyhow::Result<()> {
         let idx_end = self.link_points.len() - 1;
         for link_point in &mut self.link_points[..idx_end] {
@@ -319,7 +313,6 @@ impl PathTpc {
         Ok(())
     }
 
-    /// TODO: Geordie, doc string.
     fn add_speeds(
         speed_points: &mut Vec<SpeedLimitPoint>,
         train_params: &TrainParams,

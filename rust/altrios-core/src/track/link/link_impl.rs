@@ -176,8 +176,8 @@ impl ObjState for Link {
 
 #[altrios_api]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
-/// Struct that contains a `Vec<LinkIdxTime>` for the purpose of providing `SerdeAPI` for
-/// `Vec<LinkIdxTime>` in Python
+/// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
+/// Python
 pub struct Network(pub Vec<Link>);
 
 impl AsRef<[Link]> for Network {

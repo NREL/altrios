@@ -31,15 +31,15 @@ impl LinkIdxTime {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
 /// Struct that contains a `Vec<LinkIdxTime>` for the purpose of providing `SerdeAPI` for
 /// `Vec<LinkIdxTime>` in Python
-pub struct LinkIdxTimeVec(pub Vec<LinkIdxTime>);
+pub struct TimedLinkPath(pub Vec<LinkIdxTime>);
 
-impl AsRef<[LinkIdxTime]> for LinkIdxTimeVec {
+impl AsRef<[LinkIdxTime]> for TimedLinkPath {
     fn as_ref(&self) -> &[LinkIdxTime] {
         &self.0
     }
 }
 
-impl From<&Vec<LinkIdxTime>> for LinkIdxTimeVec {
+impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     fn from(value: &Vec<LinkIdxTime>) -> Self {
         Self(value.to_vec())
     }
@@ -121,11 +121,11 @@ impl From<&Vec<LinkIdxTime>> for LinkIdxTimeVec {
             }   
         };
 
-        let timed_path = match timed_path.extract::<LinkIdxTimeVec>() {
+        let timed_path = match timed_path.extract::<TimedLinkPath>() {
             Ok(tp) => tp,
             Err(_) => {
                 let tp = timed_path.extract::<Vec<LinkIdxTime>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                LinkIdxTimeVec(tp)
+                TimedLinkPath(tp)
             }   
         };
         self.walk_timed_path(&network, timed_path)

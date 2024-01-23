@@ -46,7 +46,7 @@ fn altrios_core_py(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<SpeedLimitTrainSim>()?;
     m.add_class::<LinkIdx>()?;
     m.add_class::<LinkIdxTime>()?;
-    m.add_class::<LinkIdxTimeVec>()?;
+    m.add_class::<TimedLinkPath>()?;
     m.add_class::<LinkPoint>()?;
     m.add_class::<Link>()?;
     m.add_class::<Location>()?;

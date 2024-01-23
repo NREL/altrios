@@ -32,6 +32,7 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
+# TODO
 bel = alt.Locomotive.build_battery_electric_loco(
     reversible_energy_storage=res,
     drivetrain=edrv,
@@ -71,12 +72,12 @@ train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
 )
 train_sim.set_save_interval(SAVE_INTERVAL)
 
-timed_path = alt.LinkIdxTimeVec.from_file(alt.resources_root() / "demo_data/timed_path.yaml")
+timed_link_path = alt.TimedLinkPath.from_file(alt.resources_root() / "demo_data/timed_path.yaml")
 
 t0 = time.perf_counter()
 train_sim.walk_timed_path(
     network=network,
-    timed_path=timed_path,
+    timed_path=timed_link_path,
 )
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')

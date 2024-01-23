@@ -77,7 +77,11 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     } else if let syn::Fields::Unnamed(syn::FieldsUnnamed { unnamed, .. }) = &mut ast.fields {
         // tuple struct
-        if ast.ident.to_string().contains("Vec") || ast.ident.to_string().contains("Network") {
+        let ident_str = ast.ident.to_string();
+        if ["Vec", "Network", "Path"]
+            .iter()
+            .any(|&x| ident_str.contains(x))
+        {
             assert!(unnamed.len() == 1);
             for field in unnamed.iter() {
                 let ftype = field.ty.clone();

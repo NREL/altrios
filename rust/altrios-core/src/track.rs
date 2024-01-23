@@ -1,4 +1,4 @@
-mod link;
+pub(super) mod link;
 mod path_track;
 
 pub use link::*;

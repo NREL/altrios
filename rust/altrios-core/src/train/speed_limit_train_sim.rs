@@ -1,6 +1,7 @@
-use super::{braking_point::BrakingPoints, friction_brakes::*, train_imports::*};
 use crate::imports::*;
+use super::{braking_point::BrakingPoints, friction_brakes::*, train_imports::*};
 use crate::track::{LinkPoint, Location};
+use crate::track::link::link_impl::Network;
 
 #[altrios_api(
     #[new]
@@ -109,9 +110,17 @@ impl From<&Vec<LinkIdxTime>> for LinkIdxTimeVec {
     #[pyo3(name = "walk_timed_path")]
     pub fn walk_timed_path_py(
         &mut self, 
-        network: Vec<Link>, 
+        network: &PyAny, 
         timed_path: &PyAny,
     ) -> anyhow::Result<()> {
+        let network = match network.extract::<Network>() {
+            Ok(n) => n,
+            Err(_) => {
+                let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                Network(n)
+            }   
+        };
+
         let timed_path = match timed_path.extract::<LinkIdxTimeVec>() {
             Ok(tp) => tp,
             Err(_) => {
@@ -317,11 +326,12 @@ impl SpeedLimitTrainSim {
 
     /// Iterates `save_state` and `step` until offset >= final offset --
     /// i.e. moves train forward and extends path TPC until it reaches destination.
-    pub fn walk_timed_path<P: AsRef<[LinkIdxTime]>>(
+    pub fn walk_timed_path<P: AsRef<[LinkIdxTime]>, Q: AsRef<[Link]>>(
         &mut self,
-        network: &[Link],
+        network: Q,
         timed_path: P,
     ) -> anyhow::Result<()> {
+        let network = network.as_ref();
         let timed_path = timed_path.as_ref();
         if timed_path.is_empty() {
             bail!("Timed path cannot be empty!");

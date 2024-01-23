@@ -174,6 +174,24 @@ impl ObjState for Link {
     }
 }
 
+#[altrios_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+/// Struct that contains a `Vec<LinkIdxTime>` for the purpose of providing `SerdeAPI` for
+/// `Vec<LinkIdxTime>` in Python
+pub struct Network(pub Vec<Link>);
+
+impl AsRef<[Link]> for Network {
+    fn as_ref(&self) -> &[Link] {
+        &self.0
+    }
+}
+
+impl From<&Vec<Link>> for Network {
+    fn from(value: &Vec<Link>) -> Self {
+        Network(value.to_vec())
+    }
+}
+
 #[cfg_attr(feature = "pyo3", pyfunction(name = "import_network"))]
 pub fn import_network_py(filepath: &PyAny) -> anyhow::Result<Vec<Link>> {
     let network = Vec::<Link>::from_file(PathBuf::extract(filepath)?)?;

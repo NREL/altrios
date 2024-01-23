@@ -2,7 +2,7 @@ mod cat_power;
 mod elev;
 mod heading;
 mod link_idx;
-mod link_impl;
+pub(in super::super) mod link_impl;
 mod location;
 mod speed;
 

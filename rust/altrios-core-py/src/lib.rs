@@ -50,6 +50,7 @@ fn altrios_core_py(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<LinkPoint>()?;
     m.add_class::<Link>()?;
     m.add_class::<Location>()?;
+    m.add_class::<Network>()?;
 
     m.add_class::<InitTrainState>()?;
     m.add_class::<TrainState>()?;

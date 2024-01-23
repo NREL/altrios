@@ -12,9 +12,9 @@ SHOW_PLOTS = alt.utils.show_plots()
 SAVE_INTERVAL = 100
 
 train_config = alt.TrainConfig(
-    rail_vehicle_type="Manifest",
     cars_empty=50,
     cars_loaded=50,
+    rail_vehicle_type="Manifest",
     train_type=None,
     train_length_meters=None,
     train_mass_kilograms=None,
@@ -60,7 +60,7 @@ tsb = alt.TrainSimBuilder(
 rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
 rail_vehicle = alt.RailVehicle.from_file(alt.resources_root() / rail_vehicle_file)
 
-network = alt.import_network(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
+network = alt.Network.from_file(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 
 location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")
 
@@ -72,8 +72,6 @@ train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
 train_sim.set_save_interval(SAVE_INTERVAL)
 
 timed_path = alt.LinkIdxTimeVec.from_file(alt.resources_root() / "demo_data/timed_path.yaml")
-
-# %%
 
 t0 = time.perf_counter()
 train_sim.walk_timed_path(

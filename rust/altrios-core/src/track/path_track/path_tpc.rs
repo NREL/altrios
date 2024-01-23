@@ -76,7 +76,13 @@ impl PathTpc {
         }
     }
 
-    pub fn extend(&mut self, network: &[Link], link_path: &[LinkIdx]) -> anyhow::Result<()> {
+    pub fn extend<P: AsRef<[Link]>, Q: AsRef<[LinkIdx]>>(
+        &mut self,
+        network: P,
+        link_path: Q,
+    ) -> anyhow::Result<()> {
+        let network = network.as_ref();
+        let link_path = link_path.as_ref();
         ensure!(
             !self.link_points.is_empty(),
             "Error: `link_points` is empty."
@@ -353,7 +359,7 @@ impl Valid for PathTpc {
     fn valid() -> Self {
         let mut path_tpc = Self::default();
         path_tpc
-            .extend(&Vec::<Link>::valid(), &[LinkIdx::valid()])
+            .extend(&Vec::<Link>::valid(), [LinkIdx::valid()])
             .unwrap_or_default();
         path_tpc.finish();
         path_tpc

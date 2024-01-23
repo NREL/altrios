@@ -1,7 +1,7 @@
 mod cat_power;
 mod elev;
 mod heading;
-mod link_idx;
+pub(in super::super) mod link_idx;
 pub(in super::super) mod link_impl;
 mod location;
 mod speed;

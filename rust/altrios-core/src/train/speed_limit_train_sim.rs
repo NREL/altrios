@@ -41,7 +41,7 @@ impl AsRef<[LinkIdxTime]> for LinkIdxTimeVec {
 
 impl From<&Vec<LinkIdxTime>> for LinkIdxTimeVec {
     fn from(value: &Vec<LinkIdxTime>) -> Self {
-        LinkIdxTimeVec(value.to_vec())
+        Self(value.to_vec())
     }
 }
 

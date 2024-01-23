@@ -99,6 +99,69 @@ impl ObjState for LinkIdx {
     }
 }
 
+#[altrios_api(
+    #[staticmethod]
+    #[pyo3(name = "from_csv_file")]
+    fn from_csv_file_py(filepath: &PyAny) -> anyhow::Result<Self> {
+        Self::from_csv_file(PathBuf::extract(filepath)?)
+    }
+    
+    #[pyo3(name = "to_csv_file")]
+    fn to_csv_file_py(&self, filepath: &PyAny) -> anyhow::Result<()> {
+        self.to_csv_file(PathBuf::extract(filepath)?)
+    }
+)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+/// Struct that contains a `Vec<LinkIdx>` for the purpose of providing `SerdeAPI` for
+/// `Vec<LinkIdx>` in Python
+pub struct LinkPath(pub Vec<LinkIdx>);
+
+impl AsRef<[LinkIdx]> for LinkPath {
+    fn as_ref(&self) -> &[LinkIdx] {
+        &self.0
+    }
+}
+
+impl From<&Vec<LinkIdx>> for LinkPath {
+    fn from(value: &Vec<LinkIdx>) -> Self {
+        Self(value.to_vec())
+    }
+}
+
+impl LinkPath {
+    /// Load from csv file
+    pub fn from_csv_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
+        let mut lp = vec![];
+
+        let file = File::open(filepath)?;
+        let mut rdr = csv::ReaderBuilder::new()
+            .has_headers(true)
+            .from_reader(file);
+        for result in rdr.deserialize() {
+            let pt_elem: LinkIdx = result?;
+            lp.push(pt_elem);
+        }
+        if lp.is_empty() {
+            bail!("Invalid PowerTrace file; PowerTrace is empty")
+        } else {
+            Ok(Self(lp))
+        }
+    }
+
+    /// Load from csv file
+    pub fn to_csv_file<P: AsRef<Path>>(&self, filepath: P) -> anyhow::Result<()> {
+        let file = File::open(filepath)?;
+        let mut wrtr = csv::WriterBuilder::new()
+            .has_headers(true)
+            .from_writer(file);
+        for elem in &self.0 {
+            wrtr.serialize(elem)?;
+        }
+        wrtr.flush()?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test_link_idx {
     use super::*;

@@ -8,6 +8,7 @@ use super::{
     SetSpeedTrainSim, SpeedLimitTrainSim, SpeedTrace, TrainState,
 };
 use crate::track::link::link_impl::Network;
+use crate::track::link::link_idx::LinkPath;
 use crate::track::LocationMap;
 
 use polars::prelude::*;
@@ -172,7 +173,7 @@ impl Valid for TrainConfig {
         &self,
         rail_vehicle: RailVehicle,
         network: &PyAny,
-        link_path: Vec<LinkIdx>,
+        link_path: &PyAny,
         speed_trace: SpeedTrace,
         save_interval: Option<usize>
     ) -> anyhow::Result<SetSpeedTrainSim> {
@@ -184,10 +185,18 @@ impl Valid for TrainConfig {
             }   
         };
 
+        let link_path = match link_path.extract::<LinkPath>() {
+            Ok(lp) => lp,
+            Err(_) => {
+                let lp = link_path.extract::<Vec<LinkIdx>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                LinkPath(lp)
+            }   
+        };
+
         self.make_set_speed_train_sim(
             &rail_vehicle,
             network,
-            &link_path,
+            link_path,
             speed_trace,
             save_interval
         )
@@ -318,11 +327,11 @@ impl TrainSimBuilder {
         Ok((state, path_tpc, train_res, fric_brake))
     }
 
-    pub fn make_set_speed_train_sim<Q: AsRef<[Link]>>(
+    pub fn make_set_speed_train_sim<Q: AsRef<[Link]>, R: AsRef<[LinkIdx]>>(
         &self,
         rail_vehicle: &RailVehicle,
         network: Q,
-        link_path: &[LinkIdx],
+        link_path: R,
         speed_trace: SpeedTrace,
         save_interval: Option<usize>,
     ) -> anyhow::Result<SetSpeedTrainSim> {
@@ -335,7 +344,7 @@ impl TrainSimBuilder {
         let (state, mut path_tpc, train_res, _fric_brake) =
             self.make_train_sim_parts(rail_vehicle, save_interval)?;
 
-        path_tpc.extend(network.as_ref(), link_path)?;
+        path_tpc.extend(network, link_path)?;
         Ok(SetSpeedTrainSim::new(
             self.loco_con.clone(),
             state,

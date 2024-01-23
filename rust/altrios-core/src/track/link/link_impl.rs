@@ -188,7 +188,7 @@ impl AsRef<[Link]> for Network {
 
 impl From<&Vec<Link>> for Network {
     fn from(value: &Vec<Link>) -> Self {
-        Network(value.to_vec())
+        Self(value.to_vec())
     }
 }
 

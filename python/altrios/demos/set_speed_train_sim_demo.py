@@ -71,9 +71,8 @@ network = alt.Network.from_file(alt.resources_root() / "networks/Taconite.yaml")
 # [lp.link_idx.idx for lp in sim0.path_tpc.link_points]
 # ``` 
 # in sim_manager_demo.py.
-link_points_idx = pd.read_csv(
-    alt.resources_root() / "demo_data/link_points_idx.csv")["link points"].tolist()
-link_path = [alt.LinkIdx(int(lp)) for lp in link_points_idx]
+link_path = alt.LinkPath.from_csv_file(alt.resources_root() / "demo_data/link_points_idx.csv")
+
 
 speed_trace = alt.SpeedTrace.from_csv_file(
     alt.resources_root() / "demo_data/speed_trace.csv"

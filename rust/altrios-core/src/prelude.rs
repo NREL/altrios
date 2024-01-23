@@ -43,4 +43,4 @@ pub use crate::train::{
     TrainState, TrainStateHistoryVec,
 };
 
-pub use crate::track::{Link, LinkIdx, LinkPoint, Location, Network, TrainParams, TrainType};
+pub use crate::track::{Link, LinkIdx, LinkPoint, LinkPath, Location, Network, TrainParams, TrainType};

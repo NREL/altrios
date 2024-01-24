@@ -75,18 +75,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "altrios-py"
-version = "0.1.0"
-dependencies = [
- "altrios-core",
- "polars",
- "polars-lazy",
- "pyo3",
- "pyo3-log",
- "pyo3-polars",
-]
-
-[[package]]
 name = "altrios-proc-macros"
 version = "0.1.4"
 dependencies = [
@@ -96,6 +84,18 @@ dependencies = [
  "regex",
  "syn 1.0.109",
  "uom",
+]
+
+[[package]]
+name = "altrios-py"
+version = "0.1.0"
+dependencies = [
+ "altrios-core",
+ "polars",
+ "polars-lazy",
+ "pyo3",
+ "pyo3-log",
+ "pyo3-polars",
 ]
 
 [[package]]

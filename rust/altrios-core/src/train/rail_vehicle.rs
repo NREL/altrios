@@ -68,6 +68,7 @@ pub struct RailVehicle {
 
 pub type RailVehicleMap = HashMap<String, RailVehicle>;
 
+#[cfg(feature = "pyo3")]
 #[cfg_attr(feature = "pyo3", pyfunction(name = "import_rail_vehicles"))]
 pub fn import_rail_vehicles_py(filepath: &PyAny) -> anyhow::Result<RailVehicleMap> {
     import_rail_vehicles(PathBuf::extract(filepath)?)

@@ -10,8 +10,8 @@ from altrios.utilities import set_param_from_path  # noqa: F401
 from altrios.utilities import copy_demo_files  # noqa: F401
 from altrios import utilities as utils
 from altrios.utilities import package_root, resources_root
-# make everything in altrios_core_py available here
-from altrios.altrios_core_py import *
+# make everything in altrios_py available here
+from altrios.altrios_py import *
 
 
 # Set up logging

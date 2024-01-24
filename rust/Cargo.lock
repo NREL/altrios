@@ -75,7 +75,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "altrios-core-py"
+name = "altrios-py"
 version = "0.1.0"
 dependencies = [
  "altrios-core",

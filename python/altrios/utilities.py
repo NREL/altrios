@@ -30,7 +30,7 @@ def resources_root() -> Path:
     path = package_root() / "resources"
     return path
 
-from altrios.altrios_core_py import (
+from altrios.altrios_py import (
     SetSpeedTrainSim,
     ConsistSimulation,
     Consist,

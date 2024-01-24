@@ -8,7 +8,6 @@ pub use free_path::FreePathStatus;
 mod advance_rewind;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, SerdeAPI)]
-/// TODO: Geordie, doc string here.  What does `Disp` mean or expand to?  
 pub struct TrainDisp {
     /// Estimated time network. Does not change after creation
     est_times: Vec<EstTime>,
@@ -52,22 +51,14 @@ pub struct TrainDisp {
     /// Is the train currently blocked by another (same-direction) train?
     is_blocked: bool,
 
-    /// TODO: What is `Const`?
-    /// Const <-- What's this?  
     train_id: String,
-    /// TODO: Geordie, explain the significance of this
     train_idx: TrainIdx,
-    /// TODO: Geordie, doc string
     time_spacing: si::Time,
-    /// TODO: Geordie, doc string
     dist_disp_path_search: si::Length,
-    /// TODO: Geordie, doc string
     dist_fixed_max: si::Length,
-    /// TODO: Geordie, doc string
     acc_startup: si::Acceleration,
 }
 
-// TODO: Geordie, more doc strings, but net necessarily every function as some are fairly obvious
 impl TrainDisp {
     pub fn swap_link_idxs_blocking(&mut self, link_idxs: &mut Vec<LinkIdx>) {
         std::mem::swap(&mut self.link_idxs_blocking, link_idxs);
@@ -87,7 +78,6 @@ impl TrainDisp {
     pub fn is_blocked(&self) -> bool {
         self.is_blocked
     }
-    /// TODO: Geordie, doc string
     pub fn fix_advance(&mut self) {
         assert!(self.time_update <= self.time_update_next);
         assert!(self.offset_fixed <= self.offset_free);
@@ -96,7 +86,6 @@ impl TrainDisp {
         self.offset_fixed = self.offset_free;
         self.disp_node_idx_fixed = self.disp_node_idx_free;
     }
-    /// TODO: Geordie, doc string
     pub fn calc_timed_path(&self) -> Vec<LinkIdxTime> {
         assert!(self.disp_node_idx_fixed.idx() == self.disp_path.len());
         let mut timed_path = Vec::with_capacity(self.disp_path.len() / 2);
@@ -113,7 +102,6 @@ impl TrainDisp {
 
     #[allow(clippy::too_many_arguments)]
     /// [TrainDisp] constructor method.
-    /// TODO: Geordie, provide arguments explanation here, though this is somewhat lower priority
     pub fn new(
         train_id: String,
         train_idx: TrainIdx,

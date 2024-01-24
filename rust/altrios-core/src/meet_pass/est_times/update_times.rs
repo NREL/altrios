@@ -1,14 +1,9 @@
-//! TODO: Geordie, provide doc for `update_times`, just a short description
-
 use super::super::disp_imports::*;
 
-#[readonly::make] // TODO: Geordie, update this comment to explain this attribute
+#[readonly::make]
 #[derive(Debug, PartialEq, Clone, Copy)]
-/// TODO: Geordie, put a doc string here
 struct EstTimeNext {
-    /// TODO: Geordie, put a doc string here
     pub time_next: si::Time,
-    /// TODO: Geordie, put a doc string here
     pub est_idx: EstIdx,
 }
 impl EstTimeNext {
@@ -40,11 +35,8 @@ impl Ord for EstTimeNext {
 
 #[readonly::make]
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
-/// TODO: Geordie, provide doc string
 struct EstTimePrev {
-    /// TODO: Geordie, doc string, time for what?
     pub time_prev: si::Time,
-    /// TODO: Geordie, provide doc string.  What does `_sub` mean?
     pub time_sub: si::Time,
     pub est_idx: EstIdx,
 }

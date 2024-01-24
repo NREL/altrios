@@ -3,6 +3,7 @@ use super::elev::*;
 use super::heading::*;
 use super::link_idx::*;
 use super::speed::*;
+#[allow(unused_imports)]
 use crate::meet_pass::est_times::EstTime;
 
 use crate::imports::*;
@@ -19,7 +20,6 @@ pub struct Link {
     pub cat_power_limits: Vec<CatPowerLimit>,
     pub length: si::Length,
 
-    // TODO: Geordie, do these all make sense?
     /// see [EstTime::idx_next]
     pub idx_next: LinkIdx,
     /// see [EstTime::idx_next_alt]
@@ -28,13 +28,10 @@ pub struct Link {
     pub idx_prev: LinkIdx,
     /// see [EstTime::idx_prev_alt]
     pub idx_prev_alt: LinkIdx,
-    /// TODO: Geordie, is this good?
     /// Index of current link
     pub idx_curr: LinkIdx,
-    /// TODO: Geordie, is this good?
     /// Index of adjacent link in reverse direction
     pub idx_flip: LinkIdx,
-    // TODO:  Geordie, add this
     #[serde(default)]
     pub link_idxs_lockout: Vec<LinkIdx>,
 }
@@ -177,9 +174,27 @@ impl ObjState for Link {
     }
 }
 
+#[altrios_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+/// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
+/// Python
+pub struct Network(pub Vec<Link>);
+
+impl AsRef<[Link]> for Network {
+    fn as_ref(&self) -> &[Link] {
+        &self.0
+    }
+}
+
+impl From<&Vec<Link>> for Network {
+    fn from(value: &Vec<Link>) -> Self {
+        Self(value.to_vec())
+    }
+}
+
 #[cfg_attr(feature = "pyo3", pyfunction(name = "import_network"))]
-pub fn import_network_py(filename: String) -> anyhow::Result<Vec<Link>> {
-    let network = Vec::<Link>::from_file(&filename)?;
+pub fn import_network_py(filepath: &PyAny) -> anyhow::Result<Vec<Link>> {
+    let network = Vec::<Link>::from_file(PathBuf::extract(filepath)?)?;
     network.validate()?;
     Ok(network)
 }

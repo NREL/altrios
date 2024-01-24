@@ -241,6 +241,13 @@ impl Consist {
             .sum::<si::Energy>()
     }
 
+    pub fn set_pwr_aux(&mut self, engine_on: Option<bool>) -> anyhow::Result<()> {
+        self.loco_vec
+            .iter_mut()
+            .for_each(|l| l.set_pwr_aux(engine_on));
+        Ok(())
+    }
+
     pub fn solve_energy_consumption(
         &mut self,
         pwr_out_req: si::Power,

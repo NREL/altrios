@@ -256,6 +256,7 @@ pub fn run_dispatch(
         .collect::<Vec<Vec<LinkIdxTime>>>())
 }
 
+#[cfg(feature = "pyo3")]
 #[cfg_attr(feature = "pyo3", pyfunction(name = "run_dispatch"))]
 pub fn run_dispatch_py(
     network: Vec<Link>,

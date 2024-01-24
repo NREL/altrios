@@ -10,7 +10,7 @@ pub use pyo3::types::PyType;
 pub use pyo3_polars::PyDataFrame;
 
 #[pymodule]
-fn altrios_core_py(_py: Python, m: &PyModule) -> PyResult<()> {
+fn altrios_py(_py: Python, m: &PyModule) -> PyResult<()> {
     pyo3_log::init();
     m.add_class::<FuelConverter>()?;
     m.add_class::<FuelConverterState>()?;

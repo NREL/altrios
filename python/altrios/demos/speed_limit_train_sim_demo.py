@@ -32,7 +32,6 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
-# TODO
 bel = alt.Locomotive.build_battery_electric_loco(
     reversible_energy_storage=res,
     drivetrain=edrv,

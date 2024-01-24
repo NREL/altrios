@@ -4,7 +4,7 @@ from typing import List, Union
 import pandas as pd
 import numpy as np
 
-from altrios.altrios_core_py import ReversibleEnergyStorage
+from altrios.altrios_py import ReversibleEnergyStorage
 
 
 def _res_from_excel(

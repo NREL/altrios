@@ -42,7 +42,7 @@ jobs:
       run: |
         cd rust/
         cargo test --workspace
-        cd altios-core/
+        cd altrios-core/
         cargo test
 
     - name: Python unit tests 

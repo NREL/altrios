@@ -10,16 +10,11 @@ pub struct Location {
     #[serde(rename = "Location ID")]
     pub location_id: String,
     #[serde(rename = "Offset (m)")]
-    /// TODO: Geordie, doc string here.  does offset mean distance from start of link to front of
-    /// train?  If yes, state that here
     pub offset: si::Length,
     #[serde(rename = "Link Index")]
     pub link_idx: LinkIdx,
     #[serde(rename = "Is Front End")]
     #[serde(deserialize_with = "as_bool")]
-    /// TODO: Geordie, if this is true, does it mean that `Location` corresponds to front of train?
-    /// Would it be true say that if `is_front_end` is false, then this location corresponds to the
-    /// rear of the train?   Some other part in between possible?
     pub is_front_end: bool,
     #[serde(rename = "Grid Emissions Region")]
     pub grid_emissions_region: String,
@@ -31,12 +26,12 @@ pub struct Location {
 pub type LocationMap = HashMap<String, Vec<Location>>;
 
 #[cfg_attr(feature = "pyo3", pyfunction(name = "import_locations"))]
-pub fn import_locations_py(filename: String) -> anyhow::Result<LocationMap> {
-    import_locations(&PathBuf::from(filename))
+pub fn import_locations_py(filepath: &PyAny) -> anyhow::Result<LocationMap> {
+    import_locations(PathBuf::extract(filepath)?)
 }
 
-pub fn import_locations(filename: &Path) -> anyhow::Result<LocationMap> {
-    let file_read = File::open(filename)?;
+pub fn import_locations<P: AsRef<Path>>(filepath: P) -> anyhow::Result<LocationMap> {
+    let file_read = File::open(filepath.as_ref())?;
     let mut reader = csv::Reader::from_reader(file_read);
     let mut location_map = LocationMap::default();
     for result in reader.deserialize() {

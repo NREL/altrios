@@ -1,6 +1,7 @@
-use super::{braking_point::BrakingPoints, friction_brakes::*, train_imports::*};
 use crate::imports::*;
+use super::{braking_point::BrakingPoints, friction_brakes::*, train_imports::*};
 use crate::track::{LinkPoint, Location};
+use crate::track::link::link_impl::Network;
 
 #[altrios_api(
     #[new]
@@ -30,17 +31,17 @@ impl LinkIdxTime {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
 /// Struct that contains a `Vec<LinkIdxTime>` for the purpose of providing `SerdeAPI` for
 /// `Vec<LinkIdxTime>` in Python
-pub struct LinkIdxTimeVec(pub Vec<LinkIdxTime>);
+pub struct TimedLinkPath(pub Vec<LinkIdxTime>);
 
-impl AsRef<[LinkIdxTime]> for LinkIdxTimeVec {
+impl AsRef<[LinkIdxTime]> for TimedLinkPath {
     fn as_ref(&self) -> &[LinkIdxTime] {
         &self.0
     }
 }
 
-impl From<&Vec<LinkIdxTime>> for LinkIdxTimeVec {
+impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     fn from(value: &Vec<LinkIdxTime>) -> Self {
-        LinkIdxTimeVec(value.to_vec())
+        Self(value.to_vec())
     }
 }
 
@@ -99,7 +100,7 @@ impl From<&Vec<LinkIdxTime>> for LinkIdxTimeVec {
 
     #[pyo3(name = "extend_path")]
     pub fn extend_path_py(&mut self, network_file_path: String, link_path: Vec<LinkIdx>) -> anyhow::Result<()> {
-        let network = Vec::<Link>::from_file(&network_file_path).unwrap();
+        let network = Vec::<Link>::from_file(network_file_path).unwrap();
         network.validate().unwrap();
 
         self.extend_path(&network, &link_path)?;
@@ -109,14 +110,22 @@ impl From<&Vec<LinkIdxTime>> for LinkIdxTimeVec {
     #[pyo3(name = "walk_timed_path")]
     pub fn walk_timed_path_py(
         &mut self, 
-        network: Vec<Link>, 
+        network: &PyAny, 
         timed_path: &PyAny,
     ) -> anyhow::Result<()> {
-        let timed_path = match timed_path.extract::<LinkIdxTimeVec>() {
+        let network = match network.extract::<Network>() {
+            Ok(n) => n,
+            Err(_) => {
+                let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                Network(n)
+            }   
+        };
+
+        let timed_path = match timed_path.extract::<TimedLinkPath>() {
             Ok(tp) => tp,
             Err(_) => {
                 let tp = timed_path.extract::<Vec<LinkIdxTime>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                LinkIdxTimeVec(tp)
+                TimedLinkPath(tp)
             }   
         };
         self.walk_timed_path(&network, timed_path)
@@ -318,11 +327,12 @@ impl SpeedLimitTrainSim {
 
     /// Iterates `save_state` and `step` until offset >= final offset --
     /// i.e. moves train forward and extends path TPC until it reaches destination.
-    pub fn walk_timed_path<P: AsRef<[LinkIdxTime]>>(
+    pub fn walk_timed_path<P: AsRef<[LinkIdxTime]>, Q: AsRef<[Link]>>(
         &mut self,
-        network: &[Link],
+        network: Q,
         timed_path: P,
     ) -> anyhow::Result<()> {
+        let network = network.as_ref();
         let timed_path = timed_path.as_ref();
         if timed_path.is_empty() {
             bail!("Timed path cannot be empty!");
@@ -590,8 +600,10 @@ impl Default for SpeedLimitTrainSim {
 
 impl Valid for SpeedLimitTrainSim {
     fn valid() -> Self {
-        let mut train_sim = Self::default();
-        train_sim.path_tpc = PathTpc::valid();
+        let mut train_sim = Self{
+            path_tpc: PathTpc::valid(),
+            ..Default::default()
+        };
         train_sim.recalc_braking_points().unwrap();
         train_sim
     }

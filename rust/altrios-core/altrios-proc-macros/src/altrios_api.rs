@@ -77,7 +77,11 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     } else if let syn::Fields::Unnamed(syn::FieldsUnnamed { unnamed, .. }) = &mut ast.fields {
         // tuple struct
-        if ast.ident.to_string().contains("Vec") {
+        let ident_str = ast.ident.to_string();
+        if ["Vec", "Network", "Path"]
+            .iter()
+            .any(|&x| ident_str.contains(x))
+        {
             assert!(unnamed.len() == 1);
             for field in unnamed.iter() {
                 let ftype = field.ty.clone();
@@ -149,10 +153,6 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
                     }
                 }
             }
-        } else {
-            abort_call_site!(
-                "Invalid use of `altrios_api` macro.  Expected tuple struct with Vec in name."
-            );
         }
     } else {
         abort_call_site!(
@@ -299,7 +299,7 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
     let mut final_output = TokenStream2::default();
     final_output.extend::<TokenStream2>(quote! {
-        #[cfg_attr(feature="pyo3", pyclass)]
+        #[cfg_attr(feature="pyo3", pyclass(module="altrios"))]
     });
     let mut output: TokenStream2 = ast.to_token_stream();
     output.extend(impl_block);

@@ -37,7 +37,7 @@ for target in targets:
         freight_demand_percent_growth=0,
         save_interval=None,
         write_metrics=True,
-        network_filename_path=str(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
+        network_filename_path=alt.resources_root() / "networks/Taconite-NoBalloon.yaml"
     )
 
 # %%

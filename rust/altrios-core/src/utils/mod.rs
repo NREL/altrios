@@ -191,7 +191,7 @@ pub struct Pyo3VecWrapper(pub Vec<f64>);
 pub struct Pyo3Vec2Wrapper(pub Vec<Vec<f64>>);
 impl From<Vec<Vec<f64>>> for Pyo3Vec2Wrapper {
     fn from(v: Vec<Vec<f64>>) -> Self {
-        Pyo3Vec2Wrapper::new(v)
+        Self::new(v)
     }
 }
 
@@ -200,7 +200,7 @@ impl From<Vec<Vec<f64>>> for Pyo3Vec2Wrapper {
 pub struct Pyo3Vec3Wrapper(pub Vec<Vec<Vec<f64>>>);
 impl From<Vec<Vec<Vec<f64>>>> for Pyo3Vec3Wrapper {
     fn from(v: Vec<Vec<Vec<f64>>>) -> Self {
-        Pyo3Vec3Wrapper::new(v)
+        Self::new(v)
     }
 }
 

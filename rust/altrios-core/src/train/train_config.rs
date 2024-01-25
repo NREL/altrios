@@ -294,8 +294,14 @@ impl TrainSimBuilder {
             let res_rolling = res_kind::rolling::Basic::new(veh.rolling_ratio);
             let davis_b = res_kind::davis_b::Basic::new(veh.davis_b);
             let res_aero = res_kind::aerodynamic::Basic::new(
-                veh.drag_area_empty * self.train_config.cars_empty as f64
-                    + veh.drag_area_loaded * self.train_config.cars_loaded as f64,
+                match self.train_config. {
+                    TrainConfigu::Basic => {                
+                        veh.drag_area_empty * self.train_config.cars_empty as f64
+                            + veh.drag_area_loaded * self.train_config.cars_loaded as f64
+                    },
+                    TrainConfig::BasicFromRatioVec => {uc::M2}
+                }
+
             );
             let res_grade = res_kind::path_res::Strap::new(path_tpc.grades(), &state)?;
             let res_curve = res_kind::path_res::Strap::new(path_tpc.curves(), &state)?;

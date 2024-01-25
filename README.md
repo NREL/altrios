@@ -9,11 +9,11 @@
 
 The Advanced Locomotive Technology and Rail Infrastructure Optimization System ([ALTRIOS](https://www.nrel.gov/transportation/altrios.html)) is a unique, fully integrated, open-source software tool to evaluate strategies for deploying advanced locomotive technologies and associated infrastructure for cost-effective decarbonization. ALTRIOS simulates freight-demand driven train scheduling, mainline meet-pass planning, locomotive dynamics, train dynamics, energy conversion efficiencies, and energy storage dynamics of line-haul train operations. Because new locomotives represent a significant long-term capital investment and new technologies must be thoroughly demonstrated before deployment, this tool provides guidance on the risk/reward tradeoffs of different technology rollout strategies. An open, integrated simulation tool is invaluable for identifying future research needs and making decisions on technology development, routes, and train selection. ALTRIOS was developed as part of a collaborative effort by a team comprising The National Renewable Energy Laboratory (NREL), University of Illinois Urbana-Champaign (UIUC), Southwest Research Institute (SwRI), and BNSF Railway.
 
-# Installation
+## Installation
 
-## All Users
+### All Users
 
-### Python Setup
+#### Python Setup
 
 1. Python installation options:
    - Option 1 -- Python: https://www.python.org/downloads/. We recommend Python 3.10. Be sure to check the `Add to PATH` option during installation.
@@ -30,15 +30,15 @@ The Advanced Locomotive Technology and Rail Infrastructure Optimization System (
      1. Open an Anaconda prompt (in Windows, we recommend Anaconda Powershell Prompt) and run the command `conda create -n altrios python=3.10` to create an Anaconda environment named `altrios`.
      1. Activate the environment to install packages or anytime you're running ALTRIOS: run `conda activate altrios`.
 
-### ALTRIOS Setup
+#### ALTRIOS Setup
 
 With your Python environment activated, run `pip install altrios`.
 
 Congratulations, you've completed installation! Whenever you need to use ALTRIOS, be sure to activate your python environment created above.
 
-## Developers
+### Developers
 
-### Cloning the GitHub Repo
+#### Cloning the GitHub Repo
 
 Clone the repository:
 
@@ -46,11 +46,11 @@ Clone the repository:
 1. Create a parent directory in your preferred location to contain the repo -- e.g. `<USER_HOME>/Documents/altrios_project/`.
 1. Open git bash, and inside the directory you created, [clone](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) the [ALTRIOS repository](https://github.com/NREL/ALTRIOS) with e.g. `git clone https://github.com/NREL/ALTRIOS.git`.
 
-### Installing the Python Package
+#### Installing the Python Package
 
 Within the ALTRIOS folder, run `pip install -e ".[dev]"`
 
-#### Using Pinned Package Versions
+##### Using Pinned Package Versions
 
 If you want to use pinned package versions to make sure you're environment is the same as the developers, you can do:
 
@@ -58,7 +58,7 @@ If you want to use pinned package versions to make sure you're environment is th
 pip install -r requirements-dev.txt
 ```
 
-#### Updating Pinned Package Versions
+##### Updating Pinned Package Versions
 
 If you add a new package as a dependency, you should update the pinned requirements files.
 To do this you can install pip tools: `pip install pip-tools` and then:
@@ -69,30 +69,30 @@ pip-compile && pip-compile requirements-dev.in
 
 This will generate two files: `requirements.txt` and `requirements-dev.txt` which you can check into the repository.
 
-### Rust Installation
+#### Rust Installation
 
 Install Rust: https://www.rust-lang.org/tools/install.
 
-### Automated Building and Testing
+#### Automated Building and Testing
 
 There is a shortcut for building and running all tests, assuming you've installed the python package with develop mode. In the root of the `ALTRIOS/` folder, run the `build_and_test.sh` script. In Windows bash (e.g. git bash), run `sh build_and_test.sh`, or in Linux/Unix, run `./build_and_test.sh`. This builds all the Rust code, runs Rust tests, builds the Python-exposed Rust code, and runs the Python tests.
 
-### Manually Building the Python API
+#### Manually Building the Python API
 
 Run `maturin develop --release`. Note that not including `--release` will cause a significant runtime computational performance penalty.
 
-### Testing
+#### Testing
 
-#### Manually
+##### Manually
 
 Whenever updating code, always run `cargo test --release` inside `ALTRIOS/rust/` to ensure that all tests pass. Also, be sure to rebuild the Python API regularly to ensure that it is up to date. Python unit tests run with `python -m unittest discover` in the root folder of the git repository.
 
-#### With GitHub Actions
+##### With GitHub Actions
 Any time anyone pushes to `main` or does any pull request, the GitHub Actions [tests workflow](https://github.com/NREL/altrios/blob/686e8c28828cb980cc45567d08091e69b7bee52c/.github/workflows/tests.yaml#L3) is triggered.  
 
-### Releasing
+#### Releasing
 
-#### To PyPI With GitHub Actions
+##### To PyPI With GitHub Actions
 To release the package with GitHub Actions, you can follow these steps:
 
 1. With the changes already committed, create a new branch in the format `v<major>.<minor>.<patch>`. For example `v0.2.1`.
@@ -100,10 +100,10 @@ To release the package with GitHub Actions, you can follow these steps:
 1. Open a pull request into the main branch and make sure all checks pass.
 1. Once the pull request is merged into the main branch by a reviewer, create a new GitHub release and create a tag that matches the branch name. Once the release is created, a [GitHub action](https://github.com/NREL/altrios/blob/686e8c28828cb980cc45567d08091e69b7bee52c/.github/workflows/wheels.yaml#L5) will be launched to build the wheels and publish them to PyPI. 
 
-#### To crates.io
+##### To crates.io
 Instructions for releasing `altrios-core` and `altrios-proc-macros` are found in [altrios-core README.md](./rust/altrios-core/README.md) and [altrios-proc-macros README.md](./rust/altrios-core/altrios-proc-macros/README.md).  `altrios-py` is a `cdylib` crate and cannot be released.  
 
-# How to run ALTRIOS
+## How to run ALTRIOS
 
 With your activated Python environment with ALTRIOS fully installed, you can download the demo scripts to the current working directory inside of a `demos/` folder with:
 ```python
@@ -113,6 +113,6 @@ alt.copy_demo_files()
 
 You can run the Simulation Manager through a multi-week simulation of train operations in by running `python sim_manager_demo.py` in `demos/`. This will create a `plots/` subfolder in which the plots will be saved. To run interactively, fire up a Python IDE (e.g. [VS Code](https://code.visualstudio.com/Download), [Spyder](https://www.spyder-ide.org/)), and run the file. If you're in VS Code, you can run the file as a virtual jupyter notebook because of the "cells" that are marked with the `# %%` annotation. You can click on line 2, for example, and hit `<Shift> + <Enter>` to run the current cell in an interactive terminal (which will take several seconds to launch) and advance to the next cell. Alternatively, you can hit `<Ctrl> + <Shift> + p` to enable interactive commands and type "run current cell".  There are several other python files in the `demos/` folder to demonstrate various capabilities of ALTRIOS.  
 
-# Acknowledgements
+## Acknowledgements
  
 The ALTRIOS Team would like to thank ARPA-E for financially supporting the research through the LOCOMOTIVES program and Dr. Robert Ledoux for his vision and support. We would also like to thank the ARPA-E team for their support and guidance: Dr. Apoorv Agarwal, Mirjana Marden, Alexis Amos, and Catherine Good.  We would also like to thank BNSF for their cost share financial support, guidance, and deep understanding of the rail industry’s needs.  Additionally, we would like to thank Jinghu Hu for his contributions to the core ALTRIOS code.  We would like to thank Chris Hennessy at SwRI for his support. Thank you to Michael Cleveland for his help with developing and kicking off this project.  

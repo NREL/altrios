@@ -1,0 +1,9 @@
+Location ID,Link Index,Offset (m),Is Front End,Grid Region
+Barstow,6,0,FALSE,CAMXc, CA, CA
+Barstow,330,0,FALSE,CAMXc, CA, CA
+Stockton,52,0,FALSE,CAMXc, CA, CA
+Stockton,376,0,FALSE,CAMXc, CA, CA
+A, 1,0,FALSE, CAMXc, CA, CA
+A, 3,0,FALSE, CAMXc, CA, CA
+B, 2,0,FALSE, CAMXc, CA, CA 
+B, 4,0,FALSE, CAMXc, CA, CA

@@ -25,7 +25,8 @@ use pyo3_polars::PyDataFrame;
         train_type: Option<TrainType>,
         train_length_meters: Option<f64>,
         train_mass_kilograms: Option<f64>,
-    ) -> Self {
+        drag_coeff_vec: Option<Vec<f64>>,
+    ) -> anyhow::Result<Self> {
         Self::new(
             cars_empty,
             cars_loaded,
@@ -33,6 +34,7 @@ use pyo3_polars::PyDataFrame;
             train_type.unwrap_or(TrainType::Freight),
             train_length_meters.map(|v| v * uc::M),
             train_mass_kilograms.map(|v| v * uc::KG),
+            drag_coeff_vec.map(|dcv| dcv.iter().map(|dc| *dc * uc::R).collect())
         )
     }
 
@@ -63,7 +65,7 @@ use pyo3_polars::PyDataFrame;
         Ok(())
     }
 )]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 /// User-defined train configuration used to generate [crate::prelude::TrainParams].
 /// Any optional fields will be populated later in [TrainSimBuilder::make_train_sim_parts]
 pub struct TrainConfig {
@@ -81,6 +83,26 @@ pub struct TrainConfig {
     /// Total train mass that overrides the railcar specific values
     #[api(skip_set, skip_get)]
     pub train_mass: Option<si::Mass>,
+    #[api(skip_get, skip_set)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    /// Optional vector of coefficients for each car.  If provided, the total drag area (drag
+    /// coefficient times frontal area) calculated from this vector is the sum of these coefficients
+    /// times the baseline, single-vehicle `drag_area_loaded`.
+    // TODO: make getter and setter for this
+    pub drag_coeff_vec: Option<Vec<si::Ratio>>,
+}
+
+impl SerdeAPI for TrainConfig {
+    fn init(&mut self) -> anyhow::Result<()> {
+        match &self.drag_coeff_vec {
+            Some(dcv) => {
+                ensure!(dcv.len() as u32 == self.cars_loaded + self.cars_empty);
+            }
+            None => {}
+        };
+        Ok(())
+    }
 }
 
 impl TrainConfig {
@@ -91,15 +113,19 @@ impl TrainConfig {
         train_type: TrainType,
         train_length: Option<si::Length>,
         train_mass: Option<si::Mass>,
-    ) -> Self {
-        Self {
+        drag_coeff_vec: Option<Vec<si::Ratio>>,
+    ) -> anyhow::Result<Self> {
+        let mut train_config = Self {
             cars_empty,
             cars_loaded,
             rail_vehicle_type,
             train_type,
             train_length,
             train_mass,
-        }
+            drag_coeff_vec,
+        };
+        train_config.init()?;
+        Ok(train_config)
     }
 
     pub fn cars_total(&self) -> u32 {
@@ -144,6 +170,7 @@ impl Valid for TrainConfig {
             train_type: TrainType::Freight,
             train_length: None,
             train_mass: None,
+            drag_coeff_vec: None,
         }
     }
 }
@@ -219,7 +246,6 @@ impl Valid for TrainConfig {
             scenario_year,
         )
     }
-
 )]
 #[derive(Debug, Default, Clone, Deserialize, Serialize, PartialEq, SerdeAPI)]
 pub struct TrainSimBuilder {
@@ -293,10 +319,16 @@ impl TrainSimBuilder {
             );
             let res_rolling = res_kind::rolling::Basic::new(veh.rolling_ratio);
             let davis_b = res_kind::davis_b::Basic::new(veh.davis_b);
-            let res_aero = res_kind::aerodynamic::Basic::new(
-                veh.drag_area_empty * self.train_config.cars_empty as f64
-                    + veh.drag_area_loaded * self.train_config.cars_loaded as f64,
-            );
+            let res_aero =
+                res_kind::aerodynamic::Basic::new(match &self.train_config.drag_coeff_vec {
+                    Some(dcv) => dcv
+                        .iter()
+                        .fold(0. * uc::M2, |acc, dc| *dc * veh.drag_area_loaded + acc),
+                    None => {
+                        veh.drag_area_empty * self.train_config.cars_empty as f64
+                            + veh.drag_area_loaded * self.train_config.cars_loaded as f64
+                    }
+                });
             let res_grade = res_kind::path_res::Strap::new(path_tpc.grades(), &state)?;
             let res_curve = res_kind::path_res::Strap::new(path_tpc.curves(), &state)?;
             TrainRes::Strap(res_method::Strap::new(

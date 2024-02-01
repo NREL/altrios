@@ -778,6 +778,7 @@ class TrainSimBuilder(SerdeAPI):
     train_config: TrainConfig
     loco_con: Consist
     init_train_state: Optional[InitTrainState]
+    drag_coeff_vec: Optional[List[float]]
     @classmethod
     def default(cls) -> Self: ...
 

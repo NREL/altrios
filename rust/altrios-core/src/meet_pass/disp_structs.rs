@@ -7,7 +7,7 @@ pub const EST_IDX_NA: EstIdx = 0;
 
 /// Type of estimated time node
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI)]
-#[repr(u8)] 
+#[repr(u8)]
 pub enum EstType {
     /// Train arrives at entry point to link
     Arrive,
@@ -58,9 +58,9 @@ pub struct DispAuth {
     pub arrive_entry: si::Time,
     /// Arrive Exit Time
     pub arrive_exit: si::Time,
-    /// Clear Entry Time, 
+    /// Clear Entry Time,
     pub clear_entry: si::Time,
-    /// Clear Exit Time, 
+    /// Clear Exit Time,
     pub clear_exit: si::Time,
 
     /// Offset (distance) between start of track link and front of train

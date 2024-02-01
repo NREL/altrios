@@ -7,8 +7,8 @@ use super::{
     friction_brakes::*, rail_vehicle::RailVehicle, train_imports::*, InitTrainState, LinkIdxTime,
     SetSpeedTrainSim, SpeedLimitTrainSim, SpeedTrace, TrainState,
 };
-use crate::track::link::link_impl::Network;
 use crate::track::link::link_idx::LinkPath;
+use crate::track::link::link_impl::Network;
 use crate::track::LocationMap;
 
 use polars::prelude::*;
@@ -67,7 +67,7 @@ use pyo3_polars::PyDataFrame;
 /// User-defined train configuration used to generate [crate::prelude::TrainParams].
 /// Any optional fields will be populated later in [TrainSimBuilder::make_train_sim_parts]
 pub struct TrainConfig {
-    /// Optional user-defined identifier for the car type on this train.  
+    /// Optional user-defined identifier for the car type on this train.
     pub rail_vehicle_type: Option<String>,
     /// Number of empty railcars on the train
     pub cars_empty: u32,
@@ -182,7 +182,7 @@ impl Valid for TrainConfig {
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
                 Network(n)
-            }   
+            }
         };
 
         let link_path = match link_path.extract::<LinkPath>() {
@@ -190,7 +190,7 @@ impl Valid for TrainConfig {
             Err(_) => {
                 let lp = link_path.extract::<Vec<LinkIdx>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
                 LinkPath(lp)
-            }   
+            }
         };
 
         self.make_set_speed_train_sim(

@@ -22,9 +22,8 @@ SAVE_INTERVAL = 1
 pt = alt.PowerTrace.default()
 
 res = alt.ReversibleEnergyStorage.from_file(
-    str(alt.resources_root() / 
+    alt.resources_root() / 
         "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
-    )
 )
 # instantiate electric drivetrain (motors and any gearboxes)
 edrv = alt.ElectricDrivetrain(

@@ -310,6 +310,7 @@ impl SetSpeedTrainSim {
         self.loco_con
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
 
+        self.loco_con.set_pwr_aux(Some(true))?;
         self.loco_con
             .set_cur_pwr_max_out(None, self.speed_trace.dt(self.state.i))?;
         self.train_res

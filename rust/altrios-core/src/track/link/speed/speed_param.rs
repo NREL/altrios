@@ -1,18 +1,13 @@
-//! TODO: Geordie, put a doc string here
 use crate::imports::*;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI)]
 #[repr(u8)]
-/// TODO: Geordie, put a doc string here.  Be sure to explain why you're using this enum structure.  
 pub enum LimitType {
     //CivilSpeed = 1,
     //MaxPermissibleSpeed = 2,
-    /// TODO: Geordie, put a doc string here
     MassTotal = 3,
     #[default]
-    /// TODO: Geordie, put a doc string here
     MassPerBrake = 4,
-    /// TODO: Geordie, put a doc string here
     AxleCount = 5,
 }
 
@@ -20,18 +15,12 @@ impl Valid for LimitType {}
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI)]
 #[repr(u8)]
-/// TODO: Geordie, put a doc string here
 pub enum CompareType {
     #[default]
-    /// TODO: Geordie, put a doc string here
     TpEqualRp = 1,
-    /// TODO: Geordie, put a doc string here
     TpGreaterThanRp = 2,
-    /// TODO: Geordie, put a doc string here
     TpLessThanRp = 3,
-    /// TODO: Geordie, put a doc string here
     TpGreaterThanEqualRp = 4,
-    /// TODO: Geordie, put a doc string here
     TpLessThanEqualRp = 5,
 }
 
@@ -57,7 +46,6 @@ impl Valid for CompareType {
 }
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, SerdeAPI)]
-/// TODO: Geordie, put a doc string here
 pub struct SpeedParam {
     pub limit_val: f64,
     pub limit_type: LimitType,

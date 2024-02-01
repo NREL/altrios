@@ -9,6 +9,12 @@ This crate is primarily intended to be used as a backend for the [ALTRIOS PyPI p
 ## Developers
 If you've updated `altrios-proc-macros`, be sure to publish that crate first and then update the Cargo.toml dependency for this crate.  
 
-To release this crate, you need to be setup as developer for this crate in crates.io.  After making changes and updating the version number in Cargo.toml, you can run `cargo publish --dry-run` to make sure everything checks and then run `cargo publish` to release the update.  
+To release this crate, you need to be setup as developer for this crate in crates.io.  After making changes and updating the version number in Cargo.toml, follow these steps: 
+1. Increment the version number in [Cargo.toml](./Cargo.toml)
+1. Run `git tag ac<major>.<minor>.<patch>`, where `ac<major>.<minor>.<patch>` should look like
+   `ac0.1.4`, reflecting whatever the current version is
+1. Push the tag with `git push public ac<major>.<minor>.<patch>`, where `public` is this remote: `git@github.com:NREL/altrios.git`
+1. Run `cargo publish --dry-run` to make sure everything checks
+1. Run `cargo publish` to release the update.  
 
 In the future, we may incorporate this into GitHub Actions.  

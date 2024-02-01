@@ -12,9 +12,9 @@ SHOW_PLOTS = alt.utils.show_plots()
 SAVE_INTERVAL = 100
 
 train_config = alt.TrainConfig(
-    rail_vehicle_type="Manifest",
     cars_empty=50,
     cars_loaded=50,
+    rail_vehicle_type="Manifest",
     train_type=None,
     train_length_meters=None,
     train_mass_kilograms=None,
@@ -22,9 +22,7 @@ train_config = alt.TrainConfig(
 
 # instantiate battery model
 res = alt.ReversibleEnergyStorage.from_file(
-    str(alt.resources_root() / 
-        "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
-    )
+    alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
 )
 # instantiate electric drivetrain (motors and any gearboxes)
 edrv = alt.ElectricDrivetrain(
@@ -49,10 +47,6 @@ loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7
 loco_con = alt.Consist(
     loco_vec,
 )
-init_train_state = alt.InitTrainState(
-    # this corresponds to middle week of simulation period in sim_manager_demo.py
-    time_seconds=604_800.0,
-)
 
 tsb = alt.TrainSimBuilder(
     train_id="0",
@@ -60,21 +54,15 @@ tsb = alt.TrainSimBuilder(
     destination_id="Superior",
     train_config=train_config,
     loco_con=loco_con,
-    init_train_state=init_train_state,
 )
 
 # make sure rail_vehicle_map can be constructed from yaml file and such
 rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
-rail_vehicle = alt.RailVehicle.from_file(
-    str(alt.resources_root() / rail_vehicle_file)
-)
+rail_vehicle = alt.RailVehicle.from_file(alt.resources_root() / rail_vehicle_file)
 
-network = alt.import_network(
-    str(alt.resources_root() / "networks/Taconite-NoBalloon.yaml"))
+network = alt.Network.from_file(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 
-location_map = alt.import_locations(
-    str(alt.resources_root() / "networks/default_locations.csv")
-)
+location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")
 
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
     rail_vehicle=rail_vehicle,
@@ -83,16 +71,12 @@ train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
 )
 train_sim.set_save_interval(SAVE_INTERVAL)
 
-timed_path = alt.LinkIdxTimeVec.from_file(
-    str(alt.resources_root() / "demo_data/timed_path.yaml")
-)
-
-# %%
+timed_link_path = alt.TimedLinkPath.from_file(alt.resources_root() / "demo_data/timed_path.yaml")
 
 t0 = time.perf_counter()
 train_sim.walk_timed_path(
     network=network,
-    timed_path=timed_path,
+    timed_path=timed_link_path,
 )
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')

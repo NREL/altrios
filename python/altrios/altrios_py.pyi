@@ -820,6 +820,7 @@ class TrainConfig(SerdeAPI):
     train_type: str
     train_length_meters: Optional[float]
     train_mass_kilograms: Optional[float]
+    drag_coeff_vec: Optional[List[float]]
     @classmethod
     def default(cls) -> Self: ...
 

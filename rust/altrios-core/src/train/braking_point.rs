@@ -103,7 +103,7 @@ impl BrakingPoints {
                     train_state.speed = bp_curr.speed_limit;
                     train_res.update_res(&mut train_state, path_tpc, &Dir::Bwd)?;
 
-                    assert!(fric_brake.force_max + train_state.res_net() > si::Force::ZERO);
+                    ensure!(fric_brake.force_max + train_state.res_net() > si::Force::ZERO);
                     let vel_change = train_state.dt
                         * (fric_brake.force_max + train_state.res_net())
                         / train_state.mass_static;

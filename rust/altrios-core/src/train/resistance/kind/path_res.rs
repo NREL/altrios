@@ -14,15 +14,16 @@ pub struct Point {
 impl Point {
     pub fn new(vals: &[PathResCoeff], state: &TrainState) -> anyhow::Result<Self> {
         Ok(Self {
-            idx: vals.calc_idx::<{ Dir::Fwd }>(state.offset - state.length * 0.5, 0)?,
+            idx: vals.calc_idx(state.offset - state.length * 0.5, 0, &Dir::Fwd)?,
         })
     }
-    pub fn calc_res<const DIR: DirT>(
+    pub fn calc_res(
         &mut self,
         vals: &[PathResCoeff],
         state: &TrainState,
+        dir: &Dir,
     ) -> anyhow::Result<si::Force> {
-        self.idx = vals.calc_idx::<DIR>(state.offset - state.length * 0.5, self.idx)?;
+        self.idx = vals.calc_idx(state.offset - state.length * 0.5, self.idx, dir)?;
         Ok(calc_res_val(vals[self.idx].res_coeff, state))
     }
     pub fn res_coeff_front(&self, vals: &[PathResCoeff]) -> si::Ratio {
@@ -61,31 +62,43 @@ impl Strap {
                 idx_back: 0,
             })
         } else {
-            let idx_back = vals.calc_idx::<{ Dir::Fwd }>(state.offset - state.length, 0)?;
+            let idx_back = vals.calc_idx(state.offset - state.length, 0, &Dir::Fwd)?;
             Ok(Self {
                 idx_back,
-                idx_front: vals.calc_idx::<{ Dir::Fwd }>(state.offset, idx_back)?,
+                idx_front: vals.calc_idx(state.offset, idx_back, &Dir::Fwd)?,
             })
         }
     }
-    pub fn calc_res<const DIR: DirT>(
+    pub fn calc_res(
         &mut self,
         vals: &[PathResCoeff],
         state: &TrainState,
+        dir: &Dir,
     ) -> anyhow::Result<si::Force> {
-        if DIR == Dir::Fwd || DIR == Dir::Unk {
-            self.idx_front = vals.calc_idx::<DIR>(state.offset, self.idx_front)?;
+        match dir {
+            Dir::Fwd => {
+                self.idx_front = vals.calc_idx(state.offset, self.idx_front, dir)?;
+            }
+            Dir::Bwd => {
+                self.idx_back = vals.calc_idx(state.offset_back, self.idx_back, dir)?;
+            }
+            Dir::Unk => {
+                self.idx_front = vals.calc_idx(state.offset, self.idx_front, dir)?;
+                self.idx_back = vals.calc_idx(state.offset_back, self.idx_back, dir)?;
+            }
         }
-        if DIR == Dir::Bwd || DIR == Dir::Unk {
-            self.idx_back = vals.calc_idx::<DIR>(state.offset_back, self.idx_back)?;
-        }
+
         let res_coeff = if self.idx_front == self.idx_back {
             vals[self.idx_front].res_coeff
         } else {
-            if DIR == Dir::Fwd {
-                self.idx_back = vals.calc_idx::<DIR>(state.offset_back, self.idx_back)?;
-            } else if DIR == Dir::Bwd {
-                self.idx_front = vals.calc_idx::<DIR>(state.offset, self.idx_front)?;
+            match dir {
+                Dir::Fwd => {
+                    self.idx_back = vals.calc_idx(state.offset_back, self.idx_back, dir)?;
+                }
+                Dir::Bwd => {
+                    self.idx_front = vals.calc_idx(state.offset, self.idx_front, dir)?;
+                }
+                _ => {}
             }
             vals.calc_res_strap(self.idx_front, self.idx_back, state)
         };

@@ -8,10 +8,11 @@ use crate::train::TrainState;
 
 #[enum_dispatch]
 pub trait ResMethod {
-    fn update_res<const DIR: DirT>(
+    fn update_res(
         &mut self,
         state: &mut TrainState,
         path_tpc: &PathTpc,
+        dir: &Dir,
     ) -> anyhow::Result<()>;
     fn fix_cache(&mut self, link_point_del: &LinkPoint);
 }

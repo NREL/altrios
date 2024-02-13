@@ -9,12 +9,12 @@ import pandas as pd
 import requests
 import os
 
-File = 'D:/Projects/ALTRIOS/Data For NREL/GIS/Shape File to NEtwork/Elevation Data/URLs For 3DEP Data for lower 48 states.csv'
+File = 'data.txt'
 
 
-FolderForRawData = 'D:/Projects/ALTRIOS/Data For NREL/GIS/Shape File to NEtwork/Elevation Data/GeoTiffs/'
+FolderForRawData = 'GeoTiffs/'
 
-URLData = pd.read_csv(File)
+URLData = pd.read_csv(File, names=['Download URL'])
 # URLData = URLData.head()
 
 for id, row in URLData.iterrows():

@@ -287,7 +287,7 @@ impl SpeedLimitTrainSim {
         self.loco_con.set_pwr_aux(Some(true))?;
         self.loco_con.set_cur_pwr_max_out(None, self.state.dt)?;
         self.train_res
-            .update_res::<{ Dir::Fwd }>(&mut self.state, &self.path_tpc)?;
+            .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
         self.solve_required_pwr()?;
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,

@@ -21,4 +21,4 @@ Run th following in the repository root directory:
 1. Make sure the docs look good locally by running the steps in [Serving Locally](#serving-locally)
 1. Commit files and push to `main` branch
 
-After that, a GitHub action will build the book and publish it [here](https://pages.github.nrel.gov/MBAP/mbap-computing/)
+After that, a GitHub action will build the book and publish it.

@@ -47,13 +47,11 @@ jobs:
           pipx ensurepath &&
           pipx install pydoc-markdown
 
-      - name: Build python docs
-        run: 
-          sudo apt update
-          sudo apt install pipx
-          pipx ensurepath
-          pipx install pydoc-markdown
-          pydoc-markdown -I python/ -p fastsim --render-toc > docs/src/python_docs.md          
+      - name: Generate python docs
+        working-directory: ${{runner.workspace}}/fastsim/
+        run:
+          pydoc-markdown -I python/ --render-toc > docs/src/python-doc.md
+
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v3

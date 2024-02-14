@@ -1,6 +1,7 @@
 use crate::imports::*;
 use crate::si;
 
+#[derive(PartialEq)]
 pub enum Dir {
     Unk,
     Fwd,
@@ -23,28 +24,24 @@ pub trait LinSearchHint {
 
 impl<T: GetOffset + core::fmt::Debug> LinSearchHint for &[T] {
     fn calc_idx(&self, offset: si::Length, mut idx: usize, dir: &Dir) -> anyhow::Result<usize> {
-        match dir {
-            Dir::Bwd => {
-                ensure!(
-                    offset <= self.last().unwrap().get_offset(),
-                    "{}\nOffset larger than last slice offset!",
-                    format_dbg!()
-                );
-                while self[idx + 1].get_offset() < offset {
-                    idx += 1;
-                }
+        if dir != &Dir::Bwd {
+            ensure!(
+                offset <= self.last().unwrap().get_offset(),
+                "{}\nOffset larger than last slice offset!",
+                format_dbg!()
+            );
+            while self[idx + 1].get_offset() < offset {
+                idx += 1;
             }
-            Dir::Fwd => {
-                ensure!(
-                    self.first().unwrap().get_offset() <= offset,
-                    "{}\nOffset smaller than first slice offset!",
-                    format_dbg!()
-                );
-                while offset < self[idx].get_offset() {
-                    idx -= 1;
-                }
+        } else if dir != &Dir::Fwd {
+            ensure!(
+                self.first().unwrap().get_offset() <= offset,
+                "{}\nOffset smaller than first slice offset!",
+                format_dbg!()
+            );
+            while offset < self[idx].get_offset() {
+                idx -= 1;
             }
-            _ => {}
         }
         Ok(idx)
     }

@@ -81,7 +81,7 @@ impl BrakingPoints {
         let mut train_res = train_res.clone();
         train_state.offset = path_tpc.offset_end();
         train_state.speed = si::Velocity::ZERO;
-        train_res.update_res::<{ Dir::Unk }>(&mut train_state, path_tpc)?;
+        train_res.update_res(&mut train_state, path_tpc, &Dir::Unk)?;
         let speed_points = path_tpc.speed_points();
         let mut idx = path_tpc.speed_points().len();
 
@@ -101,9 +101,19 @@ impl BrakingPoints {
 
                     train_state.offset = bp_curr.offset;
                     train_state.speed = bp_curr.speed_limit;
-                    train_res.update_res::<{ Dir::Bwd }>(&mut train_state, path_tpc)?;
+                    train_res.update_res(&mut train_state, path_tpc, &Dir::Bwd)?;
 
-                    assert!(fric_brake.force_max + train_state.res_net() > si::Force::ZERO);
+                    ensure!(
+                        fric_brake.force_max + train_state.res_net() > si::Force::ZERO,
+                        format!(
+                            "{}\n{}\n{}",
+                            format_dbg!(
+                                fric_brake.force_max + train_state.res_net() > si::Force::ZERO
+                            ),
+                            format_dbg!(fric_brake.force_max),
+                            format_dbg!(train_state.res_net()),
+                        )
+                    );
                     let vel_change = train_state.dt
                         * (fric_brake.force_max + train_state.res_net())
                         / train_state.mass_static;

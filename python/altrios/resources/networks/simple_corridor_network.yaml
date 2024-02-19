@@ -18,9 +18,9 @@
       elev: 301.489
   headings:
     - offset: 0.0
-      heading: 0.7920029130732765
+      heading: 0
     - offset: 50000.0
-      heading: 0.7920029130732765
+      heading: 0
   speed_sets:
     - speed_limits:
         - offset_start: 0.0
@@ -80,9 +80,9 @@
       elev: 301.489
   headings:
     - offset: 0.0
-      heading: 6.239527893811644
+      heading: 0
     - offset: 8.20607949252401
-      heading: 6.239527893811644
+      heading: 0
   speed_sets:
     - speed_limits:
         - offset_start: 0.0
@@ -142,9 +142,9 @@
       elev: 201.489
   headings:
     - offset: 0.0
-      heading: 0.7920029130732765
+      heading: 0
     - offset: 50000.0
-      heading: 0.7920029130732765
+      heading: 0
   speed_sets:
     - speed_limits:
         - offset_start: 0.0
@@ -204,9 +204,9 @@
       elev: 201.489
   headings:
     - offset: 0.0
-      heading: 3.830348044630097
+      heading: 0
     - offset: 233.1767806956755
-      heading: 3.830348044630097
+      heading: 0
   speed_sets:
     - speed_limits:
         - offset_start: 0.0

@@ -110,8 +110,20 @@ With your activated Python environment with ALTRIOS fully installed, you can dow
 import altrios as alt  
 alt.copy_demo_files()
 ```
-
 You can run the Simulation Manager through a multi-week simulation of train operations in by running `python sim_manager_demo.py` in `demos/`. This will create a `plots/` subfolder in which the plots will be saved. To run interactively, fire up a Python IDE (e.g. [VS Code](https://code.visualstudio.com/Download), [Spyder](https://www.spyder-ide.org/)), and run the file. If you're in VS Code, you can run the file as a virtual jupyter notebook because of the "cells" that are marked with the `# %%` annotation. You can click on line 2, for example, and hit `<Shift> + <Enter>` to run the current cell in an interactive terminal (which will take several seconds to launch) and advance to the next cell. Alternatively, you can hit `<Ctrl> + <Shift> + p` to enable interactive commands and type "run current cell".  There are several other python files in the `demos/` folder to demonstrate various capabilities of ALTRIOS.  
+
+If you plan to modify the data used in the demo files, copy the data files to your local directory and load them  from there, e.g.  
+```python
+res = alt.ReversibleEnergyStorage.from_file(
+   alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
+)
+```
+would become  
+```python
+res = alt.ReversibleEnergyStorage.from_file(
+   "./custom_battery.yaml"
+)
+```
 
 ## Acknowledgements
  

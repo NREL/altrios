@@ -16,10 +16,11 @@ pub struct Point {
 }
 
 impl ResMethod for Point {
-    fn update_res<const DIR: DirT>(
+    fn update_res(
         &mut self,
         state: &mut TrainState,
         path_tpc: &PathTpc,
+        dir: &Dir,
     ) -> anyhow::Result<()> {
         state.offset_back = state.offset - state.length;
         state.weight_static = state.mass_static * uc::ACC_GRAV;
@@ -27,8 +28,8 @@ impl ResMethod for Point {
         state.res_rolling = self.rolling.calc_res(state);
         state.res_davis_b = self.davis_b.calc_res(state);
         state.res_aero = self.aerodynamic.calc_res(state);
-        state.res_grade = self.grade.calc_res::<DIR>(path_tpc.grades(), state)?;
-        state.res_curve = self.curve.calc_res::<DIR>(path_tpc.curves(), state)?;
+        state.res_grade = self.grade.calc_res(path_tpc.grades(), state, dir)?;
+        state.res_curve = self.curve.calc_res(path_tpc.curves(), state, dir)?;
         state.grade_front = self.grade.res_coeff_front(path_tpc.grades());
         state.elev_front = self.grade.res_net_front(path_tpc.grades(), state);
         Ok(())

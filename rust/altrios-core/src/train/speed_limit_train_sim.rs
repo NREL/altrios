@@ -1,7 +1,7 @@
-use crate::imports::*;
 use super::{braking_point::BrakingPoints, friction_brakes::*, train_imports::*};
-use crate::track::{LinkPoint, Location};
+use crate::imports::*;
 use crate::track::link::link_impl::Network;
+use crate::track::{LinkPoint, Location};
 
 #[altrios_api(
     #[new]
@@ -109,8 +109,8 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 
     #[pyo3(name = "walk_timed_path")]
     pub fn walk_timed_path_py(
-        &mut self, 
-        network: &PyAny, 
+        &mut self,
+        network: &PyAny,
         timed_path: &PyAny,
     ) -> anyhow::Result<()> {
         let network = match network.extract::<Network>() {
@@ -118,7 +118,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
                 Network(n)
-            }   
+            }
         };
 
         let timed_path = match timed_path.extract::<TimedLinkPath>() {
@@ -126,7 +126,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
             Err(_) => {
                 let tp = timed_path.extract::<Vec<LinkIdxTime>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
                 TimedLinkPath(tp)
-            }   
+            }
         };
         self.walk_timed_path(&network, timed_path)
     }
@@ -287,7 +287,7 @@ impl SpeedLimitTrainSim {
         self.loco_con.set_pwr_aux(Some(true))?;
         self.loco_con.set_cur_pwr_max_out(None, self.state.dt)?;
         self.train_res
-            .update_res::<{ Dir::Fwd }>(&mut self.state, &self.path_tpc)?;
+            .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
         self.solve_required_pwr()?;
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
@@ -374,14 +374,15 @@ impl SpeedLimitTrainSim {
         // Verify that train can slow down
         // TODO: figure out if dynamic braking needs to be separately accounted for here
         if self.fric_brake.force_max + res_net <= si::Force::ZERO {
-            bail!("Train {} does not have sufficient braking to slow down at time{:?}.
+            bail!(
+                "Train {} does not have sufficient braking to slow down at time{:?}.
             Fric brake force = {:?}.
             Net resistance = {:?}",
-            self.train_id,
-            self.state.time,
-            self.fric_brake.force_max,
-            res_net
-        );
+                self.train_id,
+                self.state.time,
+                self.fric_brake.force_max,
+                res_net
+            );
         }
 
         // TODO: Validate that this makes sense considering friction brakes
@@ -600,7 +601,7 @@ impl Default for SpeedLimitTrainSim {
 
 impl Valid for SpeedLimitTrainSim {
     fn valid() -> Self {
-        let mut train_sim = Self{
+        let mut train_sim = Self {
             path_tpc: PathTpc::valid(),
             ..Default::default()
         };

@@ -9,20 +9,16 @@
   osm_id: 0
   speed_sets: []
 - elevs:
-  - elev: 201.489
+  - elev: 0
     offset: 0.0
-  - elev: 301.489
+  - elev: 100
     offset: 50000
   headings:
-  - Elev: 201.489
-    Lat: 285962.56561778253
-    Lon: 285962.56561778253
-    heading: 0.7920029130732765
+  - Elev: 0
+    heading: 0
     offset: 0.0
-  - Elev: 301.489
-    Lat: 285979.6584526668
-    Lon: 285979.6584526668
-    heading: 0.7920029130732765
+  - Elev: 100
+    heading: 0
     offset: 50000
   idx_curr: 1
   idx_flip: 3
@@ -76,87 +72,79 @@
     speed_params: []
     train_type: Commuter
 - elevs:
-  - elev: 301.489
+  - elev: 100
     offset: 0.0
-  - elev: 301.489
-    offset: 8.20607949252401
+  - elev: 100
+    offset: 1
   headings:
-  - Elev: 301.489
-    Lat: 200263.93876532032
-    Lon: 200263.93876532032
-    heading: 6.239527893811644
+  - Elev: 100
+    heading: 0
     offset: 0.0
-  - Elev: 301.489
-    Lat: 200263.58062290918
-    Lon: 200263.58062290918
-    heading: 6.239527893811644
-    offset: 8.20607949252401
+  - Elev: 100
+    heading: 0
+    offset: 1
   idx_curr: 2
   idx_flip: 4
   idx_next: 0
   idx_next_alt: 0
   idx_prev: 1
   idx_prev_alt: 0
-  length: 8.20607949252401
+  length: 1
   osm_id: '1115605723_2'
   speed_sets:
   - is_head_end: false
     speed_limits:
-    - offset_end: 8.20607949252401
+    - offset_end: 1
       offset_start: 0
       speed: 6.7056
     speed_params: []
     train_type: Freight
   - is_head_end: false
     speed_limits:
-    - offset_end: 8.20607949252401
+    - offset_end: 1
       offset_start: 0
       speed: 6.7056
     speed_params: []
     train_type: Passenger
   - is_head_end: false
     speed_limits:
-    - offset_end: 8.20607949252401
+    - offset_end: 1
       offset_start: 0
       speed: 6.7056
     speed_params: []
     train_type: Intermodal
   - is_head_end: false
     speed_limits:
-    - offset_end: 8.20607949252401
+    - offset_end: 1
       offset_start: 0
       speed: 6.7056
     speed_params: []
     train_type: HighSpeedPassenger
   - is_head_end: false
     speed_limits:
-    - offset_end: 8.20607949252401
+    - offset_end: 1
       offset_start: 0
       speed: 6.7056
     speed_params: []
     train_type: TiltTrain
   - is_head_end: false
     speed_limits:
-    - offset_end: 8.20607949252401
+    - offset_end: 1
       offset_start: 0
       speed: 6.7056
     speed_params: []
     train_type: Commuter
 - elevs:
-  - elev: 301.489
+  - elev: 100
     offset: 0.0
-  - elev: 201.489
+  - elev: 0
     offset: 50000
   headings:
-  - Elev: 301.489
-    Lat: 285979.6584526668
-    Lon: 285979.6584526668
-    heading: 0.7920029130732765
+  - Elev: 100
+    heading: 0
     offset: 0
-  - Elev: 201.489
-    Lat: 285962.56561778253
-    Lon: 285962.56561778253
-    heading: 0.7920029130732765
+  - Elev: 0
+    heading: 0
     offset: 50000
   idx_curr: 3
   idx_flip: 1
@@ -210,68 +198,64 @@
     speed_params: []
     train_type: Commuter
 - elevs:
-  - elev: 201.489
+  - elev: 0
     offset: 0.0
-  - elev: 201.489
-    offset: 233.1767806956755
+  - elev: 0
+    offset: 1
   headings:
   - Elev: 283.064
-    Lat: 268649.18962267204
-    Lon: 268649.18962267204
-    heading: 3.830348044630097
+    heading: 0
     offset: 0.0
   - Elev: 283.417
-    Lat: 268500.9878729521
-    Lon: 268500.9878729521
-    heading: 3.830348044630097
-    offset: 233.1767806956755
+    heading: 0
+    offset: 1
   idx_curr: 4
   idx_flip: 2
   idx_next: 0
   idx_next_alt: 0
   idx_prev: 3
   idx_prev_alt: 0
-  length: 233.1767806956755
+  length: 1
   osm_id: '315697593_4'
   speed_sets:
   - is_head_end: false
     speed_limits:
-    - offset_end: 233.1767806956755
+    - offset_end: 1
       offset_start: 0
       speed: 6.7056
     speed_params: []
     train_type: Freight
   - is_head_end: false
     speed_limits:
-    - offset_end: 233.1767806956755
+    - offset_end: 1
       offset_start: 0
       speed: 6.7056
     speed_params: []
     train_type: Passenger
   - is_head_end: false
     speed_limits:
-    - offset_end: 233.1767806956755
+    - offset_end: 1
       offset_start: 0
       speed: 6.7056
     speed_params: []
     train_type: Intermodal
   - is_head_end: false
     speed_limits:
-    - offset_end: 233.1767806956755
+    - offset_end: 1
       offset_start: 0
       speed: 6.7056
     speed_params: []
     train_type: HighSpeedPassenger
   - is_head_end: false
     speed_limits:
-    - offset_end: 233.1767806956755
+    - offset_end: 1
       offset_start: 0
       speed: 6.7056
     speed_params: []
     train_type: TiltTrain
   - is_head_end: false
     speed_limits:
-    - offset_end: 233.1767806956755
+    - offset_end: 1
       offset_start: 0
       speed: 6.7056
     speed_params: []

@@ -122,9 +122,16 @@ ax[1].legend()
 ax[-1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
     train_sim.history.speed_meters_per_second,
+    label='achieved'
+)
+ax[-1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.speed_limit_meters_per_second,
+    label='limit'
 )
 ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')
+ax[-1].legend()
 plt.suptitle("Speed Limit Train Sim Demo")
 if SHOW_PLOTS:
     plt.tight_layout()

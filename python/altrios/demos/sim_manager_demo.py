@@ -116,8 +116,7 @@ print(f"Total fuel used: {v_total_fuel_gal:.3g} gallons")
 
 if SHOW_PLOTS:
     for idx, sim in enumerate(sims_list[:10]):
-        # sim = alt.SpeedLimitTrainSim.from_bincode(
-        #     sim.to_bincode())  # to support linting
+        sim: alt.SpeedLimitTrainSim
         fig, ax = plt.subplots(3, 1, sharex=True)
 
         loco0 = sim.loco_con.loco_vec.tolist()[0]

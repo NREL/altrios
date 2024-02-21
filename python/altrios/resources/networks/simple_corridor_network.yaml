@@ -23,25 +23,14 @@
   - Elev: 100
     heading: 0
     offset: 50000
+  length: 50000
   idx_curr: 1
   idx_flip: 3
   idx_next: 2
   idx_next_alt: 2
   idx_prev: 0
   idx_prev_alt: 0
-  idx_curr: 1
-  idx_flip: 3
   link_idxs_lockout: []
-- elevs:
-    - offset: 0.0
-      elev: 301.489
-    - offset: 8.20607949252401
-      elev: 301.489
-  headings:
-    - offset: 0.0
-      heading: 0
-    - offset: 8.20607949252401
-      heading: 0
   speed_sets:
   - is_head_end: false
     speed_limits:
@@ -160,25 +149,14 @@
   - Elev: 0
     heading: 0
     offset: 50000
+  length: 50000
   idx_curr: 3
   idx_flip: 1
   idx_next: 4
   idx_next_alt: 0
   idx_prev: 0
   idx_prev_alt: 0
-  idx_curr: 3
-  idx_flip: 1
   link_idxs_lockout: []
-- elevs:
-    - offset: 0.0
-      elev: 201.489
-    - offset: 233.1767806956755
-      elev: 201.489
-  headings:
-    - offset: 0.0
-      heading: 0
-    - offset: 233.1767806956755
-      heading: 0
   speed_sets:
   - is_head_end: false
     speed_limits:

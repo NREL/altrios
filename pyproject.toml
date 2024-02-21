@@ -58,7 +58,7 @@ dev = ["black", "pytest", "maturin", "ipykernel"]
 profile = "release"
 python-source = "python"
 features = ["pyo3/extension-module"]
-module-name = "altrios.altrios_py"
+module-name = "altrios.altrios_pyo3"
 manifest-path = "rust/altrios-py/Cargo.toml"
 include = [
     { format = "sdist", path = "rust/altrios-core/Cargo.toml" },

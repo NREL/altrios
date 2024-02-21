@@ -1,15 +1,24 @@
-name: tests 
+name: py-tests 
 
 on:
   push:
       branches: [ main ]
+      paths:
+        - "python/**"
+        - "rust/**"
   pull_request:
+    paths:
+      - "python/**"
+      - "rust/**"
   workflow_dispatch:
   workflow_call:
 
 
 jobs:
+  call-rust-tests:
+    uses: nrel/altrios/.github/workflows/rust-tests.yaml@main
   test:
+    needs: call-rust-tests
     if: github.repository == 'nrel/altrios' || github.repository == 'nrel/altrios-private'
 
     runs-on: ubuntu-latest
@@ -30,20 +39,6 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-
-    - name: install rust
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable 
-        override: true
-
-    - name: Rust unit tests
-      run: |
-        cd rust/
-        cargo test --workspace
-        cd altrios-core/
-        cargo test
 
     - name: Python unit tests 
       run: |

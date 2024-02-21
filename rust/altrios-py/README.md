@@ -11,8 +11,8 @@
 ```
 4. Generate a new pyi file:
 ```bash
-    stubgen altrios_py/
+    stubgen altrios_pyo3/
 ```
-5. You should see a new file `out/altrios_py.pyi` and within it there will be stubs for all the classes and functions in the `altrios_py` module
+5. You should see a new file `out/altrios_pyo3.pyi` and within it there will be stubs for all the classes and functions in the `altrios_pyo3` module
 
-6. Go to the html documentation that was opened and search the classes, update the `out/altrios_py.pyi` accordingly.
+6. Go to the html documentation that was opened and search the classes, update the `out/altrios_pyo3.pyi` accordingly.

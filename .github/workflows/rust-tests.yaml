@@ -1,0 +1,41 @@
+name: rust-tests 
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "rust/**"
+      - "!python/**"
+      pull_request:
+    paths:
+      - "rust/**"
+      - "!python/**"
+  workflow_dispatch:
+  workflow_call:
+
+
+jobs:
+  test:
+    if: github.repository == 'nrel/altrios' || github.repository == 'nrel/altrios-private'
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable 
+        override: true
+
+    - name: Rust unit tests
+      run: |
+        cd rust/
+        cargo test --workspace
+        cd altrios-core/
+        cargo test

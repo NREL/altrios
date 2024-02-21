@@ -721,12 +721,12 @@ class SetSpeedTrainSim(SerdeAPI):
     def set_save_interval(self, save_interval: int): ...
 
 
+# TODO: update to match Rust
 class SpeedLimitTrainSim(SerdeAPI):
     loco_con: Consist
     state: TrainState
     history: TrainStateHistoryVec
     i: int
-    save_interval: Optional[int]
     simulation_days: Optional[int]
 
     @classmethod

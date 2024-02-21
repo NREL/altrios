@@ -5,9 +5,11 @@ on:
     branches: [ main ]
     paths:
       - "rust/**"
-  pull_request:
+      - "!python/**"
+      pull_request:
     paths:
       - "rust/**"
+      - "!python/**"
   workflow_dispatch:
   workflow_call:
 

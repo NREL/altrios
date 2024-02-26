@@ -71,7 +71,16 @@ train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
 )
 train_sim.set_save_interval(SAVE_INTERVAL)
 
-timed_link_path = alt.TimedLinkPath.from_file(alt.resources_root() / "demo_data/timed_path.yaml")
+est_time_net, _consist = alt.make_est_times(train_sim, network)
+
+timed_link_path = alt.run_dispatch(
+    network.tolist(),
+    alt.SpeedLimitTrainSimVec([train_sim]),
+    [est_time_net],
+
+    False,
+    False,
+)[0]
 
 t0 = time.perf_counter()
 train_sim.walk_timed_path(

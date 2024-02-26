@@ -2,7 +2,7 @@
 
 ![Altrios Logo](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS-logo-web.jpg)
 
-[![homepage](https://img.shields.io/badge/homepage-altrios-blue)](https://www.nrel.gov/transportation/altrios.html) [![Tests](https://github.com/NREL/altrios/actions/workflows/tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/tests.yaml) [![wheels](https://github.com/NREL/altrios/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/wheels.yaml?event=release) [![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10-blue)](https://pypi.org/project/altrios/) [![Documentation](https://img.shields.io/badge/documentation-mdBook-blue.svg)](https://nrel.github.io/altrios/) [![GitHub](https://img.shields.io/badge/GitHub-altrios-blue.svg)](https://github.com/NREL/altrios)
+[![homepage](https://img.shields.io/badge/homepage-altrios-blue)](https://www.nrel.gov/transportation/altrios.html) [![rust-tests](https://github.com/NREL/altrios/actions/workflows/rust-tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/rust-tests.yaml) [![py-tests](https://github.com/NREL/altrios/actions/workflows/py-tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/py-tests.yaml) [![wheels](https://github.com/NREL/altrios/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/wheels.yaml?event=release) [![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10-blue)](https://pypi.org/project/altrios/) [![Documentation](https://img.shields.io/badge/doc-mdBook-blue.svg)](https://nrel.github.io/altrios/) [![GitHub](https://img.shields.io/badge/GitHub-altrios-blue.svg)](https://github.com/NREL/altrios)
 
 
 ![Model Framework Schematic](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS_schematic_Alfred_Hicks.png)
@@ -11,9 +11,9 @@ The Advanced Locomotive Technology and Rail Infrastructure Optimization System (
 
 ## Installation
 
-### All Users
+If you are an ALTRIOS developer, see [Developer Documentation](https://nrel.github.io/altrios/developers.html).  Otherwise, read on.  
 
-#### Python Setup
+### Python Setup
 
 1. Python installation options:
    - Option 1 -- Python: https://www.python.org/downloads/. We recommend Python 3.10. Be sure to check the `Add to PATH` option during installation.
@@ -30,78 +30,11 @@ The Advanced Locomotive Technology and Rail Infrastructure Optimization System (
      1. Open an Anaconda prompt (in Windows, we recommend Anaconda Powershell Prompt) and run the command `conda create -n altrios python=3.10` to create an Anaconda environment named `altrios`.
      1. Activate the environment to install packages or anytime you're running ALTRIOS: run `conda activate altrios`.
 
-#### ALTRIOS Setup
+### ALTRIOS Setup
 
 With your Python environment activated, run `pip install altrios`.
 
 Congratulations, you've completed installation! Whenever you need to use ALTRIOS, be sure to activate your python environment created above.
-
-### Developers
-
-#### Cloning the GitHub Repo
-
-Clone the repository:
-
-1. [Download and install git](https://git-scm.com/downloads) -- accept all defaults when installing.
-1. Create a parent directory in your preferred location to contain the repo -- e.g. `<USER_HOME>/Documents/altrios_project/`.
-1. Open git bash, and inside the directory you created, [clone](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) the [ALTRIOS repository](https://github.com/NREL/ALTRIOS) with e.g. `git clone https://github.com/NREL/ALTRIOS.git`.
-
-#### Installing the Python Package
-
-Within the ALTRIOS folder, run `pip install -e ".[dev]"`
-
-##### Using Pinned Package Versions
-
-If you want to use pinned package versions to make sure you're environment is the same as the developers, you can do:
-
-```shell
-pip install -r requirements-dev.txt
-```
-
-##### Updating Pinned Package Versions
-
-If you add a new package as a dependency, you should update the pinned requirements files.
-To do this you can install pip tools: `pip install pip-tools` and then:
-
-```shell
-pip-compile && pip-compile requirements-dev.in
-```
-
-This will generate two files: `requirements.txt` and `requirements-dev.txt` which you can check into the repository.
-
-#### Rust Installation
-
-Install Rust: https://www.rust-lang.org/tools/install.
-
-#### Automated Building and Testing
-
-There is a shortcut for building and running all tests, assuming you've installed the python package with develop mode. In the root of the `ALTRIOS/` folder, run the `build_and_test.sh` script. In Windows bash (e.g. git bash), run `sh build_and_test.sh`, or in Linux/Unix, run `./build_and_test.sh`. This builds all the Rust code, runs Rust tests, builds the Python-exposed Rust code, and runs the Python tests.
-
-#### Manually Building the Python API
-
-Run `maturin develop --release`. Note that not including `--release` will cause a significant runtime computational performance penalty.
-
-#### Testing
-
-##### Manually
-
-Whenever updating code, always run `cargo test --release` inside `ALTRIOS/rust/` to ensure that all tests pass. Also, be sure to rebuild the Python API regularly to ensure that it is up to date. Python unit tests run with `python -m unittest discover` in the root folder of the git repository.
-
-##### With GitHub Actions
-Any time anyone pushes to `main` or does any pull request, the GitHub Actions [tests workflow](https://github.com/NREL/altrios/blob/686e8c28828cb980cc45567d08091e69b7bee52c/.github/workflows/tests.yaml#L3) is triggered.  
-
-#### Releasing
-
-##### To PyPI With GitHub Actions
-To release the package with GitHub Actions, you can follow these steps:
-
-1. With the changes already committed, create a new branch in the format `v<major>.<minor>.<patch>`. For example `v0.2.1`.
-1. Update the version number in the `pyproject.toml` file.  Commit and push to https://github.com/NREL/altrios.  
-1. Open a pull request into the main branch and make sure all checks pass.
-1. Once the pull request is merged into the main branch by a reviewer, create a new GitHub release and create a tag that matches the branch name. Once the release is created, a [GitHub action](https://github.com/NREL/altrios/blob/686e8c28828cb980cc45567d08091e69b7bee52c/.github/workflows/wheels.yaml#L5) will be launched to build the wheels and publish them to PyPI. 
-
-##### To crates.io
-Instructions for releasing `altrios-core` and `altrios-proc-macros` are found in [altrios-core README.md](./rust/altrios-core/README.md) and [altrios-proc-macros README.md](./rust/altrios-core/altrios-proc-macros/README.md).  `altrios-py` is a `cdylib` crate and cannot be released.  
 
 ## How to run ALTRIOS
 

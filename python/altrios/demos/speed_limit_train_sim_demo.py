@@ -94,38 +94,38 @@ assert len(train_sim.history) > 1
 fig, ax = plt.subplots(3, 1, sharex=True)
 ax[0].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.pwr_whl_out_watts,
+    np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
     label="tract pwr",
 )
-ax[0].set_ylabel('Power')
+ax[0].set_ylabel('Power [MW]')
 ax[0].legend()
 
 ax[1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.res_aero_newtons,
+    np.array(train_sim.history.res_aero_newtons) / 1e3,
     label='aero',
 )
 ax[1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.res_rolling_newtons,
+    np.array(train_sim.history.res_rolling_newtons) / 1e3,
     label='rolling',
 )
 ax[1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.res_curve_newtons,
+    np.array(train_sim.history.res_curve_newtons) / 1e3,
     label='curve',
 )
 ax[1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.res_bearing_newtons,
+    np.array(train_sim.history.res_bearing_newtons) / 1e3,
     label='bearing',
 )
 ax[1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.res_grade_newtons,
+    np.array(train_sim.history.res_grade_newtons) / 1e3,
     label='grade',
 )
-ax[1].set_ylabel('Force [N]')
+ax[1].set_ylabel('Force [MN]')
 ax[1].legend()
 
 ax[-1].plot(

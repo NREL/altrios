@@ -159,11 +159,11 @@ pub struct SpeedTraceElement {
         save_interval: Option<usize>,
     ) -> Self {
         let path_tpc = match path_tpc_file {
-            Some(file) => PathTpc::from_file(&file).unwrap(),
+            Some(file) => PathTpc::from_file(file).unwrap(),
             None => PathTpc::valid()
         };
         let train_res = match train_res_file {
-            Some(file) => TrainRes::from_file(&file).unwrap(),
+            Some(file) => TrainRes::from_file(file).unwrap(),
             None => TrainRes::valid()
         };
 

@@ -596,17 +596,19 @@ impl Locomotive {
     pub fn default_battery_electric_loco() -> Self {
         // TODO: add `pwr_aux_offset` and `pwr_aux_traction_coeff` based on calibration
         let bel_type = PowertrainType::BatteryElectricLoco(BatteryElectricLoco::default());
-        let mut bel = Locomotive::default();
-        bel.loco_type = bel_type;
-        bel
+        Locomotive {
+            loco_type: bel_type,
+            ..Default::default()
+        }
     }
 
     pub fn default_hybrid_electric_loco() -> Self {
         // TODO: add `pwr_aux_offset` and `pwr_aux_traction_coeff` based on calibration
         let hel_type = PowertrainType::HybridLoco(Box::default());
-        let mut hel = Locomotive::default();
-        hel.loco_type = hel_type;
-        hel
+        Locomotive {
+            loco_type: hel_type,
+            ..Default::default()
+        }
     }
 
     pub fn get_pwr_rated(&self) -> si::Power {

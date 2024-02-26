@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 import polars as pl
 from typing_extensions import Self
-from typing import Union
+from typing import Union, Tuple
 from dataclasses import dataclass
 
 
@@ -902,6 +902,13 @@ def run_dispatch(
     print_train_move: bool,
     print_train_exit: bool,
 ) -> List[TimedLinkPath]: ...
+
+
+def make_est_times(
+    speed_limit_train_sim: SpeedLimitTrainSim,
+    network: List[Link],
+) -> Tuple[EstTimeNet, Consist]:
+    ...
 
 
 @dataclass

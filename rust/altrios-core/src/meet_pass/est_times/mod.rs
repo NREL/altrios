@@ -1,5 +1,6 @@
 use super::disp_imports::*;
 use crate::consist::Consist;
+use crate::track::Network;
 use uc::SPEED_DIFF_JOIN;
 use uc::TIME_NAN;
 
@@ -82,7 +83,7 @@ pub fn check_od_pair_valid(
     network: Vec<Link>,
 ) -> anyhow::Result<()> {
     if let Err(error) = get_link_idx_options(&origs, &dests, &network) {
-        Err(error.into())
+        Err(error)
     } else {
         Ok(())
     }
@@ -470,10 +471,11 @@ fn add_new_join_paths(
     }
 }
 
-pub fn make_est_times(
+pub fn make_est_times<N: AsRef<[Link]>>(
     speed_limit_train_sim: &SpeedLimitTrainSim,
-    network: &[Link],
+    network: N,
 ) -> anyhow::Result<(EstTimeNet, Consist)> {
+    let network = network.as_ref();
     let dests = &speed_limit_train_sim.dests;
     let (link_idx_options, origs) =
         get_link_idx_options(&speed_limit_train_sim.origs, dests, network)?;
@@ -573,8 +575,7 @@ pub fn make_est_times(
     let mut est_idxs_end = Vec::<EstIdx>::with_capacity(8);
 
     // Iterate and process all saved sims
-    while !saved_sims.is_empty() {
-        let mut sim = saved_sims.pop().unwrap();
+    while let Some(mut sim) = saved_sims.pop() {
         let mut has_split = false;
         ensure!(
             sim.train_sim.link_idx_last().unwrap().is_real(),
@@ -737,7 +738,17 @@ pub fn make_est_times(
 #[pyfunction(name = "make_est_times")]
 pub fn make_est_times_py(
     speed_limit_train_sim: SpeedLimitTrainSim,
-    network: Vec<Link>,
+    network: &PyAny,
 ) -> anyhow::Result<(EstTimeNet, Consist)> {
-    Ok(make_est_times(&speed_limit_train_sim, &network)?)
+    let network = match network.extract::<Network>() {
+        Ok(n) => n,
+        Err(_) => {
+            let n = network
+                .extract::<Vec<Link>>()
+                .map_err(|_| anyhow!("{}", format_dbg!()))?;
+            Network(n)
+        }
+    };
+
+    make_est_times(&speed_limit_train_sim, network)
 }

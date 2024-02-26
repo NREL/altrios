@@ -1,3 +1,6 @@
+# README Contents
+<!-- toc -->
+
 {{#include ../../README.md}}
 
 ## About this book

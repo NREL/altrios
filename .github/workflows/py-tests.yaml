@@ -2,10 +2,10 @@ name: py-tests
 
 on:
   push:
-      branches: [ main ]
-      paths:
-        - "python/**"
-        - "rust/**"
+    branches: [ main ]
+    paths:
+      - "python/**"
+      - "rust/**"
   pull_request:
     paths:
       - "python/**"

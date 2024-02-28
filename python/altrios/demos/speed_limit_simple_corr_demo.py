@@ -38,6 +38,8 @@ loco_con = alt.Consist(
 
 tsb = alt.TrainSimBuilder(
     train_id="0",
+    origin_id="A",
+    destination_id="B",
     train_config=train_config,
     loco_con=loco_con,
 )
@@ -60,12 +62,13 @@ link_path = alt.LinkPath.from_csv_file(
 # speed_trace = alt.SpeedTrace.from_csv_file(
 #     alt.resources_root() / "demo_data/speed_trace_simple_corridor.csv"
 # )
-train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
+location_map = alt.import_locations(alt.resources_root() / "networks/simple_corridor_locations.csv")
+train_sim: alt.SetSpeedTrainSim = tsb.make_speed_limit_train_sim(
     rail_vehicle=rail_vehicle,
-    network=network,
-    link_path=link_path,
+    location_map=location_map,
     save_interval=1,
 )
+train_sim.set_save_interval(SAVE_INTERVAL)
 est_time_net, _consist = alt.make_est_times(train_sim, network)
 
 timed_link_path = alt.run_dispatch(
@@ -77,11 +80,11 @@ timed_link_path = alt.run_dispatch(
     False,
 )[0]
 
-
-
-train_sim.set_save_interval(1)
 t0 = time.perf_counter()
-train_sim.walk()
+train_sim.walk_timed_path(
+    network=network,
+    timed_path=timed_link_path,
+)
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 

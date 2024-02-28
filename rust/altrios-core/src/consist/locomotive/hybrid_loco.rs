@@ -8,6 +8,7 @@ use super::powertrain::reversible_energy_storage::ReversibleEnergyStorage;
 use super::powertrain::ElectricMachine;
 use super::LocoTrait;
 use crate::imports::*;
+use uom::ConstZero; // this should be covered in `crate::imports` but is needed
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, HistoryMethods)]
 #[altrios_api(

@@ -132,6 +132,8 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     }
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+/// Train simulation in which speed is allowed to vary according to train capabilities and speed
+/// limit
 pub struct SpeedLimitTrainSim {
     #[api(skip_set)]
     pub train_id: String,

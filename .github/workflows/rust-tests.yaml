@@ -6,7 +6,7 @@ on:
     paths:
       - "rust/**"
       - "!python/**"
-      pull_request:
+  pull_request:
     paths:
       - "rust/**"
       - "!python/**"

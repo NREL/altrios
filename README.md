@@ -9,6 +9,8 @@
 
 The Advanced Locomotive Technology and Rail Infrastructure Optimization System ([ALTRIOS](https://www.nrel.gov/transportation/altrios.html)) is a unique, fully integrated, open-source software tool to evaluate strategies for deploying advanced locomotive technologies and associated infrastructure for cost-effective decarbonization. ALTRIOS simulates freight-demand driven train scheduling, mainline meet-pass planning, locomotive dynamics, train dynamics, energy conversion efficiencies, and energy storage dynamics of line-haul train operations. Because new locomotives represent a significant long-term capital investment and new technologies must be thoroughly demonstrated before deployment, this tool provides guidance on the risk/reward tradeoffs of different technology rollout strategies. An open, integrated simulation tool is invaluable for identifying future research needs and making decisions on technology development, routes, and train selection. ALTRIOS was developed as part of a collaborative effort by a team comprising The National Renewable Energy Laboratory (NREL), University of Illinois Urbana-Champaign (UIUC), Southwest Research Institute (SwRI), and BNSF Railway.
 
+Much of the core code in ALTRIOS is written in the [Rust Programming Language](https://www.rust-lang.org/) to ensure excellent computational performance and robustness, but we've built ALTRIOS with the intent of users interacting with the code through our feature-rich [Python](https://www.python.org/) interface.  
+
 ## Installation
 
 If you are an ALTRIOS developer, see [Developer Documentation](https://nrel.github.io/altrios/developers.html).  Otherwise, read on.  
@@ -57,6 +59,10 @@ res = alt.ReversibleEnergyStorage.from_file(
    "./custom_battery.yaml"
 )
 ```
+
+Nearly every code object in ALTRIOS can be read from or written to common data formats.  For more details, see [the SerdeAPI trait](https://docs.rs/altrios-core/latest/altrios_core/traits/trait.SerdeAPI.html) documentation.  All of the functions in the SerdeAPI are available through the python interface.  
+
+
 
 ## Acknowledgements
  

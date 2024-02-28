@@ -6,6 +6,12 @@
 //! of locomotive consists comprising collections of individual locomotives, which comprise
 //! various powertrain components (engine, generator/alternator, battery, and electric drivetrain)
 //! -- all connected to a detailed train model.  
+//!
+//! # Helpful Tips
+//! Nearly struct in this crate implements methods for serializing/deserializing itself to/from a
+//! handful of standard data formats as strings or file read/write operations using
+//! [traits::SerdeAPI].   
+//!
 //! # Features:
 //! - pyo3: enable this feature to expose ALTRIOS structs, methods, and functions to Python
 

@@ -42,7 +42,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly 
+          toolchain: stable 
           override: true
       - run: rustup target add aarch64-apple-darwin
         if: matrix.os == 'macos'
@@ -70,11 +70,11 @@ jobs:
           CIBW_TEST_SKIP: '*_universal2:arm64'
           CIBW_BEFORE_BUILD: >
             pip install -U maturin &&
-            rustup default nightly &&
+            rustup default stable &&
             rustup show
           CIBW_BEFORE_BUILD_LINUX: >
             pip install -U setuptools-rust &&
-            curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=nightly --profile=minimal -y &&
+            curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=minimal -y &&
             rustup show
 
       - name: upload artifacts 

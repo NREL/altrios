@@ -86,6 +86,7 @@ impl ObjState for HashMap<TrainType, SpeedSet> {
         let mut errors = ValidationErrors::new();
         validate_slice_real(
             &mut errors,
+            // TODO: removed need for `cloned`
             &self.values().cloned().collect::<Vec<SpeedSet>>(),
             "Speed set",
         );

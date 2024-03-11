@@ -133,7 +133,7 @@ impl PathTpc {
             Self::add_speeds(
                 &mut self.speed_points,
                 &self.train_params,
-                &link.speed_sets,
+                &link.speed_sets.values().cloned().collect::<Vec<SpeedSet>>(),
                 offset_base,
             );
 
@@ -304,7 +304,11 @@ impl PathTpc {
             Self::add_speeds(
                 &mut self.speed_points,
                 &self.train_params,
-                &links[link_point.link_idx.idx()].speed_sets,
+                &links[link_point.link_idx.idx()]
+                    .speed_sets
+                    .values()
+                    .cloned()
+                    .collect::<Vec<SpeedSet>>(),
                 link_point.offset,
             );
         }

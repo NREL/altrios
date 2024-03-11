@@ -2,7 +2,7 @@ use super::speed_limit::*;
 use super::speed_param::*;
 use crate::imports::*;
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI, Hash)]
 #[repr(u8)]
 #[cfg_attr(feature = "pyo3", pyclass)]
 /// Enum with variants representing train types
@@ -35,8 +35,6 @@ pub struct SpeedSet {
     pub speed_limits: Vec<SpeedLimit>,
     #[api(skip_get, skip_set)]
     pub speed_params: Vec<SpeedParam>,
-    #[api(skip_get, skip_set)]
-    pub train_type: TrainType,
     pub is_head_end: bool,
 }
 
@@ -45,7 +43,6 @@ impl Valid for SpeedSet {
         Self {
             speed_limits: Vec::<SpeedLimit>::valid(),
             speed_params: Vec::<SpeedParam>::valid(),
-            train_type: TrainType::valid(),
             is_head_end: false,
         }
     }
@@ -59,7 +56,6 @@ impl ObjState for SpeedSet {
         let mut errors = ValidationErrors::new();
         if self.is_fake() {
             validate_field_fake(&mut errors, &self.speed_limits, "Speed limits");
-            validate_field_fake(&mut errors, &self.train_type, "Train type");
 
             if !self.speed_params.is_empty() {
                 errors.push(anyhow!("Speed params must be empty!"));
@@ -70,26 +66,29 @@ impl ObjState for SpeedSet {
         } else {
             validate_field_real(&mut errors, &self.speed_limits, "Speed limits");
             validate_field_real(&mut errors, &self.speed_params, "Speed params");
-            validate_field_real(&mut errors, &self.train_type, "Train type");
         }
 
         errors.make_err()
     }
 }
 
-impl Valid for Vec<SpeedSet> {
+impl Valid for HashMap<TrainType, SpeedSet> {
     fn valid() -> Self {
-        vec![SpeedSet::valid()]
+        HashMap::from([(TrainType::valid(), SpeedSet::valid())])
     }
 }
 
-impl ObjState for [SpeedSet] {
+impl ObjState for HashMap<TrainType, SpeedSet> {
     fn is_fake(&self) -> bool {
         self.is_empty()
     }
     fn validate(&self) -> ValidationResults {
         let mut errors = ValidationErrors::new();
-        validate_slice_real(&mut errors, self, "Speed set");
+        validate_slice_real(
+            &mut errors,
+            &self.values().cloned().collect::<Vec<SpeedSet>>(),
+            "Speed set",
+        );
         errors.make_err()
     }
 }
@@ -130,10 +129,10 @@ mod test_speed_sets {
     use super::*;
     use crate::testing::*;
 
-    impl Cases for Vec<SpeedSet> {
+    impl Cases for HashMap<TrainType, SpeedSet> {
         fn fake_cases() -> Vec<Self> {
-            vec![vec![]]
+            vec![HashMap::new()]
         }
     }
-    check_cases!(Vec<SpeedSet>);
+    check_cases!(HashMap<TrainType, SpeedSet>);
 }

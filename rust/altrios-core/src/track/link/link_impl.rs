@@ -15,7 +15,7 @@ pub struct Link {
     pub elevs: Vec<Elev>,
     #[serde(default)]
     pub headings: Vec<Heading>,
-    pub speed_sets: Vec<SpeedSet>,
+    pub speed_sets: HashMap<TrainType, SpeedSet>,
     #[serde(default)]
     pub cat_power_limits: Vec<CatPowerLimit>,
     pub length: si::Length,
@@ -49,7 +49,7 @@ impl Valid for Link {
         Self {
             elevs: Vec::<Elev>::valid(),
             headings: Vec::<Heading>::valid(),
-            speed_sets: Vec::<SpeedSet>::valid(),
+            speed_sets: HashMap::<TrainType, SpeedSet>::valid(),
             length: uc::M * 10000.0,
             idx_curr: LinkIdx::valid(),
             ..Self::default()

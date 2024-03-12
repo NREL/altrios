@@ -60,6 +60,30 @@ impl Valid for SpeedSet {
     }
 }
 
+impl ObjState for &SpeedSet {
+    fn is_fake(&self) -> bool {
+        self.speed_limits.is_empty()
+    }
+    fn validate(&self) -> ValidationResults {
+        let mut errors = ValidationErrors::new();
+        if self.is_fake() {
+            validate_field_fake(&mut errors, &self.speed_limits, "Speed limits");
+
+            if !self.speed_params.is_empty() {
+                errors.push(anyhow!("Speed params must be empty!"));
+            }
+            if self.is_head_end {
+                errors.push(anyhow!("Is head end must be false!"));
+            }
+        } else {
+            validate_field_real(&mut errors, &self.speed_limits, "Speed limits");
+            validate_field_real(&mut errors, &self.speed_params, "Speed params");
+        }
+
+        errors.make_err()
+    }
+}
+
 impl ObjState for SpeedSet {
     fn is_fake(&self) -> bool {
         self.speed_limits.is_empty()
@@ -98,8 +122,7 @@ impl ObjState for HashMap<TrainType, SpeedSet> {
         let mut errors = ValidationErrors::new();
         validate_slice_real(
             &mut errors,
-            // TODO: removed need for `cloned`
-            &self.values().cloned().collect::<Vec<SpeedSet>>(),
+            &self.values().collect::<Vec<&SpeedSet>>(),
             "Speed set",
         );
         errors.make_err()

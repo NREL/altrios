@@ -32,7 +32,7 @@
   cat_power_limits: []
   length: 50000.0
   idx_next: 2
-  idx_next_alt: 2
+  idx_next_alt: 0
   idx_prev: 0
   idx_prev_alt: 0
   idx_curr: 1

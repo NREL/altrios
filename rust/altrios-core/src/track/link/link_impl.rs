@@ -8,6 +8,27 @@ use crate::meet_pass::est_times::EstTime;
 
 use crate::imports::*;
 
+impl SerdeAPI for HashMap<TrainType, SpeedSet> {
+    fn from_reader<R: std::io::Read>(rdr: R, format: &str) -> anyhow::Result<Self> {
+        let mut deserialized: Self = match format.trim_start_matches('.').to_lowercase().as_str() {
+            "yaml" | "yml" => match serde_yaml::from_reader(rdr) {
+                Err(e) => {
+                    // treat as vec rather than HashMap
+                    serde_yaml::from_reader::<dyn std::io::Read, Vec<SpeedSet>>(rdr)?
+                }
+                _ => {serde_yaml::from_reader(rdr)?}
+            },
+            "json" => serde_json::from_reader(rdr)?,
+            "bin" => bincode::deserialize_from(rdr)?,
+            _ => bail!(
+                "Unsupported format {format:?}, must be one of {:?}",
+                Self::ACCEPTED_BYTE_FORMATS
+            ),
+        };
+        Ok(deserialized)
+    }
+}
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 /// An arbitrary unit of single track that does not include turnouts
 #[altrios_api]
@@ -35,6 +56,7 @@ pub struct Link {
     #[serde(default)]
     pub link_idxs_lockout: Vec<LinkIdx>,
 }
+
 impl Link {
     fn is_linked_prev(&self, idx: LinkIdx) -> bool {
         self.idx_curr.is_fake() || self.idx_prev == idx || self.idx_prev_alt == idx

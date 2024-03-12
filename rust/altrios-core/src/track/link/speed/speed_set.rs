@@ -38,6 +38,18 @@ pub struct SpeedSet {
     pub is_head_end: bool,
 }
 
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[altrios_api]
+/// Helper struct to create [SpeedSet] from deprecated data format
+pub struct OldSpeedSet {
+    pub speed_limits: Vec<SpeedLimit>,
+    #[api(skip_get, skip_set)]
+    pub speed_params: Vec<SpeedParam>,
+    pub is_head_end: bool,
+}
+
+
 impl Valid for SpeedSet {
     fn valid() -> Self {
         Self {

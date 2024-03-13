@@ -3,7 +3,6 @@ use super::elev::*;
 use super::heading::*;
 use super::link_idx::*;
 use super::speed::*;
-#[allow(unused_imports)]
 use crate::meet_pass::est_times::EstTime;
 
 use crate::imports::*;

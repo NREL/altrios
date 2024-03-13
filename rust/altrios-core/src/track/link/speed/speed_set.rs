@@ -39,12 +39,49 @@ pub struct SpeedSet {
     pub is_head_end: bool,
 }
 
-pub(crate) struct SpeedSetWrapper(pub(crate) HashMap<TrainType, SpeedSet>);
+#[derive(Debug, Default, Clone, PartialEq, SerdeAPI)]
+/// helper struct to allow for serde deserialize flexibility (i.e. backward compatibility) for
+/// `Network` generation methods
+pub(crate) struct SpeedSetWrapper(pub HashMap<TrainType, SpeedSet>);
 
-impl From<Vec<OldSpeedSet>> for SpeedSetWrapper {
-    fn from(v: Vec<OldSpeedSet>) -> Self {
+impl<'de> Deserialize<'de> for SpeedSetWrapper {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // let speed_set_wrapper = match HashMap::deserialize(deserializer) {
+        //     Ok(hm) => SpeedSetWrapper(hm), // first method succeeded
+        //     Err(err) => {
+        //         // try next method
+        //         let v = Vec::deserialize(deserializer)?;
+        //         SpeedSetWrapper::from(OldSpeedSetWrapper(v))
+        //     }
+        // };
+
+        // Ok(speed_set_wrapper)
+
+        Ok(SpeedSetWrapper(HashMap::deserialize(deserializer)?))
+    }
+}
+
+impl Serialize for SpeedSetWrapper {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        HashMap::serialize(&self.0, serializer)
+    }
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
+/// helper struct to allow for serde deserialize flexibility (i.e. backward compatibility) for
+/// `Network` generation methods
+pub(crate) struct OldSpeedSetWrapper(pub Vec<OldSpeedSet>);
+
+impl From<OldSpeedSetWrapper> for SpeedSetWrapper {
+    fn from(value: OldSpeedSetWrapper) -> Self {
         let mut hm: HashMap<TrainType, SpeedSet> = HashMap::new();
-        for x in v {
+        for x in value.0 {
             hm.insert(
                 x.train_type,
                 SpeedSet {

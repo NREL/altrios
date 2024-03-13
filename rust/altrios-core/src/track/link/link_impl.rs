@@ -6,55 +6,21 @@ use super::speed::*;
 
 use crate::imports::*;
 
-impl SerdeAPI for HashMap<TrainType, SpeedSet> {
-    fn from_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
-        let filepath = filepath.as_ref();
-        let extension = filepath
-            .extension()
-            .and_then(OsStr::to_str)
-            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        let file = File::open(filepath).with_context(|| {
-            if !filepath.exists() {
-                format!("File not found: {filepath:?}")
-            } else {
-                format!("Could not open file: {filepath:?}")
-            }
-        })?;
-
-        let hm = match Self::from_reader(file, extension) {
-            Ok(mut hm) => {
-                hm.init()?;
-                hm
-            }
-            Err(e) => {
-                // error should never happen here due to same `File::open` above
-                let file = File::open(filepath)?;
-                let mut hm: Self = match extension.trim_start_matches('.').to_lowercase().as_str() {
-                    "yaml" | "yml" => serde_yaml::from_reader(file)?,
-                    "json" => serde_json::from_reader(file)?,
-                    "bin" => bincode::deserialize_from(file)?,
-                    _ => bail!(
-                        "Unsupported format {extension:?}, must be one of {:?}",
-                        Self::ACCEPTED_BYTE_FORMATS
-                    ),
-                };
-                hm.init()?;
-                hm
-            }
-        };
-
-        Ok(hm)
-    }
-}
-
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 /// An arbitrary unit of single track that does not include turnouts
-#[altrios_api]
+#[altrios_api(
+    // TODO: uncomment and complete
+    // #[getter]
+    // fn get_speed_set(&self) ...
+    // #[setter]
+    // fn set_speed_set(&mut self, new_value: SpeedSet) ...
+)]
 pub struct Link {
     pub elevs: Vec<Elev>,
     #[serde(default)]
     pub headings: Vec<Heading>,
-    pub speed_sets: HashMap<TrainType, SpeedSet>,
+    #[api(skip_get, skip_set)]
+    pub speed_sets: SpeedSetWrapper,
     #[serde(default)]
     pub cat_power_limits: Vec<CatPowerLimit>,
     pub length: si::Length,
@@ -91,7 +57,7 @@ impl Valid for Link {
         Self {
             elevs: Vec::<Elev>::valid(),
             headings: Vec::<Heading>::valid(),
-            speed_sets: HashMap::<TrainType, SpeedSet>::valid(),
+            speed_sets: SpeedSetWrapper(HashMap::<TrainType, SpeedSet>::valid()),
             length: uc::M * 10000.0,
             idx_curr: LinkIdx::valid(),
             ..Self::default()
@@ -116,7 +82,7 @@ impl ObjState for Link {
             si_chk_num_eqz(&mut errors, &self.length, "Link length");
             validate_field_fake(&mut errors, &self.elevs, "Elevations");
             validate_field_fake(&mut errors, &self.headings, "Headings");
-            validate_field_fake(&mut errors, &self.speed_sets, "Speed sets");
+            validate_field_fake(&mut errors, &self.speed_sets.0, "Speed sets");
             // validate cat_power_limits
             if !self.cat_power_limits.is_empty() {
                 errors.push(anyhow!(
@@ -130,7 +96,7 @@ impl ObjState for Link {
             if !self.headings.is_empty() {
                 validate_field_real(&mut errors, &self.headings, "Headings");
             }
-            validate_field_real(&mut errors, &self.speed_sets, "Speed sets");
+            validate_field_real(&mut errors, &self.speed_sets.0, "Speed sets");
             validate_field_real(&mut errors, &self.cat_power_limits, "Catenary power limits");
 
             early_err!(errors, "Link");

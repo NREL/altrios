@@ -13,6 +13,7 @@ use crate::track::LocationMap;
 
 use polars::prelude::*;
 use polars_lazy::dsl::max_horizontal;
+#[allow(unused_imports)]
 use polars_lazy::prelude::*;
 use pyo3_polars::PyDataFrame;
 

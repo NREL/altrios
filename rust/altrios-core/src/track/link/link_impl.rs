@@ -61,11 +61,13 @@ pub struct Link {
 
     /// see [EstTime::idx_next]
     pub idx_next: LinkIdx,
-    /// see [EstTime::idx_next_alt]
+    /// see [EstTime::idx_next_alt]  
+    /// if it does not exist, it should be `LinkIdx{idx: 0}`
     pub idx_next_alt: LinkIdx,
     /// see [EstTime::idx_prev]
     pub idx_prev: LinkIdx,
-    /// see [EstTime::idx_prev_alt]
+    /// see [EstTime::idx_prev_alt]  
+    /// if it does not exist, it should be `LinkIdx{idx: 0}`
     pub idx_prev_alt: LinkIdx,
     /// Index of current link
     pub idx_curr: LinkIdx,

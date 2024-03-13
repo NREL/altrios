@@ -3,28 +3,47 @@ use super::elev::*;
 use super::heading::*;
 use super::link_idx::*;
 use super::speed::*;
-use crate::meet_pass::est_times::EstTime;
 
 use crate::imports::*;
 
 impl SerdeAPI for HashMap<TrainType, SpeedSet> {
-    fn from_reader<R: std::io::Read>(rdr: R, format: &str) -> anyhow::Result<Self> {
-        let mut deserialized: Self = match format.trim_start_matches('.').to_lowercase().as_str() {
-            "yaml" | "yml" => match serde_yaml::from_reader(rdr) {
-                Err(e) => {
-                    // treat as vec rather than HashMap
-                    serde_yaml::from_reader::<dyn std::io::Read, Vec<SpeedSet>>(rdr)?
-                }
-                _ => {serde_yaml::from_reader(rdr)?}
-            },
-            "json" => serde_json::from_reader(rdr)?,
-            "bin" => bincode::deserialize_from(rdr)?,
-            _ => bail!(
-                "Unsupported format {format:?}, must be one of {:?}",
-                Self::ACCEPTED_BYTE_FORMATS
-            ),
+    fn from_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
+        let filepath = filepath.as_ref();
+        let extension = filepath
+            .extension()
+            .and_then(OsStr::to_str)
+            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
+        let file = File::open(filepath).with_context(|| {
+            if !filepath.exists() {
+                format!("File not found: {filepath:?}")
+            } else {
+                format!("Could not open file: {filepath:?}")
+            }
+        })?;
+
+        let hm = match Self::from_reader(file, extension) {
+            Ok(mut hm) => {
+                hm.init()?;
+                hm
+            }
+            Err(e) => {
+                // error should never happen here due to same `File::open` above
+                let file = File::open(filepath)?;
+                let mut hm: Self = match extension.trim_start_matches('.').to_lowercase().as_str() {
+                    "yaml" | "yml" => serde_yaml::from_reader(file)?,
+                    "json" => serde_json::from_reader(file)?,
+                    "bin" => bincode::deserialize_from(file)?,
+                    _ => bail!(
+                        "Unsupported format {extension:?}, must be one of {:?}",
+                        Self::ACCEPTED_BYTE_FORMATS
+                    ),
+                };
+                hm.init()?;
+                hm
+            }
         };
-        Ok(deserialized)
+
+        Ok(hm)
     }
 }
 

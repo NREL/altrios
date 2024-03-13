@@ -1,6 +1,7 @@
 use super::speed_limit::*;
 use super::speed_param::*;
 use crate::imports::*;
+use std::collections::HashMap;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI, Hash)]
 #[repr(u8)]
@@ -38,6 +39,24 @@ pub struct SpeedSet {
     pub is_head_end: bool,
 }
 
+pub(crate) struct SpeedSetWrapper(pub(crate) HashMap<TrainType, SpeedSet>);
+
+impl From<Vec<OldSpeedSet>> for SpeedSetWrapper {
+    fn from(v: Vec<OldSpeedSet>) -> Self {
+        let mut hm: HashMap<TrainType, SpeedSet> = HashMap::new();
+        for x in v {
+            hm.insert(
+                x.train_type,
+                SpeedSet {
+                    speed_limits: x.speed_limits,
+                    speed_params: x.speed_params,
+                    is_head_end: x.is_head_end,
+                },
+            );
+        }
+        SpeedSetWrapper(hm)
+    }
+}
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 #[altrios_api]
@@ -46,9 +65,10 @@ pub struct OldSpeedSet {
     pub speed_limits: Vec<SpeedLimit>,
     #[api(skip_get, skip_set)]
     pub speed_params: Vec<SpeedParam>,
+    #[api(skip_get, skip_set)]
+    pub train_type: TrainType,
     pub is_head_end: bool,
 }
-
 
 impl Valid for SpeedSet {
     fn valid() -> Self {

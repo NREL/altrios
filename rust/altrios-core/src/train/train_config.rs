@@ -32,7 +32,7 @@ use pyo3_polars::PyDataFrame;
             cars_empty,
             cars_loaded,
             rail_vehicle_type,
-            train_type.unwrap_or(TrainType::Freight),
+            train_type.unwrap_or_default(),
             train_length_meters.map(|v| v * uc::M),
             train_mass_kilograms.map(|v| v * uc::KG),
             drag_coeff_vec.map(|dcv| dcv.iter().map(|dc| *dc * uc::R).collect())

@@ -1,7 +1,7 @@
 ---
 - elevs: []
   headings: []
-  speed_sets: []
+  speed_sets: {}
   cat_power_limits: []
   length: 0.0
   idx_next: 0
@@ -22,12 +22,12 @@
     - offset: 50000.0
       heading: 0.0
   speed_sets:
-    - speed_limits:
+    Freight:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 50000.0
           speed: 6.7056
       speed_params: []
-      train_type: Freight
       is_head_end: false
   cat_power_limits: []
   length: 50000.0
@@ -49,47 +49,47 @@
     - offset: 1.0
       heading: 0.0
   speed_sets:
-    - speed_limits:
+    Commuter:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 1.0
           speed: 6.7056
       speed_params: []
-      train_type: Freight
       is_head_end: false
-    - speed_limits:
+    Passenger:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 1.0
           speed: 6.7056
       speed_params: []
-      train_type: Passenger
       is_head_end: false
-    - speed_limits:
+    Freight:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 1.0
           speed: 6.7056
       speed_params: []
-      train_type: Intermodal
       is_head_end: false
-    - speed_limits:
+    TiltTrain:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 1.0
           speed: 6.7056
       speed_params: []
-      train_type: HighSpeedPassenger
       is_head_end: false
-    - speed_limits:
+    HighSpeedPassenger:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 1.0
           speed: 6.7056
       speed_params: []
-      train_type: TiltTrain
       is_head_end: false
-    - speed_limits:
+    Intermodal:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 1.0
           speed: 6.7056
       speed_params: []
-      train_type: Commuter
       is_head_end: false
   cat_power_limits: []
   length: 1.0
@@ -111,47 +111,47 @@
     - offset: 50000.0
       heading: 0.0
   speed_sets:
-    - speed_limits:
+    TiltTrain:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 50000.0
           speed: 6.7056
       speed_params: []
-      train_type: Freight
       is_head_end: false
-    - speed_limits:
+    HighSpeedPassenger:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 50000.0
           speed: 6.7056
       speed_params: []
-      train_type: Passenger
       is_head_end: false
-    - speed_limits:
+    Commuter:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 50000.0
           speed: 6.7056
       speed_params: []
-      train_type: Intermodal
       is_head_end: false
-    - speed_limits:
+    Freight:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 50000.0
           speed: 6.7056
       speed_params: []
-      train_type: HighSpeedPassenger
       is_head_end: false
-    - speed_limits:
+    Passenger:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 50000.0
           speed: 6.7056
       speed_params: []
-      train_type: TiltTrain
       is_head_end: false
-    - speed_limits:
+    Intermodal:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 50000.0
           speed: 6.7056
       speed_params: []
-      train_type: Commuter
       is_head_end: false
   cat_power_limits: []
   length: 50000.0
@@ -173,47 +173,47 @@
     - offset: 1.0
       heading: 0.0
   speed_sets:
-    - speed_limits:
+    HighSpeedPassenger:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 1.0
           speed: 6.7056
       speed_params: []
-      train_type: Freight
       is_head_end: false
-    - speed_limits:
+    TiltTrain:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 1.0
           speed: 6.7056
       speed_params: []
-      train_type: Passenger
       is_head_end: false
-    - speed_limits:
+    Intermodal:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 1.0
           speed: 6.7056
       speed_params: []
-      train_type: Intermodal
       is_head_end: false
-    - speed_limits:
+    Passenger:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 1.0
           speed: 6.7056
       speed_params: []
-      train_type: HighSpeedPassenger
       is_head_end: false
-    - speed_limits:
+    Commuter:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 1.0
           speed: 6.7056
       speed_params: []
-      train_type: TiltTrain
       is_head_end: false
-    - speed_limits:
+    Freight:
+      speed_limits:
         - offset_start: 0.0
           offset_end: 1.0
           speed: 6.7056
       speed_params: []
-      train_type: Commuter
       is_head_end: false
   cat_power_limits: []
   length: 1.0

@@ -20,13 +20,13 @@ pub enum TrainType {
 
 impl Valid for TrainType {
     fn valid() -> Self {
-        TrainType::Freight
+        Self::Freight
     }
 }
 
 impl ObjState for TrainType {
     fn is_fake(&self) -> bool {
-        *self == TrainType::None
+        *self == Self::None
     }
 }
 

@@ -3,7 +3,6 @@ use super::elev::*;
 use super::heading::*;
 use super::link_idx::*;
 use super::speed::*;
-
 use crate::imports::*;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
@@ -20,7 +19,7 @@ pub struct Link {
     #[serde(default)]
     pub headings: Vec<Heading>,
     #[api(skip_get, skip_set)]
-    pub speed_sets: SpeedSetWrapper,
+    pub speed_sets: HashMap<TrainType, SpeedSet>,
     #[serde(default)]
     pub cat_power_limits: Vec<CatPowerLimit>,
     pub length: si::Length,
@@ -57,7 +56,7 @@ impl Valid for Link {
         Self {
             elevs: Vec::<Elev>::valid(),
             headings: Vec::<Heading>::valid(),
-            speed_sets: SpeedSetWrapper(HashMap::<TrainType, SpeedSet>::valid()),
+            speed_sets: HashMap::<TrainType, SpeedSet>::valid(),
             length: uc::M * 10000.0,
             idx_curr: LinkIdx::valid(),
             ..Self::default()
@@ -82,7 +81,7 @@ impl ObjState for Link {
             si_chk_num_eqz(&mut errors, &self.length, "Link length");
             validate_field_fake(&mut errors, &self.elevs, "Elevations");
             validate_field_fake(&mut errors, &self.headings, "Headings");
-            validate_field_fake(&mut errors, &self.speed_sets.0, "Speed sets");
+            validate_field_fake(&mut errors, &self.speed_sets, "Speed sets");
             // validate cat_power_limits
             if !self.cat_power_limits.is_empty() {
                 errors.push(anyhow!(
@@ -96,7 +95,7 @@ impl ObjState for Link {
             if !self.headings.is_empty() {
                 validate_field_real(&mut errors, &self.headings, "Headings");
             }
-            validate_field_real(&mut errors, &self.speed_sets.0, "Speed sets");
+            validate_field_real(&mut errors, &self.speed_sets, "Speed sets");
             validate_field_real(&mut errors, &self.cat_power_limits, "Catenary power limits");
 
             early_err!(errors, "Link");

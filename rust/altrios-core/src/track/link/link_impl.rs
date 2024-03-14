@@ -2,12 +2,16 @@ use super::cat_power::*;
 use super::elev::*;
 use super::heading::*;
 use super::link_idx::*;
+use super::link_old::Link as LinkOld;
 use super::speed::*;
 use crate::imports::*;
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+struct OldSpeedSets(Vec<OldSpeedSet>);
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 /// An arbitrary unit of single track that does not include turnouts
-#[altrios_api(
+#[altrios_api( 
     // TODO: uncomment and complete
     // #[getter]
     // fn get_speed_set(&self) ...
@@ -48,6 +52,37 @@ impl Link {
     }
     fn is_linked_next(&self, idx: LinkIdx) -> bool {
         self.idx_curr.is_fake() || self.idx_next == idx || self.idx_next_alt == idx
+    }
+}
+
+impl From<LinkOld> for Link {
+    fn from(l: LinkOld) -> Self {
+        let mut speed_sets: HashMap<TrainType, SpeedSet> = HashMap::new();
+        for oss in l.speed_sets {
+            speed_sets.insert(
+                oss.train_type,
+                SpeedSet {
+                    speed_limits: oss.speed_limits,
+                    speed_params: oss.speed_params,
+                    is_head_end: oss.is_head_end,
+                },
+            );
+        }
+
+        Self {
+            elevs: l.elevs,
+            headings: l.headings,
+            speed_sets,
+            cat_power_limits: l.cat_power_limits,
+            length: l.length,
+            idx_next: l.idx_next,
+            idx_next_alt: l.idx_next_alt,
+            idx_prev: l.idx_prev,
+            idx_prev_alt: l.idx_prev_alt,
+            idx_curr: l.idx_curr,
+            idx_flip: l.idx_flip,
+            link_idxs_lockout: l.link_idxs_lockout,
+        }
     }
 }
 

@@ -223,7 +223,8 @@ mod test_train_disp {
         let mut network_file_path = project_root::get_project_root().unwrap();
         network_file_path.push("../python/altrios/resources/networks/Taconite.yaml");
         let network =
-            Vec::<Link>::from_file(network_file_path.as_os_str().to_str().unwrap()).unwrap();
+            Vec::<LinkOld>::from_file(network_file_path.as_os_str().to_str().unwrap()).unwrap();
+        let network: Vec<Link> = network.iter().map(|l| Link::from(l.clone())).collect();
         network.validate().unwrap();
 
         let speed_limit_train_sim = crate::train::speed_limit_train_sim_fwd();
@@ -247,7 +248,9 @@ mod test_train_disp {
         let mut network_file_path = project_root::get_project_root().unwrap();
         network_file_path.push("../python/altrios/resources/networks/Taconite.yaml");
         let network =
-            Vec::<Link>::from_file(network_file_path.as_os_str().to_str().unwrap()).unwrap();
+            Vec::<LinkOld>::from_file(network_file_path.as_os_str().to_str().unwrap()).unwrap();
+        let network: Vec<Link> = network.iter().map(|l| Link::from(l.clone())).collect();
+
         network.validate().unwrap();
         let speed_limit_train_sim = crate::train::speed_limit_train_sim_rev();
         let est_times = make_est_times(&speed_limit_train_sim, &network).unwrap().0;

@@ -293,7 +293,8 @@ mod test_dispatch {
         let mut network_file_path = project_root::get_project_root().unwrap();
         network_file_path.push("../python/altrios/resources/networks/Taconite.yaml");
         let network =
-            Vec::<Link>::from_file(network_file_path.as_os_str().to_str().unwrap()).unwrap();
+            Vec::<LinkOld>::from_file(network_file_path.as_os_str().to_str().unwrap()).unwrap();
+        let network: Vec<Link> = network.iter().map(|l| Link::from(l.clone())).collect();
         network.validate().unwrap();
 
         let train_sims = vec![

@@ -8,6 +8,9 @@ use crate::imports::*;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 /// An arbitrary unit of single track that does not include turnouts
+///
+/// # Note:
+/// This struct is to be deprecated and superseded by [super::link_impl::Link].
 #[altrios_api(
     // TODO: uncomment and complete
     // #[getter]
@@ -42,4 +45,3 @@ pub struct Link {
     #[serde(default)]
     pub link_idxs_lockout: Vec<LinkIdx>,
 }
-

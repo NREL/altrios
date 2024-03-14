@@ -90,13 +90,14 @@ fn check_deadlock(
     }
 }
 
-pub fn run_dispatch(
-    network: &[Link],
+pub fn run_dispatch<N: AsRef<[Link]>>(
+    network: N,
     speed_limit_train_sims: &[SpeedLimitTrainSim],
     est_time_nets: Vec<EstTimeNet>,
     print_train_move: bool,
     print_train_exit: bool,
 ) -> anyhow::Result<Vec<Vec<LinkIdxTime>>> {
+    let network = network.as_ref();
     let train_count = speed_limit_train_sims.len();
     if est_time_nets.len() != train_count {
         return Err(anyhow!(
@@ -259,14 +260,24 @@ pub fn run_dispatch(
 #[cfg(feature = "pyo3")]
 #[cfg_attr(feature = "pyo3", pyfunction(name = "run_dispatch"))]
 pub fn run_dispatch_py(
-    network: Vec<Link>,
+    network: &PyAny,
     speed_limit_train_sims: crate::train::SpeedLimitTrainSimVec,
     est_time_vec: Vec<EstTimeNet>,
     print_train_move: bool,
     print_train_exit: bool,
 ) -> anyhow::Result<Vec<TimedLinkPath>> {
+    let network = match network.extract::<Network>() {
+        Ok(n) => n,
+        Err(_) => {
+            let n = network
+                .extract::<Vec<Link>>()
+                .map_err(|_| anyhow!("{}", format_dbg!()))?;
+            Network(n)
+        }
+    };
+
     Ok(run_dispatch(
-        &network,
+        network,
         &speed_limit_train_sims.0,
         est_time_vec,
         print_train_move,

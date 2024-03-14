@@ -11,7 +11,7 @@ struct OldSpeedSets(Vec<OldSpeedSet>);
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 /// An arbitrary unit of single track that does not include turnouts
-#[altrios_api( 
+#[altrios_api(
     // TODO: uncomment and complete
     // #[getter]
     // fn get_speed_set(&self) ...
@@ -217,10 +217,46 @@ impl ObjState for Link {
 }
 
 #[altrios_api]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 /// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
 pub struct Network(pub Vec<Link>);
+
+impl SerdeAPI for Network {
+    fn from_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
+        let filepath = filepath.as_ref();
+        let extension = filepath
+            .extension()
+            .and_then(OsStr::to_str)
+            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
+        let file = File::open(filepath).with_context(|| {
+            if !filepath.exists() {
+                format!("File not found: {filepath:?}")
+            } else {
+                format!("Could not open file: {filepath:?}")
+            }
+        })?;
+        match Self::from_reader(file, extension) {
+            Ok(network) => Ok(network),
+            Err(err) => Ok(NetworkOld::from_file(filepath).with_context(|| err)?.into()),
+        }
+    }
+}
+
+impl From<NetworkOld> for Network {
+    fn from(value: NetworkOld) -> Self {
+        Network(value.0.iter().map(|l| Link::from(l.clone())).collect())
+    }
+}
+
+#[altrios_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+/// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
+/// Python
+///
+/// # Note:
+/// This struct will be deprecated and superseded by [Network]
+pub struct NetworkOld(pub Vec<LinkOld>);
 
 impl AsRef<[Link]> for Network {
     fn as_ref(&self) -> &[Link] {

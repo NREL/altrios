@@ -14,6 +14,7 @@ pub use super::*;
 pub use crate::consist::locomotive::battery_electric_loco::BatteryElectricLoco;
 pub use crate::consist::locomotive::conventional_loco::ConventionalLoco;
 pub use crate::consist::locomotive::hybrid_loco::HybridLoco;
+#[allow(unused_imports)] // probably gets used in tests
 use crate::imports::*;
 use altrios_proc_macros::{altrios_api, HistoryVec};
 

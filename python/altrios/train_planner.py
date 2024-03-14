@@ -1111,7 +1111,7 @@ if __name__ == "__main__":
     location_map = alt.import_locations(
         str(alt.resources_root() / "networks/default_locations.csv")
     )
-    network = alt.import_network(
+    network = alt.Network.from_file(
         str(alt.resources_root() / "networks/Taconite.yaml")
     )
     config = TrainPlannerConfig()

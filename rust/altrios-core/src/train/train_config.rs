@@ -472,12 +472,22 @@ pub fn build_speed_limit_train_sims(
 #[pyfunction]
 pub fn run_speed_limit_train_sims(
     mut speed_limit_train_sims: SpeedLimitTrainSimVec,
-    network: Vec<Link>,
+    network: &PyAny,
     train_consist_plan_py: PyDataFrame,
     loco_pool_py: PyDataFrame,
     refuel_facilities_py: PyDataFrame,
     timed_paths: Vec<Vec<LinkIdxTime>>,
 ) -> anyhow::Result<(SpeedLimitTrainSimVec, PyDataFrame)> {
+    let network = match network.extract::<Network>() {
+        Ok(n) => n,
+        Err(_) => {
+            let n = network
+                .extract::<Vec<Link>>()
+                .map_err(|_| anyhow!("{}", format_dbg!()))?;
+            Network(n)
+        }
+    };
+
     let train_consist_plan: DataFrame = train_consist_plan_py.into();
     let mut loco_pool: DataFrame = loco_pool_py.into();
     let refuel_facilities: DataFrame = refuel_facilities_py.into();

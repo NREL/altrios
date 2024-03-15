@@ -18,7 +18,7 @@ pub struct Link {
     pub headings: Vec<Heading>,
     #[serde(default)]
     pub speed_sets: HashMap<TrainType, SpeedSet>,
-    /// Optional train-type-neutral [SpeedSet].  If provided, this `SpeedSet` gets used.
+    /// Optional train-type-neutral [SpeedSet].  If provided, overrides [Link::speed_sets].
     pub speed_set: Option<SpeedSet>,
     #[serde(default)]
     pub cat_power_limits: Vec<CatPowerLimit>,

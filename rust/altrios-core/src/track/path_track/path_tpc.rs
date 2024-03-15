@@ -150,7 +150,7 @@ impl PathTpc {
             Self::add_speeds(
                 &mut self.speed_points,
                 &self.train_params,
-                &link.speed_sets,
+                extract_speed_set(&link.speed_sets, &link.speed_set, &self.train_params)?,
                 offset_base,
             )?;
 
@@ -321,7 +321,11 @@ impl PathTpc {
             Self::add_speeds(
                 &mut self.speed_points,
                 &self.train_params,
-                &links[link_point.link_idx.idx()].speed_sets,
+                extract_speed_set(
+                    &links[link_point.link_idx.idx()].speed_sets,
+                    &links[link_point.link_idx.idx()].speed_set,
+                    &self.train_params,
+                )?,
                 link_point.offset,
             )?;
         }
@@ -340,23 +344,9 @@ impl PathTpc {
     fn add_speeds(
         speed_points: &mut Vec<SpeedLimitPoint>,
         train_params: &TrainParams,
-        speed_sets: &HashMap<TrainType, SpeedSet>,
+        speed_set: &SpeedSet,
         offset_base: si::Length,
     ) -> anyhow::Result<()> {
-        // pull out the speed set with a matching traintype (this is faster than hashing for small
-        // HashMap objects)
-        let speed_set = speed_sets
-            .iter()
-            .find(|&sps| sps.0 == &train_params.train_type)
-            .ok_or_else(|| {
-                anyhow!(
-                    "`train_params.train_type` {:?} not found in `speed_sets.keys()` {:?}",
-                    train_params.train_type,
-                    speed_sets.keys()
-                )
-            })?
-            .1;
-
         if train_params.speed_set_applies(speed_set) {
             speed_points.reserve(speed_set.speed_limits.len() * 2);
             let length_add = if speed_set.is_head_end {
@@ -378,6 +368,33 @@ impl PathTpc {
         }
         Ok(())
     }
+}
+
+/// If provided, returns `speed_set`.  Otherwise, finds speed_set appropriate for
+/// `train_params.train_type
+fn extract_speed_set<'a>(
+    speed_sets: &'a HashMap<TrainType, SpeedSet>,
+    speed_set: &'a Option<SpeedSet>,
+    train_params: &'a TrainParams,
+) -> Result<&'a SpeedSet, argmin::prelude::Error> {
+    let speed_set = match speed_set {
+        Some(s) => s,
+        None => {
+            speed_sets
+                .iter()
+                .find(|&sps| sps.0 == &train_params.train_type)
+                .ok_or_else(|| {
+                    anyhow!(
+                        "`train_params.train_type` {:?} not found in `speed_sets.keys()` {:?}",
+                        train_params.train_type,
+                        speed_sets.keys()
+                    )
+                })?
+                .1
+        }
+    };
+
+    Ok(speed_set)
 }
 
 impl Default for PathTpc {

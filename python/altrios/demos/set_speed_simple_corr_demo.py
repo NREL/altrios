@@ -21,7 +21,8 @@ train_config = alt.TrainConfig(
     cars_empty=50,
     cars_loaded=50,
     rail_vehicle_type="Manifest",
-    train_type=None,
+    # train_type=None,
+    train_type=alt.TrainType.Freight,
     train_length_meters=None,
     train_mass_kilograms=None,
 )

@@ -29,6 +29,13 @@
           speed: 6.7056
       speed_params: []
       is_head_end: false
+  speed_set:
+    speed_limits:
+      - offset_start: 0.0
+        offset_end: 50000.0
+        speed: 6.5
+    speed_params: []
+    is_head_end: false
   cat_power_limits: []
   length: 50000.0
   idx_next: 2

@@ -11,19 +11,14 @@ struct OldSpeedSets(Vec<OldSpeedSet>);
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 /// An arbitrary unit of single track that does not include turnouts
-#[altrios_api(
-    // TODO: uncomment and complete
-    // #[getter]
-    // fn get_speed_set(&self) ...
-    // #[setter]
-    // fn set_speed_set(&mut self, new_value: SpeedSet) ...
-)]
+#[altrios_api()]
 pub struct Link {
     pub elevs: Vec<Elev>,
     #[serde(default)]
     pub headings: Vec<Heading>,
-    #[api(skip_get, skip_set)]
+    #[serde(default)]
     pub speed_sets: HashMap<TrainType, SpeedSet>,
+    pub speed_set: Option<SpeedSet>,
     #[serde(default)]
     pub cat_power_limits: Vec<CatPowerLimit>,
     pub length: si::Length,
@@ -73,6 +68,7 @@ impl From<LinkOld> for Link {
             elevs: l.elevs,
             headings: l.headings,
             speed_sets,
+            speed_set: Default::default(),
             cat_power_limits: l.cat_power_limits,
             length: l.length,
             idx_next: l.idx_next,

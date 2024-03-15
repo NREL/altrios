@@ -234,6 +234,7 @@ impl SerdeAPI for ReversibleEnergyStorage {
     }
 }
 
+#[allow(unused)]
 impl ReversibleEnergyStorage {
     #[allow(clippy::too_many_arguments)]
     fn new(

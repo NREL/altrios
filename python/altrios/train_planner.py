@@ -956,7 +956,8 @@ def run_train_planner(
                     train_config = alt.TrainConfig(
                         cars_empty = int(this_train['Cars_Per_Train_Empty']),
                         cars_loaded = int(this_train['Cars_Per_Train_Loaded']),
-                        rail_vehicle_type = this_train['Train_Type'])
+                        rail_vehicle_type = this_train['Train_Type'],
+                    )
                     
                     dispatched = loco_pool.filter(selected)
                     loco_start_soc_j = dispatched.get_column("SOC_J")

@@ -120,6 +120,23 @@ impl PathTpc {
                 let link_idx_prev = self.link_points[self.link_points.len() - 2].link_idx;
                 // TODO: improve error message quality
                 ensure!(link_idx_prev.is_real(), "link_idx_prev is not real");
+                //
+                {
+                    ensure!(
+                        link.idx_prev != link.idx_prev_alt || link.idx_prev_alt == LinkIdx::new(0),
+                        "{}\n{}\n{}",
+                        format_dbg!(),
+                        format!("link.idx_prev: {}, link.idx_prev_alt: {}",link.idx_prev, link.idx_prev_alt),
+                        "If there is no alternative to `idx_prev`, then `idx_prev_alt` should be 0."
+                    );
+                    ensure!(
+                        link.idx_next != link.idx_next_alt || link.idx_next_alt == LinkIdx::new(0),
+                        "{}\n{}\n{}",
+                        format_dbg!(),
+                        format!("link.idx_next: {}, link.idx_next_alt: {}",link.idx_next, link.idx_next_alt),
+                        "If there is no alternative to `idx_next`, then `idx_next_alt` should be 0."
+                    );
+                }
                 ensure!(
                     link.idx_prev == link_idx_prev || link.idx_prev_alt == link_idx_prev,
                     "link.idx_curr: {:?} is not contiguous with path!
@@ -133,9 +150,9 @@ impl PathTpc {
             Self::add_speeds(
                 &mut self.speed_points,
                 &self.train_params,
-                &link.speed_sets.values().collect::<Vec<&SpeedSet>>(),
+                &link.speed_sets,
                 offset_base,
-            );
+            )?;
 
             // Update link point
             let link_point_add = self.link_points.last_mut().unwrap();
@@ -294,7 +311,7 @@ impl PathTpc {
         self.is_finished = true;
     }
 
-    pub fn recalc_speeds(&mut self, links: &[Link]) {
+    pub fn recalc_speeds(&mut self, links: &[Link]) -> anyhow::Result<()> {
         self.speed_points.clear();
         self.speed_points.push(SpeedLimitPoint {
             offset: self.link_points.first().unwrap().offset,
@@ -304,13 +321,11 @@ impl PathTpc {
             Self::add_speeds(
                 &mut self.speed_points,
                 &self.train_params,
-                &links[link_point.link_idx.idx()]
-                    .speed_sets
-                    .values()
-                    .collect::<Vec<&SpeedSet>>(),
+                &links[link_point.link_idx.idx()].speed_sets,
                 link_point.offset,
-            );
+            )?;
         }
+        Ok(())
     }
 
     pub fn reindex(&mut self, link_idxs: &[LinkIdx]) -> anyhow::Result<()> {
@@ -325,30 +340,51 @@ impl PathTpc {
     fn add_speeds(
         speed_points: &mut Vec<SpeedLimitPoint>,
         train_params: &TrainParams,
-        speed_sets: &[&SpeedSet],
+        speed_sets: &HashMap<TrainType, SpeedSet>,
         offset_base: si::Length,
-    ) {
-        for speed_set in speed_sets {
-            if train_params.speed_set_applies(speed_set) {
-                speed_points.reserve(speed_set.speed_limits.len() * 2);
-                let length_add = if speed_set.is_head_end {
-                    si::Length::ZERO
-                } else {
-                    train_params.length
-                };
-                for speed_limit in &speed_set.speed_limits {
-                    // If the speed limit will actually apply a restriction
-                    // Note that this comparison is valid since speed max must be positive
-                    if speed_limit.speed < train_params.speed_max {
-                        speed_points.insert_speed(&SpeedLimit {
-                            offset_start: speed_limit.offset_start + offset_base,
-                            offset_end: speed_limit.offset_end + offset_base + length_add,
-                            speed: speed_limit.speed,
-                        })
-                    }
+    ) -> anyhow::Result<()> {
+        let speed_set = speed_sets.get(&train_params.train_type).ok_or_else(|| {
+            anyhow!(
+                "`train_params.train_type` {:?} not found in `speed_sets.keys()` {:?}",
+                train_params.train_type,
+                speed_sets.keys()
+            )
+        })?;
+
+        // // pull out the speed set with a matching traintype (this is faster than hashing for small
+        // // HashMap objects)
+        // let speed_set = speed_sets
+        //     .iter()
+        //     .find(|&sps| sps.0 == &train_params.train_type)
+        //     .ok_or_else(|| {
+        //         anyhow!(
+        //             "`train_params.train_type` {:?} not found in `speed_sets.keys()` {:?}",
+        //             train_params.train_type,
+        //             speed_sets.keys()
+        //         )
+        //     })?
+        //     .1;
+
+        if train_params.speed_set_applies(speed_set) {
+            speed_points.reserve(speed_set.speed_limits.len() * 2);
+            let length_add = if speed_set.is_head_end {
+                si::Length::ZERO
+            } else {
+                train_params.length
+            };
+            for speed_limit in &speed_set.speed_limits {
+                // If the speed limit will actually apply a restriction
+                // Note that this comparison is valid since speed max must be positive
+                if speed_limit.speed < train_params.speed_max {
+                    speed_points.insert_speed(&SpeedLimit {
+                        offset_start: speed_limit.offset_start + offset_base,
+                        offset_end: speed_limit.offset_end + offset_base + length_add,
+                        speed: speed_limit.speed,
+                    })
                 }
             }
         }
+        Ok(())
     }
 }
 

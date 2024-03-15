@@ -18,10 +18,6 @@ pub struct TrainParams {
 
 impl TrainParams {
     pub fn speed_set_applies(&self, speed_set: &SpeedSet) -> bool {
-        // TODO (URGENT/IMPORTANT): uncomment and fix in `network-enhancements` branch
-        // if self.train_type != speed_set.train_type {
-        //     return false;
-        // }
         for speed_param in &speed_set.speed_params {
             if !{
                 match speed_param.limit_type {

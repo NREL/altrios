@@ -77,7 +77,6 @@ timed_link_path = alt.run_dispatch(
     network.tolist(),
     alt.SpeedLimitTrainSimVec([train_sim]),
     [est_time_net],
-
     False,
     False,
 )[0]

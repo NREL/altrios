@@ -21,14 +21,6 @@
       heading: 0.0
     - offset: 50000.0
       heading: 0.0
-  speed_sets:
-    Freight:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 50000.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
   speed_set:
     speed_limits:
       - offset_start: 0.0
@@ -55,49 +47,13 @@
       heading: 0.0
     - offset: 1.0
       heading: 0.0
-  speed_sets:
-    Commuter:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 1.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    Passenger:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 1.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    Freight:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 1.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    TiltTrain:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 1.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    HighSpeedPassenger:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 1.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    Intermodal:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 1.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
+  speed_set:
+    speed_limits:
+      - offset_start: 0.0
+        offset_end: 50000.0
+        speed: 6.5
+    speed_params: []
+    is_head_end: false
   cat_power_limits: []
   length: 1.0
   idx_next: 0
@@ -117,49 +73,13 @@
       heading: 0.0
     - offset: 50000.0
       heading: 0.0
-  speed_sets:
-    TiltTrain:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 50000.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    HighSpeedPassenger:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 50000.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    Commuter:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 50000.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    Freight:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 50000.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    Passenger:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 50000.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    Intermodal:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 50000.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
+  speed_set:
+    speed_limits:
+      - offset_start: 0.0
+        offset_end: 50000.0
+        speed: 6.5
+    speed_params: []
+    is_head_end: false
   cat_power_limits: []
   length: 50000.0
   idx_next: 4
@@ -179,49 +99,13 @@
       heading: 0.0
     - offset: 1.0
       heading: 0.0
-  speed_sets:
-    HighSpeedPassenger:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 1.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    TiltTrain:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 1.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    Intermodal:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 1.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    Passenger:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 1.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    Commuter:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 1.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
-    Freight:
-      speed_limits:
-        - offset_start: 0.0
-          offset_end: 1.0
-          speed: 6.7056
-      speed_params: []
-      is_head_end: false
+  speed_set:
+    speed_limits:
+      - offset_start: 0.0
+        offset_end: 50000.0
+        speed: 6.5
+    speed_params: []
+    is_head_end: false
   cat_power_limits: []
   length: 1.0
   idx_next: 0

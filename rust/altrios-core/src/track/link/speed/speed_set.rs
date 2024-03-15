@@ -177,7 +177,7 @@ impl ObjState for Vec<SpeedSet> {
     }
     fn validate(&self) -> ValidationResults {
         let mut errors = ValidationErrors::new();
-        validate_slice_real(&mut errors, &self, "Speed set");
+        validate_slice_real(&mut errors, self, "Speed set");
         errors.make_err()
     }
 }

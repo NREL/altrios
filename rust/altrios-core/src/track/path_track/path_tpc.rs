@@ -343,27 +343,19 @@ impl PathTpc {
         speed_sets: &HashMap<TrainType, SpeedSet>,
         offset_base: si::Length,
     ) -> anyhow::Result<()> {
-        let speed_set = speed_sets.get(&train_params.train_type).ok_or_else(|| {
-            anyhow!(
-                "`train_params.train_type` {:?} not found in `speed_sets.keys()` {:?}",
-                train_params.train_type,
-                speed_sets.keys()
-            )
-        })?;
-
-        // // pull out the speed set with a matching traintype (this is faster than hashing for small
-        // // HashMap objects)
-        // let speed_set = speed_sets
-        //     .iter()
-        //     .find(|&sps| sps.0 == &train_params.train_type)
-        //     .ok_or_else(|| {
-        //         anyhow!(
-        //             "`train_params.train_type` {:?} not found in `speed_sets.keys()` {:?}",
-        //             train_params.train_type,
-        //             speed_sets.keys()
-        //         )
-        //     })?
-        //     .1;
+        // pull out the speed set with a matching traintype (this is faster than hashing for small
+        // HashMap objects)
+        let speed_set = speed_sets
+            .iter()
+            .find(|&sps| sps.0 == &train_params.train_type)
+            .ok_or_else(|| {
+                anyhow!(
+                    "`train_params.train_type` {:?} not found in `speed_sets.keys()` {:?}",
+                    train_params.train_type,
+                    speed_sets.keys()
+                )
+            })?
+            .1;
 
         if train_params.speed_set_applies(speed_set) {
             speed_points.reserve(speed_set.speed_limits.len() * 2);

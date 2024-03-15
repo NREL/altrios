@@ -21,6 +21,7 @@ plot_dir.mkdir(exist_ok=True)
 # %%
 
 t0_import = time.perf_counter()
+t0_total = time.perf_counter()
 
 rail_vehicle_map = alt.import_rail_vehicles(alt.resources_root() / "rolling_stock/rail_vehicles.csv")
 location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")
@@ -110,6 +111,7 @@ v_total_fuel_gal = summary_sims.get_energy_fuel_joules(annualize=False) / 1e3 / 
     defaults.RHO_DIESEL_KG_PER_M3 * utilities.LITER_PER_M3 * utilities.GALLONS_PER_LITER
 
 print(f"Total fuel used: {v_total_fuel_gal:.3g} gallons")
+print(f"Total elapsed time: {time.perf_counter() - t0_total} s")
 
 
 # %%

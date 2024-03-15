@@ -866,6 +866,7 @@ def run_train_planner(
     refuelers: pl.DataFrame,
     simulation_days: int,
     scenario_year: int,
+    train_type: alt.TrainType = alt.TrainType.Freight, 
     config: TrainPlannerConfig = TrainPlannerConfig(),
     demand_file_path=defaults.DEMAND_FILE,
     network_charging_guidelines: pl.DataFrame = None,
@@ -957,6 +958,7 @@ def run_train_planner(
                         cars_empty = int(this_train['Cars_Per_Train_Empty']),
                         cars_loaded = int(this_train['Cars_Per_Train_Loaded']),
                         rail_vehicle_type = this_train['Train_Type'],
+                        train_type = train_type,
                     )
                     
                     dispatched = loco_pool.filter(selected)

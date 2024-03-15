@@ -1,3 +1,4 @@
+import altrios.altrios_pyo3 as altpy
 from typing import Any, Dict, List, Optional
 import polars as pl
 from typing_extensions import Self
@@ -973,3 +974,14 @@ class InitTrainState(SerdeAPI):
     dt_seconds: float
     @classmethod
     def default(cls) -> Self: ...
+
+
+
+@dataclass
+class TrainType(SerdeAPI):
+    Freight = altpy.TrainType.Freight,
+    Passenger = altpy.TrainType.Passenger,
+    Intermodal = altpy.TrainType.Intermodal,
+    HighSpeedPassenger = altpy.TrainType.HighSpeedPassenger,
+    TiltTrain = altpy.TrainType.TiltTrain,
+    Commuter = altpy.TrainType.Commuter,

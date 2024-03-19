@@ -722,13 +722,102 @@ class SetSpeedTrainSim(SerdeAPI):
     def set_save_interval(self, save_interval: int): ...
 
 
-# TODO: update to match Rust
+class LinkPoint(SerdeAPI):
+    offset_meters: float
+    grade_count: int
+    curve_count: int
+    cat_power_count: int
+    link_idx: LinkIdx
+
+
+class PathResCoeff(SerdeAPI): 
+    offset: float
+    res_coeff: float
+    res_net: float
+
+
+class SpeedLimitPoint(SerdeAPI):
+    offset: float
+    speed_limit: float
+
+
+class CatPowerLimit(SerdeAPI):
+    offset_start: float
+    offset_end: float
+    power_limit: float
+    district_id: Optional[str]
+
+
+class TrainParams(SerdeAPI):
+    length: float
+    speed_max: float
+    mass_total: float
+    mass_per_brake: float
+    axle_count: int
+    train_type: TrainType
+    curve_coeff_0: float
+    curve_coeff_1: float
+    curve_coeff_2: float
+
+
+class PathTpc(SerdeAPI):
+    link_points: List[LinkPoint]
+    grades: List[PathResCoeff]
+    curves: List[PathResCoeff]
+    speed_points: List[SpeedLimitPoint]
+    cat_power_limits: List[CatPowerLimit]
+    train_params: TrainParams
+    is_finished: bool
+
+
+class BrakingPoint(SerdeAPI):
+    offset_meters: float
+    speed_limit_meters_per_second: float
+    speed_target_meters_per_second: float
+
+
+
+class BrakingPoints(SerdeAPI):
+    points: List[BrakingPoint]
+    idx_curr: int
+
+
+class FricBrakeState(SerdeAPI): 
+    i: int
+    force_newtons: float
+    force_max_curr_newtons: float
+
+
+class FricBrakeStateHistoryVec(SerdeAPI):
+    i: List[int]
+    force_newtons: List[float]
+    force_max_curr_newtons: List[float]
+    
+
+class FricBrake(SerdeAPI):
+    force_max_newtons: float
+    ramp_up_time_seconds: float
+    ramp_up_coeff_ratio: float
+    state: FricBrakeState
+    history: FricBrakeStateHistoryVec
+    save_interval: Optional[int]
+
+
+
 class SpeedLimitTrainSim(SerdeAPI):
+    train_id: str
+    origs: List[Location]
+    dests: List[Location]
     loco_con: Consist
     state: TrainState
+    # train_res: TrainRes # not accessible in Python
+    path_tpc: PathTpc
+    braking_points: BrakingPoints
+    fric_brake: FricBrake
     history: TrainStateHistoryVec
-    i: int
+    save_interval: Optional[int]
     simulation_days: Optional[int]
+    scenario_year: Optional[int]
 
     @classmethod
     def __init__(

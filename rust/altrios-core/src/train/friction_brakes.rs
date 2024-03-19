@@ -85,8 +85,8 @@ impl FricBrake {
     }
 }
 
-// TODO: figure out a way to make the braking reasonably polymorphic (e.g. for Parallel Systems)
-
+// TODO: figure out a way to make the braking reasonably polymorphic (e.g. for autonomous rail
+// vehicles)
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, HistoryVec)]
 #[altrios_api(
     #[new]

@@ -41,13 +41,5 @@
             "console": "integratedTerminal",
             "justMyCode": true
         },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug",
-            "program": "${workspaceFolder}/<executable file>",
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        }
     ]
 }

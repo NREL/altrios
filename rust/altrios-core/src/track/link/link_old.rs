@@ -11,13 +11,7 @@ use crate::imports::*;
 ///
 /// # Note:
 /// This struct is to be deprecated and superseded by [super::link_impl::Link].
-#[altrios_api(
-    // TODO: uncomment and complete
-    // #[getter]
-    // fn get_speed_set(&self) ...
-    // #[setter]
-    // fn set_speed_set(&mut self, new_value: SpeedSet) ...
-)]
+#[altrios_api()]
 pub struct Link {
     pub elevs: Vec<Elev>,
     #[serde(default)]

@@ -13,14 +13,18 @@ struct OldSpeedSets(Vec<OldSpeedSet>);
 /// An arbitrary unit of single track that does not include turnouts
 #[altrios_api()]
 pub struct Link {
+    /// Spatial vector of elevation values and corresponding positions along track
     pub elevs: Vec<Elev>,
     #[serde(default)]
+    /// Spatial vector of compass heading values and corresponding positions along track
     pub headings: Vec<Heading>,
+    /// Map of train types and corresponding speed sets
     #[serde(default)]
     pub speed_sets: HashMap<TrainType, SpeedSet>,
     /// Optional train-type-neutral [SpeedSet].  If provided, overrides [Link::speed_sets].
     pub speed_set: Option<SpeedSet>,
     #[serde(default)]
+    /// Spatial vector of catenary power limit values and corresponding positions along track
     pub cat_power_limits: Vec<CatPowerLimit>,
     pub length: si::Length,
 

@@ -203,7 +203,7 @@ impl Valid for TrainState {
     }
 }
 
-///TODO: Add new values!
+// TODO: Add new values!
 impl ObjState for TrainState {
     fn validate(&self) -> ValidationResults {
         let mut errors = ValidationErrors::new();

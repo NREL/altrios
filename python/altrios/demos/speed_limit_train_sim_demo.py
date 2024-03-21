@@ -15,7 +15,7 @@ train_config = alt.TrainConfig(
     cars_empty=50,
     cars_loaded=50,
     rail_vehicle_type="Manifest",
-    train_type=None,
+    train_type=alt.TrainType.Freight,
     train_length_meters=None,
     train_mass_kilograms=None,
 )
@@ -77,7 +77,6 @@ timed_link_path = alt.run_dispatch(
     network.tolist(),
     alt.SpeedLimitTrainSimVec([train_sim]),
     [est_time_net],
-
     False,
     False,
 )[0]
@@ -91,7 +90,9 @@ t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 assert len(train_sim.history) > 1
 
-fig, ax = plt.subplots(3, 1, sharex=True)
+loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
+
+fig, ax = plt.subplots(4, 1, sharex=True)
 ax[0].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
     np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
@@ -128,12 +129,27 @@ ax[1].plot(
 ax[1].set_ylabel('Force [MN]')
 ax[1].legend()
 
+ax[2].plot(
+    np.array(train_sim.history.time_seconds) / 3_600, 
+    np.array(loco0.res.history.soc)
+)
+
+ax[2].set_ylabel('SOC')
+ax[2].legend()
+
 ax[-1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
     train_sim.history.speed_meters_per_second,
+    label='achieved'
+)
+ax[-1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.speed_limit_meters_per_second,
+    label='limit'
 )
 ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')
+ax[-1].legend()
 plt.suptitle("Speed Limit Train Sim Demo")
 if SHOW_PLOTS:
     plt.tight_layout()

@@ -248,6 +248,7 @@ mod test_train_disp {
         network_file_path.push("../python/altrios/resources/networks/Taconite.yaml");
         let network =
             Vec::<Link>::from_file(network_file_path.as_os_str().to_str().unwrap()).unwrap();
+
         network.validate().unwrap();
         let speed_limit_train_sim = crate::train::speed_limit_train_sim_rev();
         let est_times = make_est_times(&speed_limit_train_sim, &network).unwrap().0;

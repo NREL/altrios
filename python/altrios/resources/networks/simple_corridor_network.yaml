@@ -1,0 +1,117 @@
+---
+- elevs: []
+  headings: []
+  speed_sets: {}
+  cat_power_limits: []
+  length: 0.0
+  idx_next: 0
+  idx_next_alt: 0
+  idx_prev: 0
+  idx_prev_alt: 0
+  idx_curr: 0
+  idx_flip: 0
+  link_idxs_lockout: []
+- elevs:
+    - offset: 0.0
+      elev: 0.0
+    - offset: 50000.0
+      elev: 100.0
+  headings:
+    - offset: 0.0
+      heading: 0.0
+    - offset: 50000.0
+      heading: 0.0
+  speed_set:
+    speed_limits:
+      - offset_start: 0.0
+        offset_end: 50000.0
+        speed: 6.5
+    speed_params: []
+    is_head_end: false
+  cat_power_limits: []
+  length: 50000.0
+  idx_next: 2
+  idx_next_alt: 0
+  idx_prev: 0
+  idx_prev_alt: 0
+  idx_curr: 1
+  idx_flip: 3
+  link_idxs_lockout: []
+- elevs:
+    - offset: 0.0
+      elev: 100.0
+    - offset: 1.0
+      elev: 100.0
+  headings:
+    - offset: 0.0
+      heading: 0.0
+    - offset: 1.0
+      heading: 0.0
+  speed_set:
+    speed_limits:
+      - offset_start: 0.0
+        offset_end: 50000.0
+        speed: 6.5
+    speed_params: []
+    is_head_end: false
+  cat_power_limits: []
+  length: 1.0
+  idx_next: 0
+  idx_next_alt: 0
+  idx_prev: 1
+  idx_prev_alt: 0
+  idx_curr: 2
+  idx_flip: 4
+  link_idxs_lockout: []
+- elevs:
+    - offset: 0.0
+      elev: 100.0
+    - offset: 50000.0
+      elev: 0.0
+  headings:
+    - offset: 0.0
+      heading: 0.0
+    - offset: 50000.0
+      heading: 0.0
+  speed_set:
+    speed_limits:
+      - offset_start: 0.0
+        offset_end: 50000.0
+        speed: 6.5
+    speed_params: []
+    is_head_end: false
+  cat_power_limits: []
+  length: 50000.0
+  idx_next: 4
+  idx_next_alt: 0
+  idx_prev: 0
+  idx_prev_alt: 0
+  idx_curr: 3
+  idx_flip: 1
+  link_idxs_lockout: []
+- elevs:
+    - offset: 0.0
+      elev: 0.0
+    - offset: 1.0
+      elev: 0.0
+  headings:
+    - offset: 0.0
+      heading: 0.0
+    - offset: 1.0
+      heading: 0.0
+  speed_set:
+    speed_limits:
+      - offset_start: 0.0
+        offset_end: 50000.0
+        speed: 6.5
+    speed_params: []
+    is_head_end: false
+  cat_power_limits: []
+  length: 1.0
+  idx_next: 0
+  idx_next_alt: 0
+  idx_prev: 3
+  idx_prev_alt: 0
+  idx_curr: 4
+  idx_flip: 2
+  link_idxs_lockout: []

@@ -13,6 +13,7 @@ use crate::track::LocationMap;
 
 use polars::prelude::*;
 use polars_lazy::dsl::max_horizontal;
+#[allow(unused_imports)]
 use polars_lazy::prelude::*;
 use pyo3_polars::PyDataFrame;
 
@@ -31,7 +32,7 @@ use pyo3_polars::PyDataFrame;
             cars_empty,
             cars_loaded,
             rail_vehicle_type,
-            train_type.unwrap_or(TrainType::Freight),
+            train_type.unwrap_or_default(),
             train_length_meters.map(|v| v * uc::M),
             train_mass_kilograms.map(|v| v * uc::KG),
             drag_coeff_vec.map(|dcv| dcv.iter().map(|dc| *dc * uc::R).collect())
@@ -64,6 +65,21 @@ use pyo3_polars::PyDataFrame;
         self.train_mass = Some(train_mass * uc::KG);
         Ok(())
     }
+
+    #[getter]
+    fn get_drag_coeff_vec(&self) -> Option<Vec<f64>> {
+        self.drag_coeff_vec
+            .as_ref()
+                .map(
+                    |dcv| dcv.iter().cloned().map(|x| x.get::<si::ratio>()).collect()
+                )
+    }
+
+    #[setter]
+    fn set_drag_coeff_vec(&mut self, new_val: Vec<f64>) -> anyhow::Result<()> {
+        self.drag_coeff_vec = Some(new_val.iter().map(|x| *x * uc::R).collect());
+        Ok(())
+    }
 )]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 /// User-defined train configuration used to generate [crate::prelude::TrainParams].
@@ -89,7 +105,6 @@ pub struct TrainConfig {
     /// Optional vector of coefficients for each car.  If provided, the total drag area (drag
     /// coefficient times frontal area) calculated from this vector is the sum of these coefficients
     /// times the baseline, single-vehicle `drag_area_loaded`.
-    // TODO: make getter and setter for this
     pub drag_coeff_vec: Option<Vec<si::Ratio>>,
 }
 
@@ -471,12 +486,22 @@ pub fn build_speed_limit_train_sims(
 #[pyfunction]
 pub fn run_speed_limit_train_sims(
     mut speed_limit_train_sims: SpeedLimitTrainSimVec,
-    network: Vec<Link>,
+    network: &PyAny,
     train_consist_plan_py: PyDataFrame,
     loco_pool_py: PyDataFrame,
     refuel_facilities_py: PyDataFrame,
     timed_paths: Vec<Vec<LinkIdxTime>>,
 ) -> anyhow::Result<(SpeedLimitTrainSimVec, PyDataFrame)> {
+    let network = match network.extract::<Network>() {
+        Ok(n) => n,
+        Err(_) => {
+            let n = network
+                .extract::<Vec<Link>>()
+                .map_err(|_| anyhow!("{}", format_dbg!()))?;
+            Network(n)
+        }
+    };
+
     let train_consist_plan: DataFrame = train_consist_plan_py.into();
     let mut loco_pool: DataFrame = loco_pool_py.into();
     let refuel_facilities: DataFrame = refuel_facilities_py.into();

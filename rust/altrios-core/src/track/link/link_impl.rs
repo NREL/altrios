@@ -2,31 +2,41 @@ use super::cat_power::*;
 use super::elev::*;
 use super::heading::*;
 use super::link_idx::*;
+use super::link_old::Link as LinkOld;
 use super::speed::*;
-#[allow(unused_imports)]
-use crate::meet_pass::est_times::EstTime;
-
 use crate::imports::*;
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+struct OldSpeedSets(Vec<OldSpeedSet>);
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 /// An arbitrary unit of single track that does not include turnouts
-#[altrios_api]
+#[altrios_api()]
 pub struct Link {
+    /// Spatial vector of elevation values and corresponding positions along track
     pub elevs: Vec<Elev>,
     #[serde(default)]
+    /// Spatial vector of compass heading values and corresponding positions along track
     pub headings: Vec<Heading>,
-    pub speed_sets: Vec<SpeedSet>,
+    /// Map of train types and corresponding speed sets
     #[serde(default)]
+    pub speed_sets: HashMap<TrainType, SpeedSet>,
+    /// Optional train-type-neutral [SpeedSet].  If provided, overrides [Link::speed_sets].
+    pub speed_set: Option<SpeedSet>,
+    #[serde(default)]
+    /// Spatial vector of catenary power limit values and corresponding positions along track
     pub cat_power_limits: Vec<CatPowerLimit>,
     pub length: si::Length,
 
     /// see [EstTime::idx_next]
     pub idx_next: LinkIdx,
-    /// see [EstTime::idx_next_alt]
+    /// see [EstTime::idx_next_alt]  
+    /// if it does not exist, it should be `LinkIdx{idx: 0}`
     pub idx_next_alt: LinkIdx,
     /// see [EstTime::idx_prev]
     pub idx_prev: LinkIdx,
-    /// see [EstTime::idx_prev_alt]
+    /// see [EstTime::idx_prev_alt]  
+    /// if it does not exist, it should be `LinkIdx{idx: 0}`
     pub idx_prev_alt: LinkIdx,
     /// Index of current link
     pub idx_curr: LinkIdx,
@@ -35,6 +45,7 @@ pub struct Link {
     #[serde(default)]
     pub link_idxs_lockout: Vec<LinkIdx>,
 }
+
 impl Link {
     fn is_linked_prev(&self, idx: LinkIdx) -> bool {
         self.idx_curr.is_fake() || self.idx_prev == idx || self.idx_prev_alt == idx
@@ -44,12 +55,44 @@ impl Link {
     }
 }
 
+impl From<LinkOld> for Link {
+    fn from(l: LinkOld) -> Self {
+        let mut speed_sets: HashMap<TrainType, SpeedSet> = HashMap::new();
+        for oss in l.speed_sets {
+            speed_sets.insert(
+                oss.train_type,
+                SpeedSet {
+                    speed_limits: oss.speed_limits,
+                    speed_params: oss.speed_params,
+                    is_head_end: oss.is_head_end,
+                },
+            );
+        }
+
+        Self {
+            elevs: l.elevs,
+            headings: l.headings,
+            speed_sets,
+            speed_set: Default::default(),
+            cat_power_limits: l.cat_power_limits,
+            length: l.length,
+            idx_next: l.idx_next,
+            idx_next_alt: l.idx_next_alt,
+            idx_prev: l.idx_prev,
+            idx_prev_alt: l.idx_prev_alt,
+            idx_curr: l.idx_curr,
+            idx_flip: l.idx_flip,
+            link_idxs_lockout: l.link_idxs_lockout,
+        }
+    }
+}
+
 impl Valid for Link {
     fn valid() -> Self {
         Self {
             elevs: Vec::<Elev>::valid(),
             headings: Vec::<Heading>::valid(),
-            speed_sets: Vec::<SpeedSet>::valid(),
+            speed_sets: HashMap::<TrainType, SpeedSet>::valid(),
             length: uc::M * 10000.0,
             idx_curr: LinkIdx::valid(),
             ..Self::default()
@@ -175,10 +218,46 @@ impl ObjState for Link {
 }
 
 #[altrios_api]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 /// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
 pub struct Network(pub Vec<Link>);
+
+impl SerdeAPI for Network {
+    fn from_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
+        let filepath = filepath.as_ref();
+        let extension = filepath
+            .extension()
+            .and_then(OsStr::to_str)
+            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
+        let file = File::open(filepath).with_context(|| {
+            if !filepath.exists() {
+                format!("File not found: {filepath:?}")
+            } else {
+                format!("Could not open file: {filepath:?}")
+            }
+        })?;
+        match Self::from_reader(file, extension) {
+            Ok(network) => Ok(network),
+            Err(err) => Ok(NetworkOld::from_file(filepath).with_context(|| err)?.into()),
+        }
+    }
+}
+
+impl From<NetworkOld> for Network {
+    fn from(value: NetworkOld) -> Self {
+        Network(value.0.iter().map(|l| Link::from(l.clone())).collect())
+    }
+}
+
+#[altrios_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+/// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
+/// Python
+///
+/// # Note:
+/// This struct will be deprecated and superseded by [Network]
+pub struct NetworkOld(pub Vec<LinkOld>);
 
 impl AsRef<[Link]> for Network {
     fn as_ref(&self) -> &[Link] {

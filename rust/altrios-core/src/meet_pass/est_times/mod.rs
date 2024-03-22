@@ -733,7 +733,14 @@ pub fn make_est_times<N: AsRef<[Link]>>(
 
     // TODO: Write complete network validation function!
 
-    Ok((EstTimeNet::new(est_times), consist_out.unwrap()))
+    let est_time_net = EstTimeNet::new(est_times);
+    ensure!(
+        !est_time_net.val.iter().all(|x| x.time_sched == 0. * uc::S),
+        "All times are 0.0 so something went wrong.\n{}",
+        format_dbg!()
+    );
+
+    Ok((est_time_net, consist_out.unwrap()))
 }
 
 #[cfg(feature = "pyo3")]

@@ -35,6 +35,7 @@ impl ObjState for TrainType {
 pub struct SpeedSet {
     pub speed_limits: Vec<SpeedLimit>,
     #[api(skip_get, skip_set)]
+    #[serde(default)]
     pub speed_params: Vec<SpeedParam>,
     pub is_head_end: bool,
 }

@@ -74,7 +74,7 @@ train_sim.set_save_interval(SAVE_INTERVAL)
 est_time_net, _consist = alt.make_est_times(train_sim, network)
 
 timed_link_path = alt.run_dispatch(
-    network.tolist(),
+    network,
     alt.SpeedLimitTrainSimVec([train_sim]),
     [est_time_net],
     False,

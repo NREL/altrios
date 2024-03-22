@@ -27,8 +27,9 @@ impl<T: GetOffset + core::fmt::Debug> LinSearchHint for &[T] {
         if dir != &Dir::Bwd {
             ensure!(
                 offset <= self.last().unwrap().get_offset(),
-                "{}\nOffset larger than last slice offset!",
-                format_dbg!()
+                "{}\nOffset in forward direction larger than last slice offset at idx: {}!",
+                format_dbg!(),
+                idx
             );
             while self[idx + 1].get_offset() < offset {
                 idx += 1;
@@ -36,8 +37,9 @@ impl<T: GetOffset + core::fmt::Debug> LinSearchHint for &[T] {
         } else if dir != &Dir::Fwd {
             ensure!(
                 self.first().unwrap().get_offset() <= offset,
-                "{}\nOffset smaller than first slice offset!",
-                format_dbg!()
+                "{}\nOffset in reverse direction smaller than first slice offset at idx: {}!",
+                format_dbg!(),
+                idx
             );
             while offset < self[idx].get_offset() {
                 idx -= 1;

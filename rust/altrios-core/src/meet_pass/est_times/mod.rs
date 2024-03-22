@@ -480,7 +480,8 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     let network = network.as_ref();
     let dests = &speed_limit_train_sim.dests;
     let (link_idx_options, origs) =
-        get_link_idx_options(&speed_limit_train_sim.origs, dests, network)?;
+        get_link_idx_options(&speed_limit_train_sim.origs, dests, network)
+            .with_context(|| anyhow!(format_dbg!()))?;
 
     let mut est_times = Vec::with_capacity(network.len() * 10);
     let mut consist_out = None;
@@ -553,7 +554,9 @@ pub fn make_est_times<N: AsRef<[Link]>>(
         saved_sims.push(SavedSim {
             train_sim: {
                 let mut train_sim = Box::new(speed_limit_train_sim.clone());
-                train_sim.extend_path(network, &[orig.link_idx])?;
+                train_sim
+                    .extend_path(network, &[orig.link_idx])
+                    .with_context(|| anyhow!(format_dbg!()))?;
                 train_sim
             },
             join_paths: vec![],
@@ -586,7 +589,8 @@ pub fn make_est_times<N: AsRef<[Link]>>(
         );
 
         'path: loop {
-            sim.update_movement(&mut movement)?;
+            sim.update_movement(&mut movement)
+                .with_context(|| anyhow!(format_dbg!()))?;
             update_est_times_add(
                 &mut est_times_add,
                 &movement,
@@ -655,17 +659,22 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                         link_idx_options.contains(&link_idx_next_alt),
                         "Unexpected end of path reached! prev={link_idx_prev:?}, next={link_idx_next:?}, next_alt={link_idx_next_alt:?}"
                     );
-                    sim.train_sim.extend_path(network, &[link_idx_next_alt])?;
+                    sim.train_sim
+                        .extend_path(network, &[link_idx_next_alt])
+                        .with_context(|| anyhow!(format_dbg!()))?;
                 } else {
                     if link_idx_options.contains(&link_idx_next_alt) {
                         let mut new_sim = sim.clone();
                         new_sim
                             .train_sim
-                            .extend_path(network, &[link_idx_next_alt])?;
+                            .extend_path(network, &[link_idx_next_alt])
+                            .with_context(|| anyhow!(format_dbg!()))?;
                         new_sim.check_dests(dests);
                         saved_sims.push(new_sim);
                     }
-                    sim.train_sim.extend_path(network, &[link_idx_next])?;
+                    sim.train_sim
+                        .extend_path(network, &[link_idx_next])
+                        .with_context(|| anyhow!(format_dbg!()))?;
                 }
                 sim.check_dests(dests);
             }
@@ -732,8 +741,24 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     update_times_backward(&mut est_times);
 
     // TODO: Write complete network validation function!
+    // This could entail (some may already be complete):
+    // - [ ] checking that final offset in each vec is same as Link length
+    // - [ ] checking that starting offset in each vec is zero
+    // - [ ] checking that reverse-forward nodal symmetry is correct
+    // - [ ] check graph structure consistency
+    // - [ ] verify that link headind and elevation actually meet up reasonably (with some tolerance)
+    //   for adjecent links
+    // - [x] check that `idx_*` and `idx_*_alt` are different unless both are zero
+    // - [ ] ???
 
-    Ok((EstTimeNet::new(est_times), consist_out.unwrap()))
+    let est_time_net = EstTimeNet::new(est_times);
+    ensure!(
+        !est_time_net.val.iter().all(|x| x.time_sched == 0. * uc::S),
+        "All times are 0.0 so something went wrong.\n{}",
+        format_dbg!()
+    );
+
+    Ok((est_time_net, consist_out.unwrap()))
 }
 
 #[cfg(feature = "pyo3")]

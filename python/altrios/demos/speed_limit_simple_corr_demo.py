@@ -1,30 +1,33 @@
 # %%
-import altrios as alt
+"""
+SetSpeedTrainSim over a simple, hypothetical corridor
+"""
+
 import time
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 import pandas as pd
+import seaborn as sns
+
+import altrios as alt 
 sns.set()
 
 SHOW_PLOTS = alt.utils.show_plots()
 
-SAVE_INTERVAL = 100
-
+SAVE_INTERVAL = 1
+res = alt.ReversibleEnergyStorage.from_file(
+    alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
+)
+# https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
     cars_empty=50,
     cars_loaded=50,
     rail_vehicle_type="Manifest",
-    train_type=alt.TrainType.Freight,
+    train_type=None, 
     train_length_meters=None,
     train_mass_kilograms=None,
 )
 
-# instantiate battery model
-res = alt.ReversibleEnergyStorage.from_file(
-    alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
-)
-# instantiate electric drivetrain (motors and any gearboxes)
 edrv = alt.ElectricDrivetrain(
     pwr_out_frac_interp=[0., 1.],
     eta_interp=[0.98, 0.98],
@@ -32,7 +35,7 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
-bel = alt.Locomotive.build_battery_electric_loco(
+bel: alt.Locomotive = alt.Locomotive.build_battery_electric_loco(
     reversible_energy_storage=res,
     drivetrain=edrv,
     loco_params=alt.LocoParams.from_dict(dict(
@@ -45,32 +48,32 @@ bel = alt.Locomotive.build_battery_electric_loco(
 loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7
 # instantiate consist
 loco_con = alt.Consist(
-    loco_vec,
+    loco_vec
 )
+
 
 tsb = alt.TrainSimBuilder(
     train_id="0",
-    origin_id="Minneapolis",
-    destination_id="Superior",
+    origin_id="A",
+    destination_id="B",
     train_config=train_config,
     loco_con=loco_con,
 )
 
-# make sure rail_vehicle_map can be constructed from yaml file and such
-rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
-rail_vehicle = alt.RailVehicle.from_file(alt.resources_root() / rail_vehicle_file)
+rail_vehicle_file = "rolling_stock/rail_vehicles.csv"
+rail_vehicle_map = alt.import_rail_vehicles(alt.resources_root() / rail_vehicle_file)
+rail_vehicle = rail_vehicle_map[train_config.rail_vehicle_type]
 
-network = alt.Network.from_file(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
+network = alt.Network.from_file(
+    alt.resources_root() / 'networks/simple_corridor_network.yaml')
 
-location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")
-
-train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
+location_map = alt.import_locations(alt.resources_root() / "networks/simple_corridor_locations.csv")
+train_sim: alt.SetSpeedTrainSim = tsb.make_speed_limit_train_sim(
     rail_vehicle=rail_vehicle,
     location_map=location_map,
     save_interval=1,
 )
 train_sim.set_save_interval(SAVE_INTERVAL)
-
 est_time_net, _consist = alt.make_est_times(train_sim, network)
 
 timed_link_path = alt.run_dispatch(
@@ -90,6 +93,7 @@ t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 assert len(train_sim.history) > 1
 
+# pull out solved locomotive for plotting convenience
 loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 
 fig, ax = plt.subplots(4, 1, sharex=True)
@@ -154,6 +158,5 @@ plt.suptitle("Speed Limit Train Sim Demo")
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
-# Impact of sweep of battery capacity
 
 # %%

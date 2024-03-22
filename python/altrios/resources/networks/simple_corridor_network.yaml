@@ -50,7 +50,7 @@
   speed_set:
     speed_limits:
       - offset_start: 0.0
-        offset_end: 50000.0
+        offset_end: 1.0
         speed: 6.5
     speed_params: []
     is_head_end: false

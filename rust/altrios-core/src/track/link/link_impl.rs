@@ -44,6 +44,11 @@ pub struct Link {
     pub length: si::Length,
 
     #[serde(default)]
+    /// Prevents provided links from being occupied when the current link has a train on it. An
+    /// example would be at a switch, where there would be foul links running from the switch points
+    /// to the clearance point. Due to the geometric overlap of the foul links, only one may be
+    /// occupied at a given time. For further explanation, see the [graphical
+    /// example](https://nrel.github.io/altrios/doc/rail-network.html?highlight=network#link-lockout)
     pub link_idxs_lockout: Vec<LinkIdx>,
 }
 

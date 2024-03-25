@@ -88,29 +88,30 @@ To release the package with GitHub Actions, you can follow these steps:
 If you've updated `altrios-proc-macros`, be sure to publish that crate first and then update the
 Cargo.toml dependency for this crate.  
 
-To release this crate, you need to be setup as developer for this crate in crates.io.  After making
-changes and updating the version number in Cargo.toml, follow these steps: 
+To release this crate, you need to be setup as developer for this crate in crates.io.  Follow these steps: 
 1. Increment the version number in
-   [rust/altrios-core/Cargo.toml](https://github.com/NREL/altrios/blob/main/rust/altrios-core/Cargo.toml)
+   [rust/altrios-core/Cargo.toml](https://github.com/NREL/altrios/blob/main/rust/altrios-core/Cargo.toml).
+1. If changes were made in `altrios-proc-macros`, follow the release process for that crate, and
+   update the `altrios-proc-macros` dependency version to match the new `altrios-proc-macros`
+   version in `rust/altrios-core/Cargo.toml`.  
 1. Run `git tag ac<major>.<minor>.<patch>`, where `ac<major>.<minor>.<patch>` should look like
-   `ac0.1.4`, reflecting whatever the current version is
+   `ac0.1.4`, reflecting whatever the current version is.
 1. Push the tag with `git push public ac<major>.<minor>.<patch>`, where `public` is this remote:
-   `git@github.com:NREL/altrios.git`
-1. Run `cargo publish --dry-run` to make sure everything checks
+   `git@github.com:NREL/altrios.git`.
+1. Run `cargo publish --dry-run` to make sure everything checks.
 1. Run `cargo publish` to release the update.  
 
 In the future, we may incorporate this into GitHub Actions.  
 
-#### altrios-core-proc-macros
-To release this crate, you need to be setup as developer for this crate in crates.io.  After making
-changes and updating the version number in Cargo.toml, follow these steps: 
+#### altrios-proc-macros
+To release this crate, you need to be setup as developer for this crate in crates.io.  Follow these steps: 
 1. Increment the version number in
-   [rust/altrios-core/altrios-proc-macros/Cargo.toml](https://github.com/NREL/altrios/blob/main/rust/altrios-core/altrios-proc-macros/Cargo.toml)
+   [rust/altrios-core/altrios-proc-macros/Cargo.toml](https://github.com/NREL/altrios/blob/main/rust/altrios-core/altrios-proc-macros/Cargo.toml).
 1. Run `git tag apm<major>.<minor>.<patch>`, where `apm<major>.<minor>.<patch>` should look like
-   `apm0.1.4`, reflecting whatever the current version is
+   `apm0.1.4`, reflecting whatever the current version is.
 1. Push the tag with `git push public apm<major>.<minor>.<patch>`, where `public` is this remote:
-   `git@github.com:NREL/altrios.git`
-1. Run `cargo publish --dry-run` to make sure everything checks
+   `git@github.com:NREL/altrios.git`.
+1. Run `cargo publish --dry-run` to make sure everything checks.
 1. Run `cargo publish` to release the update.  
 
 In the future, we may incorporate this into GitHub Actions.  

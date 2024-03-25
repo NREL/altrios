@@ -1,5 +1,5 @@
 # Documentation
 
-## [Python](./doc/python-doc.md)
+## [Python](./api-doc/python-doc.md)
 
 ## [Rust](./doc/rust.md)

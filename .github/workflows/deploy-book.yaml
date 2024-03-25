@@ -51,7 +51,7 @@ jobs:
       - name: Generate python docs
         working-directory: ${{runner.workspace}}/altrios/
         run:
-          pydoc-markdown -I python/ --render-toc > docs/src/doc/python-doc.md
+          pydoc-markdown -I python/ --render-toc > docs/src/api-doc/python-doc.md
 
       - name: Setup Pages
         id: pages

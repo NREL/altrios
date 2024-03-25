@@ -46,7 +46,7 @@ checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
 
 [[package]]
 name = "altrios-core"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "altrios-proc-macros",
  "anyhow",

@@ -11,11 +11,13 @@ pub struct Heading {
     /// Optional latitude at `self.offset`.  No checks are currently performed to ensure consistency
     /// between headind and lat/lon, and this is not actually used in the code.  
     #[api(skip_set)]
+    #[serde(rename = "Lat")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lat: Option<f64>,
     /// Optional longitude at `self.offset`.  No checks are currently performed to ensure
     /// consistency between headind and lat/lon, and this is not actually used in the code.
     #[api(skip_set)]
+    #[serde(rename = "Lon")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lon: Option<f64>,
 }

@@ -8,6 +8,16 @@ pub struct Heading {
     pub offset: si::Length,
     #[api(skip_set)]
     pub heading: si::Angle,
+    /// Optional latitude at `self.offset`.  No checks are currently performed to ensure consistency
+    /// between headind and lat/lon, and this is not actually used in the code.  
+    #[api(skip_set)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lat: Option<f64>,
+    /// Optional longitude at `self.offset`.  No checks are currently performed to ensure
+    /// consistency between headind and lat/lon, and this is not actually used in the code.
+    #[api(skip_set)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lon: Option<f64>,
 }
 
 impl Valid for Heading {}
@@ -35,10 +45,14 @@ impl Valid for Vec<Heading> {
             Heading {
                 offset: offset_end * 0.5,
                 heading: si::Angle::ZERO,
+                lat: Default::default(),
+                lon: Default::default(),
             },
             Heading {
                 offset: offset_end,
                 heading: uc::RAD,
+                lat: Default::default(),
+                lon: Default::default(),
             },
         ]
     }

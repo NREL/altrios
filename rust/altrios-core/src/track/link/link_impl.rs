@@ -283,14 +283,6 @@ impl From<&Vec<Link>> for Network {
     }
 }
 
-#[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "pyo3", pyfunction(name = "import_network"))]
-pub fn import_network_py(filepath: &PyAny) -> anyhow::Result<Vec<Link>> {
-    let network = Vec::<Link>::from_file(PathBuf::extract(filepath)?)?;
-    network.validate()?;
-    Ok(network)
-}
-
 impl Valid for Vec<Link> {
     fn valid() -> Self {
         vec![Link::default(), Link::valid()]

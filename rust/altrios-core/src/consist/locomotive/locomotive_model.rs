@@ -96,6 +96,7 @@ pub struct LocoParams {
 }
 
 impl LocoParams {
+    #[allow(unused)]
     fn from_hash(mut params: HashMap<&str, f64>) -> anyhow::Result<Self> {
         let pwr_aux_offset_watts = params
             .remove("pwr_aux_offset_watts")

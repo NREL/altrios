@@ -175,12 +175,14 @@ impl ObjState for Link {
                 ));
             }
 
+            // verify that first offset is zero
             if self.elevs.first().unwrap().offset != si::Length::ZERO {
                 errors.push(anyhow!(
                     "First elevation offset = {:?} is invalid, must equal zero!",
                     self.elevs.first().unwrap().offset
                 ));
             }
+            // verify that last offset is equal to length
             if self.elevs.last().unwrap().offset != self.length {
                 errors.push(anyhow!(
                     "Last elevation offset = {:?} is invalid, must equal length = {:?}!",
@@ -189,12 +191,14 @@ impl ObjState for Link {
                 ));
             }
             if !self.headings.is_empty() {
+                // verify that first offset is zero
                 if self.headings.first().unwrap().offset != si::Length::ZERO {
                     errors.push(anyhow!(
                         "First heading offset = {:?} is invalid, must equal zero!",
                         self.headings.first().unwrap().offset
                     ));
                 }
+                // verify that last offset is equal to length
                 if self.headings.last().unwrap().offset != self.length {
                     errors.push(anyhow!(
                         "Last heading offset = {:?} is invalid, must equal length = {:?}!",
@@ -203,6 +207,8 @@ impl ObjState for Link {
                     ));
                 }
             }
+            // if cat power limits are not specified for entire length of link, assume that no cat
+            // power is available
             if !self.cat_power_limits.is_empty() {
                 if self.cat_power_limits.first().unwrap().offset_start < si::Length::ZERO {
                     errors.push(anyhow!(

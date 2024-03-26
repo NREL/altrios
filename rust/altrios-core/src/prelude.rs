@@ -29,7 +29,7 @@ pub use crate::meet_pass::{
     dispatch::run_dispatch_py, est_times::check_od_pair_valid, est_times::make_est_times_py,
 };
 #[cfg(feature = "pyo3")]
-pub use crate::track::{import_locations_py, import_network_py};
+pub use crate::track::import_locations_py;
 #[cfg(feature = "pyo3")]
 pub use crate::train::{
     build_speed_limit_train_sims, import_rail_vehicles_py, run_speed_limit_train_sims,

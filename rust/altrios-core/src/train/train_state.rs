@@ -81,7 +81,7 @@ pub struct TrainState {
     /// Linear-along-track, cumulative, absolute distance from initial starting position.
     pub total_dist: si::Length,
     /// Current link containing head end (i.e. pulling locomotives) of train
-    pub head_end_link: crate::track::link::Link,
+    pub head_end_link_idx: u32,
     /// Offset from start of current link
     pub offset_in_link: si::Length,
     /// Achieved speed based on consist capabilities and train resistance
@@ -129,6 +129,8 @@ impl Default for TrainState {
             offset: Default::default(),
             offset_back: Default::default(),
             total_dist: si::Length::ZERO,
+            head_end_link_idx: Default::default(),
+            offset_in_link: Default::default(),
             speed: Default::default(),
             speed_limit: Default::default(),
             dt: uc::S,

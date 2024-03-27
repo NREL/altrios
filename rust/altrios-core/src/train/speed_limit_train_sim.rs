@@ -361,6 +361,8 @@ impl SpeedLimitTrainSim {
             )?;
             idx_prev = idx_next;
             while self.state.time < time_extend {
+                // TODO: verify that this is correct and in the right place
+                self.state.head_end_link_idx = timed_path[idx_next - 1].link_idx.idx() as u32;
                 self.step()?;
             }
         }
@@ -477,6 +479,8 @@ impl SpeedLimitTrainSim {
         self.state.offset += self.state.dt * vel_avg;
         self.state.total_dist += (self.state.dt * vel_avg).abs();
         self.state.speed += vel_change;
+        self.state.offset_in_link = self.state.offset
+            - self.path_tpc.link_points()[self.state.head_end_link_idx as usize].offset;
         if utils::almost_eq_uom(&self.state.speed, &speed_target, None) {
             self.state.speed = speed_target;
         }

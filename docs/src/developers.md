@@ -73,8 +73,7 @@ workflows](https://github.com/NREL/altrios/tree/main/.github/workflows) are trig
 ### To PyPI With GitHub Actions
 To release the package with GitHub Actions, you can follow these steps:
 
-1. With the changes already committed, create a new branch in the format `v<major>.<minor>.<patch>`.
-   For example `v0.2.1`.
+1. Create a new branch in the format `v<major>.<minor>.<patch>`, for example `v0.2.1`.
 1. Update the version number in the `pyproject.toml` file.  Commit and push to
    https://github.com/NREL/altrios.  
 1. Open a pull request into the main branch and make sure all checks pass.

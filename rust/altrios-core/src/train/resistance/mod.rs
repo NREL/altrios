@@ -6,7 +6,6 @@ use crate::track::LinkPoint;
 use crate::track::PathTpc;
 use crate::train::TrainState;
 
-#[enum_dispatch]
 pub trait ResMethod {
     fn update_res(
         &mut self,
@@ -20,11 +19,30 @@ pub trait ResMethod {
 /// Train resistance calculator that calculates resistive powers due to rolling, curvature, flange,
 /// grade, and bearing resistances.  
 // TODO: May also include inertial -- figure this out and modify doc string above
-#[enum_dispatch(ResMethod)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 pub enum TrainRes {
     Point(method::Point),
     Strap(method::Strap),
+}
+
+impl ResMethod for TrainRes {
+    fn update_res(
+        &mut self,
+        state: &mut TrainState,
+        path_tpc: &PathTpc,
+        dir: &Dir,
+    ) -> anyhow::Result<()> {
+        match self {
+            TrainRes::Point(p) => p.update_res(state, path_tpc, dir),
+            TrainRes::Strap(s) => s.update_res(state, path_tpc, dir),
+        }
+    }
+    fn fix_cache(&mut self, link_point_del: &LinkPoint) {
+        match self {
+            TrainRes::Point(p) => p.fix_cache(link_point_del),
+            TrainRes::Strap(s) => s.fix_cache(link_point_del),
+        }
+    }
 }
 
 impl Default for TrainRes {

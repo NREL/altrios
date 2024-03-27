@@ -72,11 +72,18 @@ pub struct TrainState {
     pub time: si::Time,
     /// index for time steps
     pub i: usize,
+    /// Linear-along-track, directional distance from initial starting position.
+    ///
     /// If this is provided in [InitTrainState::new], it gets set as the train length or the value,
     /// whichever is larger, and if it is not provided, then it defaults to the train length.
     pub offset: si::Length,
     pub offset_back: si::Length,
+    /// Linear-along-track, cumulative, absolute distance from initial starting position.
     pub total_dist: si::Length,
+    /// Current link containing head end (i.e. pulling locomotives) of train
+    pub head_end_link: crate::track::link::Link,
+    /// Offset from start of current link
+    pub offset_in_link: si::Length,
     /// Achieved speed based on consist capabilities and train resistance
     pub speed: si::Velocity,
     /// Speed limit

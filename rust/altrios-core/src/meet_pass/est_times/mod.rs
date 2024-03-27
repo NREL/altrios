@@ -740,17 +740,6 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     update_times_forward(&mut est_times, time_depart);
     update_times_backward(&mut est_times);
 
-    // TODO: Write complete network validation function!
-    // This could entail (some may already be complete):
-    // - [ ] checking that final offset in each vec is same as Link length
-    // - [ ] checking that starting offset in each vec is zero
-    // - [ ] checking that reverse-forward nodal symmetry is correct
-    // - [ ] check graph structure consistency
-    // - [ ] verify that link headind and elevation actually meet up reasonably (with some tolerance)
-    //   for adjecent links
-    // - [x] check that `idx_*` and `idx_*_alt` are different unless both are zero
-    // - [ ] ???
-
     let est_time_net = EstTimeNet::new(est_times);
     ensure!(
         !est_time_net.val.iter().all(|x| x.time_sched == 0. * uc::S),

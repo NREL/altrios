@@ -66,7 +66,6 @@ fn altrios_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<EstTimeNet>()?;
     m.add_function(wrap_pyfunction!(import_rail_vehicles_py, m)?)?;
     m.add_function(wrap_pyfunction!(import_locations_py, m)?)?;
-    m.add_function(wrap_pyfunction!(import_network_py, m)?)?;
     m.add_function(wrap_pyfunction!(make_est_times_py, m)?)?;
     m.add_function(wrap_pyfunction!(run_dispatch_py, m)?)?;
     m.add_function(wrap_pyfunction!(check_od_pair_valid, m)?)?;

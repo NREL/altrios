@@ -137,7 +137,14 @@ impl ObjState for Link {
             if !self.headings.is_empty() {
                 validate_field_real(&mut errors, &self.headings, "Headings");
             }
-            validate_field_real(&mut errors, &self.speed_sets, "Speed sets");
+            match &self.speed_set {
+                Some(speed_set) => {
+                    validate_field_real(&mut errors, speed_set, "Speed sets");
+                }
+                None => {
+                    validate_field_real(&mut errors, &self.speed_sets, "Speed sets");
+                }
+            }
             validate_field_real(&mut errors, &self.cat_power_limits, "Catenary power limits");
 
             early_err!(errors, "Link");
@@ -175,12 +182,14 @@ impl ObjState for Link {
                 ));
             }
 
+            // verify that first offset is zero
             if self.elevs.first().unwrap().offset != si::Length::ZERO {
                 errors.push(anyhow!(
                     "First elevation offset = {:?} is invalid, must equal zero!",
                     self.elevs.first().unwrap().offset
                 ));
             }
+            // verify that last offset is equal to length
             if self.elevs.last().unwrap().offset != self.length {
                 errors.push(anyhow!(
                     "Last elevation offset = {:?} is invalid, must equal length = {:?}!",
@@ -189,12 +198,14 @@ impl ObjState for Link {
                 ));
             }
             if !self.headings.is_empty() {
+                // verify that first offset is zero
                 if self.headings.first().unwrap().offset != si::Length::ZERO {
                     errors.push(anyhow!(
                         "First heading offset = {:?} is invalid, must equal zero!",
                         self.headings.first().unwrap().offset
                     ));
                 }
+                // verify that last offset is equal to length
                 if self.headings.last().unwrap().offset != self.length {
                     errors.push(anyhow!(
                         "Last heading offset = {:?} is invalid, must equal length = {:?}!",
@@ -203,6 +214,8 @@ impl ObjState for Link {
                     ));
                 }
             }
+            // if cat power limits are not specified for entire length of link, assume that no cat
+            // power is available
             if !self.cat_power_limits.is_empty() {
                 if self.cat_power_limits.first().unwrap().offset_start < si::Length::ZERO {
                     errors.push(anyhow!(
@@ -243,10 +256,17 @@ impl SerdeAPI for Network {
                 format!("Could not open file: {filepath:?}")
             }
         })?;
-        match Self::from_reader(file, extension) {
-            Ok(network) => Ok(network),
-            Err(err) => Ok(NetworkOld::from_file(filepath).with_context(|| err)?.into()),
-        }
+        let mut network = match Self::from_reader(file, extension) {
+            Ok(network) => network,
+            Err(err) => NetworkOld::from_file(filepath).with_context(|| err)?.into(),
+        };
+        network.init()?;
+
+        Ok(network)
+    }
+
+    fn init(&mut self) -> anyhow::Result<()> {
+        Ok(self.as_ref().validate()?)
     }
 }
 
@@ -275,14 +295,6 @@ impl From<&Vec<Link>> for Network {
     fn from(value: &Vec<Link>) -> Self {
         Self(value.to_vec())
     }
-}
-
-#[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "pyo3", pyfunction(name = "import_network"))]
-pub fn import_network_py(filepath: &PyAny) -> anyhow::Result<Vec<Link>> {
-    let network = Vec::<Link>::from_file(PathBuf::extract(filepath)?)?;
-    network.validate()?;
-    Ok(network)
 }
 
 impl Valid for Vec<Link> {

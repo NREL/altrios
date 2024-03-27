@@ -371,7 +371,7 @@ impl PathTpc {
 }
 
 /// If provided, returns `speed_set`.  Otherwise, finds speed_set appropriate for
-/// `train_params.train_type
+/// `train_params.train_type`
 fn extract_speed_set<'a>(
     speed_sets: &'a HashMap<TrainType, SpeedSet>,
     speed_set: &'a Option<SpeedSet>,
@@ -385,7 +385,7 @@ fn extract_speed_set<'a>(
                 .find(|&sps| sps.0 == &train_params.train_type)
                 .ok_or_else(|| {
                     anyhow!(
-                        "`train_params.train_type` {:?} not found in `speed_sets.keys()` {:?}",
+                        "`speed_set` is `None` and `train_params.train_type` {:?} not found in `speed_sets.keys()` {:?}",
                         train_params.train_type,
                         speed_sets.keys()
                     )

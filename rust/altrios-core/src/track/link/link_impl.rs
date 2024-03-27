@@ -137,7 +137,14 @@ impl ObjState for Link {
             if !self.headings.is_empty() {
                 validate_field_real(&mut errors, &self.headings, "Headings");
             }
-            validate_field_real(&mut errors, &self.speed_sets, "Speed sets");
+            match &self.speed_set {
+                Some(speed_set) => {
+                    validate_field_real(&mut errors, speed_set, "Speed sets");
+                }
+                None => {
+                    validate_field_real(&mut errors, &self.speed_sets, "Speed sets");
+                }
+            }
             validate_field_real(&mut errors, &self.cat_power_limits, "Catenary power limits");
 
             early_err!(errors, "Link");
@@ -249,10 +256,17 @@ impl SerdeAPI for Network {
                 format!("Could not open file: {filepath:?}")
             }
         })?;
-        match Self::from_reader(file, extension) {
-            Ok(network) => Ok(network),
-            Err(err) => Ok(NetworkOld::from_file(filepath).with_context(|| err)?.into()),
-        }
+        let mut network = match Self::from_reader(file, extension) {
+            Ok(network) => network,
+            Err(err) => NetworkOld::from_file(filepath).with_context(|| err)?.into(),
+        };
+        network.init()?;
+
+        Ok(network)
+    }
+
+    fn init(&mut self) -> anyhow::Result<()> {
+        Ok(self.as_ref().validate()?)
     }
 }
 

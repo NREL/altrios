@@ -213,16 +213,3 @@ if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
 # Impact of sweep of battery capacity TODO: make this happen
-
-# Scratch
-
-idxs = []
-offsets = []
-
-for lp in train_sim.path_tpc.link_points:
-    lp: alt.LinkPoint
-    idxs.append(lp.link_idx.idx)
-    offsets.append(lp.offset_meters)
-
-for (idx, offset) in zip(idxs, offsets):
-    print(f"{idx}: {offset / 1_000:.3g} km")

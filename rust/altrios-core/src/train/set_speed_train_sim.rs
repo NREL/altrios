@@ -325,34 +325,8 @@ impl SetSpeedTrainSim {
         self.state.time = self.speed_trace.time[self.state.i];
         self.state.speed = self.speed_trace.speed[self.state.i];
         self.state.offset += self.speed_trace.mean(self.state.i) * self.state.dt;
-        self.set_head_end_link_idx()?;
-        self.state.offset_in_link = self.state.offset
-            - self.path_tpc.link_points()[self.state.head_end_link_idx as usize].offset;
+        set_head_end_link_idx(&mut self.state, &self.path_tpc)?;
         self.state.total_dist += (self.speed_trace.mean(self.state.i) * self.state.dt).abs();
-        Ok(())
-    }
-
-    fn set_head_end_link_idx(&mut self) -> anyhow::Result<()> {
-        // TODO: check that this method does what it says it does
-        if self.state.offset > 0. * uc::M {
-            self.state.head_end_link_idx = self
-                .path_tpc
-                .link_points()
-                .iter()
-                .find(|&lp| self.state.offset >= lp.offset)
-                .ok_or(anyhow!("{}\nFailed to find link point.", format_dbg!()))?
-                .link_idx
-                .idx() as u32;
-        } else {
-            self.state.head_end_link_idx = self
-                .path_tpc
-                .link_points()
-                .iter()
-                .find(|&lp| self.state.offset <= lp.offset)
-                .ok_or(anyhow!("{}\nFailed to find link point.", format_dbg!()))?
-                .link_idx
-                .idx() as u32;
-        };
         Ok(())
     }
 

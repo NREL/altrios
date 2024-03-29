@@ -1,4 +1,5 @@
 use crate::imports::*;
+use crate::track::PathTpc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, HistoryVec)]
 #[altrios_api(
@@ -223,4 +224,25 @@ impl ObjState for TrainState {
         // si_chk_num_gtz_fin(&mut errors, &self.drag_area, "Drag area");
         errors.make_err()
     }
+}
+
+pub fn set_head_end_link_idx(state: &mut TrainState, path_tpc: &PathTpc) -> anyhow::Result<()> {
+    if state.offset > 0. * uc::M {
+        state.head_end_link_idx = path_tpc
+            .link_points()
+            .iter()
+            .find(|&lp| state.offset >= lp.offset)
+            .ok_or(anyhow!("{}\nFailed to find link point.", format_dbg!()))?
+            .link_idx
+            .idx() as u32;
+    } else {
+        state.head_end_link_idx = path_tpc
+            .link_points()
+            .iter()
+            .find(|&lp| state.offset <= lp.offset)
+            .ok_or(anyhow!("{}\nFailed to find link point.", format_dbg!()))?
+            .link_idx
+            .idx() as u32;
+    };
+    Ok(())
 }

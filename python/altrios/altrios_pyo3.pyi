@@ -621,6 +621,9 @@ class TrainState:
     offset_meters: float
     offset_back_meters: float
     total_dist_meters: float
+    head_end_link_idx: int
+    offset_in_link_meters: float
+    grade_front: float
     speed_meters_per_second: float
     speed_limit_meters_per_second: float
     speed_target_meters_per_second: float
@@ -668,6 +671,10 @@ class TrainState:
 class TrainStateHistoryVec(SerdeAPI):
     time_seconds: list[float]
     offset_meters: list[float]
+    offset_back_meters: list[float]
+    head_end_link_idx: list[int]
+    offset_in_link_meters: list[float]
+    grade_front: list[float]
     speed_meters_per_second: list[float]
     speed_limit_meters_per_second: list[float]
     speed_target_meters_per_second: list[float]

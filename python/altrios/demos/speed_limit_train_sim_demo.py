@@ -133,9 +133,7 @@ ax[2].plot(
     np.array(train_sim.history.time_seconds) / 3_600, 
     np.array(loco0.res.history.soc)
 )
-
 ax[2].set_ylabel('SOC')
-ax[2].legend()
 
 ax[-1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
@@ -151,9 +149,62 @@ ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')
 ax[-1].legend()
 plt.suptitle("Speed Limit Train Sim Demo")
+
+fig2, ax1 = plt.subplots(3, 1, sharex=True)
+ax1[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.offset_in_link_meters) / 1_000,
+)
+ax1[0].set_ylabel('Offset in Current\nLink [km]')
+
+ax1[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.head_end_link_idx,
+)
+ax1[1].set_ylabel('Head End\nLink Index')
+
+ax1[-1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.speed_meters_per_second,
+)
+ax1[-1].set_xlabel('Time [hr]')
+ax1[-1].set_ylabel('Speed [m/s]')
+
+plt.suptitle("Speed Limit Train Sim Demo")
+plt.tight_layout()
+
+
+fig1, ax2 = plt.subplots(3, 1, sharex=True)
+ax2[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
+    label="tract pwr",
+)
+ax2[0].set_ylabel('Power [MW]')
+ax2[0].legend()
+
+ax2[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.grade_front) * 100.,
+)
+ax2[1].set_ylabel('Grade [%] at\nHead End')
+
+ax2[-1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.speed_meters_per_second,
+)
+ax2[-1].set_xlabel('Time [hr]')
+ax2[-1].set_ylabel('Speed [m/s]')
+
+plt.suptitle("Speed Limit Train Sim Demo")
+plt.tight_layout()
+
+
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
 # Impact of sweep of battery capacity
+
+# %%
 
 # %%

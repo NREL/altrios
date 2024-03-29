@@ -226,23 +226,23 @@ impl ObjState for TrainState {
     }
 }
 
-pub fn set_head_end_link_idx(state: &mut TrainState, path_tpc: &PathTpc) -> anyhow::Result<()> {
-    if state.offset > 0. * uc::M {
-        state.head_end_link_idx = path_tpc
-            .link_points()
-            .iter()
-            .find(|&lp| state.offset >= lp.offset)
-            .ok_or(anyhow!("{}\nFailed to find link point.", format_dbg!()))?
-            .link_idx
-            .idx() as u32;
-    } else {
-        state.head_end_link_idx = path_tpc
-            .link_points()
-            .iter()
-            .find(|&lp| state.offset <= lp.offset)
-            .ok_or(anyhow!("{}\nFailed to find link point.", format_dbg!()))?
-            .link_idx
-            .idx() as u32;
-    };
+/// Sets `head_end_link_idx` and `offset_in_link` based on `state` and `path_tpc`
+pub fn set_link_and_offset(state: &mut TrainState, path_tpc: &PathTpc) -> anyhow::Result<()> {
+    let idx_and_lp = path_tpc
+        .link_points()
+        .iter()
+        .enumerate()
+        .find(|&(_i, lp)| {
+            if state.offset > 0. * uc::M {
+                state.offset >= lp.offset
+            } else {
+                state.offset <= lp.offset
+            }
+        })
+        .ok_or(anyhow!("{}\nFailed to find link point.", format_dbg!()))?;
+    state.head_end_link_idx = idx_and_lp.1.link_idx.idx() as u32;
+
+    state.offset_in_link = state.offset - path_tpc.link_points()[idx_and_lp.0].offset;
+
     Ok(())
 }

@@ -325,7 +325,7 @@ impl SetSpeedTrainSim {
         self.state.time = self.speed_trace.time[self.state.i];
         self.state.speed = self.speed_trace.speed[self.state.i];
         self.state.offset += self.speed_trace.mean(self.state.i) * self.state.dt;
-        set_head_end_link_idx(&mut self.state, &self.path_tpc)?;
+        set_link_and_offset(&mut self.state, &self.path_tpc)?;
         self.state.total_dist += (self.speed_trace.mean(self.state.i) * self.state.dt).abs();
         Ok(())
     }

@@ -150,7 +150,7 @@ ax[-1].set_ylabel('Speed [m/s]')
 ax[-1].legend()
 plt.suptitle("Speed Limit Train Sim Demo")
 
-fig2, ax1 = plt.subplots(3, 1, sharex=True)
+fig1, ax1 = plt.subplots(3, 1, sharex=True)
 ax1[0].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
     np.array(train_sim.history.offset_in_link_meters) / 1_000,
@@ -174,7 +174,7 @@ plt.suptitle("Speed Limit Train Sim Demo")
 plt.tight_layout()
 
 
-fig1, ax2 = plt.subplots(3, 1, sharex=True)
+fig2, ax2 = plt.subplots(3, 1, sharex=True)
 ax2[0].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
     np.array(train_sim.history.pwr_whl_out_watts) / 1e6,

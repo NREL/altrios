@@ -53,6 +53,7 @@ impl ResMethod for Strap {
         state.elev_front = self.grade.res_net_front(path_tpc.grades(), state);
         Ok(())
     }
+
     fn fix_cache(&mut self, link_point_del: &LinkPoint) {
         self.grade.fix_cache(link_point_del.grade_count);
         self.curve.fix_cache(link_point_del.curve_count);

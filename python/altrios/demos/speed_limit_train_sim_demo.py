@@ -154,14 +154,23 @@ fig1, ax1 = plt.subplots(3, 1, sharex=True)
 ax1[0].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
     np.array(train_sim.history.offset_in_link_meters) / 1_000,
+    label='current link',
 )
-ax1[0].set_ylabel('Offset in Current\nLink [km]')
+ax1[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.offset_meters) / 1_000,
+    label='overall',
+)
+ax1[0].legend()
+ax1[0].set_ylabel('Net Dist. [km]')
 
 ax1[1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.head_end_link_idx,
+    train_sim.history.link_idx_front,
+    linestyle='',
+    marker='.',
 )
-ax1[1].set_ylabel('Head End\nLink Index')
+ax1[1].set_ylabel('Link Idx Front')
 
 ax1[-1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
@@ -203,8 +212,17 @@ plt.tight_layout()
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
-# Impact of sweep of battery capacity
+# Impact of sweep of battery capacity TODO: make this happen
 
-# %%
+# Scratch
 
-# %%
+idxs = []
+offsets = []
+
+for lp in train_sim.path_tpc.link_points:
+    lp: alt.LinkPoint
+    idxs.append(lp.link_idx.idx)
+    offsets.append(lp.offset_meters)
+
+for (idx, offset) in zip(idxs, offsets):
+    print(f"{idx}: {offset / 1_000:.3g} km")

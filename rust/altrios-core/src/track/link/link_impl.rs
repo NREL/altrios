@@ -91,7 +91,7 @@ impl From<LinkOld> for Link {
             idx_prev_alt: l.idx_prev_alt,
             idx_curr: l.idx_curr,
             idx_flip: l.idx_flip,
-            osm_id: Default::default(),
+            osm_id: l.osm_id,
             link_idxs_lockout: l.link_idxs_lockout,
         }
     }
@@ -284,8 +284,8 @@ impl SerdeAPI for Network {
 }
 
 impl From<NetworkOld> for Network {
-    fn from(value: NetworkOld) -> Self {
-        Network(value.0.iter().map(|l| Link::from(l.clone())).collect())
+    fn from(old: NetworkOld) -> Self {
+        Network(old.0.iter().map(|l| Link::from(l.clone())).collect())
     }
 }
 

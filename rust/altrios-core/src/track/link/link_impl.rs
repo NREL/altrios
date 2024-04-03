@@ -246,6 +246,15 @@ impl ObjState for Link {
 /// Python
 pub struct Network(pub Vec<Link>);
 
+impl ObjState for Network {
+    fn is_fake(&self) -> bool {
+        self.0.is_fake()
+    }
+    fn validate(&self) -> ValidationResults {
+        self.0.validate()
+    }
+}
+
 impl SerdeAPI for Network {
     fn from_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
         let filepath = filepath.as_ref();

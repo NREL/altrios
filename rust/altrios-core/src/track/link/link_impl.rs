@@ -27,6 +27,9 @@ pub struct Link {
     /// see [EstTime::idx_prev_alt]  
     /// if it does not exist, it should be `LinkIdx{idx: 0}`
     pub idx_prev_alt: LinkIdx,
+    /// Optional OpenStreetMap ID -- not used in simulation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub osm_id: Option<String>,
 
     /// Spatial vector of elevation values and corresponding positions along track
     pub elevs: Vec<Elev>,
@@ -88,6 +91,7 @@ impl From<LinkOld> for Link {
             idx_prev_alt: l.idx_prev_alt,
             idx_curr: l.idx_curr,
             idx_flip: l.idx_flip,
+            osm_id: Default::default(),
             link_idxs_lockout: l.link_idxs_lockout,
         }
     }

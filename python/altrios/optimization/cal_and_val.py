@@ -32,7 +32,7 @@ import seaborn as sns
 import json
 import numpy.typing as npt
 import re
-sns.set()
+sns.set_theme()
 
 # local
 from altrios import SetSpeedTrainSim, ConsistSimulation, LocomotiveSimulation

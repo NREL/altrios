@@ -10,7 +10,7 @@ import pandas as pd
 import seaborn as sns
 
 import altrios as alt 
-sns.set()
+sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()
 

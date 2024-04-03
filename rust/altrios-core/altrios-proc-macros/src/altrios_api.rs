@@ -77,7 +77,6 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     } else if let syn::Fields::Unnamed(syn::FieldsUnnamed { unnamed, .. }) = &mut ast.fields {
         // tuple struct
-        let ident_str = ast.ident.to_string();
         assert!(unnamed.len() == 1);
         for field in unnamed.iter() {
             let ftype = field.ty.clone();
@@ -111,7 +110,7 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
                             fn __getitem__(&self, _idx: usize) -> anyhow::Result<()> {
                                 bail!(PyNotImplementedError::new_err(
                                     "Getting Rust vector value at index is not implemented.
-                                    Run `tolist` method to convert to standalone Python list.",
+                            Run `tolist` method to convert to standalone Python list.",
                                 ))
                             }
                             /// Rust-defined `__setitem__` magic method for Python used exposed via PyO3.
@@ -119,8 +118,8 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
                             fn __setitem__(&mut self, _idx: usize, _new_value: #contained_dtype) -> anyhow::Result<()> {
                                 bail!(PyNotImplementedError::new_err(
                                     "Setting list value at index is not implemented.
-                                    Run `tolist` method, modify value at index, and
-                                    then set entire list.",
+                            Run `tolist` method, modify value at index, and
+                            then set entire list.",
                                 ))
                             }
                             /// PyO3-exposed method to convert vec-containing struct to Python list. 

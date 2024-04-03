@@ -57,7 +57,6 @@ dependencies = [
  "duplicate",
  "easy-ext",
  "eng_fmt",
- "enum_dispatch",
  "log",
  "nohash-hasher",
  "paste",

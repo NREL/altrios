@@ -299,6 +299,7 @@ impl SpeedLimitTrainSim {
             self.state.dt,
             Some(true),
         )?;
+        set_link_and_offset(&mut self.state, &self.path_tpc)?;
         Ok(())
     }
 

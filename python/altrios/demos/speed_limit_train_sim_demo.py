@@ -1,16 +1,18 @@
 # %%
-import altrios as alt
 import time
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 import pandas as pd
-sns.set()
+import seaborn as sns
+
+import altrios as alt
+sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 100
 
+# https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
     cars_empty=50,
     cars_loaded=50,
@@ -21,10 +23,12 @@ train_config = alt.TrainConfig(
 )
 
 # instantiate battery model
+# https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/reversible_energy_storage/struct.ReversibleEnergyStorage.html#
 res = alt.ReversibleEnergyStorage.from_file(
     alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
 )
 # instantiate electric drivetrain (motors and any gearboxes)
+# https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/electric_drivetrain/struct.ElectricDrivetrain.html
 edrv = alt.ElectricDrivetrain(
     pwr_out_frac_interp=[0., 1.],
     eta_interp=[0.98, 0.98],
@@ -46,6 +50,7 @@ loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7
 # instantiate consist
 loco_con = alt.Consist(
     loco_vec,
+    SAVE_INTERVAL,
 )
 
 tsb = alt.TrainSimBuilder(
@@ -56,13 +61,15 @@ tsb = alt.TrainSimBuilder(
     loco_con=loco_con,
 )
 
-# make sure rail_vehicle_map can be constructed from yaml file and such
 rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
-rail_vehicle = alt.RailVehicle.from_file(alt.resources_root() / rail_vehicle_file)
+rail_vehicle = alt.RailVehicle.from_file(
+    alt.resources_root() / rail_vehicle_file)
 
-network = alt.Network.from_file(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
+network = alt.Network.from_file(
+    alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 
-location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")
+location_map = alt.import_locations(
+    alt.resources_root() / "networks/default_locations.csv")
 
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
     rail_vehicle=rail_vehicle,
@@ -133,9 +140,7 @@ ax[2].plot(
     np.array(train_sim.history.time_seconds) / 3_600, 
     np.array(loco0.res.history.soc)
 )
-
 ax[2].set_ylabel('SOC')
-ax[2].legend()
 
 ax[-1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
@@ -151,9 +156,67 @@ ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')
 ax[-1].legend()
 plt.suptitle("Speed Limit Train Sim Demo")
+
+fig1, ax1 = plt.subplots(3, 1, sharex=True)
+ax1[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.offset_in_link_meters) / 1_000,
+    label='current link',
+)
+ax1[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.offset_meters) / 1_000,
+    label='overall',
+)
+ax1[0].legend()
+ax1[0].set_ylabel('Net Dist. [km]')
+
+ax1[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.link_idx_front,
+    linestyle='',
+    marker='.',
+)
+ax1[1].set_ylabel('Link Idx Front')
+
+ax1[-1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.speed_meters_per_second,
+)
+ax1[-1].set_xlabel('Time [hr]')
+ax1[-1].set_ylabel('Speed [m/s]')
+
+plt.suptitle("Speed Limit Train Sim Demo")
+plt.tight_layout()
+
+
+fig2, ax2 = plt.subplots(3, 1, sharex=True)
+ax2[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
+    label="tract pwr",
+)
+ax2[0].set_ylabel('Power [MW]')
+ax2[0].legend()
+
+ax2[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.grade_front) * 100.,
+)
+ax2[1].set_ylabel('Grade [%] at\nHead End')
+
+ax2[-1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.speed_meters_per_second,
+)
+ax2[-1].set_xlabel('Time [hr]')
+ax2[-1].set_ylabel('Speed [m/s]')
+
+plt.suptitle("Speed Limit Train Sim Demo")
+plt.tight_layout()
+
+
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
-# Impact of sweep of battery capacity
-
-# %%
+# Impact of sweep of battery capacity TODO: make this happen

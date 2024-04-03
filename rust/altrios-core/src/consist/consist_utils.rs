@@ -1,8 +1,6 @@
-use super::locomotive::{BatteryElectricLoco, ConventionalLoco, DummyLoco, HybridLoco};
 use super::*;
 
 /// Trait for ensuring consistency among locomotives and consists
-#[enum_dispatch]
 pub trait LocoTrait {
     /// returns current max power, current max power rate, and current max regen
     /// power that can be absorbed by the RES/battery
@@ -28,7 +26,6 @@ pub trait LocoTrait {
 /// Wrapper struct for `Vec<Locomotive>` to expose various methods to Python.
 pub struct Pyo3VecLocoWrapper(pub Vec<Locomotive>);
 
-#[enum_dispatch]
 pub trait SolvePower {
     /// Returns vector of locomotive tractive powers during positive traction events
     fn solve_positive_traction(
@@ -265,14 +262,42 @@ impl SolvePower for FrontAndBack {
 }
 /// Variants of this enum are used to determine what control strategy gets used for distributing
 /// power required from or delivered to during negative tractive power each locomotive.
-#[enum_dispatch(SolvePower)]
 #[derive(PartialEq, Clone, Deserialize, Serialize, Debug, SerdeAPI)]
 pub enum PowerDistributionControlType {
-    RESGreedy,
-    Proportional,
-    GoldenSectionSearch,
-    FrontAndBack,
+    RESGreedy(RESGreedy),
+    Proportional(Proportional),
+    GoldenSectionSearch(GoldenSectionSearch),
+    FrontAndBack(FrontAndBack),
 }
+
+impl SolvePower for PowerDistributionControlType {
+    fn solve_negative_traction(
+        &mut self,
+        loco_vec: &[Locomotive],
+        state: &ConsistState,
+    ) -> anyhow::Result<Vec<si::Power>> {
+        match self {
+            Self::RESGreedy(res_greedy) => res_greedy.solve_negative_traction(loco_vec, state),
+            Self::Proportional(prop) => prop.solve_negative_traction(loco_vec, state),
+            Self::GoldenSectionSearch(gss) => gss.solve_negative_traction(loco_vec, state),
+            Self::FrontAndBack(fab) => fab.solve_negative_traction(loco_vec, state),
+        }
+    }
+
+    fn solve_positive_traction(
+        &mut self,
+        loco_vec: &[Locomotive],
+        state: &ConsistState,
+    ) -> anyhow::Result<Vec<si::Power>> {
+        match self {
+            Self::RESGreedy(res_greedy) => res_greedy.solve_positive_traction(loco_vec, state),
+            Self::Proportional(prop) => prop.solve_positive_traction(loco_vec, state),
+            Self::GoldenSectionSearch(gss) => gss.solve_positive_traction(loco_vec, state),
+            Self::FrontAndBack(fab) => fab.solve_positive_traction(loco_vec, state),
+        }
+    }
+}
+
 impl Default for PowerDistributionControlType {
     fn default() -> Self {
         Self::RESGreedy(RESGreedy)

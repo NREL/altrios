@@ -11,7 +11,7 @@ import time
 import os
 import seaborn as sns
 
-sns.set()
+sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()
 

@@ -68,10 +68,7 @@ pub struct FuelConverter {
     #[serde(default)]
     pub pwr_out_max_init: si::Power,
     // TODO: consider a ramp down rate, which may be needed for fuel cells
-    #[serde(rename(
-        serialize = "pwr_ramp_lag_seconds",
-        deserialize = "pwr_ramp_lag_seconds"
-    ))]
+    #[serde(rename = "pwr_ramp_lag_seconds")]
     /// lag time for ramp up
     pub pwr_ramp_lag: si::Time,
     /// Fuel converter brake power fraction array at which efficiencies are evaluated.

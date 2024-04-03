@@ -1,4 +1,5 @@
 use crate::imports::*;
+use crate::track::PathTpc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, HistoryVec)]
 #[altrios_api(
@@ -81,7 +82,7 @@ pub struct TrainState {
     /// Linear-along-track, cumulative, absolute distance from initial starting position.
     pub total_dist: si::Length,
     /// Current link containing head end (i.e. pulling locomotives) of train
-    pub head_end_link: crate::track::link::Link,
+    pub link_idx_front: u32,
     /// Offset from start of current link
     pub offset_in_link: si::Length,
     /// Achieved speed based on consist capabilities and train resistance
@@ -129,6 +130,8 @@ impl Default for TrainState {
             offset: Default::default(),
             offset_back: Default::default(),
             total_dist: si::Length::ZERO,
+            link_idx_front: Default::default(),
+            offset_in_link: Default::default(),
             speed: Default::default(),
             speed_limit: Default::default(),
             dt: uc::S,
@@ -221,4 +224,31 @@ impl ObjState for TrainState {
         // si_chk_num_gtz_fin(&mut errors, &self.drag_area, "Drag area");
         errors.make_err()
     }
+}
+
+/// Sets `link_idx_front` and `offset_in_link` based on `state` and `path_tpc`
+///
+/// Assumes that `offset` in `link_points()` is monotically increasing, which may not always be true.
+pub fn set_link_and_offset(state: &mut TrainState, path_tpc: &PathTpc) -> anyhow::Result<()> {
+    let idx_curr_link = path_tpc
+        .link_points()
+        .iter()
+        .position(|&lp| lp.offset >= state.offset)
+        // if None, assume that it's the last element
+        .unwrap_or_else(|| path_tpc.link_points().len())
+        - 1;
+    state.link_idx_front = path_tpc
+        .link_points()
+        .get(idx_curr_link)
+        .with_context(|| format_dbg!())?
+        .link_idx
+        .idx() as u32;
+    state.offset_in_link = state.offset
+        - path_tpc
+            .link_points()
+            .get(idx_curr_link)
+            .with_context(|| format_dbg!())?
+            .offset;
+
+    Ok(())
 }

@@ -1,8 +1,8 @@
 use super::super::kind::*;
 use super::super::ResMethod;
+use super::*;
 use crate::imports::*;
-use crate::track::{LinkPoint, PathResCoeff, PathTpc};
-use crate::train::TrainState;
+use crate::track::{LinkPoint, PathResCoeff};
 
 #[altrios_api]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, SerdeAPI)]
@@ -32,6 +32,7 @@ impl ResMethod for Point {
         state.res_curve = self.curve.calc_res(path_tpc.curves(), state, dir)?;
         state.grade_front = self.grade.res_coeff_front(path_tpc.grades());
         state.elev_front = self.grade.res_net_front(path_tpc.grades(), state);
+
         Ok(())
     }
 
@@ -40,6 +41,7 @@ impl ResMethod for Point {
         self.curve.fix_cache(link_point_del.curve_count);
     }
 }
+
 impl Valid for Point {
     fn valid() -> Self {
         Self {

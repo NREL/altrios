@@ -613,6 +613,7 @@ class SpeedTrace(SerdeAPI):
     def __copy__(self) -> Any: ...
     def __len__(self) -> int: ...
     def from_csv_file(pathstr: str) -> Self: ...
+    def to_csv_file(self, pathstr: str): ...
 
 
 class TrainState:
@@ -621,6 +622,9 @@ class TrainState:
     offset_meters: float
     offset_back_meters: float
     total_dist_meters: float
+    link_idx_front: int
+    offset_in_link_meters: float
+    grade_front: float
     speed_meters_per_second: float
     speed_limit_meters_per_second: float
     speed_target_meters_per_second: float
@@ -668,6 +672,10 @@ class TrainState:
 class TrainStateHistoryVec(SerdeAPI):
     time_seconds: list[float]
     offset_meters: list[float]
+    offset_back_meters: list[float]
+    link_idx_front: list[int]
+    offset_in_link_meters: list[float]
+    grade_front: list[float]
     speed_meters_per_second: list[float]
     speed_limit_meters_per_second: list[float]
     speed_target_meters_per_second: list[float]

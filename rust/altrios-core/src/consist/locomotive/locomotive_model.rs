@@ -1,24 +1,83 @@
 use super::*;
 
-#[enum_dispatch(LocoTrait)]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
 pub enum PowertrainType {
-    ConventionalLoco,
+    ConventionalLoco(ConventionalLoco),
     HybridLoco(Box<HybridLoco>),
-    BatteryElectricLoco,
-    DummyLoco,
+    BatteryElectricLoco(BatteryElectricLoco),
+    DummyLoco(DummyLoco),
+}
+
+impl LocoTrait for PowertrainType {
+    fn set_cur_pwr_max_out(
+        &mut self,
+        pwr_aux: Option<si::Power>,
+        dt: si::Time,
+    ) -> anyhow::Result<()> {
+        match self {
+            PowertrainType::ConventionalLoco(conv) => conv.set_cur_pwr_max_out(pwr_aux, dt),
+            PowertrainType::HybridLoco(hel) => hel.set_cur_pwr_max_out(pwr_aux, dt),
+            PowertrainType::BatteryElectricLoco(bel) => bel.set_cur_pwr_max_out(pwr_aux, dt),
+            PowertrainType::DummyLoco(dummy) => dummy.set_cur_pwr_max_out(pwr_aux, dt),
+        }
+    }
+
+    fn save_state(&mut self) {
+        match self {
+            PowertrainType::ConventionalLoco(conv) => conv.save_state(),
+            PowertrainType::HybridLoco(hel) => hel.save_state(),
+            PowertrainType::BatteryElectricLoco(bel) => bel.save_state(),
+            PowertrainType::DummyLoco(dummy) => dummy.save_state(),
+        }
+    }
+
+    fn step(&mut self) {
+        match self {
+            PowertrainType::ConventionalLoco(conv) => conv.step(),
+            PowertrainType::HybridLoco(hel) => hel.step(),
+            PowertrainType::BatteryElectricLoco(bel) => bel.step(),
+            PowertrainType::DummyLoco(dummy) => dummy.step(),
+        }
+    }
+
+    fn get_energy_loss(&self) -> si::Energy {
+        match self {
+            PowertrainType::ConventionalLoco(conv) => conv.get_energy_loss(),
+            PowertrainType::HybridLoco(hel) => hel.get_energy_loss(),
+            PowertrainType::BatteryElectricLoco(bel) => bel.get_energy_loss(),
+            PowertrainType::DummyLoco(dummy) => dummy.get_energy_loss(),
+        }
+    }
+}
+
+impl From<ConventionalLoco> for PowertrainType {
+    fn from(value: ConventionalLoco) -> Self {
+        Self::ConventionalLoco(value)
+    }
 }
 
 impl From<HybridLoco> for PowertrainType {
     fn from(value: HybridLoco) -> Self {
-        Self::from(Box::new(value))
+        Self::HybridLoco(Box::new(value))
+    }
+}
+
+impl From<BatteryElectricLoco> for PowertrainType {
+    fn from(value: BatteryElectricLoco) -> Self {
+        Self::BatteryElectricLoco(value)
+    }
+}
+
+impl From<DummyLoco> for PowertrainType {
+    fn from(value: DummyLoco) -> Self {
+        Self::DummyLoco(value)
     }
 }
 
 #[cfg(feature = "pyo3")]
 impl TryFrom<&PyAny> for PowertrainType {
     type Error = PyErr;
-    /// This allows us to construct PowertrainType any struct that can be converted into PowertrainType
+    /// This allows us to construct PowertrainType from any struct that can be converted into PowertrainType
     fn try_from(value: &PyAny) -> std::result::Result<Self, Self::Error> {
         value
             .extract::<ConventionalLoco>()

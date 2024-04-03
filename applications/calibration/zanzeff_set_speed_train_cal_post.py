@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-sns.set()
+sns.set_theme()
 
 from zanzeff_set_speed_train_cal import *
 

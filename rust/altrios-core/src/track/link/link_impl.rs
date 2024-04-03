@@ -27,6 +27,9 @@ pub struct Link {
     /// see [EstTime::idx_prev_alt]  
     /// if it does not exist, it should be `LinkIdx{idx: 0}`
     pub idx_prev_alt: LinkIdx,
+    /// Optional OpenStreetMap ID -- not used in simulation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub osm_id: Option<String>,
 
     /// Spatial vector of elevation values and corresponding positions along track
     pub elevs: Vec<Elev>,
@@ -88,6 +91,7 @@ impl From<LinkOld> for Link {
             idx_prev_alt: l.idx_prev_alt,
             idx_curr: l.idx_curr,
             idx_flip: l.idx_flip,
+            osm_id: l.osm_id,
             link_idxs_lockout: l.link_idxs_lockout,
         }
     }
@@ -242,6 +246,15 @@ impl ObjState for Link {
 /// Python
 pub struct Network(pub Vec<Link>);
 
+impl ObjState for Network {
+    fn is_fake(&self) -> bool {
+        self.0.is_fake()
+    }
+    fn validate(&self) -> ValidationResults {
+        self.0.validate()
+    }
+}
+
 impl SerdeAPI for Network {
     fn from_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
         let filepath = filepath.as_ref();
@@ -271,8 +284,8 @@ impl SerdeAPI for Network {
 }
 
 impl From<NetworkOld> for Network {
-    fn from(value: NetworkOld) -> Self {
-        Network(value.0.iter().map(|l| Link::from(l.clone())).collect())
+    fn from(old: NetworkOld) -> Self {
+        Network(old.0.iter().map(|l| Link::from(l.clone())).collect())
     }
 }
 

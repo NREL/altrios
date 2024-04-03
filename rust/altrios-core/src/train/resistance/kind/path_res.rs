@@ -17,6 +17,7 @@ impl Point {
             idx: vals.calc_idx(state.offset - state.length * 0.5, 0, &Dir::Fwd)?,
         })
     }
+
     pub fn calc_res(
         &mut self,
         vals: &[PathResCoeff],
@@ -26,12 +27,20 @@ impl Point {
         self.idx = vals.calc_idx(state.offset - state.length * 0.5, self.idx, dir)?;
         Ok(calc_res_val(vals[self.idx].res_coeff, state))
     }
+
     pub fn res_coeff_front(&self, vals: &[PathResCoeff]) -> si::Ratio {
         vals[self.idx].res_coeff
     }
+
     pub fn res_net_front(&self, vals: &[PathResCoeff], state: &TrainState) -> si::Length {
         vals[self.idx].calc_res_val(state.offset)
     }
+
+    /// Returns index of current element containing front of train within `PathTPC`
+    pub fn path_tpc_idx_front(&self) -> usize {
+        self.idx
+    }
+
     pub fn fix_cache(&mut self, idx_sub: usize) {
         self.idx -= idx_sub;
     }
@@ -108,9 +117,16 @@ impl Strap {
     pub fn res_coeff_front(&self, vals: &[PathResCoeff]) -> si::Ratio {
         vals[self.idx_front].res_coeff
     }
+
     pub fn res_net_front(&self, vals: &[PathResCoeff], state: &TrainState) -> si::Length {
         vals[self.idx_front].calc_res_val(state.offset)
     }
+
+    /// Returns index of current element containing front of train within `PathTPC`
+    pub fn path_tpc_idx_front(&self) -> usize {
+        self.idx_front
+    }
+
     pub fn fix_cache(&mut self, idx_sub: usize) {
         self.idx_back -= idx_sub;
         self.idx_front -= idx_sub;

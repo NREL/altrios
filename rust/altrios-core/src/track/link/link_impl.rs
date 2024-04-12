@@ -30,6 +30,8 @@ pub struct Link {
     /// Optional OpenStreetMap ID -- not used in simulation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub osm_id: Option<String>,
+    /// Total length of [Self]
+    pub length: si::Length,
 
     /// Spatial vector of elevation values and corresponding positions along track
     pub elevs: Vec<Elev>,
@@ -44,7 +46,6 @@ pub struct Link {
     #[serde(default)]
     /// Spatial vector of catenary power limit values and corresponding positions along track
     pub cat_power_limits: Vec<CatPowerLimit>,
-    pub length: si::Length,
 
     #[serde(default)]
     /// Prevents provided links from being occupied when the current link has a train on it. An
@@ -61,6 +62,21 @@ impl Link {
     }
     fn is_linked_next(&self, idx: LinkIdx) -> bool {
         self.idx_curr.is_fake() || self.idx_next == idx || self.idx_next_alt == idx
+    }
+
+    /// Sets `self.speed_set` based on `self.speed_sets` value corresponding to `train_type` key
+    pub fn set_speed_set_for_train_type(&mut self, train_type: TrainType) -> anyhow::Result<()> {
+        self.speed_set = Some(
+            self.speed_sets
+                .get(&train_type)
+                .ok_or(anyhow!(
+                    "No value found for train_type: {:?} in `speed_sets`.",
+                    train_type
+                ))?
+                .clone(),
+        );
+        self.speed_sets = HashMap::new();
+        Ok(())
     }
 }
 
@@ -128,6 +144,10 @@ impl ObjState for Link {
             validate_field_fake(&mut errors, &self.elevs, "Elevations");
             validate_field_fake(&mut errors, &self.headings, "Headings");
             validate_field_fake(&mut errors, &self.speed_sets, "Speed sets");
+            validate_field_fake(&mut errors, &self.speed_sets, "Speed sets");
+            if let Some(speed_set) = &self.speed_set {
+                validate_field_fake(&mut errors, speed_set, "Speed set");
+            }
             // validate cat_power_limits
             if !self.cat_power_limits.is_empty() {
                 errors.push(anyhow!(
@@ -141,13 +161,28 @@ impl ObjState for Link {
             if !self.headings.is_empty() {
                 validate_field_real(&mut errors, &self.headings, "Headings");
             }
-            match &self.speed_set {
-                Some(speed_set) => {
-                    validate_field_real(&mut errors, speed_set, "Speed sets");
+            if !self.speed_sets.is_empty() {
+                validate_field_real(&mut errors, &self.speed_sets, "Speed sets");
+                if self.speed_set.is_some() {
+                    errors.push(anyhow!(
+                        "`speed_sets` is not empty and `speed_set` is `Some(speed_set). {}",
+                        "Change one of these."
+                    ));
                 }
-                None => {
-                    validate_field_real(&mut errors, &self.speed_sets, "Speed sets");
+            } else if let Some(speed_set) = &self.speed_set {
+                validate_field_real(&mut errors, speed_set, "Speed set");
+                if !self.speed_sets.is_empty() {
+                    errors.push(anyhow!(
+                        "`speed_sets` is not empty and `speed_set` is `Some(speed_set)`. {}",
+                        "Change one of these."
+                    ));
                 }
+            } else {
+                errors.push(anyhow!(
+                    "{}\n`SpeedSets` is empty and `SpeedSet` is `None`. {}",
+                    format_dbg!(),
+                    "One of these fields must be provided"
+                ));
             }
             validate_field_real(&mut errors, &self.cat_power_limits, "Catenary power limits");
 
@@ -240,11 +275,28 @@ impl ObjState for Link {
     }
 }
 
-#[altrios_api]
+#[altrios_api(
+    #[pyo3(name = "set_speed_set_for_train_type")]
+    fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> PyResult<()> {
+        Ok(self.set_speed_set_for_train_type(train_type)?)
+    }
+)]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 /// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
 pub struct Network(pub Vec<Link>);
+
+impl Network {
+    /// Sets `self.speed_set` based on `self.speed_sets` value corresponding to `train_type` key for
+    /// all links
+    pub fn set_speed_set_for_train_type(&mut self, train_type: TrainType) -> anyhow::Result<()> {
+        for l in self.0.iter_mut().skip(1) {
+            l.set_speed_set_for_train_type(train_type)
+                .with_context(|| format!("`idx_curr`: {}", l.idx_curr))?;
+        }
+        Ok(())
+    }
+}
 
 impl ObjState for Network {
     fn is_fake(&self) -> bool {
@@ -424,7 +476,7 @@ impl ObjState for [Link] {
 }
 
 #[cfg(test)]
-mod test_link {
+mod tests {
     use super::*;
     use crate::testing::*;
 
@@ -540,12 +592,6 @@ mod test_link {
             link.validate().unwrap_err();
         }
     }
-}
-
-#[cfg(test)]
-mod test_links {
-    use super::*;
-    use crate::testing::*;
 
     impl Cases for Vec<Link> {
         fn real_cases() -> Vec<Self> {
@@ -560,9 +606,30 @@ mod test_links {
 
     #[test]
     fn test_to_and_from_file_for_links() {
+        // TODO: make use of `tempfile` or similar crate
         let links = Vec::<Link>::valid();
-        links.to_file("links_test2.yaml").unwrap();
-        assert_eq!(Vec::<Link>::from_file("links_test2.yaml").unwrap(), links);
-        std::fs::remove_file("links_test2.yaml").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
+        let temp_file_path = tempdir.path().join("links_test2.yaml");
+        links.to_file(temp_file_path.clone()).unwrap();
+        assert_eq!(Vec::<Link>::from_file(temp_file_path).unwrap(), links);
+        tempdir.close().unwrap();
+    }
+
+    #[test]
+    fn test_set_speed_set_from_train_type() {
+        let network_file_path = project_root::get_project_root()
+            .unwrap()
+            .join("../python/altrios/resources/networks/Taconite.yaml");
+        let network_speed_sets = Network::from_file(network_file_path).unwrap();
+        let mut network_speed_set = network_speed_sets.clone();
+        network_speed_set
+            .set_speed_set_for_train_type(TrainType::Freight)
+            .unwrap();
+        assert!(
+            network_speed_sets.0[1].speed_sets[&TrainType::Freight]
+                == *network_speed_set.0[1].speed_set.as_ref().unwrap()
+        );
+        assert!(network_speed_set.0[1].speed_sets.is_empty());
+        assert!(network_speed_sets.0[1].speed_set.is_none());
     }
 }

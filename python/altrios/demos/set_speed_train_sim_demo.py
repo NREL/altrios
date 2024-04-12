@@ -17,7 +17,7 @@ train_config = alt.TrainConfig(
     cars_empty=50,
     cars_loaded=50,
     rail_vehicle_type="Manifest",
-    train_type=alt.TrainType.Freight,
+    train_type=None,
     train_length_meters=None,
     train_mass_kilograms=None,
 )
@@ -66,6 +66,7 @@ rail_vehicle = alt.RailVehicle.from_file(
 
 network = alt.Network.from_file(
     alt.resources_root() / "networks/Taconite.yaml")
+network.set_speed_set_for_train_type(alt.TrainType.Freight)
 link_path = alt.LinkPath.from_csv_file(
     alt.resources_root() / "demo_data/link_points_idx.csv"
 )

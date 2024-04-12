@@ -618,9 +618,16 @@ mod tests {
         let network_file_path = project_root::get_project_root()
             .unwrap()
             .join("../python/altrios/resources/networks/Taconite.yaml");
-        let mut network = Network::from_file(network_file_path).unwrap();
-        network
+        let network_speed_sets = Network::from_file(network_file_path).unwrap();
+        let mut network_speed_set = network_speed_sets.clone();
+        network_speed_set
             .set_speed_set_for_train_type(TrainType::Freight)
             .unwrap();
+        assert!(
+            network_speed_sets.0[1].speed_sets[&TrainType::Freight]
+                == *network_speed_set.0[1].speed_set.as_ref().unwrap()
+        );
+        assert!(network_speed_set.0[1].speed_sets.is_empty());
+        assert!(network_speed_sets.0[1].speed_set.is_none());
     }
 }

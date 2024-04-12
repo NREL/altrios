@@ -127,7 +127,28 @@ impl ObjState for Link {
             si_chk_num_eqz(&mut errors, &self.length, "Link length");
             validate_field_fake(&mut errors, &self.elevs, "Elevations");
             validate_field_fake(&mut errors, &self.headings, "Headings");
-            validate_field_fake(&mut errors, &self.speed_sets, "Speed sets");
+            if !self.speed_sets.is_empty() {
+                validate_field_fake(&mut errors, &self.speed_sets, "Speed sets");
+                if self.speed_set.is_some() {
+                    errors.push(anyhow!(
+                        "`speed_sets` is not empty and `speed_set` is `Some(speed_set). {}",
+                        "Change one of these."
+                    ));
+                }
+            } else if let Some(speed_set) = &self.speed_set {
+                validate_field_fake(&mut errors, speed_set, "Speed set");
+                if !self.speed_sets.is_empty() {
+                    errors.push(anyhow!(
+                        "`speed_sets` is not empty and `speed_set` is `Some(speed_set)`. {}",
+                        "Change one of these."
+                    ));
+                }
+            } else {
+                errors.push(anyhow!(
+                    "`SpeedSets` is empty and `SpeedSet` is `None`. {}",
+                    "One of these fields must be provided"
+                ));
+            }
             // validate cat_power_limits
             if !self.cat_power_limits.is_empty() {
                 errors.push(anyhow!(
@@ -141,13 +162,27 @@ impl ObjState for Link {
             if !self.headings.is_empty() {
                 validate_field_real(&mut errors, &self.headings, "Headings");
             }
-            match &self.speed_set {
-                Some(speed_set) => {
-                    validate_field_real(&mut errors, speed_set, "Speed sets");
+            if !self.speed_sets.is_empty() {
+                validate_field_real(&mut errors, &self.speed_sets, "Speed sets");
+                if self.speed_set.is_some() {
+                    errors.push(anyhow!(
+                        "`speed_sets` is not empty and `speed_set` is `Some(speed_set). {}",
+                        "Change one of these."
+                    ));
                 }
-                None => {
-                    validate_field_real(&mut errors, &self.speed_sets, "Speed sets");
+            } else if let Some(speed_set) = &self.speed_set {
+                validate_field_real(&mut errors, speed_set, "Speed set");
+                if !self.speed_sets.is_empty() {
+                    errors.push(anyhow!(
+                        "`speed_sets` is not empty and `speed_set` is `Some(speed_set)`. {}",
+                        "Change one of these."
+                    ));
                 }
+            } else {
+                errors.push(anyhow!(
+                    "`SpeedSets` is empty and `SpeedSet` is `None`. {}",
+                    "One of these fields must be provided"
+                ));
             }
             validate_field_real(&mut errors, &self.cat_power_limits, "Catenary power limits");
 

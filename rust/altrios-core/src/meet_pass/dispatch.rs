@@ -301,10 +301,10 @@ mod test_dispatch {
 
     #[test]
     fn test_simple_dispatch() {
-        let mut network_file_path = project_root::get_project_root().unwrap();
-        network_file_path.push("../python/altrios/resources/networks/Taconite.yaml");
-        let network = Network::from_file(network_file_path.as_os_str().to_str().unwrap()).unwrap();
-        network.validate().unwrap();
+        let network_file_path = project_root::get_project_root()
+            .unwrap()
+            .join("../python/altrios/resources/networks/Taconite.yaml");
+        let network = Network::from_file(network_file_path).unwrap();
 
         let train_sims = vec![
             crate::train::speed_limit_train_sim_fwd(),

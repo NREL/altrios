@@ -5,11 +5,11 @@ Demonstrates how to convert data between previous and current ALTRIOS release co
 # %%
 
 import json
-from typing import List
+from typing import Tuple
 
 import altrios as alt
 
-def migrate_network() -> List[alt.Network, alt.Network]:
+def migrate_network() -> Tuple[alt.Network, alt.Network]:
     old_network_path = alt.resources_root() / "networks/Taconite_v0.1.6.yaml"
     new_network_path = alt.resources_root() / "networks/Taconite.yaml"
 

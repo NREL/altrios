@@ -608,9 +608,11 @@ mod tests {
     fn test_to_and_from_file_for_links() {
         // TODO: make use of `tempfile` or similar crate
         let links = Vec::<Link>::valid();
-        links.to_file("links_test2.yaml").unwrap();
-        assert_eq!(Vec::<Link>::from_file("links_test2.yaml").unwrap(), links);
-        std::fs::remove_file("links_test2.yaml").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
+        let temp_file_path = tempdir.path().join("links_test2.yaml");
+        links.to_file(temp_file_path.clone()).unwrap();
+        assert_eq!(Vec::<Link>::from_file(temp_file_path).unwrap(), links);
+        tempdir.close().unwrap();
     }
 
     #[test]

@@ -15,7 +15,7 @@ class SerdeAPI(object):
     def from_yaml(cls) -> Self: ...
     @classmethod
     def from_file(cls) -> Self: ...
-    def to_file(self): ... 
+    def to_file(self): ...
     def to_bincode(self) -> bytes: ...
     def to_json(self) -> str: ...
     def to_yaml(self) -> str: ...
@@ -301,7 +301,7 @@ class LocoParams:
     mass_kilograms: Optional[float]
 
     @classmethod
-    def from_dict(cls, param_dict: Dict[str, float]) -> Self: 
+    def from_dict(cls, param_dict: Dict[str, float]) -> Self:
         """
         Argument `param_dict` has keys matching attributes of class
         """
@@ -738,7 +738,7 @@ class LinkPoint(SerdeAPI):
     link_idx: LinkIdx
 
 
-class PathResCoeff(SerdeAPI): 
+class PathResCoeff(SerdeAPI):
     offset: float
     res_coeff: float
     res_net: float
@@ -790,7 +790,7 @@ class BrakingPoints(SerdeAPI):
     idx_curr: int
 
 
-class FricBrakeState(SerdeAPI): 
+class FricBrakeState(SerdeAPI):
     i: int
     force_newtons: float
     force_max_curr_newtons: float
@@ -800,7 +800,7 @@ class FricBrakeStateHistoryVec(SerdeAPI):
     i: List[int]
     force_newtons: List[float]
     force_max_curr_newtons: List[float]
-    
+
 
 class FricBrake(SerdeAPI):
     force_max_newtons: float
@@ -983,6 +983,8 @@ class Heading(SerdeAPI):
     @classmethod
     def default(cls) -> Self: ...
 
+class SpeedSet(SerdeAPI): ...
+    # TODO: finish fleshing this out
 
 def import_locations(filename: str) -> Dict[str, List[Location]]: ...
 def import_rail_vehicles(filename: str) -> Dict[str, RailVehicle]: ...

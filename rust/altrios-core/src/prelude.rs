@@ -44,5 +44,5 @@ pub use crate::train::{
 };
 
 pub use crate::track::{
-    Link, LinkIdx, LinkPath, LinkPoint, Location, Network, TrainParams, TrainType,
+    Elev, Heading, Link, LinkIdx, LinkPath, LinkPoint, Location, Network, TrainParams, TrainType,
 };

@@ -49,6 +49,8 @@ fn altrios_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<TimedLinkPath>()?;
     m.add_class::<LinkPoint>()?;
     m.add_class::<Link>()?;
+    m.add_class::<Elev>()?;
+    m.add_class::<Heading>()?;
     m.add_class::<Location>()?;
     m.add_class::<Network>()?;
     m.add_class::<LinkPath>()?;

@@ -2,10 +2,24 @@ use crate::imports::*;
 
 /// Struct containing elevation for a particular offset w.r.t. `Link`
 #[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize, SerdeAPI)]
-#[altrios_api]
+#[altrios_api(
+    #[new]
+    fn __new__(
+        offset_meters: f64,
+        elev_meters: f64,
+    ) -> PyResult<Self> {
+        Ok(Self::new(offset_meters * uc::M, elev_meters * uc::M))
+    }
+)]
 pub struct Elev {
     pub offset: si::Length,
     pub elev: si::Length,
+}
+
+impl Elev {
+    pub fn new(offset: si::Length, elev: si::Length) -> Self {
+        Self { offset, elev }
+    }
 }
 
 impl Valid for Elev {}

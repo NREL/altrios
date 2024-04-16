@@ -968,6 +968,22 @@ class Link(SerdeAPI):
     def default(cls) -> Self: ...
 
 
+class Elev(SerdeAPI):
+    offset_meters: float
+    elev_meters: float
+    @classmethod
+    def default(cls) -> Self: ...
+
+
+class Heading(SerdeAPI):
+    offset_meters: float
+    heading: float
+    lat: Optional[float]
+    lon: Optional[float]
+    @classmethod
+    def default(cls) -> Self: ...
+
+
 def import_locations(filename: str) -> Dict[str, List[Location]]: ...
 def import_rail_vehicles(filename: str) -> Dict[str, RailVehicle]: ...
 

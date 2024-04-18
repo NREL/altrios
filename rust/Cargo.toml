@@ -1,7 +1,8 @@
 [workspace]
 members = [
-    "altrios-core", # pure rust core with optional pyo3 feature
-    "altrios-py",   # python module exposing altrios-core
+    "altrios-core",                     # pure rust core with optional pyo3 feature
+    "altrios-core/altrios-proc-macros", # proc macros for altrios-core
+    "altrios-py",                       # python module exposing altrios-core
 ]
 resolver = "2"
 
@@ -41,3 +42,7 @@ polars-lazy = { version = "0.32" }
 pyo3-polars = { version = "0.6" }
 uom = { version = "0.35.0", features = ["use_serde"] }
 eng_fmt = "0.1.2"
+
+# local crates in this workspace
+altrios-core = { path = "./altrios-core" }
+altrios-proc-macros = { path = "./altrios-core/altrios-proc-macros", version = "0.2.0" }

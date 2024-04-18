@@ -94,7 +94,8 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
                         quote! {
                             #[new]
                             /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
-                            fn __new__(v: &mut Vec<#contained_dtype>) -> PyResult<Self> {
+                            fn __new__(v: Vec<#contained_dtype>) -> PyResult<Self> {
+                                let mut v = v.clone();
                                 v.init()?;
                                 Self(v)
                             }

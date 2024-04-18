@@ -97,7 +97,7 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
                             fn __new__(v: Vec<#contained_dtype>) -> PyResult<Self> {
                                 let mut v = v.clone();
                                 v.init()?;
-                                Self(v)
+                                Ok(Self(v))
                             }
                             /// Rust-defined `__repr__` magic method for Python used exposed via PyO3.
                             fn __repr__(&self) -> String {

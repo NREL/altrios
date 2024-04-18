@@ -97,7 +97,7 @@ use super::*;
     }
 )]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-/// Struct for simulating power distribution controls and energy usage of locomotive consist.  
+/// Struct for simulating power distribution controls and energy usage of locomotive consist.
 pub struct Consist {
     // pretty sure these won't get automatically generated correctly
     #[api(skip_get, skip_set)]
@@ -123,6 +123,7 @@ pub struct Consist {
 impl SerdeAPI for Consist {
     fn init(&mut self) -> anyhow::Result<()> {
         self.check_mass_consistent()?;
+        self.set_pwr_dyn_brake_max();
         Ok(())
     }
 }
@@ -286,17 +287,7 @@ impl Consist {
             (-pwr_out_req - self.state.pwr_regen_max).max(si::Power::ZERO);
 
         // Sum of dynamic braking capability, including regenerative capability
-        self.state.pwr_dyn_brake_max = self
-            .loco_vec
-            .iter()
-            .map(|loco| match &loco.loco_type {
-                PowertrainType::ConventionalLoco(conv) => conv.edrv.pwr_out_max,
-                PowertrainType::HybridLoco(hel) => hel.edrv.pwr_out_max,
-                PowertrainType::BatteryElectricLoco(bel) => bel.edrv.pwr_out_max,
-                // really big number that is not inf to avoid null in json
-                PowertrainType::DummyLoco(_) => uc::W * 1e15,
-            })
-            .sum();
+        self.set_pwr_dyn_brake_max();
 
         let pwr_out_vec: Vec<si::Power> = if pwr_out_req > si::Power::ZERO {
             // positive tractive power `pwr_out_vec`
@@ -320,9 +311,9 @@ impl Consist {
                 utils::almost_eq_uom(&self.state.pwr_out_req, &self.state.pwr_out, None),
                 format!(
                     "{}
-                    self.state.pwr_out_req: {:.6} MW 
+                    self.state.pwr_out_req: {:.6} MW
                     self.state.pwr_out: {:.6} MW
-                    self.state.pwr_out_deficit: {:.6} MW 
+                    self.state.pwr_out_deficit: {:.6} MW
                     pwr_out_vec: {:?}",
                     format_dbg!(),
                     &self.state.pwr_out_req.get::<si::megawatt>(),
@@ -377,6 +368,20 @@ impl Consist {
         self.state.energy_fuel += self.state.pwr_fuel * dt;
         self.state.energy_res += self.state.pwr_reves * dt;
         Ok(())
+    }
+
+    pub fn set_pwr_dyn_brake_max(&mut self) {
+        self.state.pwr_dyn_brake_max = self
+            .loco_vec
+            .iter()
+            .map(|loco| match &loco.loco_type {
+                PowertrainType::ConventionalLoco(conv) => conv.edrv.pwr_out_max,
+                PowertrainType::HybridLoco(hel) => hel.edrv.pwr_out_max,
+                PowertrainType::BatteryElectricLoco(bel) => bel.edrv.pwr_out_max,
+                // really big number that is not inf to avoid null in json
+                PowertrainType::DummyLoco(_) => uc::W * 1e15,
+            })
+            .sum();
     }
 }
 
@@ -567,7 +572,7 @@ pub struct ConsistState {
 
     // achieved values
     /// Total tractive power of consist.
-    /// Should always match [pwr_out_req](Self::pwr_out_req)] if `assert_limits == true`.  
+    /// Should always match [pwr_out_req](Self::pwr_out_req)] if `assert_limits == true`.
     pub pwr_out: si::Power,
     /// Total battery power of [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives
     pub pwr_reves: si::Power,

@@ -94,7 +94,8 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
                         quote! {
                             #[new]
                             /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
-                            fn __new__(v: Vec<#contained_dtype>) -> Self {
+                            fn __new__(v: &mut Vec<#contained_dtype>) -> PyResult<Self> {
+                                v.init()?;
                                 Self(v)
                             }
                             /// Rust-defined `__repr__` magic method for Python used exposed via PyO3.
@@ -122,7 +123,7 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
                             then set entire list.",
                                 ))
                             }
-                            /// PyO3-exposed method to convert vec-containing struct to Python list. 
+                            /// PyO3-exposed method to convert vec-containing struct to Python list.
                             fn tolist(&self) -> anyhow::Result<Vec<#contained_dtype>> {
                                 Ok(self.0.clone())
                             }

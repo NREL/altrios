@@ -113,6 +113,8 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     const ACCEPTED_STR_FORMATS: &'static [&'static str] = &["yaml", "json"];
 
     /// Specialized code to execute upon initialization
+    // TODO: make sure that init methods cascades down the hierarchy.
+    // This could be done via proc macro.
     fn init(&mut self) -> anyhow::Result<()> {
         Ok(())
     }

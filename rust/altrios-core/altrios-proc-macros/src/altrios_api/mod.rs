@@ -122,7 +122,7 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
                             then set entire list.",
                                 ))
                             }
-                            /// PyO3-exposed method to convert vec-containing struct to Python list. 
+                            /// PyO3-exposed method to convert vec-containing struct to Python list.
                             fn tolist(&self) -> anyhow::Result<Vec<#contained_dtype>> {
                                 Ok(self.0.clone())
                             }
@@ -162,82 +162,61 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             Ok(Self::default())
         }
 
-        /// Write (serialize) an object into a string
-        ///
-        /// # Arguments:
-        ///
-        /// * `format`: `str` - The target format, any of those listed in [`ACCEPTED_STR_FORMATS`](`SerdeAPI::ACCEPTED_STR_FORMATS`)
-        ///
+        /// See [SerdeAPI::to_str]
         #[pyo3(name = "to_str")]
         pub fn to_str_py(&self, format: &str) -> anyhow::Result<String> {
             self.to_str(format)
         }
 
-        /// Read (deserialize) an object from a string
-        ///
-        /// # Arguments:
-        ///
-        /// * `contents`: `str` - The string containing the object data
-        /// * `format`: `str` - The source format, any of those listed in [`ACCEPTED_STR_FORMATS`](`SerdeAPI::ACCEPTED_STR_FORMATS`)
-        ///
+        /// See [SerdeAPI::from_str]
         #[staticmethod]
         #[pyo3(name = "from_str")]
         pub fn from_str_py(contents: &str, format: &str) -> anyhow::Result<Self> {
             Self::from_str(contents, format)
         }
 
-        /// Write (serialize) an object to a JSON string
+        /// See [SerdeAPI::to_json]
         #[pyo3(name = "to_json")]
         fn to_json_py(&self) -> anyhow::Result<String> {
             self.to_json()
         }
 
-        /// Read (deserialize) an object to a JSON string
-        ///
-        /// # Arguments
-        ///
-        /// * `json_str`: `str` - JSON-formatted string to deserialize from
-        ///
+        /// See [SerdeAPI::from_json]
         #[staticmethod]
         #[pyo3(name = "from_json")]
         fn from_json_py(json_str: &str) -> anyhow::Result<Self> {
             Self::from_json(json_str)
         }
 
-        /// Write (serialize) an object to a YAML string
+        /// See [SerdeAPI::to_yaml]
         #[pyo3(name = "to_yaml")]
         fn to_yaml_py(&self) -> anyhow::Result<String> {
             self.to_yaml()
         }
 
-        /// Read (deserialize) an object from a YAML string
-        ///
-        /// # Arguments
-        ///
-        /// * `yaml_str`: `str` - YAML-formatted string to deserialize from
-        ///
+        /// See [SerdeAPI::from_yaml]
         #[staticmethod]
         #[pyo3(name = "from_yaml")]
         fn from_yaml_py(yaml_str: &str) -> anyhow::Result<Self> {
             Self::from_yaml(yaml_str)
         }
 
-        /// Write (serialize) an object to bincode-encoded `bytes`
+        /// See [SerdeAPI::to_bincode]
         #[pyo3(name = "to_bincode")]
         fn to_bincode_py<'py>(&self, py: Python<'py>) -> anyhow::Result<&'py PyBytes> {
             Ok(PyBytes::new(py, &self.to_bincode()?))
         }
 
-        /// Read (deserialize) an object from bincode-encoded `bytes`
-        ///
-        /// # Arguments
-        ///
-        /// * `encoded`: `bytes` - Encoded bytes to deserialize from
-        ///
+        /// See [SerdeAPI::from_bincode]
         #[staticmethod]
         #[pyo3(name = "from_bincode")]
         fn from_bincode_py(encoded: &PyBytes) -> anyhow::Result<Self> {
             Self::from_bincode(encoded.as_bytes())
+        }
+
+        #[pyo3(name = "init")]
+        fn init_py(&mut self) -> PyResult<()> {
+            Ok(self.init()?)
         }
 
         /// `__copy__` magic method that uses `clone`.

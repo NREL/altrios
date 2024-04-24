@@ -65,7 +65,7 @@ class ModelError(object):
     """
     Dataclass class for calculating model error of various ALTRIOS objects w.r.t. test data.
 
-    Fields:
+    Attributes:
     - `bincode_model_dict`:  `dict` variable in which:
         - key: a `str` representing trip keyword string
         - value: a `str` converted from Rust locomotive models' `to_bincode()` method

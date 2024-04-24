@@ -264,7 +264,7 @@ pub struct SetSpeedTrainSim {
     #[api(skip_get, skip_set)]
     /// train resistance calculation
     pub train_res: TrainRes,
-    #[api(skip_get, skip_set)]
+    #[api(skip_set)]
     path_tpc: PathTpc,
     #[serde(default)]
     /// Custom vector of [Self::state]
@@ -362,7 +362,7 @@ impl SetSpeedTrainSim {
     /// Saves current time step for self and nested `loco_con`.
     fn save_state(&mut self) {
         if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 || 1 == self.state.i {
+            if self.state.i % interval == 0 {
                 self.history.push(self.state);
                 self.loco_con.save_state();
             }

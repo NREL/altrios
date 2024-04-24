@@ -274,7 +274,7 @@ pub struct TrainSimBuilder {
     /// Destination_ID from train planner to map to track network locations.  Only needed if
     /// [Self::make_speed_limit_train_sim] will be called.
     pub destination_id: Option<String>,
-    #[api(skip_get, skip_set)]
+    #[api(skip_set)]
     init_train_state: Option<InitTrainState>,
 }
 

@@ -1020,7 +1020,7 @@ impl LocoTrait for Locomotive {
     fn save_state(&mut self) {
         self.loco_type.save_state();
         if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 || self.state.i == 1 {
+            if self.state.i % interval == 0 {
                 self.history.push(self.state);
             }
         }

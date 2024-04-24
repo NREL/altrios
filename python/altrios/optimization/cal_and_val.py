@@ -85,7 +85,11 @@ class ModelError(object):
     - `params`: a tuple whose individual element is a `str` containing hierarchical paths to parameters
       to manipulate starting from one of the 3 possible Rust model structs
 
-    - `verbose`: `bool`; if `True`, the verbose of error calculation will be printed 
+    - `verbose`: `bool`: if `True`, the verbose of error calculation will be printed 
+
+    - `debug`: `bool`: if `True`, prints more stuff
+
+    - `allow_partial`: whether to allow partial runs, if True, errors out whenever a run can't be completed
     """
     # `bincode_model_dict` and `dfs` should have the same keys
     bincode_model_dict: Dict[str, str]

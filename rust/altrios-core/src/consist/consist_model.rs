@@ -471,7 +471,7 @@ impl LocoTrait for Consist {
 
     fn save_state(&mut self) {
         if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 || self.state.i == 1 {
+            if self.state.i % interval == 0 {
                 self.history.push(self.state);
                 for loco in self.loco_vec.iter_mut() {
                     loco.save_state();

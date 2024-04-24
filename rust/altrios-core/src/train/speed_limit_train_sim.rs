@@ -304,7 +304,7 @@ impl SpeedLimitTrainSim {
 
     fn save_state(&mut self) {
         if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 || 1 == self.state.i {
+            if self.state.i % interval == 0 {
                 self.history.push(self.state);
                 self.loco_con.save_state();
                 self.fric_brake.save_state();

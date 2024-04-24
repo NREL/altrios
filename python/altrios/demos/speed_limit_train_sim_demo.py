@@ -88,6 +88,10 @@ timed_link_path = alt.run_dispatch(
     False,
 )[0]
 
+# Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `link_path`
+# link_path = alt.LinkPath([x.link_idx for x in timed_link_path.tolist()])
+# link_path.to_csv_file(alt.resources_root() / "demo_data/link_points_idx.csv")
+
 t0 = time.perf_counter()
 train_sim.walk_timed_path(
     network=network,
@@ -96,6 +100,15 @@ train_sim.walk_timed_path(
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 assert len(train_sim.history) > 1
+
+# Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `speed_trace`
+# speed_trace = alt.SpeedTrace(
+#     train_sim.history.time_seconds.tolist(),
+#     train_sim.history.speed_meters_per_second.tolist()
+# )
+# speed_trace.to_csv_file(
+#     alt.resources_root() / "demo_data/speed_trace.csv"
+# )
 
 loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 

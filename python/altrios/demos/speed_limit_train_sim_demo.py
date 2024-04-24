@@ -74,7 +74,7 @@ location_map = alt.import_locations(
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
     rail_vehicle=rail_vehicle,
     location_map=location_map,
-    save_interval=1,
+    save_interval=SAVE_INTERVAL,
 )
 train_sim.set_save_interval(SAVE_INTERVAL)
 

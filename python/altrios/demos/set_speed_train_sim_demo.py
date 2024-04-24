@@ -14,9 +14,8 @@ SAVE_INTERVAL = 1
 
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
-    cars_empty=20,
-    # TODO: figure out why this can't be identical to `speed_limit_train_sim_demo.py`
-    cars_loaded=20, 
+    cars_empty=50,
+    cars_loaded=50,
     rail_vehicle_type="Manifest",
     train_type=None,
     train_length_meters=None,
@@ -66,7 +65,7 @@ rail_vehicle = alt.RailVehicle.from_file(
     alt.resources_root() / rail_vehicle_file)
 
 network = alt.Network.from_file(
-    alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
+    alt.resources_root() / "networks/Taconite.yaml")
 network.set_speed_set_for_train_type(alt.TrainType.Freight)
 link_path = alt.LinkPath.from_csv_file(
     alt.resources_root() / "demo_data/link_points_idx.csv"

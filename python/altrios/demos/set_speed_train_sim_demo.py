@@ -149,7 +149,7 @@ if SHOW_PLOTS:
 # After it fails, you can still run this cell and generate plots 
 
 fig, ax = plt.subplots(2, 1, sharex=True, figsize=(10, 8))
-
+pl
 ax[0].plot(
     train_sim.history.time_hours,
     np.array(train_sim.history.pwr_res_watts) / 1e6,
@@ -160,14 +160,13 @@ ax[0].plot(
     np.array(train_sim_slts.history.pwr_res_watts) / 1e6,
     label='slts',
     linestyle='--',
-    alpha=0.5,
 )
 ax[0].set_ylim((
     0,
     np.array(train_sim.history.pwr_res_watts).max() / 1e6 * 1.05
 ))
 ax[0].legend()
-ax[0].set_ylabel("Resistance Power [MW]")
+ax[0].set_ylabel("Power [MW]")
 
 ax[1].plot(
     train_sim.history.time_hours,
@@ -179,7 +178,6 @@ ax[1].plot(
     train_sim_slts.history.speed_meters_per_second,
     label='slts',
     linestyle='--',
-    alpha=0.5,
 )
 ax[1].legend()
 ax[1].set_xlabel('Time [hr]')
@@ -189,3 +187,5 @@ ax[1].set_ylim((
     0,
     np.array(train_sim.history.speed_meters_per_second).max() * 1.05
 ))
+
+# %%

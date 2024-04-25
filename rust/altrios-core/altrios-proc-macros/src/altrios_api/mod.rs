@@ -234,10 +234,6 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         fn clone_py(&self) -> Self {
             self.clone()
         }
-
-        fn __eq__(&self, other: &Self) -> bool {
-            self == other
-        }
     });
 
     let py_impl_block = quote! {

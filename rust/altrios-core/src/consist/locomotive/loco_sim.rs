@@ -174,7 +174,7 @@ pub struct PowerTraceElement {
     }
 )]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, SerdeAPI)]
-/// Struct for simulating operation of a standalone locomotive.  
+/// Struct for simulating operation of a standalone locomotive.
 pub struct LocomotiveSimulation {
     pub loco_unit: Locomotive,
     pub power_trace: PowerTrace,
@@ -299,7 +299,7 @@ impl Default for LocomotiveSimulation {
         self.walk(b_par)
     }
 )]
-#[derive(Clone, Debug, Serialize, Deserialize, SerdeAPI)]
+#[derive(Clone, Debug, Serialize, Deserialize, SerdeAPI, PartialEq)]
 pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
 
 impl Default for LocomotiveSimulationVec {

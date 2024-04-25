@@ -255,7 +255,7 @@ pub struct SpeedTraceElement {
         Ok(())
     }
 )]
-#[derive(Clone, Debug, Serialize, Deserialize, SerdeAPI)]
+#[derive(Clone, Debug, Serialize, Deserialize, SerdeAPI, PartialEq)]
 /// Train simulation in which speed is prescribed
 pub struct SetSpeedTrainSim {
     pub loco_con: Consist,

@@ -998,6 +998,8 @@ impl Locomotive {
 
     pub fn set_pwr_aux(&mut self, engine_on: Option<bool>) {
         self.state.pwr_aux = if engine_on.unwrap_or(true) {
+            // TODO: make this optionally asymmetrical to allow for locomotives that
+            // do not have an aux penalty related to dynamic braking
             self.pwr_aux_offset + self.pwr_aux_traction_coeff * self.state.pwr_out.abs()
         } else {
             si::Power::ZERO

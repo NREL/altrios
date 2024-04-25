@@ -118,7 +118,7 @@ pub struct TrainState {
     pub pwr_res: si::Power,
     /// Power to overcome inertial forces
     pub pwr_accel: si::Power,
-
+    /// Total tractive power exerted by locomotive consist
     pub pwr_whl_out: si::Power,
     pub energy_whl_out: si::Energy,
     /// Energy out during positive or zero traction

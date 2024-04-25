@@ -232,6 +232,3 @@ plt.tight_layout()
 if SHOW_PLOTS:
     plt.show()
 # Impact of sweep of battery capacity TODO: make this happen
-
-# TODO: delete this lin when debugging is complete
-train_sim_slts = train_sim

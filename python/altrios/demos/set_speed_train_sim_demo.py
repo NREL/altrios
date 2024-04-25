@@ -212,3 +212,41 @@ plt.tight_layout()
 if SHOW_PLOTS:
     plt.show()
 
+
+# %% Run `./speed_limit_train_sim_demo.py` before running this cell:
+fig2, ax2 = plt.subplots(4, 1, sharex=True, figsize=(8, 12))
+ax2[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.loco_con.history.pwr_fuel_watts) / 1e6,
+    label="ssts",
+)
+ax2[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim_slts.loco_con.history.pwr_fuel_watts) / 1e6,
+    label="slts",
+)
+ax2[0].set_ylabel('Power [MW]')
+ax2[0].legend()
+
+ax2[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    (np.array(train_sim.loco_con.history.energy_fuel_joules) -
+     np.array(train_sim_slts.loco_con.history.energy_fuel_joules)) / 1e6,
+    label="ssts",
+)
+ax2[1].set_ylabel('Energy Error [GJ]')
+
+ax2[-2].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.grade_front) * 100.,
+)
+ax2[-2].set_ylabel('Grade [%] at\nHead End')
+
+ax2[-1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.speed_meters_per_second,
+)
+ax2[-1].set_xlabel('Time [hr]')
+ax2[-1].set_ylabel('Speed [m/s]')
+
+plt.suptitle("Set Speed Train Sim Demo")

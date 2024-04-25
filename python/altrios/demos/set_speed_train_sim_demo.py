@@ -260,13 +260,24 @@ plt.suptitle('???')
 ax[0].plot(
     train_sim.history.time_hours,
     np.array(train_sim.loco_con.history.pwr_out_req_watts) / 1e6,
-    label='ssts',
+    label='ssts loco_con pwr_out_req',
 )
 
 ax[0].plot(
     train_sim_slts.history.time_hours,
     np.array(train_sim_slts.loco_con.history.pwr_out_req_watts) / 1e6,
-    label='slts',
+    label='slts loco_con pwr_out_req',
+    linestyle='--',
+)
+ax[0].plot(
+    train_sim.history.time_hours,
+    np.array(train_sim.history.pwr_res_watts) / 1e6,
+    label='ssts pwr_res_watts',
+)
+ax[0].plot(
+    train_sim_slts.history.time_hours,
+    np.array(train_sim_slts.history.pwr_res_watts) / 1e6,
+    label='slts pwr_res_watts',
     linestyle='--',
 )
 ax[0].set_ylim((

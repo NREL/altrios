@@ -150,7 +150,11 @@ impl LinkPath {
 
     /// Load from csv file
     pub fn to_csv_file<P: AsRef<Path>>(&self, filepath: P) -> anyhow::Result<()> {
-        let file = std::fs::OpenOptions::new().write(true).open(filepath)?;
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(filepath)?;
         let mut wrtr = csv::WriterBuilder::new()
             .has_headers(true)
             .from_writer(file);

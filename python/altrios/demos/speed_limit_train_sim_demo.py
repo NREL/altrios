@@ -10,7 +10,7 @@ sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()
 
-SAVE_INTERVAL = 100
+SAVE_INTERVAL = 1
 
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
@@ -90,7 +90,7 @@ timed_link_path = alt.run_dispatch(
 
 # Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `link_path`
 # link_path = alt.LinkPath([x.link_idx for x in timed_link_path.tolist()])
-# link_path.to_csv_file(alt.resources_root() / "demo_data/link_points_idx.csv")
+# link_path.to_csv_file(alt.resources_root() / "demo_data/link_path.csv")
 
 t0 = time.perf_counter()
 train_sim.walk_timed_path(

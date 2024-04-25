@@ -65,12 +65,14 @@ rail_vehicle = alt.RailVehicle.from_file(
     alt.resources_root() / rail_vehicle_file)
 
 network = alt.Network.from_file(
-    alt.resources_root() / "networks/Taconite.yaml")
+    alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 network.set_speed_set_for_train_type(alt.TrainType.Freight)
+# file created from ./speed_limit_train_sim_demo.py:L92
 link_path = alt.LinkPath.from_csv_file(
-    alt.resources_root() / "demo_data/link_points_idx.csv"
+    alt.resources_root() / "demo_data/link_path.csv"
 )
 
+# file created from ./speed_limit_train_sim_demo.py:L105
 speed_trace = alt.SpeedTrace.from_csv_file(
     alt.resources_root() / "demo_data/speed_trace.csv"
 )

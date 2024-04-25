@@ -260,7 +260,10 @@ pub struct SpeedTraceElement {
     }
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, SerdeAPI, PartialEq)]
-/// Train simulation in which speed is prescribed
+/// Train simulation in which speed is prescribed.  Note that this is not guaranteed to
+/// produce identical results to [super::SpeedLimitTrainSim] because of differences in braking
+/// controls but should generally be very close (i.e. error in cumulative fuel/battery energy
+/// should be less than 0.1%)
 pub struct SetSpeedTrainSim {
     pub loco_con: Consist,
     pub state: TrainState,

@@ -402,12 +402,10 @@ impl SpeedLimitTrainSim {
         let f_applied_target =
             res_net + self.state.mass_static * (speed_target - self.state.speed) / self.state.dt;
 
-        let pwr_pos_max = self
-            .loco_con
-            .state
-            .pwr_out_max
-            .min(si::Power::ZERO)
-            .max(self.state.pwr_whl_out + self.loco_con.state.pwr_rate_out_max * self.state.dt);
+        let pwr_pos_max =
+            self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
+                self.state.pwr_whl_out + self.loco_con.state.pwr_rate_out_max * self.state.dt,
+            ));
         let pwr_neg_max = self.loco_con.state.pwr_dyn_brake_max.max(si::Power::ZERO);
         ensure!(
             pwr_pos_max >= si::Power::ZERO,

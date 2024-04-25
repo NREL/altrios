@@ -149,7 +149,7 @@ if SHOW_PLOTS:
 # After it fails, you can still run this cell and generate plots 
 
 fig, ax = plt.subplots(2, 1, sharex=True, figsize=(10, 8))
-pl
+
 ax[0].plot(
     train_sim.history.time_hours,
     np.array(train_sim.history.pwr_res_watts) / 1e6,

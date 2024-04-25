@@ -110,6 +110,9 @@ assert len(train_sim.history) > 1
 #     alt.resources_root() / "demo_data/speed_trace.csv"
 # )
 
+# TODO: delete this line after debugging discrepancies with `./set_speed_train_sim_demo.py`
+train_sim_slts = train_sim
+
 loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 
 fig, ax = plt.subplots(4, 1, sharex=True)

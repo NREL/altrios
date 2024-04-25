@@ -348,7 +348,7 @@ impl SetSpeedTrainSim {
             .set_cur_pwr_max_out(None, self.speed_trace.dt(self.state.i))?;
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
-        self.solve_required_pwr(self.speed_trace.dt(self.state.i));
+        self.solve_required_pwr(self.speed_trace.dt(self.state.i))?;
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
             self.speed_trace.dt(self.state.i),
@@ -388,7 +388,17 @@ impl SetSpeedTrainSim {
     /// - inertia
     /// - acceleration
     /// (some of these aren't implemented yet)
-    pub fn solve_required_pwr(&mut self, dt: si::Time) {
+    pub fn solve_required_pwr(&mut self, dt: si::Time) -> anyhow::Result<()> {
+        let pwr_pos_max =
+            self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
+                self.state.pwr_whl_out + self.loco_con.state.pwr_rate_out_max * self.state.dt,
+            ));
+        let pwr_neg_max = self.loco_con.state.pwr_dyn_brake_max.max(si::Power::ZERO);
+        ensure!(
+            pwr_pos_max >= si::Power::ZERO,
+            format_dbg!(pwr_pos_max >= si::Power::ZERO)
+        );
+
         self.state.pwr_res = self.state.res_net() * self.speed_trace.mean(self.state.i);
         self.state.pwr_accel = self.state.mass_adj / (2.0 * self.speed_trace.dt(self.state.i))
             * (self.speed_trace.speed[self.state.i].powi(typenum::P2::new())
@@ -396,12 +406,14 @@ impl SetSpeedTrainSim {
         self.state.dt = self.speed_trace.dt(self.state.i);
 
         self.state.pwr_whl_out = self.state.pwr_accel + self.state.pwr_res;
+        self.state.pwr_whl_out = self.state.pwr_whl_out.max(-pwr_neg_max).min(pwr_pos_max);
         self.state.energy_whl_out += self.state.pwr_whl_out * dt;
         if self.state.pwr_whl_out >= 0. * uc::W {
             self.state.energy_whl_out_pos += self.state.pwr_whl_out * dt;
         } else {
             self.state.energy_whl_out_neg -= self.state.pwr_whl_out * dt;
         }
+        Ok(())
     }
 }
 

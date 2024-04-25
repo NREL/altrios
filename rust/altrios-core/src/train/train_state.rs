@@ -67,6 +67,11 @@ impl InitTrainState {
             init_train_state,
         )
     }
+
+    #[getter("res_net")]
+    fn res_net_py(&self) -> PyResult<f64> {
+        Ok(self.res_net().get::<si::newton>())
+    }
 )]
 pub struct TrainState {
     /// time since user-defined datum

@@ -153,7 +153,7 @@ train_sim_slts: alt.SpeedLimitTrainSim
 # %%
 
 fig, ax = plt.subplots(2, 1, sharex=True, figsize=(10, 8))
-plt.suptitle('Train Resistance')
+plt.suptitle('pwr_res')
 
 ax[0].plot(
     train_sim.history.time_hours,
@@ -259,26 +259,26 @@ plt.suptitle('???')
 
 ax[0].plot(
     train_sim.history.time_hours,
-    np.array(train_sim.loco_con.history.pwr_out_req_watts) / 1e6,
-    label='ssts loco_con pwr_out_req',
+    np.array(train_sim.history.pwr_accel_watts) / 1e6,
+    label='ssts pwr_accel',
 )
 
 ax[0].plot(
     train_sim_slts.history.time_hours,
-    np.array(train_sim_slts.loco_con.history.pwr_out_req_watts) / 1e6,
-    label='slts loco_con pwr_out_req',
+    np.array(train_sim_slts.history.pwr_accel_watts) / 1e6,
+    label='slts pwr_accel',
     linestyle='--',
 )
 ax[0].plot(
     train_sim.history.time_hours,
-    np.array(train_sim.history.pwr_res_watts) / 1e6,
-    label='ssts pwr_res_watts',
+    np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
+    label='ssts pwr_whl_out',
 )
 ax[0].plot(
     train_sim_slts.history.time_hours,
-    np.array(train_sim_slts.history.pwr_res_watts) / 1e6,
-    label='slts pwr_res_watts',
-    linestyle='--',
+    np.array(train_sim_slts.history.pwr_whl_out_watts) / 1e6,
+    label='slts pwr_whl_out',
+    linestyle='-.',
 )
 ax[0].set_ylim((
     0,
@@ -306,3 +306,5 @@ ax[1].set_ylim((
     0,
     np.array(train_sim.history.speed_meters_per_second).max() * 1.05
 ))
+
+# %%

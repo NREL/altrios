@@ -143,12 +143,17 @@ if SHOW_PLOTS:
 
 # %%
 
-# DEBUGGING CELL
+# DEBUGGING CELLS
 # TODO: delete this cell
 # run `./speed_limit_train_sim_demo.py` interactively and then run this script, which will fail
 # After it fails, you can still run this cell and generate plots 
 
+train_sim_slts: alt.SpeedLimitTrainSim
+
+# %%
+
 fig, ax = plt.subplots(2, 1, sharex=True, figsize=(10, 8))
+plt.suptitle('Train Resistance')
 
 ax[0].plot(
     train_sim.history.time_hours,
@@ -189,3 +194,104 @@ ax[1].set_ylim((
 ))
 
 # %%
+
+res_list = [
+    'res_curve_newtons',
+    'res_grade_newtons',
+    'res_davis_b_newtons',
+    'res_rolling_newtons',
+    'res_bearing_newtons',
+    'weight_static_newtons',
+    'res_aero_newtons'
+]
+
+for res_str in res_list:
+    fig, ax = plt.subplots(2, 1, sharex=True, figsize=(10, 8))
+    plt.suptitle(res_str)
+
+    ax[0].plot(
+        train_sim.history.time_hours,
+        np.array(train_sim.history.__getattribute__(res_str)),
+        label='ssts',
+    )
+    ax[0].plot(
+        train_sim_slts.history.time_hours,
+        np.array(train_sim_slts.history.__getattribute__(res_str)),
+        label='slts',
+        linestyle='--',
+    )
+    y_lim = [
+        np.array(train_sim.history.__getattribute__(res_str)).min() 
+        - 0.10 *
+        (np.array(train_sim.history.__getattribute__(res_str)).max() -
+         np.array(train_sim.history.__getattribute__(res_str)).min()),
+        np.array(train_sim.history.__getattribute__(res_str)).max() * 1.25
+    ]
+    ax[0].set_ylim((y_lim))
+    ax[0].legend()
+    ax[0].set_ylabel("Force [N]")
+
+    ax[1].plot(
+        train_sim.history.time_hours,
+        train_sim.history.speed_meters_per_second,
+        label='ssts',
+    )
+    ax[1].plot(
+        train_sim_slts.history.time_hours,
+        train_sim_slts.history.speed_meters_per_second,
+        label='slts',
+        linestyle='--',
+    )
+    ax[1].legend()
+    ax[1].set_xlabel('Time [hr]')
+    ax[1].set_ylabel("Speed [m/s]")
+    ax[1].set_xlim((0, np.array(train_sim.history.time_hours)[-1] * 1.05))
+    ax[1].set_ylim((
+        0,
+        np.array(train_sim.history.speed_meters_per_second).max() * 1.05
+    ))
+
+
+# %%
+
+fig, ax = plt.subplots(2, 1, sharex=True, figsize=(10, 8))
+plt.suptitle('???')
+
+ax[0].plot(
+    train_sim.history.time_hours,
+    np.array(train_sim.loco_con.history.pwr_out_req_watts) / 1e6,
+    label='ssts',
+)
+
+ax[0].plot(
+    train_sim_slts.history.time_hours,
+    np.array(train_sim_slts.loco_con.history.pwr_out_req_watts) / 1e6,
+    label='slts',
+    linestyle='--',
+)
+ax[0].set_ylim((
+    0,
+    np.array(train_sim.loco_con.history.pwr_out_req_watts).max() / 1e6 * 1.05
+))
+ax[0].legend()
+ax[0].set_ylabel("Power [MW]")
+
+ax[1].plot(
+    train_sim.history.time_hours,
+    train_sim.history.speed_meters_per_second,
+    label='ssts',
+)
+ax[1].plot(
+    train_sim_slts.history.time_hours,
+    train_sim_slts.history.speed_meters_per_second,
+    label='slts',
+    linestyle='--',
+)
+ax[1].legend()
+ax[1].set_xlabel('Time [hr]')
+ax[1].set_ylabel("Speed [m/s]")
+ax[1].set_xlim((0, np.array(train_sim.history.time_hours)[-1] * 1.05))
+ax[1].set_ylim((
+    0,
+    np.array(train_sim.history.speed_meters_per_second).max() * 1.05
+))

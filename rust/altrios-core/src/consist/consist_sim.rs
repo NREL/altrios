@@ -1,5 +1,4 @@
 use altrios_proc_macros::altrios_api;
-use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::consist::locomotive::loco_sim::PowerTrace;
@@ -97,7 +96,7 @@ impl ConsistSimulation {
     /// Iterates step to solve all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
         // Just here to showcase logging;
-        info!("Performing walk method on consist sim");
+        log::info!("Performing walk method on consist sim");
 
         self.save_state();
         while self.i < self.power_trace.len() {

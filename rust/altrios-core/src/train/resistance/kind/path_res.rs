@@ -118,6 +118,10 @@ impl Strap {
         vals[self.idx_front].res_coeff
     }
 
+    pub fn res_coeff_back(&self, vals: &[PathResCoeff]) -> si::Ratio {
+        vals[self.idx_back].res_coeff
+    }
+
     pub fn res_net_front(&self, vals: &[PathResCoeff], state: &TrainState) -> si::Length {
         vals[self.idx_front].calc_res_val(state.offset)
     }

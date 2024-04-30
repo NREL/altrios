@@ -106,6 +106,9 @@ pub struct TrainState {
 
     /// Grade at front of train
     pub grade_front: si::Ratio,
+    /// Grade at back of train of train if strap method is used
+    // TODO: make this an option
+    pub grade_back: si::Ratio,
     /// Elevation at front of train
     pub elev_front: si::Length,
 
@@ -142,6 +145,7 @@ impl Default for TrainState {
             elev_front: Default::default(),
             energy_whl_out: Default::default(),
             grade_front: Default::default(),
+            grade_back: Default::default(),
             speed_target: Default::default(),
             weight_static: Default::default(),
             res_rolling: Default::default(),

@@ -174,7 +174,7 @@ pub struct PowerTraceElement {
     }
 )]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, SerdeAPI)]
-/// Struct for simulating operation of a standalone locomotive.  
+/// Struct for simulating operation of a standalone locomotive.
 pub struct LocomotiveSimulation {
     pub loco_unit: Locomotive,
     pub power_trace: PowerTrace,
@@ -316,6 +316,7 @@ impl LocomotiveSimulationVec {
                 .par_iter_mut()
                 .enumerate()
                 .try_for_each(|(i, loco_sim)| {
+                    log::info!("Solving locomotive #{i}");
                     loco_sim
                         .walk()
                         .map_err(|err| err.context(format!("loco_sim idx:{}", i)))

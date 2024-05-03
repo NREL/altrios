@@ -5,7 +5,7 @@ edition = { workspace = true }
 license = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }
-version = "0.2.1"
+version = "0.2.2"
 description = "ALTRIOS Core model for train simulation"
 readme = "README.md"
 

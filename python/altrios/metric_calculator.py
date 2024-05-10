@@ -3,7 +3,7 @@ import polars as pl
 import polars.selectors as cs
 import math
 import numpy as np
-from typing import List, Optional, Dict, Tuple
+from typing import List, Dict, Tuple
 from pathlib import Path
 
 import altrios as alt
@@ -28,13 +28,13 @@ class ScenarioInfo:
                  sims: alt.SpeedLimitTrainSimVec, 
                  simulation_days: int,
                  scenario_year: int, 
-                 loco_pool: pl.DataFrame,
-                 consist_plan: pl.DataFrame,
-                 refuel_facilities: pl.DataFrame,
-                 refuel_sessions: pl.DataFrame,
-                 emissions_factors: pl.DataFrame,
-                 nodal_energy_prices: pl.DataFrame,
-                 count_unused_locomotives: bool):
+                 loco_pool: pl.DataFrame = None,
+                 consist_plan: pl.DataFrame = None,
+                 refuel_facilities: pl.DataFrame = None,
+                 refuel_sessions: pl.DataFrame = None,
+                 emissions_factors: pl.DataFrame = None,
+                 nodal_energy_prices: pl.DataFrame = None,
+                 count_unused_locomotives: bool = False):
         self.sims = sims
         self.simulation_days = simulation_days
         self.year = scenario_year
@@ -67,6 +67,8 @@ def value_from_metrics(metrics: MetricType,
                       name: str = None,
                       units: str = None,
                       subset: str = None) -> float:
+    if metrics is None:
+        return None
     
     out = metrics
     if name is not None:
@@ -81,42 +83,52 @@ def value_from_metrics(metrics: MetricType,
     if out.height == 1:
         return out.get_column("Value")[0]
     else:
-        return math.nan
+        return None
 
 def main(
         scenario_infos: List[ScenarioInfo],
-        annual_metrics: dict = {
-            'Metric': ['Mt-km', 'GHG', 'Count_Locomotives', 'Count_Refuelers', 'Energy_Costs'],
-            'Units': ['million tonne-km', 'tonne CO2-eq', 'assets', 'assets', 'USD']}
+        annual_metrics: List[Tuple[str, str]] = [
+            ('Mt-km', 'million tonne-km'),
+            ('GHG', 'tonne CO2-eq'),
+            ('Count_Locomotives', 'assets'),
+            ('Count_Refuelers', 'assets'),
+            ('Energy_Costs', 'USD')
+        ],
+        calculate_multiyear_metrics: bool = True
 ) -> pl.DataFrame:
     """
     Given a set of simulation results and the associated consist plans, computes economic and environmental metrics.
     Arguments:
     ----------
     scenario_infos: List (with one entry per scenario year) of Scenario Info objects
-    metricsToCalc: Dictionary of metrics to calculate
+    metricsToCalc: List of metrics to calculate, each specified as a tuple consisting of a metric and the desired unit
+    calculate_multiyear_metrics: True if multi-year rollout costs (including levelized cost) are to be computed
     Outputs:
     ----------
     values: DataFrame of output and intermediate metrics (metric name, units, value, and scenario year)
     """
-    annual_metrics = pl.DataFrame(annual_metrics)
-    values = pl.DataFrame()
-    for row in annual_metrics.iter_rows(named = True):
+    annual_values = []
+    for metric in annual_metrics:
         for info in scenario_infos:
-            annual_value = (calculate_annual_metric(row['Metric'], row['Units'], info)
-                .with_columns(pl.lit(info.year).alias("Year")))
-            values = pl.concat([values, annual_value], how="diagonal")
+            annual_values.append(calculate_annual_metric(metric[0], metric[1], info))
 
-    values = values.unique()
-    values = calculate_rollout_investments(values)
-    values = calculate_rollout_total_costs(values)
-    values = calculate_rollout_lcotkm(values)
-    values = values.sort(["Year","Subset"], descending = [False, True])
+    values = pl.concat(annual_values, how="diagonal_relaxed").unique()
+    if calculate_multiyear_metrics: 
+        values = calculate_rollout_investments(values)
+        values = calculate_rollout_total_costs(values)
+        values = calculate_rollout_lcotkm(values)
+
+    values = (values
+        .filter(pl.col("Value").is_not_null())
+        .unique()
+        .sort(["Year","Subset"], descending = [False, True])
+    )
+
     return values
 
 
 def calculate_annual_metric(
-        metric: str,
+        metric_name: str,
         units: str,
         info: ScenarioInfo) -> MetricType:
     """
@@ -130,11 +142,11 @@ def calculate_annual_metric(
     values: DataFrame of requested output metric + any intermediate metrics (metric name, units, value, and scenario year)
     """
     def return_metric_error(info, units) -> MetricType:
-        print(f"Metric calculation not implemented: {metric}.")
-        return value_from_metrics(metric(metric, units, math.nan))
+        print(f"Metric calculation not implemented: {metric_name}.")
+        return value_from_metrics(metric(metric_name, units, None))
     
-    function_for_metric = function_mappings.get(metric, return_metric_error)
-    return function_for_metric(info, units)
+    function_for_metric = function_mappings.get(metric_name, return_metric_error)
+    return function_for_metric(info, units).with_columns(pl.lit(info.year).alias("Year"))
 
 def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
     """
@@ -221,6 +233,9 @@ def calculate_energy_cost(info: ScenarioInfo,
     ----------
     DataFrame of energy costs + intermediate metrics (metric name, units, value, and scenario year)
     """
+    if info.nodal_energy_prices is None:
+        return metric("Cost_Energy", units, None)
+    
     diesel_used = calculate_diesel_use(info, units="gallons")
     electricity_used = (calculate_electricity_use(info, units="kWh")
                         )
@@ -270,7 +285,7 @@ def calculate_diesel_use(
         val = info.sims.get_energy_fuel_joules(annualize=True) / 1e6
     else:
         print(f"Units of {units} not supported for fuel usage calculation.")
-        val = math.nan
+        val = None
 
     return metric("Diesel_Usage", units, val)
   
@@ -287,6 +302,8 @@ def calculate_electricity_use(
     ----------
     DataFrame of grid electricity use (metric name, units, value, and scenario year)
     """    
+   if info.refuel_sessions is None:
+        return metric("Electricity_Usage", units, None)
    
    disagg_energy = (info.refuel_sessions
                     .filter(pl.col("Locomotive_Type")==pl.lit("BEL"))
@@ -305,7 +322,7 @@ def calculate_electricity_use(
            (pl.col("Refuel_Energy_J") * utilities.KWH_PER_MJ / 1e9).alias("MWh"))  
    else:
         print(f"Units of {units} not supported for electricity use calculation.")
-        return metric("Electricity_Usage", units, math.nan)
+        return metric("Electricity_Usage", units, None)
    
    disagg_energy = (disagg_energy
         .drop("Refuel_Energy_J")
@@ -358,10 +375,10 @@ def calculate_ghg(
     DataFrame of GHG emissions from energy use (metric name, units, value, and scenario year)
     """
     if units != 'tonne CO2-eq' :
-        return metric("GHG_Energy", units, math.nan)
+        return metric("GHG_Energy", units, None)
 
-    if info.emissions_factors.height == 0:
-        return metric("GHG_Energy", units, 0.0)
+    if info.emissions_factors is None:
+        return metric("GHG_Energy", units, None)
     
     #GREET table only has a value for 2020; apply that to all years
     diesel_ghg_factor = (emissions_factors_greet
@@ -410,6 +427,9 @@ def calculate_locomotive_counts(
     DataFrame of locomotive fleet composition metrics (metric name, units, value, and scenario year)
     """
     def get_locomotive_counts(df: pl.DataFrame) -> pl.DataFrame:
+        if (info.consist_plan is None) or (info.loco_pool is None):
+            return metric("Count_Locomotives", "assets", None)
+
         out = (df
                 .groupby(["Locomotive_Type"])
                 .agg((pl.col("Locomotive_ID").n_unique()).alias("Count_Locomotives"),
@@ -465,6 +485,9 @@ def calculate_refueler_counts(
     ----------
     DataFrame of locomotive fleet composition metrics (metric name, units, value, and scenario year)
     """
+    if info.refuel_facilities is None:
+        return metric("Count_Refuelers", "assets", None)
+        
     num_ports = (info.refuel_facilities
                  .groupby(["Refueler_Type"])
                  .agg(

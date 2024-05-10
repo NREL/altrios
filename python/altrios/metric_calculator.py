@@ -25,7 +25,7 @@ metric_columns = ["Subset","Value","Metric","Units","Year"]
 
 class ScenarioInfo:
     def __init__(self, 
-                 sims: alt.SpeedLimitTrainSimVec, 
+                 sims: alt.SpeedLimitTrainSim | alt.SpeedLimitTrainSimVec, 
                  simulation_days: int,
                  scenario_year: int, 
                  loco_pool: pl.DataFrame = None,
@@ -780,8 +780,8 @@ def import_emissions_factors_cambium(
 
     emissions_factors = (
         pl.scan_csv(source = file_path, skip_rows = 5)
-            .filter(pl.col("gea").is_in(
-                region_mappings.get_column("Region")))
+            .filter(pl.col("gea").is_in(region_mappings.get_column("Region")),
+                    pl.col("scenario") == "MidCase")
             .select(pl.col("gea").alias("Region"),
                     pl.col("t").alias("Year"),
                     (pl.col("lrmer_co2e_c") + pl.col("lrmer_co2e_p")).alias("CO2eq_kg_per_MWh"),

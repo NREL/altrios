@@ -51,6 +51,7 @@ impl ResMethod for Strap {
         state.res_grade = self.grade.calc_res(path_tpc.grades(), state, dir)?;
         state.res_curve = self.curve.calc_res(path_tpc.curves(), state, dir)?;
         state.grade_front = self.grade.res_coeff_front(path_tpc.grades());
+        state.grade_back = self.grade.res_coeff_front(path_tpc.grades());
         state.elev_front = self.grade.res_net_front(path_tpc.grades(), state);
         Ok(())
     }

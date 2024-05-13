@@ -141,6 +141,10 @@ impl Strap {
         path_res_coeffs[self.idx_front].calc_res_val(state.offset)
     }
 
+    pub fn res_coeff_back(&self, vals: &[PathResCoeff]) -> si::Ratio {
+        vals[self.idx_back].res_coeff
+    }
+
     /// Returns index of current element containing front of train within `PathTPC`
     pub fn path_tpc_idx_front(&self) -> usize {
         self.idx_front

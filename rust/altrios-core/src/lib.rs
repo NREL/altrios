@@ -8,7 +8,7 @@
 //! -- all connected to a detailed train model.  
 //!
 //! # Helpful Tips
-//! Nearly struct in this crate implements methods for serializing/deserializing itself to/from a
+//! Every struct in this crate implements methods for serializing/deserializing itself to/from a
 //! handful of standard data formats as strings or file read/write operations using
 //! [traits::SerdeAPI].   
 //!

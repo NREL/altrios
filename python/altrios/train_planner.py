@@ -373,7 +373,7 @@ def generate_demand_trains(
             pl.when(pl.col("Number_of_Cars_Total") == pl.lit(0))
                 .then(0)
                 .otherwise(
-                    pl.max([1,
+                    pl.max_horizontal([1,
                         (pl.when(pl.col("Number_of_Cars_Total").mod(pl.lit(config.target_cars_per_train)).gt(pl.lit(config.min_cars_per_train)))
                             .then(pl.col("Number_of_Cars_Total").floordiv(pl.lit(config.target_cars_per_train)))
                             .otherwise(pl.col("Number_of_Cars_Total").floordiv(pl.lit(config.target_cars_per_train))+1))
@@ -605,7 +605,7 @@ def append_charging_guidelines(
             .otherwise(0)
             .fill_null(0)
             .alias("Battery_Headroom_J"))
-        .with_columns(pl.max([pl.col('SOC_Max_J')-pl.col('Battery_Headroom_J'), pl.col('SOC_Min_J')]).alias("SOC_J")))
+        .with_columns(pl.max_horizontal([pl.col('SOC_Max_J')-pl.col('Battery_Headroom_J'), pl.col('SOC_Min_J')]).alias("SOC_J")))
     return refuelers, loco_pool
 
 def append_loco_info(loco_info: pd.DataFrame) -> pd.DataFrame:
@@ -770,7 +770,7 @@ def update_refuel_queue(
                     .then(pl.lit("Refuel_Queue"))
                     .otherwise(pl.col("Status")).alias("Status"),
                 pl.when(arrived)
-                    .then(pl.max([pl.col('SOC_Max_J')-pl.col('Battery_Headroom_J'), pl.col('SOC_J')]))
+                    .then(pl.max_horizontal([pl.col('SOC_Max_J')-pl.col('Battery_Headroom_J'), pl.col('SOC_J')]))
                     .otherwise(pl.col("SOC_Target_J")).alias("SOC_Target_J"))
             .with_columns(
                 pl.when(arrived)
@@ -1037,9 +1037,9 @@ def run_train_planner(
                             .then(pl.lit("Dispatched"))
                             .otherwise(pl.col('Status')).alias("Status"),
                         pl.when(selected)
-                        .then(pl.max(
+                        .then(pl.max_horizontal(
                                 pl.col('SOC_Min_J'),
-                                pl.min(
+                                pl.min_horizontal(
                                     pl.col('SOC_J') - pl.lit(energy_use_j), 
                                     pl.col('SOC_Max_J'))))
                         .otherwise(pl.col('SOC_J')).alias("SOC_J")

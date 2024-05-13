@@ -80,13 +80,13 @@ def metric(
     return MetricType({
         "Metric" : [name],
         "Units" : [units],
-        "Value" : [float(value)],
+        "Value" : [None if value is None else float(value)],
         "Subset": [subset],
         "Year": [year]
         })
 
 def metrics_from_list(metrics: List[MetricType]) -> MetricType:
-    return pl.concat(metrics, how="diagonal")
+    return pl.concat(metrics, how="diagonal_relaxed")
 
 def value_from_metrics(metrics: MetricType, 
                       name: str = None,
@@ -179,7 +179,7 @@ def calculate_annual_metric(
         return value_from_metrics(metric(metric_name, units, None))
     
     function_for_metric = function_mappings.get(metric_name, return_metric_error)
-    return function_for_metric(info, units).with_columns(pl.lit(info.year).alias("Year"))
+    return function_for_metric(info, units).with_columns(pl.lit(info.scenario_year).alias("Year"))
 
 def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
     """
@@ -352,7 +352,7 @@ def calculate_electricity_use(
         # No refueling session data: charging was not explicitly modeled, 
         # so take total net energy at RES and apply charging efficiency factor
         return metric("Electricity_Usage", units, 
-            info.sims.get_net_energy_res(annualize=True) * conversion_from_joule / defaults.BEL_CHARGER_EFFICIENCY)
+            info.sims.get_net_energy_res_joules(annualize=True) * conversion_from_joule / defaults.BEL_CHARGER_EFFICIENCY)
    else:
         disagg_energy = (info.refuel_sessions
             .filter(pl.col("Locomotive_Type")==pl.lit("BEL"))
@@ -368,7 +368,7 @@ def calculate_electricity_use(
                 variable_name="Units",
                 value_name="Value")
             .rename({"Node": "Subset"})
-            .with_columns(pl.lit(str(info.year)).alias("Year"))
+            .with_columns(pl.lit(str(info.scenario_year)).alias("Year"))
         )
 
         agg_energy = (disagg_energy
@@ -430,37 +430,38 @@ def calculate_ghg(
         diesel_ghg_factor / utilities.G_PER_TONNE
     
     electricity_ghg_val = None
-    if (electricity_MWh > 0) and (info.emissions_factors is None): 
-        energy_ghg_val = None
-        print("No electricity emissions factors provided, so GHGs from electricity were not calculated.")
-        
-    elif (electricity_MWh > 0) and (info.refuel_sessions is None) and (info.emissions_factors.select(pl.col("Node").n_unique() > 0)):
-        energy_ghg_val = None
-        print("""No refuel session dataframe was provided (so emissions are not spatially resolved), 
-              but the emissions factor dataframe contains multiple regions. Subset emissions factors 
-              to the desired region before passing the emissions factor dataframe into the metrics calculator.""")
-    elif (electricity_MWh > 0):
-        if electricity_MWh.filter(pl.col("Subset") != "All").len() > 0:
-            # Disaggregated results are available
-            electricity_ghg_val = (electricity_MWh
-                .filter(pl.col("Subset") != pl.lit("All"))
-                .join(info.emissions_factors, 
-                    left_on=["Subset", "Year"],
-                    right_on=["Node", "Year"],
-                    how="inner")
-                .select(pl.col("CO2eq_kg_per_MWh") * pl.col("Value") / 1000.0)
-                .sum().to_series()[0]
-            )
+    energy_ghg_val = 0.0
+    if (electricity_MWh.height > 0) & (electricity_MWh.select(pl.col("Value").sum())[0,0] > 0):
+        if info.emissions_factors is None: 
+            energy_ghg_val = None
+            print("No electricity emissions factors provided, so GHGs from electricity were not calculated.")
+        elif (info.refuel_sessions is None) and (info.emissions_factors.select(pl.col("Node").n_unique() > 0)):
+            energy_ghg_val = None
+            print("""No refuel session dataframe was provided (so emissions are not spatially resolved), 
+                but the emissions factor dataframe contains multiple regions. Subset emissions factors 
+                to the desired region before passing the emissions factor dataframe into the metrics calculator.""")
         else:
-            # Disaggregated results are not available but there is only one node with emissions data
-            electricity_ghg_val = (electricity_MWh
-                .join(info.emissions_factors, 
-                    on="Year",
-                    how="inner")
-                .select(pl.col("CO2eq_kg_per_MWh") * pl.col("Value") / 1000.0)
-                .sum().to_series()[0]
-            )
-        energy_ghg_val = diesel_ghg_val + electricity_ghg_val
+            if electricity_MWh.filter(pl.col("Subset") != "All").len() > 0:
+                # Disaggregated results are available
+                electricity_ghg_val = (electricity_MWh
+                    .filter(pl.col("Subset") != pl.lit("All"))
+                    .join(info.emissions_factors, 
+                        left_on=["Subset", "Year"],
+                        right_on=["Node", "Year"],
+                        how="inner")
+                    .select(pl.col("CO2eq_kg_per_MWh") * pl.col("Value") / 1000.0)
+                    .sum().to_series()[0]
+                )
+            else:
+                # Disaggregated results are not available but there is only one node with emissions data
+                electricity_ghg_val = (electricity_MWh
+                    .join(info.emissions_factors, 
+                        on="Year",
+                        how="inner")
+                    .select(pl.col("CO2eq_kg_per_MWh") * pl.col("Value") / 1000.0)
+                    .sum().to_series()[0]
+                )
+            energy_ghg_val = diesel_ghg_val + electricity_ghg_val
 
     return metrics_from_list([
         diesel_MJ, 
@@ -500,12 +501,12 @@ def calculate_locomotive_counts(
                     value_name="Value")
                 .with_columns(
                     pl.when(pl.col("Metric") == "Unit_Cost")
-                        .then("USD")
+                        .then(pl.lit("USD"))
                         .when(pl.col("Metric") == "Lifespan")
-                        .then("years")
+                        .then(pl.lit("years"))
                         .when(pl.col("Metric")=="Pct_Locomotives")
-                        .then("fraction (0-1)")
-                        .otherwise("assets")
+                        .then(pl.lit("fraction (0-1)"))
+                        .otherwise(pl.lit("assets"))
                     .alias("Units"),
                     pl.lit("All").alias("Year"))
                 .rename({"Locomotive_Type": "Subset"})
@@ -558,10 +559,10 @@ def calculate_refueler_counts(
                     value_name="Value")
                  .with_columns(
                     pl.when(pl.col("Metric") == "Unit_Cost")
-                        .then("USD")
+                        .then(pl.lit("USD"))
                         .when(pl.col("Metric") == "Lifespan")
-                        .then("years")
-                        .otherwise("assets")
+                        .then(pl.lit("years"))
+                        .otherwise(pl.lit("assets"))
                     .alias("Units"),
                     pl.lit("All").alias("Year"))
                  .rename({"Refueler_Type": "Subset"})
@@ -838,8 +839,7 @@ def import_emissions_factors_cambium(
 
     emissions_factors = (
         pl.scan_csv(source = file_path, skip_rows = 5)
-            .filter(pl.col("gea").is_in(region_mappings.get_column("Region")),
-                    pl.col("scenario") == "MidCase")
+            .filter(pl.col("gea").is_in(region_mappings.get_column("Region")))
             .select(pl.col("gea").alias("Region"),
                     pl.col("t").alias("Year"),
                     (pl.col("lrmer_co2e_c") + pl.col("lrmer_co2e_p")).alias("CO2eq_kg_per_MWh"),

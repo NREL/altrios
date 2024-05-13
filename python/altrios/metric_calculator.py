@@ -2,7 +2,6 @@ import pandas as pd
 import polars as pl
 import polars.selectors as cs
 import math
-import numpy as np
 from typing import List, Dict, Tuple, Union
 from dataclasses import dataclass
 from pathlib import Path

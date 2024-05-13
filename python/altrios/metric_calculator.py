@@ -302,48 +302,51 @@ def calculate_electricity_use(
     ----------
     DataFrame of grid electricity use (metric name, units, value, and scenario year)
     """    
-   if info.refuel_sessions is None:
-        return metric("Electricity_Usage", units, None)
-   
-   disagg_energy = (info.refuel_sessions
-                    .filter(pl.col("Locomotive_Type")==pl.lit("BEL"))
-                    .groupby(["Node"])
-                    .agg((pl.col('Refuel_Energy_J') * pl.lit(info.simulation_days)).sum())
-                    )
-   
-   if units == "MJ":
-       disagg_energy = disagg_energy.with_columns(
-           (pl.col("Refuel_Energy_J") / 1e6).alias("MJ"))
-   elif units == "kWh":
-       disagg_energy = disagg_energy.with_columns(
-           ( pl.col("Refuel_Energy_J") * utilities.KWH_PER_MJ / 1e6).alias("kWh"))       
+   conversion_from_joule = 0
+   if units == "J":
+       conversion_from_joule = 1.0
+   elif units == "MJ":
+       conversion_from_joule = 1e-6
    elif units == "MWh":
-       disagg_energy = disagg_energy.with_columns(
-           (pl.col("Refuel_Energy_J") * utilities.KWH_PER_MJ / 1e9).alias("MWh"))  
+       conversion_from_joule = utilities.KWH_PER_MJ / 1e9
+   elif units == "kWh":
+      conversion_from_joule = utilities.KWH_PER_MJ / 1e6
    else:
         print(f"Units of {units} not supported for electricity use calculation.")
         return metric("Electricity_Usage", units, None)
-   
-   disagg_energy = (disagg_energy
-        .drop("Refuel_Energy_J")
-        .with_columns(pl.lit("Electricity_Usage").alias("Metric"))
-        .melt(
-            id_vars=["Metric","Node"],
-            value_vars=units,
-            variable_name="Units",
-            value_name="Value")
-        .rename({"Node": "Subset"})
-        .with_columns(pl.lit(str(info.year)).alias("Year"))
-    )
-   agg_energy = (disagg_energy
-                 .groupby(["Metric","Units","Year"])
-                 .agg(pl.col("Value").sum())
-                 .with_columns(
-                    pl.lit("All").alias("Subset"))
-                )
-   return metrics_from_list([
-       agg_energy,
-       disagg_energy])
+       
+   if info.refuel_sessions is None: 
+        # No refueling session data: charging was not explicitly modeled, 
+        # so take total net energy at RES and apply charging efficiency factor
+        return metric("Electricity_Usage", units, 
+            info.sims.get_net_energy_res(annualize=True) * conversion_from_joule / defaults.BEL_CHARGER_EFFICIENCY)
+   else:
+        disagg_energy = (info.refuel_sessions
+            .filter(pl.col("Locomotive_Type")==pl.lit("BEL"))
+            .groupby(["Node"])
+                .agg((pl.col('Refuel_Energy_J') * pl.lit(info.simulation_days)).sum())
+            .with_columns(
+                pl.col("Refuel_Energy_J").mul(conversion_from_joule).alias(units),
+                pl.lit("Electricity_Usage").alias("Metric"))
+            .drop("Refuel_Energy_J")
+            .melt(
+                id_vars=["Metric","Node"],
+                value_vars=units,
+                variable_name="Units",
+                value_name="Value")
+            .rename({"Node": "Subset"})
+            .with_columns(pl.lit(str(info.year)).alias("Year"))
+        )
+
+        agg_energy = (disagg_energy
+                        .groupby(["Metric","Units","Year"])
+                        .agg(pl.col("Value").sum())
+                        .with_columns(
+                            pl.lit("All").alias("Subset"))
+                        )
+        return metrics_from_list([
+            agg_energy,
+            disagg_energy])
 
 
 def calculate_freight(
@@ -377,8 +380,6 @@ def calculate_ghg(
     if units != 'tonne CO2-eq' :
         return metric("GHG_Energy", units, None)
 
-    if info.emissions_factors is None:
-        return metric("GHG_Energy", units, None)
     
     #GREET table only has a value for 2020; apply that to all years
     diesel_ghg_factor = (emissions_factors_greet
@@ -394,15 +395,39 @@ def calculate_ghg(
 
     diesel_ghg_val = value_from_metrics(diesel_MJ,"Diesel_Usage") * \
         diesel_ghg_factor / utilities.G_PER_TONNE
-    electricity_ghg_val = (electricity_MWh
-        .filter(pl.col("Subset") != pl.lit("All"))
-        .join(info.emissions_factors, 
-              left_on="Subset",
-              right_on="Node",
-              how="inner")
-        .select(pl.col("CO2eq_kg_per_MWh") * pl.col("Value") / 1000.0)
-        .sum().to_series()[0]
-    )
+    
+    electricity_ghg_val = None
+    if (electricity_MWh > 0) and (info.emissions_factors is None): 
+        energy_ghg_val = None
+        print("No electricity emissions factors provided, so GHGs from electricity were not calculated.")
+        
+    elif (electricity_MWh > 0) and (info.refuel_sessions is None) and (info.emissions_factors.select(pl.col("Node").n_unique() > 0)):
+        energy_ghg_val = None
+        print("""No refuel session dataframe was provided (so emissions are not spatially resolved), 
+              but the emissions factor dataframe contains multiple regions. Subset emissions factors 
+              to the desired region before passing the emissions factor dataframe into the metrics calculator.""")
+    elif (electricity_MWh > 0):
+        if electricity_MWh.filter(pl.col("Subset") != "All").len() > 0:
+            # Disaggregated results are available
+            electricity_ghg_val = (electricity_MWh
+                .filter(pl.col("Subset") != pl.lit("All"))
+                .join(info.emissions_factors, 
+                    left_on=["Subset", "Year"],
+                    right_on=["Node", "Year"],
+                    how="inner")
+                .select(pl.col("CO2eq_kg_per_MWh") * pl.col("Value") / 1000.0)
+                .sum().to_series()[0]
+            )
+        else:
+            # Disaggregated results are not available but there is only one node with emissions data
+            electricity_ghg_val = (electricity_MWh
+                .join(info.emissions_factors, 
+                    on="Year",
+                    how="inner")
+                .select(pl.col("CO2eq_kg_per_MWh") * pl.col("Value") / 1000.0)
+                .sum().to_series()[0]
+            )
+        energy_ghg_val = diesel_ghg_val + electricity_ghg_val
 
     return metrics_from_list([
         diesel_MJ, 
@@ -410,7 +435,7 @@ def calculate_ghg(
         electricity_MWh,
         metric("GHG_Diesel", units, diesel_ghg_val), 
         metric("GHG_Electricity", units, electricity_ghg_val), 
-        metric("GHG_Energy", units, diesel_ghg_val+electricity_ghg_val)])
+        metric("GHG_Energy", units, energy_ghg_val)])
 
 
 def calculate_locomotive_counts(

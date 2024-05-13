@@ -3,7 +3,7 @@ import polars as pl
 import polars.selectors as cs
 import math
 import numpy as np
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
 from pathlib import Path
 
 import altrios as alt
@@ -23,28 +23,53 @@ battery_prices_nrel_atb = (pl.read_csv(source = defaults.BATTERY_PRICE_FILE)).fi
 
 metric_columns = ["Subset","Value","Metric","Units","Year"]
 
+@dataclass
 class ScenarioInfo:
-    def __init__(self, 
-                 sims: alt.SpeedLimitTrainSim | alt.SpeedLimitTrainSimVec, 
-                 simulation_days: int,
-                 scenario_year: int, 
-                 loco_pool: pl.DataFrame = None,
-                 consist_plan: pl.DataFrame = None,
-                 refuel_facilities: pl.DataFrame = None,
-                 refuel_sessions: pl.DataFrame = None,
-                 emissions_factors: pl.DataFrame = None,
-                 nodal_energy_prices: pl.DataFrame = None,
-                 count_unused_locomotives: bool = False):
-        self.sims = sims
-        self.simulation_days = simulation_days
-        self.year = scenario_year
-        self.loco_pool = loco_pool
-        self.consist_plan = consist_plan
-        self.refuel_facilities = refuel_facilities
-        self.refuel_sessions = refuel_sessions
-        self.emissions_factors = emissions_factors
-        self.nodal_energy_prices = nodal_energy_prices
-        self.count_unused_locomotives = count_unused_locomotives
+    """
+    Dataclass class maintaining records of scenario parameters that influence metric calculations.
+
+    Fields:
+    - `sims`: `SpeedLimitTrainSim` (single-train sim) or `SpeedLimitTrainSimVec` (multi-train sim) 
+    including simulation results
+
+    - `simulation_days`: Number of days included in these results (after any warm-start or cool-down 
+    days were excluded)
+
+    - `scenario_year`: Year that is being considered in this scenario.
+
+    - `loco_pool`: `polars.DataFrame` defining the pool of locomotives that were available
+    to potentially be dispatched, each having a `Locomotive_ID`,`Locomotive_Type`,`Cost_USD`,`Lifespan_Years`.  
+    Not required for single-train sim.
+
+    - `consist_plan`: `polars.DataFrame` defining dispatched train consists, where 
+    each row includes a `Locomotive_ID` and a `Train_ID`. Not required for single-train sim.
+
+    - `refuel_facilities`: `polars.DataFrame` defining refueling facilities, each with a 
+    `Refueler_Type`, `Port_Count`, and `Cost_USD`, and `Lifespan_Years`. Not required for single-train sim.
+
+    - `refuel_sessions`: `polars.DataFrame` defining refueling sessions, each with a 
+    `Locomotive_ID`, `Locomotive_Type`, `Node`, and `Refuel_Energy_J`. Not required for single-train sim.
+
+    - `emissions_factors`: `polars.DataFrame` with unit `CO2eq_kg_per_MWh` defined for each `Node`. 
+    Not required for single-train sim.
+
+    - `nodal_energy_prices`: `polars.DataFrame` with unit `Price` defined for each `Node` and `Fuel`. 
+    Not required for single-train sim.
+
+    - `count_unused_locomotives`: If `True`, fleet composition is defined using all locomotives in 
+    `loco_pool`; if `False`, fleet composition is defined using only the locomotives dispatched. 
+    Not required for single-train sim.
+    """
+    sims: Union[alt.SpeedLimitTrainSim, alt.SpeedLimitTrainSimVec]
+    simulation_days: int
+    scenario_year: int
+    loco_pool: pl.DataFrame = None
+    consist_plan: pl.DataFrame = None
+    refuel_facilities: pl.DataFrame = None
+    refuel_sessions: pl.DataFrame = None
+    emissions_factors: pl.DataFrame = None
+    nodal_energy_prices: pl.DataFrame = None
+    count_unused_locomotives: bool = False
 
 def metric(
         name: str,
@@ -60,7 +85,7 @@ def metric(
         "Year": [year]
         })
 
-def metrics_from_list(metrics: list[MetricType]) -> MetricType:
+def metrics_from_list(metrics: List[MetricType]) -> MetricType:
     return pl.concat(metrics, how="diagonal")
 
 def value_from_metrics(metrics: MetricType, 
@@ -86,8 +111,9 @@ def value_from_metrics(metrics: MetricType,
         return None
 
 def main(
-        scenario_infos: List[ScenarioInfo],
-        annual_metrics: List[Tuple[str, str]] = [
+        scenario_infos: Union[ScenarioInfo, List[ScenarioInfo]],
+        annual_metrics: Union[Tuple[str, str],
+                              List[Tuple[str, str]]] = [
             ('Mt-km', 'million tonne-km'),
             ('GHG', 'tonne CO2-eq'),
             ('Count_Locomotives', 'assets'),
@@ -107,12 +133,19 @@ def main(
     ----------
     values: DataFrame of output and intermediate metrics (metric name, units, value, and scenario year)
     """
+    if not isinstance(scenario_infos, list):
+        scenario_infos = [scenario_infos]
+    
+    if not isinstance(annual_metrics, list):
+        annual_metrics = [annual_metrics]
+
     annual_values = []
-    for metric in annual_metrics:
-        for info in scenario_infos:
-            annual_values.append(calculate_annual_metric(metric[0], metric[1], info))
+    for annual_metric in annual_metrics:
+        for scenario_info in scenario_infos:
+            annual_values.append(calculate_annual_metric(annual_metric[0], annual_metric[1], scenario_info))
 
     values = pl.concat(annual_values, how="diagonal_relaxed").unique()
+    
     if calculate_multiyear_metrics: 
         values = calculate_rollout_investments(values)
         values = calculate_rollout_total_costs(values)

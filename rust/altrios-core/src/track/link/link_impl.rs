@@ -378,7 +378,7 @@ impl ObjState for [Link] {
             return Err(errors);
         }
         validate_slice_fake(&mut errors, &self[..1], "Link");
-        validate_slice_real_shift(&mut errors, &self[1..], "Link", 1);
+        validate_slice_real_shift(&mut errors, &self[1..], "Link", 0);
         early_err!(errors, "Links");
 
         for (idx, link) in self.iter().enumerate().skip(1) {

@@ -349,6 +349,7 @@ impl SpeedLimitTrainSim {
         let mut idx_prev = 0;
         while idx_prev != timed_path.len() - 1 {
             let mut idx_next = idx_prev + 1;
+            log::debug!("Solving idx: {}", idx_next);
             while idx_next + 1 < timed_path.len() - 1 && timed_path[idx_next].time < self.state.time
             {
                 idx_next += 1;

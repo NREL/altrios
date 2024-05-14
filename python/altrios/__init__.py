@@ -21,6 +21,13 @@ logging.basicConfig(
 )
 utils.enable_logging()
 
+# Set up logging
+logging.basicConfig(
+    format="%(asctime)s.%(msecs)03d | %(filename)s:%(lineno)s | %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
 def __array__(self):
     return np.array(self.tolist())
 

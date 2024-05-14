@@ -142,20 +142,13 @@ def simulate_prescribed_rollout(
         
         t2 = time.perf_counter()
 
-    metrics = metric_calculator.main(scenarios)
-
+    metrics_file = None
     if write_metrics:
-        print
-        (results_folder /
-            'Metrics_Demand {}_DemandFile {}.xlsx'.format(
+        metrics_file = results_folder / 'Metrics_Demand {}_DemandFile {}.xlsx'.format(
                 scenario_year, os.path.basename(demand_file_path)
             ).replace('.csv','')
-        )
-        metrics.to_pandas().to_excel(
-            results_folder / 'Metrics_Demand {}_DemandFile {}.xlsx'.format(
-                scenario_year, os.path.basename(demand_file_path)).replace('.csv','')
-        )
-    
+    metrics = metric_calculator.main(scenarios, metrics_out_file = metrics_file)
+
     t3 = time.perf_counter()
     if DEBUG:
         print(f"Elapsed time to run `metric_calculator.main()` and serialize metrics: {t3-t2:.3g} s")

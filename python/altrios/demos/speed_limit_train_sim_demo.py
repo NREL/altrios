@@ -6,6 +6,8 @@ import pandas as pd
 import seaborn as sns
 
 import altrios as alt
+from altrios import metric_calculator, defaults
+
 sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()
@@ -96,6 +98,20 @@ train_sim.walk_timed_path(
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 assert len(train_sim.history) > 1
+
+scenario_info = metric_calculator.ScenarioInfo(
+    sims = train_sim,
+    simulation_days = 1,
+    scenario_year = defaults.BASE_ANALYSIS_YEAR
+metrics = metric_calculator.main(
+    scenario_info,
+    annual_metrics = [
+        ('Mt-km', 'million tonne-km'),
+        ('GHG', 'tonne CO2-eq')
+    ],
+    calculate_multiyear_metrics = False
+)
+print(metrics)
 
 loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 

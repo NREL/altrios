@@ -84,10 +84,24 @@ def value_from_metrics(metrics: MetricType,
         return math.nan
 
 def main(
+<<<<<<< Updated upstream
         scenario_infos: List[ScenarioInfo],
         annual_metrics: dict = {
             'Metric': ['Mt-km', 'GHG', 'Count_Locomotives', 'Count_Refuelers', 'Energy_Costs'],
             'Units': ['million tonne-km', 'tonne CO2-eq', 'assets', 'assets', 'USD']}
+=======
+        scenario_infos: Union[ScenarioInfo, List[ScenarioInfo]],
+        annual_metrics: Union[Tuple[str, str],
+                              List[Tuple[str, str]]] = [
+            ('Mt-km', 'million tonne-km'),
+            ('GHG', 'tonne CO2-eq'),
+            ('Count_Locomotives', 'assets'),
+            ('Count_Refuelers', 'assets'),
+            ('Energy_Costs', 'USD')
+        ],
+        calculate_multiyear_metrics: bool = True,
+        metrics_out_file: str = None
+>>>>>>> Stashed changes
 ) -> pl.DataFrame:
     """
     Given a set of simulation results and the associated consist plans, computes economic and environmental metrics.
@@ -107,11 +121,21 @@ def main(
                 .with_columns(pl.lit(info.year).alias("Year")))
             values = pl.concat([values, annual_value], how="diagonal")
 
+<<<<<<< Updated upstream
     values = values.unique()
     values = calculate_rollout_investments(values)
     values = calculate_rollout_total_costs(values)
     values = calculate_rollout_lcotkm(values)
     values = values.sort(["Year","Subset"], descending = [False, True])
+=======
+    if metrics_out_file is not None:
+        if ".csv" in metrics_out_file.lower():
+            values.write_csv(metrics_out_file)
+        elif ".xlsx" in metrics_out_file.lower():
+            values.write_excel(metrics_out_file)
+        else:
+            print("Requested filename for metrics file must end in .csv or .xlsx.")
+>>>>>>> Stashed changes
     return values
 
 

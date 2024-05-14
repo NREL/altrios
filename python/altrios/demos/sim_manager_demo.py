@@ -1,6 +1,6 @@
 # %%
 from altrios import sim_manager
-from altrios import utilities, defaults, train_planner
+from altrios import utilities, defaults, train_planner, metric_calculator
 import altrios as alt
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,9 +13,9 @@ sns.set_theme()
 SHOW_PLOTS = alt.utils.show_plots()
 # %
 
-plot_dir = Path() / "plots"
+results_dir = Path() / "plots"
 # make the dir if it doesn't exist
-plot_dir.mkdir(exist_ok=True)
+results_dir.mkdir(exist_ok=True)
 
 
 # %%
@@ -34,7 +34,16 @@ print(
 
 train_planner_config = train_planner.TrainPlannerConfig(
             cars_per_locomotive=50,
-            target_cars_per_train=90)
+            target_cars_per_train=90
+)
+grid_emissions_factors = metric_calculator.import_emissions_factors_cambium(
+    location_map = location_map,
+    scenario_year = defaults.BASE_ANALYSIS_YEAR
+)
+nodal_energy_prices = metric_calculator.import_energy_prices_eia(
+    location_map = location_map,
+    scenario_year = defaults.BASE_ANALYSIS_YEAR
+)
 
 t0_main = time.perf_counter()
 
@@ -51,6 +60,8 @@ t0_main = time.perf_counter()
     rail_vehicle_map=rail_vehicle_map,
     location_map=location_map,
     train_planner_config=train_planner_config,
+    grid_emissions_factors = grid_emissions_factors,
+    nodal_energy_prices = nodal_energy_prices,
     debug=True,
 )
 
@@ -70,6 +81,21 @@ speed_limit_train_sims.set_save_interval(100)
 )
 t1_train_sims = time.perf_counter()
 print(f"Elapsed time to run train sims: {t1_train_sims-t0_train_sims:.3g} s")
+
+scenario_info = metric_calculator.ScenarioInfo(
+            sims = sims, 
+            sim_days = defaults.SIMULATION_DAYS,
+            scenario_year = defaults.BASE_ANALYSIS_YEAR, 
+            loco_pool = loco_pool,
+            train_consist_plan = train_consist_plan, 
+            refuel_facilities = refuel_facilities,
+            refuel_sessions = refuel_sessions, 
+            grid_emissions_factors = grid_emissions_factors,
+            nodal_energy_prices = nodal_energy_prices)
+
+metrics_file = results_dir / 'Metrics.xlsx'
+metrics = metric_calculator.main(scenario_info, metrics_out_file = metrics_file)
+print(metrics)
 
 # %%
 t0_summary_sims = time.perf_counter()
@@ -176,5 +202,5 @@ if SHOW_PLOTS:
         ax[-1].set_ylabel("Speed [m/s]")
 
         plt.tight_layout()
-        plt.savefig(plot_dir / f"sim num {idx}.png")
-        plt.savefig(plot_dir / f"sim num {idx}.svg")
+        plt.savefig(results_dir / f"sim num {idx}.png")
+        plt.savefig(results_dir / f"sim num {idx}.svg")

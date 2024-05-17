@@ -51,7 +51,7 @@ use crate::pyo3::*;
         Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
     }
 )]
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods, SerdeAPI)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
 /// Struct for modeling electric drivetrain.  This includes power electronics, motor, axle ...
 /// everything involved in converting high voltage electrical power to force exerted by the wheel on the track.  
 pub struct ElectricDrivetrain {
@@ -233,6 +233,13 @@ impl ElectricDrivetrain {
 //     env!("CARGO_MANIFEST_DIR"),
 //     "/src/consist/locomotive/powertrain/electric_drivetrain.default.yaml"
 // ));
+
+impl SerdeAPI for ElectricDrivetrain {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.state.init()?;
+        Ok(())
+    }
+}
 
 impl Default for ElectricDrivetrain {
     fn default() -> Self {

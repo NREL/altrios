@@ -5,7 +5,7 @@ use super::powertrain::ElectricMachine;
 use super::LocoTrait;
 use crate::imports::*;
 
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
+#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods)]
 #[altrios_api(
     #[new]
     pub fn __new__(
@@ -80,6 +80,15 @@ impl ConventionalLoco {
             engine_on,
             assert_limits,
         )?;
+        Ok(())
+    }
+}
+
+impl SerdeAPI for ConventionalLoco {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.fc.init()?;
+        self.gen.init()?;
+        self.edrv.init()?;
         Ok(())
     }
 }

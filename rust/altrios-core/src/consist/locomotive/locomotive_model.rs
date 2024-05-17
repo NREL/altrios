@@ -1,11 +1,23 @@
 use super::*;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum PowertrainType {
     ConventionalLoco(ConventionalLoco),
     HybridLoco(Box<HybridLoco>),
     BatteryElectricLoco(BatteryElectricLoco),
     DummyLoco(DummyLoco),
+}
+
+impl SerdeAPI for PowertrainType {
+    fn init(&mut self) -> anyhow::Result<()> {
+        match self {
+            Self::ConventionalLoco(l) => l.init()?,
+            Self::HybridLoco(l) => l.init()?,
+            Self::BatteryElectricLoco(l) => l.init()?,
+            Self::DummyLoco(_) => {}
+        };
+        Ok(())
+    }
 }
 
 impl LocoTrait for PowertrainType {
@@ -559,6 +571,7 @@ impl Default for Locomotive {
 impl SerdeAPI for Locomotive {
     fn init(&mut self) -> anyhow::Result<()> {
         self.check_mass_consistent()?;
+        self.loco_type.init()?;
         Ok(())
     }
 }

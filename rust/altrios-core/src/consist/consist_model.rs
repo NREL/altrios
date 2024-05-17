@@ -124,6 +124,10 @@ impl SerdeAPI for Consist {
     fn init(&mut self) -> anyhow::Result<()> {
         self.check_mass_consistent()?;
         self.set_pwr_dyn_brake_max();
+        self.loco_vec.init()?;
+        self.pdct.init()?;
+        self.state.init()?;
+        self.history.init()?;
         Ok(())
     }
 }

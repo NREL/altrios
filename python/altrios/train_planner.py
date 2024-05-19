@@ -93,7 +93,7 @@ class TrainPlannerConfig:
         self.refueler_info = refueler_info
 
 def demand_loader(
-    user_input_file: Union[Path, str]
+    demand_file: Union[pl.DataFrame, Path, str]
 ) -> Tuple[pl.DataFrame, pl.Series, int]:
     """
     Load the user input csv file into a dataframe for later processing
@@ -112,7 +112,8 @@ def demand_loader(
     origin, destination, train type, number of cars
     node_list: List of origin or destination demand nodes
     """
-    demand = pl.read_csv(user_input_file, dtypes = {"Number_of_Cars": pl.Float64})
+    if type(demand_file) is not pl.DataFrame:
+        demand = pl.read_csv(demand_file, dtypes = {"Number_of_Cars": pl.Float64})
 
     nodes = pl.concat(
         [demand.get_column("Origin"),
@@ -137,15 +138,16 @@ def generate_return_demand(
     of returning the empty cars to their original nodes
     """
     return (demand
+        .rename({"Origin": "Destination",
+                 "Destination": "Origin"})
+        .drop("Number_Of_Containers")
         .with_columns(
-            pl.col("Origin").alias("Destination"),
-            pl.col("Destination").alias("Origin"),
             pl.concat_str([pl.col("Train_Type"),pl.lit("_Empty")]).alias("Train_Type"),
             pl.when(pl.col("Train_Type") == pl.lit("Manifest"))
                 .then((pl.col("Number_of_Cars") * config.manifest_empty_return_ratio).floor())
                 .otherwise(pl.col("Number_of_Cars"))
-                .alias("Number_of_Cars"))            
-        .drop("Number_of_Containers"))
+                .alias("Number_of_Cars"))
+    )
 
 def generate_origin_manifest_demand(
     demand: pl.DataFrame,
@@ -329,10 +331,7 @@ def generate_demand_trains(
             how="left",
             suffix="_Default")
         # Fill in defaults per train type wherever the user didn't specify OD-specific hp_per_ton
-        .with_columns(pl.when(pl.col("HP_Required_Per_Ton").is_not_null())
-                    .then(pl.col("HP_Required_Per_Ton"))
-                    .otherwise(pl.col("HP_Required_Per_Ton_Default"))
-                    .alias("HP_Required_Per_Ton"))
+        .with_columns(pl.col("HP_Required_Per_Ton").fill_null(pl.col("HP_Required_Per_Ton_Default")))
         .drop("HP_Required_Per_Ton_Default")
     )
 
@@ -424,7 +423,7 @@ def calculate_dispatch_times(
 
 def build_locopool(
     config: TrainPlannerConfig,
-    demand_file: str,
+    demand_file: Union[pl.DataFrame, Path, str],
     method: str = "tile",
     shares: List[float] = [],
 ) -> pl.DataFrame:
@@ -587,8 +586,8 @@ def append_charging_guidelines(
     network_charging_guidelines = (network_charging_guidelines
         .join(active_ods, on=["Origin","Destination"], how="inner")
         .groupby(pl.col("Origin"))
-        .agg(pl.col("Allowable Battery Headroom (MWh)").min() * 1e6 / utilities.MWH_PER_MJ)
-        .rename({"Allowable Battery Headroom (MWh)": "Battery_Headroom_J"})
+        .agg(pl.col("Allowable_Battery_Headroom_MWh").min() * 1e6 / utilities.MWH_PER_MJ)
+        .rename({"Allowable_Battery_Headroom_MWh": "Battery_Headroom_J"})
         .with_columns(pl.col("Origin").cast(pl.Categorical)))
     refuelers = (refuelers
         .join(network_charging_guidelines, left_on="Node", right_on="Origin", how="left")
@@ -868,7 +867,7 @@ def run_train_planner(
     scenario_year: int,
     train_type: alt.TrainType = alt.TrainType.Freight, 
     config: TrainPlannerConfig = TrainPlannerConfig(),
-    demand_file_path=defaults.DEMAND_FILE,
+    demand_file: Union[pl.DataFrame, Path, str] = defaults.DEMAND_FILE,
     network_charging_guidelines: pl.DataFrame = None,
 ) -> Tuple[
     pl.DataFrame, 
@@ -888,13 +887,13 @@ def run_train_planner(
     refuelers:
     simulation_days:
     config: Object storing train planner configuration paramaters
-    demand_file_path: 
+    demand_file: 
     Outputs:
     ----------
     """
 
     config.loco_info = append_loco_info(config.loco_info)
-    demand, node_list = demand_loader(demand_file_path)
+    demand, node_list = demand_loader(demand_file)
     if refuelers is None: 
         refuelers = build_refuelers(
             node_list, 

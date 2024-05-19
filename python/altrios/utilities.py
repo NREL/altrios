@@ -56,6 +56,7 @@ LITER_PER_M3 = 1.0e3
 G_PER_TONNE = 1.0e6
 GALLONS_PER_LITER = 1.0 / 3.79
 KWH_PER_MJ = 0.277778 # https://www.eia.gov/energyexplained/units-and-calculators/energy-conversion-calculators.php
+MWH_PER_J = 2.77778e-10
 MWH_PER_MJ = KWH_PER_MJ / 1.0e3
 
 def print_dt():

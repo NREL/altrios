@@ -64,7 +64,15 @@ pub struct HybridLoco {
     i: usize,
 }
 
-impl SerdeAPI for HybridLoco {}
+impl SerdeAPI for HybridLoco {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.fc.init()?;
+        self.gen.init()?;
+        self.res.init()?;
+        self.edrv.init()?;
+        Ok(())
+    }
+}
 
 impl Default for HybridLoco {
     fn default() -> Self {

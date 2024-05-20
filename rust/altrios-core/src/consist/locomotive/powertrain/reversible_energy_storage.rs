@@ -230,6 +230,7 @@ impl Mass for ReversibleEnergyStorage {
 impl SerdeAPI for ReversibleEnergyStorage {
     fn init(&mut self) -> anyhow::Result<()> {
         self.check_mass_consistent()?;
+        self.state.init()?;
         Ok(())
     }
 }

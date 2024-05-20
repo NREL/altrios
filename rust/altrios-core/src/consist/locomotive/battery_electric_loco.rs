@@ -4,7 +4,7 @@ use super::powertrain::ElectricMachine;
 use super::LocoTrait;
 use crate::imports::*;
 
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
+#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods)]
 #[altrios_api(
     #[new]
     fn __new__(
@@ -60,6 +60,14 @@ impl BatteryElectricLoco {
                 dt,
             )?;
         }
+        Ok(())
+    }
+}
+
+impl SerdeAPI for BatteryElectricLoco {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.res.init()?;
+        self.edrv.init()?;
         Ok(())
     }
 }

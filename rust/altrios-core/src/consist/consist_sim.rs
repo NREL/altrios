@@ -6,7 +6,7 @@ use crate::consist::Consist;
 use crate::consist::LocoTrait;
 use crate::imports::*;
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, SerdeAPI)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[altrios_api(
     #[new]
     fn __new__(consist: Consist, power_trace: PowerTrace, save_interval: Option<usize>) -> Self {
@@ -114,6 +114,14 @@ impl ConsistSimulation {
     ) -> anyhow::Result<()> {
         self.loco_con
             .solve_energy_consumption(pwr_out_req, dt, Some(true))?;
+        Ok(())
+    }
+}
+
+impl SerdeAPI for ConsistSimulation {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.loco_con.init()?;
+        self.power_trace.init()?;
         Ok(())
     }
 }

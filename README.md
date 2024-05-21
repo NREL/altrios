@@ -22,7 +22,7 @@ If you are an ALTRIOS developer, see [Developer Documentation](https://nrel.gith
    - Option 2 -- Anaconda: we recommend https://docs.conda.io/en/latest/miniconda.html.
 1. Setup a python environment. ALTRIOS can work with Python 3.9, or 3.10, but we recommend 3.10 for better performance and user experience. Create a python environment for ALTRIOS with either of two methods:
    - Option 1 -- [Python Venv](https://docs.python.org/3/library/venv.html)
-     1. Navigate to the ALTRIOS folder you just cloned or any folder you'd like for using ALTRIOS. Remember the folder you use!
+     1. Navigate to your project folder in which you'd like to store model data and run ALTRIOS.
      1. Assuming you have Python 3.10 installed, run `python3.10 -m venv altrios-venv` in your terminal enviroment (we recommend PowerShell in Windows, which comes pre-installed). This tells Python 3.10 to use the `venv` module to create a virtual environment (which will be ignored by git if named `altrios-venv`) in the `ALTRIOS/altrios-venv/`.
      1. Activate the environment you just created to install packages or anytime you're running ALTRIOS:
         - Mac and Linux: `source altrios-venv/bin/activate`

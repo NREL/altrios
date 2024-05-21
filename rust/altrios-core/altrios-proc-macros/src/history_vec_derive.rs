@@ -21,6 +21,23 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
         .map(|f| {
             let ident = f.ident.as_ref().unwrap();
             let ty = &f.ty;
+            let doc_attrs = &f
+                .attrs
+                .iter()
+                .filter(|attr| {
+                    if attr.path.is_ident("doc") {
+                        attr.parse_meta().is_ok_and(|meta| {
+                            if let syn::Meta::NameValue(_) = meta {
+                                true
+                            } else {
+                                false
+                            }
+                        })
+                    } else {
+                        false
+                    }
+                })
+                .collect::<Vec<&syn::Attribute>>();
             quote! {
                 pub #ident: Vec<#ty>,
             }

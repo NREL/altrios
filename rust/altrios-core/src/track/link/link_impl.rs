@@ -15,7 +15,7 @@ struct OldSpeedSets(Vec<OldSpeedSet>);
 pub struct Link {
     /// Index of current link
     pub idx_curr: LinkIdx,
-    /// Index of adjacent link in reverse direction
+    /// Index of current link in reverse direction
     pub idx_flip: LinkIdx,
     /// see [EstTime::idx_next]
     pub idx_next: LinkIdx,

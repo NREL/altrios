@@ -15,7 +15,7 @@ struct OldSpeedSets(Vec<OldSpeedSet>);
 pub struct Link {
     /// Index of current link
     pub idx_curr: LinkIdx,
-    /// Index of adjacent link in reverse direction
+    /// Index of current link in reverse direction
     pub idx_flip: LinkIdx,
     /// see [EstTime::idx_next]
     pub idx_next: LinkIdx,
@@ -378,7 +378,7 @@ impl ObjState for [Link] {
             return Err(errors);
         }
         validate_slice_fake(&mut errors, &self[..1], "Link");
-        validate_slice_real_shift(&mut errors, &self[1..], "Link", 1);
+        validate_slice_real_shift(&mut errors, &self[1..], "Link", 0);
         early_err!(errors, "Links");
 
         for (idx, link) in self.iter().enumerate().skip(1) {

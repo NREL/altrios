@@ -97,6 +97,7 @@ impl Default for FuelConverter {
 impl SerdeAPI for FuelConverter {
     fn init(&mut self) -> anyhow::Result<()> {
         self.check_mass_consistent()?;
+        self.state.init()?;
         Ok(())
     }
 }

@@ -5,7 +5,8 @@
 //! Crate containing models for second-by-second fuel and energy consumption of simulation
 //! of locomotive consists comprising collections of individual locomotives, which comprise
 //! various powertrain components (engine, generator/alternator, battery, and electric drivetrain)
-//! -- all connected to a detailed train model.  
+//! -- all connected to a detailed train model including drag, grade, curvature, bearing, and
+//! rolling resistances.  
 //!
 //! # Helpful Tips
 //! Every struct in this crate implements methods for serializing/deserializing itself to/from a

@@ -130,7 +130,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
         self.walk_timed_path(&network, timed_path)
     }
 )]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 /// Train simulation in which speed is allowed to vary according to train capabilities and speed
 /// limit
 pub struct SpeedLimitTrainSim {
@@ -347,6 +347,7 @@ impl SpeedLimitTrainSim {
         let mut idx_prev = 0;
         while idx_prev != timed_path.len() - 1 {
             let mut idx_next = idx_prev + 1;
+            log::debug!("Solving idx: {}", idx_next);
             while idx_next + 1 < timed_path.len() - 1 && timed_path[idx_next].time < self.state.time
             {
                 idx_next += 1;
@@ -579,6 +580,21 @@ impl SpeedLimitTrainSim {
             &self.train_res,
             &self.path_tpc,
         )
+    }
+}
+
+impl SerdeAPI for SpeedLimitTrainSim {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.origs.init()?;
+        self.dests.init()?;
+        self.loco_con.init()?;
+        self.state.init()?;
+        self.train_res.init()?;
+        self.path_tpc.init()?;
+        self.braking_points.init()?;
+        self.fric_brake.init()?;
+        self.history.init()?;
+        Ok(())
     }
 }
 

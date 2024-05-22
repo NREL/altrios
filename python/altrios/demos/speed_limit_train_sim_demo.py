@@ -88,6 +88,9 @@ timed_link_path = alt.run_dispatch(
     False,
 )[0]
 
+# uncomment this line to see example of logging functionality
+# alt.utils.set_log_level("DEBUG")
+
 t0 = time.perf_counter()
 train_sim.walk_timed_path(
     network=network,

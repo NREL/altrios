@@ -255,7 +255,7 @@ pub struct SpeedTraceElement {
         Ok(())
     }
 )]
-#[derive(Clone, Debug, Serialize, Deserialize, SerdeAPI)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Train simulation in which speed is prescribed
 pub struct SetSpeedTrainSim {
     pub loco_con: Consist,
@@ -398,6 +398,18 @@ impl SetSpeedTrainSim {
         } else {
             self.state.energy_whl_out_neg -= self.state.pwr_whl_out * dt;
         }
+    }
+}
+
+impl SerdeAPI for SetSpeedTrainSim {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.loco_con.init()?;
+        self.speed_trace.init()?;
+        self.train_res.init()?;
+        self.path_tpc.init()?;
+        self.state.init()?;
+        self.history.init()?;
+        Ok(())
     }
 }
 

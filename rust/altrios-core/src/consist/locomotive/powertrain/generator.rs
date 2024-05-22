@@ -108,6 +108,7 @@ pub struct Generator {
 impl SerdeAPI for Generator {
     fn init(&mut self) -> anyhow::Result<()> {
         self.check_mass_consistent()?;
+        self.state.init()?;
         Ok(())
     }
 }

@@ -73,7 +73,7 @@ def main(
             shares=[1-target_bel_share, target_bel_share],
             demand_file=demand_file
             )
-
+    print(rail_vehicle_map)
     t0_ptc = time.perf_counter()
     (
         train_consist_plan, 
@@ -137,15 +137,14 @@ def main(
          'Arrival_Time_Actual_Hr': pl.Series([this[len(this)-1].time_hours for this in timed_paths], dtype=pl.Float64)}
     )
 
-    train_consist_plan = train_consist_plan.join(train_times,on=["Train_ID","Origin_ID","Destination_ID"],how="left")
-
-    train_consist_plan = train_consist_plan.filter(
-        (pl.col("Departure_Time_Actual_Hr") >= pl.lit(24*alt.defaults.WARM_START_DAYS)) & 
-        (pl.col("Departure_Time_Actual_Hr") < pl.lit(24*(simulation_days+alt.defaults.WARM_START_DAYS)))
+    train_consist_plan = (train_consist_plan
+        .join(train_times,on=["Train_ID","Origin_ID","Destination_ID"],how="left")
+        .filter(
+            pl.col("Departure_Time_Actual_Hr") >= pl.lit(24*warm_start_days),
+            pl.col("Departure_Time_Actual_Hr") < pl.lit(24*(simulation_days+warm_start_days))
+        )
+        .with_columns((pl.col("Train_ID").rank("dense")-1).alias("TrainSimVec_Index"))
     )
-
-    train_consist_plan = train_consist_plan.with_columns((pl.col("Train_ID").rank("dense")-1).alias("TrainSimVec_Index"))
-
      #speed_limit_train_sims is 0-indexed but Train_ID starts at 1
     to_keep = train_consist_plan.unique(subset=['Train_ID']).to_series().sort()
     for sim in speed_limit_train_sims: 

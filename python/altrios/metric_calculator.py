@@ -280,7 +280,7 @@ def calculate_energy_cost(info: ScenarioInfo,
                       pl.lit("USD").alias("Units"))
         .select(metric_columns))
     electricity_costs_agg = (electricity_costs_disagg
-        .groupby(["Metric","Units","Year"])
+        .group_by(["Metric","Units","Year"])
         .agg(pl.col("Value").sum())
         .with_columns(pl.lit("All").alias("Subset")))
     electricity_cost_value = 0
@@ -356,7 +356,7 @@ def calculate_electricity_use(
    else:
         disagg_energy = (info.refuel_sessions
             .filter(pl.col("Locomotive_Type")==pl.lit("BEL"))
-            .groupby(["Node"])
+            .group_by(["Node"])
                 .agg((pl.col('Refuel_Energy_J') * pl.lit(info.simulation_days)).sum())
             .with_columns(
                 pl.col("Refuel_Energy_J").mul(conversion_from_joule).alias(units),
@@ -372,7 +372,7 @@ def calculate_electricity_use(
         )
 
         agg_energy = (disagg_energy
-                        .groupby(["Metric","Units","Year"])
+                        .group_by(["Metric","Units","Year"])
                         .agg(pl.col("Value").sum())
                         .with_columns(
                             pl.lit("All").alias("Subset"))
@@ -431,7 +431,7 @@ def calculate_ghg(
     
     electricity_ghg_val = None
     energy_ghg_val = 0.0
-    if (electricity_MWh.height > 0) & (electricity_MWh.select(pl.col("Value").sum())[0,0] > 0):
+    if (electricity_MWh.height > 0) & (electricity_MWh.select(pl.col("Value").sum()).item() > 0):
         if info.emissions_factors is None: 
             energy_ghg_val = None
             print("No electricity emissions factors provided, so GHGs from electricity were not calculated.")
@@ -490,7 +490,7 @@ def calculate_locomotive_counts(
             return metric("Count_Locomotives", "assets", None)
 
         out = (df
-                .groupby(["Locomotive_Type"])
+                .group_by(["Locomotive_Type"])
                 .agg((pl.col("Locomotive_ID").n_unique()).alias("Count_Locomotives"),
                      pl.col("Cost_USD").mean().alias("Unit_Cost"),
                      pl.col("Lifespan_Years").mean().alias("Lifespan"))
@@ -513,7 +513,7 @@ def calculate_locomotive_counts(
         )
         out_agg = (out
                     .filter(pl.col("Metric") == ("Count_Locomotives"))
-                    .groupby(["Metric","Units","Year"])
+                    .group_by(["Metric","Units","Year"])
                     .agg(pl.col("Value").sum())
                     .with_columns(pl.lit("All").alias("Subset"))
         )        
@@ -548,7 +548,7 @@ def calculate_refueler_counts(
         return metric("Count_Refuelers", "assets", None)
         
     num_ports = (info.refuel_facilities
-                 .groupby(["Refueler_Type"])
+                 .group_by(["Refueler_Type"])
                  .agg(
                     pl.col("Cost_USD").mean().alias("Unit_Cost"),
                     pl.col("Port_Count").sum().alias("Count_Refuelers"),
@@ -669,7 +669,7 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
 
     scheduled_retirements_year_zero = (age_tracker
         .filter(pl.col("Scheduled_Final_Year") == years.min() - 1)
-        .groupby(item_id_cols)
+        .group_by(item_id_cols)
         .agg(pl.col("Count").sum().alias("Value"))
         .with_columns(pl.lit("Retirements_Scheduled").alias("Metric"),
                         pl.lit("assets").alias("Units"),
@@ -690,7 +690,7 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
     for year in years: 
         #If year 1, this includes incumbents only (prior-year retirements already removed)
         #So, we should do the same for subsequent years
-        counts_prior_year_end = age_tracker.groupby(item_id_cols).agg(pl.col("Count").sum())
+        counts_prior_year_end = age_tracker.group_by(item_id_cols).agg(pl.col("Count").sum())
         counts_current_year_start = counts.filter(pl.col("Year") == year).drop("Year")
         changes = (item_list
             .join(counts_prior_year_end, on=item_id_cols, how="left")
@@ -733,7 +733,7 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
 
         early_retirements = (age_tracker
             .filter((pl.col("Retirements_Early") > 0) & (pl.col("Scheduled_Final_Year") >= year))
-            .groupby(item_id_cols)
+            .group_by(item_id_cols)
             .agg(pl.col("Retirements_Early").sum().alias("Value"))
             .with_columns(pl.lit(retirement_label).alias("Metric"),
                           pl.lit("assets").alias("Units"),
@@ -742,7 +742,7 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
         
         scheduled_retirements = (age_tracker
             .filter((pl.col("Scheduled_Final_Year") == year) & (pl.col("Count") > 0))
-            .groupby(item_id_cols)
+            .group_by(item_id_cols)
             .agg(pl.col("Count").sum().alias("Value"))
             .with_columns(pl.lit("Retirements_Scheduled").alias("Metric"),
                           pl.lit("assets").alias("Units"),
@@ -759,7 +759,7 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
                     .then(pl.col("Retirements_Early") * -1.0 * (1.0 - pl.col("Age")*1.0 / pl.col("Lifespan")*1.0) * pl.col("Unit_Cost") * pl.lit(recovery_share))
                     .otherwise(0.0)
                     .alias("Value"))
-            .groupby("Metric","Units","Year","Subset")
+            .group_by("Metric","Units","Year","Subset")
             .agg(pl.col("Value").sum())
             .select(metric_columns))                     
         purchases = (purchases
@@ -798,7 +798,7 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
 
     total_costs = (values
         .filter(pl.col("Metric").is_in(["Cost_Retired_Assets","Cost_Purchases"]))
-        .groupby(["Metric","Units","Year"])
+        .group_by(["Metric","Units","Year"])
         .agg(pl.col("Value").sum())
         .with_columns(pl.lit("All").alias("Subset"))
     )
@@ -818,7 +818,7 @@ def calculate_rollout_total_costs(values: MetricType) -> MetricType:
     total_costs = (values
         .filter((pl.col("Metric").is_in(["Cost_Energy", "Cost_Purchases","Cost_Retired_Assets"])) &
                 (pl.col("Subset") == "All"))
-        .groupby(pl.col("Units","Subset","Year"))
+        .group_by(pl.col("Units","Subset","Year"))
         .agg(pl.col("Value").sum())
         .with_columns(pl.lit("Cost_Total").alias("Metric")))
     

@@ -62,7 +62,8 @@ class ScenarioInfo:
     """
     sims: Union[alt.SpeedLimitTrainSim, alt.SpeedLimitTrainSimVec]
     simulation_days: int
-    scenario_year: int
+    annualize: bool
+    scenario_year: int = defaults.BASE_ANALYSIS_YEAR
     loco_pool: pl.DataFrame = None
     consist_plan: pl.DataFrame = None
     refuel_facilities: pl.DataFrame = None
@@ -312,10 +313,10 @@ def calculate_diesel_use(
     lhv_kj_per_kg = diesel_emissions_factors.get_column("LowHeatingValue")[0] * 1e3
     rho_fuel_g_per_gallon = diesel_emissions_factors.get_column("Density")[0]
     if units == 'gallons':
-        val = (info.sims.get_energy_fuel_joules(annualize=True) /
+        val = (info.sims.get_energy_fuel_joules(annualize=info.annualize) /
                1e3 / lhv_kj_per_kg) * 1e3 / rho_fuel_g_per_gallon
     elif units == 'MJ':
-        val = info.sims.get_energy_fuel_joules(annualize=True) / 1e6
+        val = info.sims.get_energy_fuel_joules(annualize=info.annualize) / 1e6
     else:
         print(f"Units of {units} not supported for fuel usage calculation.")
         val = None
@@ -352,7 +353,7 @@ def calculate_electricity_use(
         # No refueling session data: charging was not explicitly modeled, 
         # so take total net energy at RES and apply charging efficiency factor
         return metric("Electricity_Usage", units, 
-            info.sims.get_net_energy_res_joules(annualize=True) * conversion_from_joule / defaults.BEL_CHARGER_EFFICIENCY)
+            info.sims.get_net_energy_res_joules(annualize=info.annualize) * conversion_from_joule / defaults.BEL_CHARGER_EFFICIENCY)
    else:
         disagg_energy = (info.refuel_sessions
             .filter(pl.col("Locomotive_Type")==pl.lit("BEL"))
@@ -395,7 +396,7 @@ def calculate_freight(
     ----------
     DataFrame of gross million tonne-km of freight (metric name, units, value, and scenario year)
     """
-    return metric("Mt-km", units, info.sims.get_megagram_kilometers(annualize=True)/1.0e6)
+    return metric("Mt-km", units, info.sims.get_megagram_kilometers(annualize=info.annualize)/1.0e6)
 
 def calculate_ghg(
         info: ScenarioInfo,

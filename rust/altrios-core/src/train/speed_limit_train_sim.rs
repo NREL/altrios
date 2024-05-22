@@ -293,6 +293,11 @@ impl SpeedLimitTrainSim {
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
         self.solve_required_pwr()?;
+        log::debug!(
+            "{}\ntime step: {}",
+            format_dbg!(),
+            self.state.time.get::<si::second>().format_eng(None)
+        );
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
             self.state.dt,

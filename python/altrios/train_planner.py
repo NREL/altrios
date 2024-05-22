@@ -1030,7 +1030,7 @@ def run_train_planner(
                     init_train_state = alt.InitTrainState(
                         time_seconds=current_time * 3600
                     )
-
+                    print("1033")
                     tsb = alt.TrainSimBuilder(
                         train_id=train_id,
                         origin_id=this_train['Origin'],
@@ -1039,7 +1039,7 @@ def run_train_planner(
                         loco_con=loco_con,
                         init_train_state=init_train_state,
                     )
-
+                    print("1042")
                     slts = tsb.make_speed_limit_train_sim(
                         rail_vehicle_map[train_config.rail_vehicle_type], 
                         location_map, 
@@ -1047,6 +1047,7 @@ def run_train_planner(
                         simulation_days, 
                         scenario_year
                     )
+                    print("1050")
                     (est_time_net, loco_con_out) = alt.make_est_times(slts, network)
                     travel_time = (
                         est_time_net.get_running_time_hours()

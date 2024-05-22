@@ -57,7 +57,6 @@ def main(
     if debug:
         print("Entering `sim_manager` module.")
         alt.utils.print_dt()
-        print(demand_file)
 
     for loc_name in location_map:
         for loc in location_map[loc_name]:
@@ -73,7 +72,7 @@ def main(
             shares=[1-target_bel_share, target_bel_share],
             demand_file=demand_file
             )
-    print(rail_vehicle_map)
+        
     t0_ptc = time.perf_counter()
     (
         train_consist_plan, 

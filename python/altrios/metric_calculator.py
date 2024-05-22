@@ -155,7 +155,7 @@ def main(
     values = (values
         .filter(pl.col("Value").is_not_null())
         .unique()
-        .sort(["Year","Subset"], descending = [False, True])
+        .sort(["Metric","Units","Year","Subset"], descending = [False, False, False, True])
     )
 
     return values
@@ -442,7 +442,7 @@ def calculate_ghg(
                 but the emissions factor dataframe contains multiple regions. Subset emissions factors 
                 to the desired region before passing the emissions factor dataframe into the metrics calculator.""")
         else:
-            if electricity_MWh.filter(pl.col("Subset") != "All").len() > 0:
+            if electricity_MWh.filter(pl.col("Subset") != "All").height > 0:
                 # Disaggregated results are available
                 electricity_ghg_val = (electricity_MWh
                     .filter(pl.col("Subset") != pl.lit("All"))

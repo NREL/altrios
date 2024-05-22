@@ -28,6 +28,7 @@ def main(
     grid_emissions_factors: pl.DataFrame = None,
     nodal_energy_prices: pl.DataFrame = None,
     train_planner_config: planner.TrainPlannerConfig = planner.TrainPlannerConfig(),
+    train_type: alt.TrainType = alt.TrainType.Freight, 
     demand_file: Union[pl.DataFrame, Path, str] = str(defaults.DEMAND_FILE),
     network_charging_guidelines: pl.DataFrame = None
 ) -> Tuple[
@@ -90,6 +91,7 @@ def main(
         scenario_year = scenario_year,
         config = train_planner_config,
         demand_file = demand_file,
+        train_type = train_type,
         network_charging_guidelines = network_charging_guidelines,
     )
     t1_ptc = time.perf_counter()
@@ -138,10 +140,15 @@ def main(
 
     train_consist_plan = (train_consist_plan
         .join(train_times,on=["Train_ID","Origin_ID","Destination_ID"],how="left")
-        .filter(
-            pl.col("Departure_Time_Actual_Hr") >= pl.lit(24*warm_start_days),
-            pl.col("Departure_Time_Actual_Hr") < pl.lit(24*(simulation_days+warm_start_days))
+    )
+    if train_planner_config.single_train_mode is False:
+        train_consist_plan = (train_consist_plan
+            .filter(
+                pl.col("Departure_Time_Actual_Hr") >= pl.lit(24*warm_start_days),
+                pl.col("Departure_Time_Actual_Hr") < pl.lit(24*(simulation_days+warm_start_days))
+            )
         )
+    train_consist_plan = (train_consist_plan
         .with_columns((pl.col("Train_ID").rank("dense")-1).alias("TrainSimVec_Index"))
     )
      #speed_limit_train_sims is 0-indexed but Train_ID starts at 1

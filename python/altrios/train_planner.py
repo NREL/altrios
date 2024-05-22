@@ -448,14 +448,21 @@ def build_locopool(
     ----------
     loco_pool: Locomotive pool containing all locomotives' information that are within the system
     """
+    print("450")
     config.loco_info = append_loco_info(config.loco_info)
+    print("452")
     loco_types = list(config.loco_info.loc[:,'Locomotive_Type'])
     demand, node_list = demand_loader(demand_file)
     
     num_nodes = len(node_list)
     num_ods = demand.height
     cars_per_od = demand.get_column("Number_of_Cars").mean()
+    print("458")
+    print(demand)
     num_destinations_per_node = num_ods*1.0 / num_nodes*1.0
+    print(cars_per_od)
+    print(config.cars_per_locomotive)
+    print(num_destinations_per_node)
     initial_size = math.ceil((cars_per_od / config.cars_per_locomotive) *
                              num_destinations_per_node)  # number of locomotives per node
 
@@ -467,6 +474,7 @@ def build_locopool(
     if method == "tile":
         repetitions = math.ceil(rows/len(loco_types))
         types = np.tile(loco_types, repetitions).tolist()[0:rows]
+        print("473")
     elif method == "shares_twoway":
         if((len(loco_types) != 2) | (len(shares) != 2)):
             raise ValueError(
@@ -523,6 +531,7 @@ def build_locopool(
         schema_overrides={'Locomotive_Type': pl.Categorical}
     )
 
+    print("530")
     loco_pool = loco_pool.join(loco_info_pl, on="Locomotive_Type")
     return loco_pool
 
@@ -621,15 +630,18 @@ def append_loco_info(loco_info: pd.DataFrame) -> pd.DataFrame:
         'HP','Loco_Mass_Tons','SOC_J','SOC_Min_J','SOC_Max_J','Capacity_J'
         ]
     ): return loco_info
-    
+    print("633")
     get_hp = lambda loco: loco.pwr_rated_kilowatts * 1e3 / alt.utils.W_PER_HP
-    get_mass_ton = lambda loco: loco.mass_kg / alt.utils.KG_PER_TON
+    get_mass_ton = lambda loco: 0 if not loco.mass_kg else loco.mass_kg / alt.utils.KG_PER_TON
     get_starting_soc = lambda loco: defaults.DIESEL_TANK_CAPACITY_J if not loco.res else loco.res.state.soc * loco.res.energy_capacity_joules
     get_min_soc = lambda loco: 0 if not loco.res else loco.res.min_soc * loco.res.energy_capacity_joules
     get_max_soc = lambda loco: defaults.DIESEL_TANK_CAPACITY_J if not loco.res else loco.res.max_soc * loco.res.energy_capacity_joules
     get_capacity = lambda loco: defaults.DIESEL_TANK_CAPACITY_J if not loco.res else loco.res.energy_capacity_joules
     loco_info.loc[:,'HP'] = loco_info.loc[:,'Rust_Loco'].apply(get_hp) 
+    print("640")
+    print(alt.utils.KG_PER_TON)
     loco_info.loc[:,'Loco_Mass_Tons'] = loco_info.loc[:,'Rust_Loco'].apply(get_mass_ton) 
+    print("643")
     loco_info.loc[:,'SOC_J'] = loco_info.loc[:,'Rust_Loco'].apply(get_starting_soc) 
     loco_info.loc[:,'SOC_Min_J'] = loco_info.loc[:,'Rust_Loco'].apply(get_min_soc) 
     loco_info.loc[:,'SOC_Max_J'] = loco_info.loc[:,'Rust_Loco'].apply(get_max_soc) 
@@ -979,13 +991,18 @@ def run_train_planner(
                             this_train['HP_Required_Per_Ton']
                         )
                         dispatched = loco_pool.filter(selected)
+                    print("train 0config")
                     train_config = alt.TrainConfig(
                         cars_empty = int(this_train['Cars_Per_Train_Empty']),
                         cars_loaded = int(this_train['Cars_Per_Train_Loaded']),
                         rail_vehicle_type = this_train['Train_Type'],
                         train_type = train_type,
                     )
-                    
+                    print(f'Cars empty: {train_config.cars_empty}')
+                    print(f'Cars loaded: {train_config.cars_loaded}')
+                    print(f'Rail vehicle type type: {train_config.train_type}')
+                    print(f'Train type: {train_type}')
+
                     loco_start_soc_j = dispatched.get_column("SOC_J")
                     dispatch_order =  (dispatched.select(
                         pl.col('Locomotive_ID')
@@ -1011,7 +1028,7 @@ def run_train_planner(
                     )
 
                     init_train_state = alt.InitTrainState(
-                        time_seconds=current_time * 3600,
+                        time_seconds=current_time * 3600
                     )
 
                     tsb = alt.TrainSimBuilder(
@@ -1126,7 +1143,7 @@ def run_train_planner(
         
     train_consist_plan = train_consist_plan.with_columns(
         service_starts, service_ends
-    )
+    )                    
     
     return train_consist_plan, loco_pool, refuelers, speed_limit_train_sims, est_time_nets
 

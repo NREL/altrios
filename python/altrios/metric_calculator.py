@@ -369,7 +369,7 @@ def calculate_electricity_use(
                 variable_name="Units",
                 value_name="Value")
             .rename({"Node": "Subset"})
-            .with_columns(pl.lit(str(info.scenario_year)).alias("Year"))
+            .with_columns(pl.lit(info.scenario_year).alias("Year"))
         )
 
         agg_energy = (disagg_energy
@@ -443,6 +443,9 @@ def calculate_ghg(
                 to the desired region before passing the emissions factor dataframe into the metrics calculator.""")
         else:
             if electricity_MWh.filter(pl.col("Subset") != "All").height > 0:
+                print(diesel_MJ)
+                print(info.emissions_factors)
+                print(electricity_MWh)
                 # Disaggregated results are available
                 electricity_ghg_val = (electricity_MWh
                     .filter(pl.col("Subset") != pl.lit("All"))
@@ -829,6 +832,7 @@ def calculate_rollout_total_costs(values: MetricType) -> MetricType:
 def import_emissions_factors_cambium(
         location_map: Dict[str, List[alt.Location]],
         scenario_year: int,
+        cambium_scenario: str = "MidCase",
         file_path: Path = defaults.GRID_EMISSIONS_FILE) -> pl.DataFrame:
     
     location_ids = [loc.location_id for loc_list in location_map.values() for loc in loc_list]
@@ -839,13 +843,14 @@ def import_emissions_factors_cambium(
     }).unique()
 
     emissions_factors = (
-        pl.scan_csv(source = file_path, skip_rows = 5)
-            .filter(pl.col("gea").is_in(region_mappings.get_column("Region")))
-            .select(pl.col("gea").alias("Region"),
-                    pl.col("t").alias("Year"),
-                    (pl.col("lrmer_co2e_c") + pl.col("lrmer_co2e_p")).alias("CO2eq_kg_per_MWh"),
-                    ((pl.col("t") - pl.lit(scenario_year)).alias("Year_Diff")))
-            .join(region_mappings.lazy(), on="Region", how="inner")
+        pl.scan_csv(source = file_path, skip_rows = 5, dtypes={"t": pl.Int32})
+            .rename({"t": "Year", "gea": "Region"})
+            .filter(pl.col("scenario")==pl.lit(cambium_scenario))
+            .select(
+                pl.col("Region","Year"),
+                (pl.col("lrmer_co2e_c") + pl.col("lrmer_co2e_p")).alias("CO2eq_kg_per_MWh"),
+                ((pl.col("Year") - pl.lit(scenario_year)).alias("Year_Diff")))
+            .join(region_mappings.lazy(), how="inner", on="Region")
             .drop("Region")
             .collect()
     )

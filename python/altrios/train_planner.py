@@ -684,8 +684,13 @@ def dispatch(
                                 (pl.col("Status") == "Ready")).to_series()
     if not candidates.any():
         message = f"""No available locomotives at node {origin} at hour {dispatch_time}."""
-        waiting_counts = loco_pool.filter((pl.col("Status").is_in(["Servicing","Refuel_Queue"])) & (pl.col("Node") == origin)
-                                        ).group_by(['Locomotive_Type']).len()
+        waiting_counts = (loco_pool
+            .filter(
+                pl.col("Status").is_in(["Servicing","Refuel_Queue"]),
+                pl.col("Node") == origin
+            )
+            .group_by(['Locomotive_Type']).agg(pl.len())
+        )
         if waiting_counts.height == 0:
             message = message + f"""\nNo locomotives are currently located there. Instead, they are at:"""
             locations = loco_pool.group_by("Node").agg(pl.len())
@@ -708,17 +713,18 @@ def dispatch(
     diesel_candidates = loco_pool.select(pl.lit(candidates) & diesel_filter).to_series()
     if not diesel_candidates.any():
         refueling_diesel_count = loco_pool.filter(
-            (pl.col("Node") == origin) &
-            (pl.col("Status").is_in(["Servicing","Refuel_Queue"])) &
-            (pl.col("Fuel_Type").cast(pl.Utf8).str.contains("(?i)diesel"))
+            pl.col("Node") == origin,
+            pl.col("Status").is_in(["Servicing","Refuel_Queue"]),
+            pl.col("Fuel_Type").cast(pl.Utf8).str.contains("(?i)diesel")
         ).select(pl.len())[0, 0]
         message = f"""No available diesel locomotives at node {origin} at hour {dispatch_time}, so
                 the one-diesel-per-consist rule cannot be satisfied. {refueling_diesel_count} diesel locomotives at
                 {origin} are servicing, refueling, or queueing."""
         if refueling_diesel_count > 0:
             diesel_port_count = loco_pool.filter(
-                (pl.col("Node") == origin) & diesel_filter)
-            ).select(pl.col("Port_Count").min())[0, 0]
+                pl.col("Node") == origin,
+                diesel_filter
+            ).select(pl.col("Port_Count").min()).item()
             message += f""" (queue capacity {diesel_port_count})."""
         else:
             message += "."
@@ -743,7 +749,8 @@ def dispatch(
             Count of locomotives servicing, refueling, or queueing at {origin} are:"""
         # Hold the train until enough diesels are present (future development)
         waiting_counts = loco_pool.filter(
-            (pl.col("Node") == origin) & (pl.col("Status").is_in(["Servicing","Refuel_Queue"]))
+            pl.col("Node") == origin,
+            pl.col("Status").is_in(["Servicing","Refuel_Queue"])
         ).select("Locomotive_Type").group_by(['Locomotive_Type']).len()
         for row in waiting_counts.iter_rows(named = True):
             message = message + f"""
@@ -802,11 +809,13 @@ def update_refuel_queue(
                     .then((pl.col("SOC_Target_J")-pl.col("SOC_J"))/pl.col("Refueler_J_Per_Hr"))
                     .otherwise(pl.col("Refuel_Duration")).alias("Refuel_Duration"))
             .sort("Node", "Locomotive_Type", "Fuel_Type", "Arrival_Time", "Locomotive_ID", descending = False, nulls_last = True))
-        charger_type_breakouts = (loco_pool.filter(
-            (pl.col("Status") == "Refuel_Queue") &
-            ((pl.col("Refueling_Done_Time") >= current_time) 
-                | (pl.col("Refueling_Done_Time").is_null())))
-            .partition_by(["Node","Locomotive_Type"]))
+        charger_type_breakouts = (loco_pool
+            .filter(
+                pl.col("Status") == "Refuel_Queue",
+                (pl.col("Refueling_Done_Time") >= current_time) | (pl.col("Refueling_Done_Time").is_null())
+            )
+            .partition_by(["Node","Locomotive_Type"])
+        )
         charger_type_list = []
         for charger_type in charger_type_breakouts:
             loco_ids = charger_type.get_column("Locomotive_ID")
@@ -817,8 +826,9 @@ def update_refuel_queue(
             for i in range(0, refueling_done_times.len()):
                 if refueling_done_times[i] is not None: continue
                 next_done = refueling_done_times.filter(
-                    (refueling_done_times.is_not_null()) & 
-                    (refueling_done_times.rank(method='ordinal', descending = True).eq(port_counts[i])))
+                    refueling_done_times.is_not_null(),
+                    refueling_done_times.rank(method='ordinal', descending = True).eq(port_counts[i])
+                )
                 if next_done.len() == 0: next_done = arrival_times[i]
                 else: next_done = max(next_done[0], arrival_times[i])
                 refueling_done_times[i] = next_done + refueling_durations[i]
@@ -834,7 +844,8 @@ def update_refuel_queue(
     
     # Remove locomotives that are done refueling from the refuel queue
     refueling_finished = loco_pool.select(
-        (pl.col("Status") == "Refuel_Queue") & (pl.col("Refueling_Done_Time") <= current_time)).to_series()
+        (pl.col("Status") == "Refuel_Queue") & (pl.col("Refueling_Done_Time") <= current_time)
+    ).to_series()
     refueling_finished_count = refueling_finished.sum()
     if(refueling_finished_count > 0):
         # Record the refueling event

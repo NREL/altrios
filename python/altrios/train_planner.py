@@ -318,6 +318,7 @@ def generate_demand_trains(
         .with_columns(pl.col("O_D").str.split("_").list.first().alias("Origin"),
                       pl.col("O_D").str.split("_").list.last().alias("Destination"))
     )
+    
     demand = (demand
         # First, merge on OD-specific hp_per_ton if the user specified any
         .join(hp_per_ton.drop("O_D"), 
@@ -452,21 +453,14 @@ def build_locopool(
     ----------
     loco_pool: Locomotive pool containing all locomotives' information that are within the system
     """
-    print("450")
     config.loco_info = append_loco_info(config.loco_info)
-    print("452")
     loco_types = list(config.loco_info.loc[:,'Locomotive_Type'])
     demand, node_list = demand_loader(demand_file)
     
     num_nodes = len(node_list)
     num_ods = demand.height
     cars_per_od = demand.get_column("Number_of_Cars").mean()
-    print("458")
-    print(demand)
     num_destinations_per_node = num_ods*1.0 / num_nodes*1.0
-    print(cars_per_od)
-    print(config.cars_per_locomotive)
-    print(num_destinations_per_node)
     initial_size = math.ceil((cars_per_od / config.cars_per_locomotive) *
                              num_destinations_per_node)  # number of locomotives per node
 
@@ -478,7 +472,6 @@ def build_locopool(
     if method == "tile":
         repetitions = math.ceil(rows/len(loco_types))
         types = np.tile(loco_types, repetitions).tolist()[0:rows]
-        print("473")
     elif method == "shares_twoway":
         if((len(loco_types) != 2) | (len(shares) != 2)):
             raise ValueError(
@@ -532,10 +525,10 @@ def build_locopool(
     )
 
     loco_info_pl = pl.from_pandas(config.loco_info.drop(labels='Rust_Loco',axis=1),
-        schema_overrides={'Locomotive_Type': pl.Categorical}
+        schema_overrides={'Locomotive_Type': pl.Categorical,
+                          'Fuel_Type': pl.Categorical}
     )
 
-    print("530")
     loco_pool = loco_pool.join(loco_info_pl, on="Locomotive_Type")
     return loco_pool
 
@@ -558,9 +551,8 @@ def build_refuelers(
     ----------
     refuelers: Polars dataframe of facility county by node and type of fuel
     """
-
     ports_per_node = (loco_pool
-        .group_by(["Locomotive_Type", "Fuel_Type"])
+        .group_by(pl.col("Locomotive_Type", "Fuel_Type").cast(pl.Utf8))
         .agg([(pl.lit(refuelers_per_incoming_corridor) * pl.len() / pl.lit(loco_pool.height))
               .ceil()
               .alias("Ports_Per_Node")])
@@ -637,7 +629,6 @@ def append_loco_info(loco_info: pd.DataFrame) -> pd.DataFrame:
         'HP','Loco_Mass_Tons','SOC_J','SOC_Min_J','SOC_Max_J','Capacity_J'
         ]
     ): return loco_info
-    print("633")
     get_hp = lambda loco: loco.pwr_rated_kilowatts * 1e3 / alt.utils.W_PER_HP
     get_mass_ton = lambda loco: 0 if not loco.mass_kg else loco.mass_kg / alt.utils.KG_PER_TON
     get_starting_soc = lambda loco: defaults.DIESEL_TANK_CAPACITY_J if not loco.res else loco.res.state.soc * loco.res.energy_capacity_joules
@@ -645,10 +636,7 @@ def append_loco_info(loco_info: pd.DataFrame) -> pd.DataFrame:
     get_max_soc = lambda loco: defaults.DIESEL_TANK_CAPACITY_J if not loco.res else loco.res.max_soc * loco.res.energy_capacity_joules
     get_capacity = lambda loco: defaults.DIESEL_TANK_CAPACITY_J if not loco.res else loco.res.energy_capacity_joules
     loco_info.loc[:,'HP'] = loco_info.loc[:,'Rust_Loco'].apply(get_hp) 
-    print("640")
-    print(alt.utils.KG_PER_TON)
     loco_info.loc[:,'Loco_Mass_Tons'] = loco_info.loc[:,'Rust_Loco'].apply(get_mass_ton) 
-    print("643")
     loco_info.loc[:,'SOC_J'] = loco_info.loc[:,'Rust_Loco'].apply(get_starting_soc) 
     loco_info.loc[:,'SOC_Min_J'] = loco_info.loc[:,'Rust_Loco'].apply(get_min_soc) 
     loco_info.loc[:,'SOC_Max_J'] = loco_info.loc[:,'Rust_Loco'].apply(get_max_soc) 
@@ -715,7 +703,7 @@ def dispatch(
         refueling_diesel_count = loco_pool.filter(
             pl.col("Node") == origin,
             pl.col("Status").is_in(["Servicing","Refuel_Queue"]),
-            pl.col("Fuel_Type").cast(pl.Utf8).str.contains("(?i)diesel")
+            diesel_filter
         ).select(pl.len())[0, 0]
         message = f"""No available diesel locomotives at node {origin} at hour {dispatch_time}, so
                 the one-diesel-per-consist rule cannot be satisfied. {refueling_diesel_count} diesel locomotives at
@@ -816,6 +804,7 @@ def update_refuel_queue(
             )
             .partition_by(["Node","Locomotive_Type"])
         )
+        
         charger_type_list = []
         for charger_type in charger_type_breakouts:
             loco_ids = charger_type.get_column("Locomotive_ID")
@@ -826,9 +815,8 @@ def update_refuel_queue(
             for i in range(0, refueling_done_times.len()):
                 if refueling_done_times[i] is not None: continue
                 next_done = refueling_done_times.filter(
-                    refueling_done_times.is_not_null(),
-                    refueling_done_times.rank(method='ordinal', descending = True).eq(port_counts[i])
-                )
+                    (refueling_done_times.is_not_null()) & 
+                    (refueling_done_times.rank(method='ordinal', descending = True).eq(port_counts[i])))
                 if next_done.len() == 0: next_done = arrival_times[i]
                 else: next_done = max(next_done[0], arrival_times[i])
                 refueling_done_times[i] = next_done + refueling_durations[i]
@@ -841,7 +829,7 @@ def update_refuel_queue(
                             .otherwise(pl.col("Refueling_Done_Time"))
                             .alias("Refueling_Done_Time"))
             .drop("Refueling_Done_Time_right"))
-    
+        
     # Remove locomotives that are done refueling from the refuel queue
     refueling_finished = loco_pool.select(
         (pl.col("Status") == "Refuel_Queue") & (pl.col("Refueling_Done_Time") <= current_time)
@@ -926,7 +914,6 @@ def run_train_planner(
     Outputs:
     ----------
     """
-
     config.loco_info = append_loco_info(config.loco_info)
     demand, node_list = demand_loader(demand_file)
     if refuelers is None: 
@@ -940,7 +927,6 @@ def run_train_planner(
         network_charging_guidelines = pl.read_csv(alt.resources_root() / "networks" / "network_charging_guidelines.csv")
 
     refuelers, loco_pool = append_charging_guidelines(refuelers, loco_pool, demand, network_charging_guidelines)
-    
     if config.single_train_mode:
         demand = generate_demand_trains(demand, 
                                         demand_returns = pl.DataFrame(), 
@@ -988,11 +974,13 @@ def run_train_planner(
     current_time = dispatch_times.get_column("Hour").min()
     while not done:
         # Dispatch new train consists
+        print("977")
         current_dispatches = dispatch_times.filter(pl.col("Hour") == current_time)
         if(current_dispatches.height > 0):
             loco_pool, event_tracker = update_refuel_queue(loco_pool, refuelers, current_time, event_tracker)
 
             for this_train in current_dispatches.iter_rows(named = True):
+                print("983")
                 if this_train['Tons_Per_Train_Total'] > 0:
                     train_id=str(train_id_counter)
                     if config.single_train_mode:
@@ -1007,17 +995,12 @@ def run_train_planner(
                             this_train['HP_Required_Per_Ton']
                         )
                         dispatched = loco_pool.filter(selected)
-                    print("train 0config")
                     train_config = alt.TrainConfig(
                         cars_empty = int(this_train['Cars_Per_Train_Empty']),
                         cars_loaded = int(this_train['Cars_Per_Train_Loaded']),
                         rail_vehicle_type = this_train['Train_Type'],
                         train_type = train_type,
                     )
-                    print(f'Cars empty: {train_config.cars_empty}')
-                    print(f'Cars loaded: {train_config.cars_loaded}')
-                    print(f'Rail vehicle type type: {train_config.train_type}')
-                    print(f'Train type: {train_type}')
 
                     loco_start_soc_j = dispatched.get_column("SOC_J")
                     dispatch_order =  (dispatched.select(
@@ -1046,7 +1029,7 @@ def run_train_planner(
                     init_train_state = alt.InitTrainState(
                         time_seconds=current_time * 3600
                     )
-                    print("1033")
+                    
                     tsb = alt.TrainSimBuilder(
                         train_id=train_id,
                         origin_id=this_train['Origin'],
@@ -1055,7 +1038,7 @@ def run_train_planner(
                         loco_con=loco_con,
                         init_train_state=init_train_state,
                     )
-                    print("1042")
+                    
                     slts = tsb.make_speed_limit_train_sim(
                         rail_vehicle_map[train_config.rail_vehicle_type], 
                         location_map, 
@@ -1063,8 +1046,10 @@ def run_train_planner(
                         simulation_days, 
                         scenario_year
                     )
+
                     print("1050")
                     (est_time_net, loco_con_out) = alt.make_est_times(slts, network)
+                    print("1052")
                     travel_time = (
                         est_time_net.get_running_time_hours()
                         * config.dispatch_scaling_dict["time_mult_factor"] 
@@ -1130,18 +1115,15 @@ def run_train_planner(
         else:
             current_time = dispatch_times.filter(pl.col("Hour").gt(current_time)).get_column("Hour").min()
 
-    train_consist_plan = (train_consist_plan.with_columns(
-        cs.categorical().cast(str),
-        cs.ends_with("_ID").cast(pl.UInt32))
-        .sort(["Locomotive_ID", "Train_ID"], descending=False))
-    loco_pool = loco_pool.with_columns(
-        cs.categorical().cast(str),
-        cs.ends_with("_ID").cast(pl.UInt32)
+    train_consist_plan = (train_consist_plan
+        .with_columns(
+            cs.categorical().cast(str),
+            pl.col("Train_ID", "Locomotive_ID").cast(pl.UInt32)
+        )
+        .sort(["Locomotive_ID", "Train_ID"], descending=False)
     )
-    refuelers = refuelers.with_columns(
-        cs.categorical().cast(str),
-        cs.ends_with("_ID").cast(pl.UInt32)
-    )
+    loco_pool = loco_pool.with_columns(cs.categorical().cast(str))
+    refuelers = refuelers.with_columns(cs.categorical().cast(str))
     
     event_tracker = event_tracker.sort(["Locomotive_ID","Time_Hr","Event_Type"])
     service_starts = (event_tracker

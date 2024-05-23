@@ -65,15 +65,17 @@ def main(
                 raise ValueError("Location " + loc.location_id + " with link index " +
                                  str(loc.link_idx.idx) + " is invalid for network!")
             
+
+    print("69")
     train_planner_config.loco_info = metrics.add_battery_costs(train_planner_config.loco_info, scenario_year)
-            
+    print("71")
     if loco_pool is None: loco_pool = planner.build_locopool(
             config = train_planner_config,
             method="shares_twoway",
             shares=[1-target_bel_share, target_bel_share],
             demand_file=demand_file
             )
-        
+    print("78") 
     t0_ptc = time.perf_counter()
     (
         train_consist_plan, 

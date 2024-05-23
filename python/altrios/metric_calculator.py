@@ -48,7 +48,7 @@ class ScenarioInfo:
     `Refueler_Type`, `Port_Count`, and `Cost_USD`, and `Lifespan_Years`. Not required for single-train sim.
 
     - `refuel_sessions`: `polars.DataFrame` defining refueling sessions, each with a 
-    `Locomotive_ID`, `Locomotive_Type`, `Node`, and `Refuel_Energy_J`. Not required for single-train sim.
+    `Locomotive_ID`, `Locomotive_Type`, `Fuel_Type`, `Node`, and `Refuel_Energy_J`. Not required for single-train sim.
 
     - `emissions_factors`: `polars.DataFrame` with unit `CO2eq_kg_per_MWh` defined for each `Node`. 
     Not required for single-train sim.
@@ -356,7 +356,7 @@ def calculate_electricity_use(
             info.sims.get_net_energy_res_joules(annualize=info.annualize) * conversion_from_joule / defaults.BEL_CHARGER_EFFICIENCY)
    else:
         disagg_energy = (info.refuel_sessions
-            .filter(pl.col("Locomotive_Type")==pl.lit("BEL"))
+            .filter(pl.col("Fuel_Type")==pl.lit("Electricity"))
             .group_by(["Node"])
                 .agg((pl.col('Refuel_Energy_J') * pl.lit(info.simulation_days)).sum())
             .with_columns(

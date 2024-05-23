@@ -39,6 +39,7 @@ class TrainPlannerConfig:
                  loco_info = pd.DataFrame({
                     "Diesel_Large": {
                         "Capacity_Cars": 20,
+                        "Fuel_Type": "Diesel",
                         "Min_Servicing_Time_Hr": 3.0,
                         "Rust_Loco": alt.Locomotive.default(),
                         "Cost_USD": defaults.DIESEL_LOCO_COST_USD,
@@ -46,6 +47,7 @@ class TrainPlannerConfig:
                         },
                     "BEL": {
                         "Capacity_Cars": 20,
+                        "Fuel_Type": "Electricity",
                         "Min_Servicing_Time_Hr": 3.0,
                         "Rust_Loco": alt.Locomotive.default_battery_electric_loco(),
                         "Cost_USD": defaults.BEL_MINUS_BATTERY_COST_USD,
@@ -55,6 +57,7 @@ class TrainPlannerConfig:
                  refueler_info = pd.DataFrame({
                     "Diesel_Fueler": {
                         "Locomotive_Type": "Diesel_Large",
+                        "Fuel_Type": "Diesel",
                         "Refueler_J_Per_Hr": defaults.DIESEL_REFUEL_RATE_J_PER_HR,
                         "Refueler_Efficiency": defaults.DIESEL_REFUELER_EFFICIENCY,
                         "Cost_USD": defaults.DIESEL_REFUELER_COST_USD,
@@ -62,6 +65,7 @@ class TrainPlannerConfig:
                     },
                     "BEL_Charger": {
                         "Locomotive_Type": "BEL",
+                        "Fuel_Type": "Electricity",
                         "Refueler_J_Per_Hr": defaults.BEL_CHARGE_RATE_J_PER_HR,
                         "Refueler_Efficiency": defaults.BEL_CHARGER_EFFICIENCY,
                         "Cost_USD": defaults.BEL_CHARGER_COST_USD,
@@ -556,12 +560,12 @@ def build_refuelers(
     """
 
     ports_per_node = (loco_pool
-        .group_by(pl.col("Locomotive_Type").cast(pl.Utf8))
+        .group_by(["Locomotive_Type", "Fuel_Type"])
         .agg([(pl.lit(refuelers_per_incoming_corridor) * pl.len() / pl.lit(loco_pool.height))
               .ceil()
               .alias("Ports_Per_Node")])
         .join(pl.from_pandas(refueler_info),
-              on="Locomotive_Type", 
+              on=["Locomotive_Type", "Fuel_Type"], 
               how="left")
     )
 
@@ -576,6 +580,9 @@ def build_refuelers(
             dtype=pl.Categorical).cast(pl.Categorical),
         'Locomotive_Type': pl.Series(np.tile(
             ports_per_node.get_column("Locomotive_Type").to_list(), len(node_list)), 
+            dtype=pl.Categorical).cast(pl.Categorical),
+        'Fuel_Type': pl.Series(np.tile(
+            ports_per_node.get_column("Fuel_Type").to_list(), len(node_list)), 
             dtype=pl.Categorical).cast(pl.Categorical),
         'Refueler_J_Per_Hr': pl.Series(np.tile(
             ports_per_node.get_column("Refueler_J_Per_Hr").to_list(), len(node_list)), 
@@ -609,7 +616,7 @@ def append_charging_guidelines(
         .with_columns(pl.col("Origin").cast(pl.Categorical)))
     refuelers = (refuelers
         .join(network_charging_guidelines, left_on="Node", right_on="Origin", how="left")
-        .with_columns(pl.when(pl.col("Locomotive_Type")=="BEL")
+        .with_columns(pl.when(pl.col("Locomotive_Type")=="Electricity")
             .then(pl.col("Battery_Headroom_J"))
             .otherwise(0)
             .fill_null(0)
@@ -617,7 +624,7 @@ def append_charging_guidelines(
             ))
     loco_pool = (loco_pool
         .join(network_charging_guidelines, left_on="Node", right_on="Origin", how="left")
-        .with_columns(pl.when(pl.col("Locomotive_Type")=="BEL")
+        .with_columns(pl.when(pl.col("Fuel_Type")=="Electricity")
             .then(pl.col("Battery_Headroom_J"))
             .otherwise(0)
             .fill_null(0)
@@ -677,8 +684,13 @@ def dispatch(
                                 (pl.col("Status") == "Ready")).to_series()
     if not candidates.any():
         message = f"""No available locomotives at node {origin} at hour {dispatch_time}."""
-        waiting_counts = loco_pool.filter((pl.col("Status").is_in(["Servicing","Refuel_Queue"])) & (pl.col("Node") == origin)
-                                        ).group_by(['Locomotive_Type']).len()
+        waiting_counts = (loco_pool
+            .filter(
+                pl.col("Status").is_in(["Servicing","Refuel_Queue"]),
+                pl.col("Node") == origin
+            )
+            .group_by(['Locomotive_Type']).agg(pl.len())
+        )
         if waiting_counts.height == 0:
             message = message + f"""\nNo locomotives are currently located there. Instead, they are at:"""
             locations = loco_pool.group_by("Node").agg(pl.len())
@@ -697,30 +709,29 @@ def dispatch(
     # First available diesel (in order of loco_pool) will be moved from candidates to selected
     # TODO gracefully handle cases when there is no diesel locomotive to be dispatched
     # (ex: hold the train until enough diesels are present)
-    diesel_candidates = loco_pool.select(pl.lit(candidates) &
-                                       pl.col("Locomotive_Type").cast(pl.Utf8).str.contains("(?i)diesel")).to_series()
+    diesel_filter = pl.col("Fuel_Type").cast(pl.Utf8).str.contains("(?i)diesel")
+    diesel_candidates = loco_pool.select(pl.lit(candidates) & diesel_filter).to_series()
     if not diesel_candidates.any():
         refueling_diesel_count = loco_pool.filter(
-            (pl.col("Node") == origin) &
-            (pl.col("Status").is_in(["Servicing","Refuel_Queue"])) &
-            (pl.col("Locomotive_Type").cast(pl.Utf8).str.contains("(?i)diesel"))
+            pl.col("Node") == origin,
+            pl.col("Status").is_in(["Servicing","Refuel_Queue"]),
+            pl.col("Fuel_Type").cast(pl.Utf8).str.contains("(?i)diesel")
         ).select(pl.len())[0, 0]
         message = f"""No available diesel locomotives at node {origin} at hour {dispatch_time}, so
                 the one-diesel-per-consist rule cannot be satisfied. {refueling_diesel_count} diesel locomotives at
                 {origin} are servicing, refueling, or queueing."""
         if refueling_diesel_count > 0:
             diesel_port_count = loco_pool.filter(
-                (pl.col("Node") == origin) &
-                (pl.col("Locomotive_Type").cast(pl.Utf8).str.contains("(?i)diesel"))
-            ).select(pl.col("Port_Count").min())[0, 0]
+                pl.col("Node") == origin,
+                diesel_filter
+            ).select(pl.col("Port_Count").min()).item()
             message += f""" (queue capacity {diesel_port_count})."""
         else:
             message += "."
         raise ValueError(message)
 
     diesel_to_require = diesel_candidates.eq(True).cumsum().eq(1).arg_max()
-    diesel_to_require_hp = loco_pool.filter(
-        pl.col("Locomotive_Type") == "Diesel_Large").select(pl.first("HP"))
+    diesel_to_require_hp = loco_pool.filter(diesel_filter).select(pl.first("HP"))
     # Need to mask this so it's not double-counted on next step
     candidates[diesel_to_require] = False
     # Get running sum, including first diesel, of hp of the candidates (in order of loco_pool)
@@ -738,7 +749,8 @@ def dispatch(
             Count of locomotives servicing, refueling, or queueing at {origin} are:"""
         # Hold the train until enough diesels are present (future development)
         waiting_counts = loco_pool.filter(
-            (pl.col("Node") == origin) & (pl.col("Status").is_in(["Servicing","Refuel_Queue"]))
+            pl.col("Node") == origin,
+            pl.col("Status").is_in(["Servicing","Refuel_Queue"])
         ).select("Locomotive_Type").group_by(['Locomotive_Type']).len()
         for row in waiting_counts.iter_rows(named = True):
             message = message + f"""
@@ -781,9 +793,9 @@ def update_refuel_queue(
         loco_pool = (loco_pool
             .drop(['Refueler_J_Per_Hr','Port_Count','Battery_Headroom_J'])
             .join(
-                refuelers.select(["Node","Locomotive_Type","Refueler_J_Per_Hr","Port_Count",'Battery_Headroom_J']), 
-                left_on=["Node", "Locomotive_Type"],
-                right_on=["Node", "Locomotive_Type"],
+                refuelers.select(["Node","Locomotive_Type","Fuel_Type","Refueler_J_Per_Hr","Port_Count",'Battery_Headroom_J']), 
+                left_on=["Node", "Locomotive_Type" ,"Fuel_Type"],
+                right_on=["Node", "Locomotive_Type" ,"Fuel_Type"],
                 how="left")
             .with_columns(
                 pl.when(arrived)
@@ -796,12 +808,14 @@ def update_refuel_queue(
                 pl.when(arrived)
                     .then((pl.col("SOC_Target_J")-pl.col("SOC_J"))/pl.col("Refueler_J_Per_Hr"))
                     .otherwise(pl.col("Refuel_Duration")).alias("Refuel_Duration"))
-            .sort("Node", "Locomotive_Type","Arrival_Time", "Locomotive_ID", descending = False, nulls_last = True))
-        charger_type_breakouts = (loco_pool.filter(
-            (pl.col("Status") == "Refuel_Queue") &
-            ((pl.col("Refueling_Done_Time") >= current_time) 
-                | (pl.col("Refueling_Done_Time").is_null())))
-            .partition_by(["Node","Locomotive_Type"]))
+            .sort("Node", "Locomotive_Type", "Fuel_Type", "Arrival_Time", "Locomotive_ID", descending = False, nulls_last = True))
+        charger_type_breakouts = (loco_pool
+            .filter(
+                pl.col("Status") == "Refuel_Queue",
+                (pl.col("Refueling_Done_Time") >= current_time) | (pl.col("Refueling_Done_Time").is_null())
+            )
+            .partition_by(["Node","Locomotive_Type"])
+        )
         charger_type_list = []
         for charger_type in charger_type_breakouts:
             loco_ids = charger_type.get_column("Locomotive_ID")
@@ -812,8 +826,9 @@ def update_refuel_queue(
             for i in range(0, refueling_done_times.len()):
                 if refueling_done_times[i] is not None: continue
                 next_done = refueling_done_times.filter(
-                    (refueling_done_times.is_not_null()) & 
-                    (refueling_done_times.rank(method='ordinal', descending = True).eq(port_counts[i])))
+                    refueling_done_times.is_not_null(),
+                    refueling_done_times.rank(method='ordinal', descending = True).eq(port_counts[i])
+                )
                 if next_done.len() == 0: next_done = arrival_times[i]
                 else: next_done = max(next_done[0], arrival_times[i])
                 refueling_done_times[i] = next_done + refueling_durations[i]
@@ -829,7 +844,8 @@ def update_refuel_queue(
     
     # Remove locomotives that are done refueling from the refuel queue
     refueling_finished = loco_pool.select(
-        (pl.col("Status") == "Refuel_Queue") & (pl.col("Refueling_Done_Time") <= current_time)).to_series()
+        (pl.col("Status") == "Refuel_Queue") & (pl.col("Refueling_Done_Time") <= current_time)
+    ).to_series()
     refueling_finished_count = refueling_finished.sum()
     if(refueling_finished_count > 0):
         # Record the refueling event
@@ -1115,21 +1131,16 @@ def run_train_planner(
             current_time = dispatch_times.filter(pl.col("Hour").gt(current_time)).get_column("Hour").min()
 
     train_consist_plan = (train_consist_plan.with_columns(
-        pl.col("Train_Type").cast(str),
-        pl.col("Locomotive_Type").cast(str),
-        pl.col("Origin_ID").cast(str),
-        pl.col("Destination_ID").cast(str),
-        pl.col("Train_ID").cast(pl.UInt32),
-        pl.col("Locomotive_ID").cast(pl.UInt32))
+        cs.categorical().cast(str),
+        cs.ends_with("_ID").cast(pl.UInt32))
         .sort(["Locomotive_ID", "Train_ID"], descending=False))
     loco_pool = loco_pool.with_columns(
-        pl.col("Locomotive_Type").cast(str),
-        pl.col("Node").cast(str),
+        cs.categorical().cast(str),
+        cs.ends_with("_ID").cast(pl.UInt32)
     )
     refuelers = refuelers.with_columns(
-        pl.col("Refueler_Type").cast(str),
-        pl.col("Locomotive_Type").cast(str),
-        pl.col("Node").cast(str),
+        cs.categorical().cast(str),
+        cs.ends_with("_ID").cast(pl.UInt32)
     )
     
     event_tracker = event_tracker.sort(["Locomotive_ID","Time_Hr","Event_Type"])

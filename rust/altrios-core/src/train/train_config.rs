@@ -600,13 +600,14 @@ pub fn run_speed_limit_train_sims(
                     refuel_facilities.clone().lazy().select(&[
                         col("Node"),
                         col("Locomotive_Type"),
+                        col("Fuel_Type"),
                         col("Refueler_J_Per_Hr"),
                         col("Refueler_Efficiency"),
                         col("Port_Count"),
                         col("Battery_Headroom_J"),
                     ]),
-                    [col("Node"), col("Locomotive_Type")],
-                    [col("Node"), col("Locomotive_Type")],
+                    [col("Node"), col("Locomotive_Type"), col("Fuel_Type")],
+                    [col("Node"), col("Locomotive_Type"), col("Fuel_Type")],
                     JoinArgs::new(JoinType::Left),
                 )
                 .with_columns(vec![col("Battery_Headroom_J").fill_null(0)])
@@ -765,11 +766,11 @@ pub fn run_speed_limit_train_sims(
                 .select(&[((col("Status")
                     .eq(lit("Refueling"))
                     .sum()
-                    .over(["Node", "Locomotive_Type"]))
+                    .over(["Node", "Locomotive_Type", "Fuel_Type"]))
                     + (col("Status")
                         .eq(lit("Queued"))
                         .cumsum(false)
-                        .over(["Node", "Locomotive_Type"])))
+                        .over(["Node", "Locomotive_Type", "Fuel_Type"])))
                 .alias("place_in_queue")])
                 .collect()?
                 .column("place_in_queue")?
@@ -866,6 +867,7 @@ pub fn run_speed_limit_train_sims(
             let these_refuel_sessions = df![
                 "Node" => refuel_starting.column("Node").unwrap(),
                 "Locomotive_Type" => refuel_starting.column("Locomotive_Type").unwrap(),
+                "Fuel_Type" => refuel_starting.column("Fuel_Type").unwrap(),
                 "Locomotive_ID" => refuel_starting.column("Locomotive_ID").unwrap(),
                 "Refueler_J_Per_Hr" => refuel_starting.column("Refueler_J_Per_Hr").unwrap(),
                 "Refueler_Efficiency" => refuel_starting.column("Refueler_Efficiency").unwrap(),

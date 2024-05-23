@@ -296,7 +296,7 @@ impl SpeedLimitTrainSim {
         log::debug!(
             "{}\ntime step: {}",
             format_dbg!(),
-            self.state.time.get::<si::second>().format_eng(None)
+            self.state.time.get::<si::second>().format_eng(Some(9))
         );
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
@@ -323,6 +323,14 @@ impl SpeedLimitTrainSim {
             || (self.state.offset < self.path_tpc.offset_end()
                 && self.state.speed != si::Velocity::ZERO)
         {
+            log::debug!(
+                "{}",
+                format_dbg!(
+                    self.state.offset < self.path_tpc.offset_end() - 1000.0 * uc::FT
+                        || (self.state.offset < self.path_tpc.offset_end()
+                            && self.state.speed != si::Velocity::ZERO)
+                )
+            );
             self.step()?;
         }
         Ok(())

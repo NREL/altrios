@@ -69,10 +69,12 @@ impl Link {
         self.speed_set = Some(
             self.speed_sets
                 .get(&train_type)
-                .ok_or(anyhow!(
-                    "No value found for train_type: {:?} in `speed_sets`.",
-                    train_type
-                ))?
+                .with_context(|| {
+                    anyhow!(
+                        "No value found for train_type: {:?} in `speed_sets`.",
+                        train_type
+                    )
+                })?
                 .clone(),
         );
         self.speed_sets = HashMap::new();

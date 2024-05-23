@@ -1,3 +1,4 @@
+use super::rail_vehicle;
 use super::resistance::kind as res_kind;
 use super::resistance::method as res_method;
 use crate::consist::locomotive::locomotive_model::PowertrainType;
@@ -87,10 +88,8 @@ use pyo3_polars::PyDataFrame;
 pub struct TrainConfig {
     /// Optional user-defined identifier for the car type on this train.
     pub rail_vehicle_type: Option<String>,
-    /// Number of empty railcars on the train
-    pub cars_empty: u32,
-    /// Number of loaded railcars on the train
-    pub cars_loaded: u32,
+    /// Number of railcars by type on the train
+    pub n_cars_by_type: HashMap<String, u32>,
     /// Train type matching one of the PTC types
     pub train_type: TrainType,
     /// Train length that overrides the railcar specific value
@@ -112,7 +111,7 @@ impl SerdeAPI for TrainConfig {
     fn init(&mut self) -> anyhow::Result<()> {
         match &self.drag_coeff_vec {
             Some(dcv) => {
-                ensure!(dcv.len() as u32 == self.cars_loaded + self.cars_empty);
+                ensure!(dcv.len() as u32 == self.cars_total());
             }
             None => {}
         };
@@ -122,8 +121,7 @@ impl SerdeAPI for TrainConfig {
 
 impl TrainConfig {
     pub fn new(
-        cars_empty: u32,
-        cars_loaded: u32,
+        n_cars_by_type: HashMap<String, u32>,
         rail_vehicle_type: Option<String>,
         train_type: TrainType,
         train_length: Option<si::Length>,
@@ -131,8 +129,7 @@ impl TrainConfig {
         drag_coeff_vec: Option<Vec<si::Ratio>>,
     ) -> anyhow::Result<Self> {
         let mut train_config = Self {
-            cars_empty,
-            cars_loaded,
+            n_cars_by_type,
             rail_vehicle_type,
             train_type,
             train_length,
@@ -144,35 +141,50 @@ impl TrainConfig {
     }
 
     pub fn cars_total(&self) -> u32 {
-        self.cars_empty + self.cars_loaded
+        self.n_cars_by_type.values().fold(0, |acc, n| *n + acc)
     }
 
-    pub fn make_train_params(&self, rail_vehicle: &RailVehicle) -> TrainParams {
-        let mass_static = self.train_mass.unwrap_or(
-            rail_vehicle.mass_static_empty * self.cars_empty as f64
-                + rail_vehicle.mass_static_loaded * self.cars_loaded as f64,
-        );
+    pub fn make_train_params(&self, rail_vehicles: &[RailVehicle]) -> anyhow::Result<TrainParams> {
+        let mass_static = self.train_mass.unwrap_or({
+            let mass = rail_vehicles.iter().try_fold(
+                0. * uc::KG,
+                |acc, rv| -> anyhow::Result<si::Mass> {
+                    let mass = acc
+                        + rv.mass_static
+                            * *self.n_cars_by_type.get(&rv.car_type).with_context(|| {
+                                anyhow!(
+                                    "{}\nExpected `self.n_cars_by_type` to contain '{}'",
+                                    format_dbg!(),
+                                    rv.car_type
+                                )
+                            })? as f64;
+                    Ok(mass)
+                },
+            )?;
+            mass
+        });
 
         let length = self
             .train_length
-            .unwrap_or(rail_vehicle.length * self.cars_total() as f64);
+            .unwrap_or(rail_vehicles.length * self.cars_total() as f64);
 
-        TrainParams {
+        let train_params = TrainParams {
             length,
-            speed_max: rail_vehicle.speed_max_loaded.max(if self.cars_empty > 0 {
-                rail_vehicle.speed_max_empty
+            speed_max: rail_vehicles.speed_max_loaded.max(if self.cars_empty > 0 {
+                rail_vehicles.speed_max_empty
             } else {
                 uc::MPS * f64::INFINITY
             }),
             mass_total: mass_static,
             mass_per_brake: mass_static
-                / (self.cars_total() * rail_vehicle.brake_count as u32) as f64,
-            axle_count: self.cars_total() * rail_vehicle.axle_count as u32,
+                / (self.cars_total() * rail_vehicles.brake_count as u32) as f64,
+            axle_count: self.cars_total() * rail_vehicles.axle_count as u32,
             train_type: self.train_type,
-            curve_coeff_0: rail_vehicle.curve_coeff_0,
-            curve_coeff_1: rail_vehicle.curve_coeff_1,
-            curve_coeff_2: rail_vehicle.curve_coeff_2,
-        }
+            curve_coeff_0: rail_vehicles.curve_coeff_0,
+            curve_coeff_1: rail_vehicles.curve_coeff_1,
+            curve_coeff_2: rail_vehicles.curve_coeff_2,
+        };
+        Ok(train_params)
     }
 }
 

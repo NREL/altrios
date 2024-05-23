@@ -500,7 +500,7 @@ impl Mass for Consist {
             |m_acc, (i, loco)| -> anyhow::Result<si::Mass> {
                 let loco_mass = loco
                     .mass()?
-                    .ok_or_else(|| anyhow!("Locomotive {i} does not have `mass` set"))?;
+                    .with_context(|| anyhow!("Locomotive {i} does not have `mass` set"))?;
                 let new_mass: si::Mass = loco_mass + m_acc;
                 Ok(new_mass)
             },

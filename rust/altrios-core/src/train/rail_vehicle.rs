@@ -18,24 +18,15 @@ pub struct RailVehicle {
     #[serde(alias = "Brake Count")]
     pub brake_count: u8,
 
-    /// Railcar empty mass (excluding freight)
-    #[serde(alias = "Mass Static Empty (kg)")]
-    pub mass_static_empty: si::Mass,
-    /// Railcar loaded mass (including freight)
-    #[serde(alias = "Mass Static Loaded (kg)")]
-    pub mass_static_loaded: si::Mass,
-    /// Railcar speed limit when empty
-    #[serde(alias = "Speed Max Empty (m/s)")]
-    pub speed_max_empty: si::Velocity,
-    /// Railcar speed limit when loaded
-    #[serde(alias = "Speed Max Loaded (m/s)")]
-    pub speed_max_loaded: si::Velocity,
-    /// Braking ratio at empty mass
-    #[serde(alias = "Braking Ratio Empty")]
-    pub braking_ratio_empty: si::Ratio,
-    /// Braking ratio at loaded mass
-    #[serde(alias = "Braking Ratio Loaded")]
-    pub braking_ratio_loaded: si::Ratio,
+    /// Railcar mass
+    #[serde(alias = "Mass Static (kg)")]
+    pub mass_static: si::Mass,
+    /// Railcar speed limit
+    #[serde(alias = "Speed Max (m/s)")]
+    pub speed_max: si::Velocity,
+    /// Braking ratio -- braking force per rail vehicle weight
+    #[serde(alias = "Braking Ratio")]
+    pub braking_ratio: si::Ratio,
 
     /// Additional mass value to adjust for rotating mass in wheels and axles (typically 1,500 lbs)
     #[serde(alias = "Mass Extra per Axle (kg)")]
@@ -49,12 +40,9 @@ pub struct RailVehicle {
     /// Davis B coefficient (typically very close to zero)
     #[serde(alias = "Davis B (s/m)")]
     pub davis_b: si::InverseVelocity,
-    /// Drag area (Cd*A) when empty, where Cd is drag coefficient and A is front cross-sectional area
-    #[serde(alias = "Drag Area Cd*A Empty (m^2)")]
-    pub drag_area_empty: si::Area,
-    /// Drag area (Cd*A) when loaded, where Cd is drag coefficient and A is front cross-sectional area
-    #[serde(alias = "Drag Area Cd*A Loaded (m^2)")]
-    pub drag_area_loaded: si::Area,
+    /// Drag area (Cd*A), where Cd is drag coefficient and A is front cross-sectional area
+    #[serde(alias = "Drag Area Cd*A (m^2)")]
+    pub drag_area: si::Area,
     /// Curve coefficient 0
     #[serde(alias = "Curve Coefficient 0")]
     pub curve_coeff_0: si::Ratio,

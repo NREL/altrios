@@ -460,14 +460,24 @@ def build_locopool(
     num_nodes = len(node_list)
     num_ods = demand.height
     cars_per_od = demand.get_column("Number_of_Cars").mean()
-    num_destinations_per_node = num_ods*1.0 / num_nodes*1.0
-    initial_size = math.ceil((cars_per_od / config.cars_per_locomotive) *
-                             num_destinations_per_node)  # number of locomotives per node
+    if config.single_train_mode:
+        initial_size = math.ceil(cars_per_od / config.cars_per_locomotive) 
+        rows = initial_size
+    else:
+        num_destinations_per_node = num_ods*1.0 / num_nodes*1.0
+        initial_size = math.ceil((cars_per_od / config.cars_per_locomotive) *
+                                num_destinations_per_node)  # number of locomotives per node
+        rows = initial_size * num_nodes  # number of locomotives in total
 
-    rows = initial_size * num_nodes  # number of locomotives in total
-    sorted_nodes = np.sort(np.tile(node_list, initial_size)).tolist()
-    engine_numbers = rankdata(sorted_nodes, method="dense") * 1000 + \
-        np.tile(range(0, initial_size), num_nodes)
+
+    if config.single_train_mode:
+        sorted_nodes = np.tile([demand.select(pl.col("Origin").first()).item()],rows).tolist()
+        engine_numbers = range(0, rows)
+        print(engine_numbers)
+    else:
+        sorted_nodes = np.sort(np.tile(node_list, initial_size)).tolist()
+        engine_numbers = rankdata(sorted_nodes, method="dense") * 1000 + \
+            np.tile(range(0, initial_size), num_nodes)
 
     if method == "tile":
         repetitions = math.ceil(rows/len(loco_types))
@@ -974,13 +984,11 @@ def run_train_planner(
     current_time = dispatch_times.get_column("Hour").min()
     while not done:
         # Dispatch new train consists
-        print("977")
         current_dispatches = dispatch_times.filter(pl.col("Hour") == current_time)
         if(current_dispatches.height > 0):
             loco_pool, event_tracker = update_refuel_queue(loco_pool, refuelers, current_time, event_tracker)
 
             for this_train in current_dispatches.iter_rows(named = True):
-                print("983")
                 if this_train['Tons_Per_Train_Total'] > 0:
                     train_id=str(train_id_counter)
                     if config.single_train_mode:
@@ -1047,9 +1055,9 @@ def run_train_planner(
                         scenario_year
                     )
 
-                    print("1050")
+                    print("Calling alt.make_est_times()")
                     (est_time_net, loco_con_out) = alt.make_est_times(slts, network)
-                    print("1052")
+                    print("Finished with alt.make_est_times()")
                     travel_time = (
                         est_time_net.get_running_time_hours()
                         * config.dispatch_scaling_dict["time_mult_factor"] 

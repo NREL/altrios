@@ -47,7 +47,7 @@ checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
 
 [[package]]
 name = "altrios-core"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "altrios-proc-macros",
  "anyhow",
@@ -78,7 +78,7 @@ dependencies = [
 
 [[package]]
 name = "altrios-proc-macros"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",

@@ -405,10 +405,18 @@ impl SpeedLimitTrainSim {
         let f_applied_target =
             res_net + self.state.mass_static * (speed_target - self.state.speed) / self.state.dt;
 
-        let pwr_pos_max =
-            self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
-                self.state.pwr_whl_out + self.loco_con.state.pwr_rate_out_max * self.state.dt,
-            ));
+        let pwr_pos_max = self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
+            // TODO: the effect of rate may already be accounted for in this snippet
+            // from fuel_converter.rs:
+
+            // ```
+            // self.state.pwr_out_max = (self.state.pwr_brake
+            //     + (self.pwr_out_max / self.pwr_ramp_lag) * dt)
+            //     .min(self.pwr_out_max)
+            //     .max(self.pwr_out_max_init);
+            // ```
+            self.state.pwr_whl_out + self.loco_con.state.pwr_rate_out_max * self.state.dt,
+        ));
         let pwr_neg_max = self.loco_con.state.pwr_dyn_brake_max.max(si::Power::ZERO);
         ensure!(
             pwr_pos_max >= si::Power::ZERO,
@@ -434,14 +442,31 @@ impl SpeedLimitTrainSim {
             .min(pwr_pos_max / speed_target.min(v_max));
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
-            log::error!("{}", format_dbg!(self.path_tpc));
+            log::error!(
+                "{}\n{}\n{}\n{}",
+                format_dbg!(self.loco_con.force_max()?),
+                format_dbg!(pwr_pos_max / speed_target.min(v_max)),
+                format_dbg!(pwr_pos_max),
+                {
+                    let soc_vec: Vec<f64> = self
+                        .loco_con
+                        .loco_vec
+                        .iter()
+                        .map(|loco| {
+                            loco.reversible_energy_storage()
+                                .map(|res| res.state.soc.get::<si::ratio>())
+                                .unwrap_or_else(|| f64::NAN)
+                        })
+                        .collect();
+                    format_dbg!(soc_vec)
+                }
+            );
             bail!(
-                "{}\nTrain does not have sufficient power to move!\nforce_max={:?},\nres_net={:?},\ntrain_state={:?}", // ,\nlink={:?}
+                "{}\nTrain does not have sufficient power to move!\nforce_max={:?}\nres_net={:?}\n{}", // ,\nlink={:?}
                 format_dbg!(),
                 f_pos_max,
                 res_net,
-                self.state,
-            );
+                "For more detailed information, run `alt.utils.set_log_level(\"ERROR\")`." );
         }
 
         self.fric_brake.set_cur_force_max_out(self.state.dt)?;

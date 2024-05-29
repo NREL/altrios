@@ -443,22 +443,39 @@ impl SpeedLimitTrainSim {
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
             log::error!(
-                "{}\n{}\n{}\n{}",
-                format_dbg!(self.loco_con.force_max()?),
+                "{}\n{}\n{}\n{}\n{}",
+                format_dbg!(self
+                    .loco_con
+                    .force_max()?
+                    .get::<si::newton>()
+                    .format_eng(Some(5))),
                 format_dbg!(pwr_pos_max / speed_target.min(v_max)),
                 format_dbg!(pwr_pos_max),
                 {
-                    let soc_vec: Vec<f64> = self
+                    let soc_all_locos: Vec<String> = self
                         .loco_con
                         .loco_vec
                         .iter()
                         .map(|loco| {
                             loco.reversible_energy_storage()
-                                .map(|res| res.state.soc.get::<si::ratio>())
-                                .unwrap_or_else(|| f64::NAN)
+                                .map(|res| res.state.soc.get::<si::ratio>().format_eng(Some(5)))
+                                .unwrap_or_else(|| "N/A".into())
                         })
                         .collect();
-                    format_dbg!(soc_vec)
+                    format_dbg!(soc_all_locos)
+                },
+                {
+                    let soc_min_all_locos: Vec<String> = self
+                        .loco_con
+                        .loco_vec
+                        .iter()
+                        .map(|loco| {
+                            loco.reversible_energy_storage()
+                                .map(|res| res.state.min_soc.get::<si::ratio>().format_eng(Some(5)))
+                                .unwrap_or_else(|| "N/A".into())
+                        })
+                        .collect();
+                    format_dbg!(soc_min_all_locos)
                 }
             );
             bail!(

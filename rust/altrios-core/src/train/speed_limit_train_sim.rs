@@ -443,14 +443,18 @@ impl SpeedLimitTrainSim {
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
             log::error!(
-                "{}\n{}\n{}\n{}\n{}",
+                "{}\n{}\n{}\n{}\n{}\n{}\n{}",
+                // force_max
                 format_dbg!(self
                     .loco_con
                     .force_max()?
                     .get::<si::newton>()
                     .format_eng(Some(5))),
+                // force based on speed target
                 format_dbg!(pwr_pos_max / speed_target.min(v_max)),
+                // pwr_pos_max
                 format_dbg!(pwr_pos_max),
+                // SOC across all RES-equipped locomotives
                 {
                     let soc_all_locos: Vec<String> = self
                         .loco_con
@@ -464,6 +468,7 @@ impl SpeedLimitTrainSim {
                         .collect();
                     format_dbg!(soc_all_locos)
                 },
+                // minimum allowable SOC across all RES-equipped locomotives
                 {
                     let soc_min_all_locos: Vec<String> = self
                         .loco_con
@@ -476,6 +481,16 @@ impl SpeedLimitTrainSim {
                         })
                         .collect();
                     format_dbg!(soc_min_all_locos)
+                },
+                // grade at front of train
+                {
+                    let grade_front = self.state.grade_front.get::<si::ratio>();
+                    format_dbg!(grade_front)
+                },
+                // grade at rear of train
+                {
+                    let grade_back = self.state.grade_back.get::<si::ratio>();
+                    format_dbg!(grade_back)
                 }
             );
             bail!(

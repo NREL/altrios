@@ -763,14 +763,15 @@ pub fn run_speed_limit_train_sims(
             let place_in_queue = loco_pool
                 .clone()
                 .lazy()
-                .select(&[((col("Status")
-                    .eq(lit("Refueling"))
-                    .sum()
-                    .over(["Node", "Locomotive_Type", "Fuel_Type"]))
-                    + (col("Status")
-                        .eq(lit("Queued"))
-                        .cumsum(false)
-                        .over(["Node", "Locomotive_Type", "Fuel_Type"])))
+                .select(&[((col("Status").eq(lit("Refueling")).sum().over([
+                    "Node",
+                    "Locomotive_Type",
+                    "Fuel_Type",
+                ])) + (col("Status").eq(lit("Queued")).cumsum(false).over([
+                    "Node",
+                    "Locomotive_Type",
+                    "Fuel_Type",
+                ])))
                 .alias("place_in_queue")])
                 .collect()?
                 .column("place_in_queue")?

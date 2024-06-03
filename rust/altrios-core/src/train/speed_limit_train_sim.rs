@@ -442,35 +442,40 @@ impl SpeedLimitTrainSim {
             .min(pwr_pos_max / speed_target.min(v_max));
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
-            log::error!(
-                "{}\n{}\n{}\n{}\n{}\n{}\n{}",
+            bail!(
+                "{}\nTrain does not have sufficient power to move!\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", // ,\nlink={:?}
+                format_dbg!(),
                 // force_max
-                format_dbg!(self
-                    .loco_con
-                    .force_max()?
-                    .get::<si::newton>()
-                    .format_eng(Some(5))),
-                // force based on speed target
-                format_dbg!(pwr_pos_max / speed_target.min(v_max)),
-                // pwr_pos_max
-                format_dbg!(pwr_pos_max),
+                format!(
+                    "force_max: {} N", 
+                    self
+                        .loco_con
+                        .force_max()?
+                        .get::<si::newton>()
+                        .format_eng(Some(5))
+                    ),
+                    // force based on speed target
+                    format!("pwr_pos_max / speed_target.min(v_max): {} N", (pwr_pos_max / speed_target.min(v_max)).get::<si::newton>().format_eng(Some(5))),
+                    // pwr_pos_max
+                    format!("pwr_pos_max: {} W", pwr_pos_max.get::<si::watt>().format_eng(Some(5))
+                ),
                 // SOC across all RES-equipped locomotives
-                {
-                    let soc_all_locos: Vec<String> = self
+                format!(
+                    "SOCs: {:?}", 
+                    self
                         .loco_con
                         .loco_vec
                         .iter()
                         .map(|loco| {
                             loco.reversible_energy_storage()
                                 .map(|res| res.state.soc.get::<si::ratio>().format_eng(Some(5)))
-                                .unwrap_or_else(|| "N/A".into())
-                        })
-                        .collect();
-                    format_dbg!(soc_all_locos)
-                },
+                                .unwrap_or_else(|| "N/A".into())})
+                        .collect::<Vec<String>>()
+                ),
                 // minimum allowable SOC across all RES-equipped locomotives
-                {
-                    let soc_min_all_locos: Vec<String> = self
+                format!(
+                    "Minimum allowed SOCs: {:?}", 
+                    self
                         .loco_con
                         .loco_vec
                         .iter()
@@ -479,26 +484,15 @@ impl SpeedLimitTrainSim {
                                 .map(|res| res.state.min_soc.get::<si::ratio>().format_eng(Some(5)))
                                 .unwrap_or_else(|| "N/A".into())
                         })
-                        .collect();
-                    format_dbg!(soc_min_all_locos)
-                },
+                        .collect::<Vec<String>>()
+                ),
                 // grade at front of train
-                {
-                    let grade_front = self.state.grade_front.get::<si::ratio>();
-                    format_dbg!(grade_front)
-                },
+                format!("grade_front: {}", self.state.grade_front.get::<si::ratio>().format_eng(Some(5))),
                 // grade at rear of train
-                {
-                    let grade_back = self.state.grade_back.get::<si::ratio>();
-                    format_dbg!(grade_back)
-                }
-            );
-            bail!(
-                "{}\nTrain does not have sufficient power to move!\nforce_max={:?}\nres_net={:?}\n{}", // ,\nlink={:?}
-                format_dbg!(),
-                f_pos_max,
-                res_net,
-                "For more detailed information, run `alt.utils.set_log_level(\"ERROR\")`." );
+                format!("grade_back: {}", self.state.grade_back.get::<si::ratio>().format_eng(Some(5))),
+                format!("f_pos_max: {} N", f_pos_max.get::<si::newton>().format_eng(Some(5))),
+                format!("res_net: {} N", res_net.get::<si::newton>().format_eng(Some(5)))
+            )
         }
 
         self.fric_brake.set_cur_force_max_out(self.state.dt)?;

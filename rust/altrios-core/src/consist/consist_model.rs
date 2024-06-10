@@ -14,7 +14,7 @@ use super::*;
         Ok(Pyo3VecLocoWrapper(self.loco_vec.clone()))
     }
 
-    #[setter("__loco_vec")]
+    #[setter("loco_vec")]
     fn set_loco_vec_py(&mut self, loco_vec: Vec<Locomotive>) -> anyhow::Result<()> {
         self.set_loco_vec(loco_vec);
         Ok(())

@@ -461,6 +461,13 @@ impl LocoTrait for DummyLoco {
         self.get_pwr_rated().get::<si::kilowatt>()
     }
 
+
+    #[setter("__force_max_newtons")]
+    fn set_force_max_newtons(&mut self, force_max: Option<f64>) -> anyhow::Result<()> {
+        self.set_force_max(force_max.map(|f| f * uc::N))
+    }
+    
+
     #[getter("force_max_pounds")]
     fn get_force_max_pounds_py(&self) -> anyhow::Result<Option<f64>> {
         Ok(self.force_max()?.map(|f| f.get::<si::pound_force>()))
@@ -558,7 +565,7 @@ impl Default for Locomotive {
             Some(432e3 * uc::LB),
         )
         .unwrap();
-        loco.update_force_max(
+        loco.set_force_max(
             // 150,000 pounds of force = 667.3e3 N
             // TODO: track down source for this
             Some(667.2e3 * uc::N),
@@ -629,7 +636,7 @@ impl Locomotive {
     ///
     /// Arugments:
     /// * `force_max` - option for setting `self.force_max` directly
-    pub fn update_force_max(&mut self, force_max: Option<si::Force>) -> anyhow::Result<()> {
+    pub fn set_force_max(&mut self, force_max: Option<si::Force>) -> anyhow::Result<()> {
         match force_max {
             Some(force_max) => {
                 self.force_max = Some(force_max);

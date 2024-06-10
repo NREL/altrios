@@ -1008,6 +1008,7 @@ def run_train_planner(
                         cars_loaded = int(this_train['Cars_Per_Train_Loaded']),
                         rail_vehicle_type = this_train['Train_Type'],
                         train_type = train_type,
+                        # TODO: put drag coeff vec here
                     )
 
                     loco_start_soc_j = dispatched.get_column("SOC_J")

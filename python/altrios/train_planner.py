@@ -924,6 +924,7 @@ def run_train_planner(
     Outputs:
     ----------
     """
+    print("entering train planner")
     config.loco_info = append_loco_info(config.loco_info)
     demand, node_list = demand_loader(demand_file)
     if refuelers is None: 

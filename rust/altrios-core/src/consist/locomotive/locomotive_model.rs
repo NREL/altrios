@@ -120,14 +120,16 @@ impl Default for PowertrainType {
     }
 }
 
+#[allow(clippy::to_string_trait_impl)]
 impl std::string::ToString for PowertrainType {
     fn to_string(&self) -> String {
-        match self {
-            PowertrainType::ConventionalLoco(_) => String::from("Conventional"),
-            PowertrainType::HybridLoco(_) => String::from("Hybrid"),
-            PowertrainType::BatteryElectricLoco(_) => String::from("Battery Electric"),
-            PowertrainType::DummyLoco(_) => String::from("DummyLoco"),
-        }
+        let s = match self {
+            PowertrainType::ConventionalLoco(_) => stringify!(ConventionalLoco),
+            PowertrainType::HybridLoco(_) => stringify!(HybridLoco),
+            PowertrainType::BatteryElectricLoco(_) => stringify!(BatteryElectricLoco),
+            PowertrainType::DummyLoco(_) => stringify!(DummyLoco),
+        };
+        s.into()
     }
 }
 
@@ -367,7 +369,7 @@ impl LocoTrait for DummyLoco {
             force_max: Some(50e6 * uc::N),
             ..Default::default()
         };
-        dummy.update_mass(None).unwrap();
+        dummy.set_mass(None, MassSideEffect::None).unwrap();
         dummy
     }
 
@@ -553,9 +555,10 @@ impl Default for Locomotive {
             assert_limits: true,
             mu: Default::default(),
         };
-        loco.update_mass(
+        loco.set_mass(
             // Steve Fritz said 432,000 lbs is expected
             Some(432e3 * uc::LB),
+            MassSideEffect::None,
         )
         .unwrap();
         loco.update_force_max(
@@ -570,7 +573,7 @@ impl Default for Locomotive {
 
 impl SerdeAPI for Locomotive {
     fn init(&mut self) -> anyhow::Result<()> {
-        self.check_mass_consistent()?;
+        let _mass = self.mass().with_context(|| anyhow!(format_dbg!()))?;
         self.loco_type.init()?;
         Ok(())
     }
@@ -578,48 +581,81 @@ impl SerdeAPI for Locomotive {
 
 impl Mass for Locomotive {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
-        self.check_mass_consistent()?;
-        let mass = match self.mass {
-            Some(mass) => Some(mass),
-            None => self.derived_mass()?,
-        };
-        Ok(mass)
+        let derived_mass = self
+            .derived_mass()
+            .with_context(|| anyhow!(format_dbg!()))?;
+        match (derived_mass, self.mass) {
+            (Some(derived_mass), Some(set_mass)) => {
+                ensure!(
+                    utils::almost_eq_uom(&set_mass, &derived_mass, None),
+                    format!(
+                        "{}",
+                        format_dbg!(utils::almost_eq_uom(&set_mass, &derived_mass, None)),
+                    )
+                );
+                Ok(Some(set_mass))
+            }
+            (None, None) => bail!(
+                "Not all mass fields in `{}` are set and no mass was previously set.",
+                stringify!(Locomotive)
+            ),
+            _ => Ok(self.mass.or(derived_mass)),
+        }
     }
 
-    fn update_mass(&mut self, mass: Option<si::Mass>) -> anyhow::Result<()> {
-        match mass {
-            Some(mass) => {
-                // set component masses to None if they aren't consistent
-                self.mass = Some(mass);
-                if self.check_mass_consistent().is_err() {
-                    self.fuel_converter_mut().map(|fc| fc.update_mass(None));
-                    self.generator_mut().map(|gen| gen.update_mass(None));
-                    self.reversible_energy_storage_mut()
-                        .map(|res| res.update_mass(None));
-                    self.baseline_mass = None;
-                    self.ballast_mass = None;
+    fn set_mass(
+        &mut self,
+        new_mass: Option<si::Mass>,
+        side_effect: MassSideEffect,
+    ) -> anyhow::Result<()> {
+        ensure!(
+            side_effect == MassSideEffect::None,
+            "At the locomotive level, only `MassSideEffect::None` is allowed"
+        );
+
+        let derived_mass = self
+            .derived_mass()
+            .with_context(|| anyhow!(format_dbg!()))?;
+        self.mass = match new_mass {
+            // Set using provided `new_mass`, setting constituent mass fields to `None` to match if inconsistent
+            Some(new_mass) => {
+                if let Some(dm) = derived_mass {
+                    if dm != new_mass {
+                        log::warn!(
+                            "Derived mass does not match provided mass, setting `{}` consituent mass fields to `None`",
+                            stringify!(Locomotive));
+                        self.expunge_mass_fields();
+                    }
                 }
+                Some(new_mass)
             }
-            None => {
-                self.mass = self.derived_mass()?;
-            }
-        }
+            // Set using `derived_mass()`, failing if it returns `None`
+            None => Some(derived_mass.with_context(|| {
+                format!(
+                    "Not all mass fields in `{}` are set and no mass was provided.",
+                    stringify!(Locomotive)
+                )
+            })?),
+        };
         Ok(())
     }
 
-    fn check_mass_consistent(&self) -> anyhow::Result<()> {
-        if let (Some(mass_deriv), Some(mass_set)) = (self.derived_mass()?, self.mass) {
-            ensure!(
-                utils::almost_eq_uom(&mass_set, &mass_deriv, None),
-                format!(
-                    "{}\n{}",
-                    format_dbg!(utils::almost_eq_uom(&mass_set, &mass_deriv, None)),
-                    "Try running `update_mass` method."
-                )
-            )
+    fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        match &self.loco_type {
+            PowertrainType::ConventionalLoco(conv) => conv.mass(),
+            PowertrainType::HybridLoco(hev) => hev.mass(),
+            PowertrainType::BatteryElectricLoco(bev) => bev.mass(),
+            PowertrainType::DummyLoco(_) => Ok(None),
         }
+    }
 
-        Ok(())
+    fn expunge_mass_fields(&mut self) {
+        match &mut self.loco_type {
+            PowertrainType::ConventionalLoco(conv) => conv.expunge_mass_fields(),
+            PowertrainType::HybridLoco(hev) => hev.expunge_mass_fields(),
+            PowertrainType::BatteryElectricLoco(bev) => bev.expunge_mass_fields(),
+            PowertrainType::DummyLoco(_) => {}
+        };
     }
 }
 

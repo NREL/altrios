@@ -122,7 +122,7 @@ pub struct Consist {
 
 impl SerdeAPI for Consist {
     fn init(&mut self) -> anyhow::Result<()> {
-        self.check_mass_consistent()?;
+        let _mass = self.mass().with_context(|| anyhow!(format_dbg!()))?;
         self.set_pwr_dyn_brake_max();
         self.loco_vec.init()?;
         self.pdct.init()?;
@@ -413,7 +413,7 @@ impl Default for Consist {
         };
         // ensure propagation to nested components
         consist.set_save_interval(Some(1));
-        consist.check_mass_consistent().unwrap();
+        let _mass = consist.mass().unwrap();
         consist
     }
 }
@@ -495,6 +495,10 @@ impl LocoTrait for Consist {
 
 impl Mass for Consist {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        self.derived_mass()
+    }
+
+    fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
         let mass = self.loco_vec.iter().enumerate().try_fold(
             0. * uc::KG,
             |m_acc, (i, loco)| -> anyhow::Result<si::Mass> {
@@ -508,34 +512,28 @@ impl Mass for Consist {
         Ok(Some(mass))
     }
 
-    fn update_mass(&mut self, _mass: Option<si::Mass>) -> anyhow::Result<()> {
+    fn expunge_mass_fields(&mut self) {
         self.loco_vec
             .iter_mut()
-            .enumerate()
-            .try_for_each(|(i, loco)| -> anyhow::Result<()> {
-                loco.update_mass(None).map_err(|e| {
-                    anyhow!("{e}").context(format!("{}\nfailed at loco: {}", format_dbg!(), i))
-                })
-            })
+            .for_each(|l| l.expunge_mass_fields())
     }
 
-    fn check_mass_consistent(&self) -> anyhow::Result<()> {
-        for (i, loco) in self.loco_vec.iter().enumerate() {
-            match loco.check_mass_consistent() {
-                Ok(res) => res,
-                Err(e) => bail!(
-                    "{e}\n{}",
-                    format!(
-                        "{}\nfailed at loco: {}\n{}",
-                        format_dbg!(),
-                        i,
-                        "Try running `update_mass` method."
-                    )
-                ),
-            };
-        }
+    fn set_mass_specific_property(&mut self) -> anyhow::Result<()> {
+        Err(anyhow!(
+            "Setting mass specific properties not enabled at {} level",
+            stringify!(Consist)
+        ))
+    }
 
-        Ok(())
+    fn set_mass(
+        &mut self,
+        _mass: Option<si::Mass>,
+        _side_effect: MassSideEffect,
+    ) -> anyhow::Result<()> {
+        Err(anyhow!(
+            "Setting mass not enabled at {} level",
+            stringify!(Consist)
+        ))
     }
 }
 /// Locomotive State

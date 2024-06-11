@@ -1,7 +1,7 @@
 use super::powertrain::electric_drivetrain::ElectricDrivetrain;
 use super::powertrain::fuel_converter::FuelConverter;
 use super::powertrain::generator::Generator;
-use super::powertrain::ElectricMachine;
+use super::powertrain::{ElectricMachine, Mass, MassSideEffect};
 use super::LocoTrait;
 use crate::imports::*;
 
@@ -81,6 +81,32 @@ impl ConventionalLoco {
             assert_limits,
         )?;
         Ok(())
+    }
+}
+
+impl Mass for ConventionalLoco {
+    fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        self.derived_mass().with_context(|| anyhow!(format_dbg!()))
+    }
+
+    fn set_mass(
+        &mut self,
+        _new_mass: Option<si::Mass>,
+        _side_effect: MassSideEffect,
+    ) -> anyhow::Result<()> {
+        Err(anyhow!(
+            "`set_mass` not enabled for {}",
+            stringify!(ConventionalLoco)
+        ))
+    }
+
+    fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        self.fc.mass().with_context(|| anyhow!(format_dbg!()))
+    }
+
+    fn expunge_mass_fields(&mut self) {
+        self.fc.expunge_mass_fields();
+        self.gen.expunge_mass_fields();
     }
 }
 

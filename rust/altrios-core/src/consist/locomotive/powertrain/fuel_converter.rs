@@ -31,11 +31,12 @@ const TOL: f64 = 1e-3;
         Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
     }
 
-    #[setter("__mass_kg")]
-    fn update_mass_py(&mut self, mass_kg: Option<f64>) -> anyhow::Result<()> {
-        self.update_mass(mass_kg.map(|m| m * uc::KG))?;
-        Ok(())
-    }
+    // TODO: uncomment and fix
+    // #[setter("__mass_kg")]
+    // fn set_mass_py(&mut self, mass_kg: Option<f64>) -> anyhow::Result<()> {
+    //     self.set_mass(mass_kg.map(|m| m * uc::KG))?;
+    //     Ok(())
+    // }
 
     #[getter("mass_kg")]
     fn get_mass_py(&self) -> anyhow::Result<Option<f64>> {
@@ -44,7 +45,7 @@ const TOL: f64 = 1e-3;
 
     #[getter]
     fn get_specific_pwr_kw_per_kg(&self) -> Option<f64> {
-        self.specific_pwr_kw_per_kg
+        self.specific_pwr.map(|sp| sp.get::<si::kilowatt_per_kilogram>())
     }
 )]
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
@@ -58,9 +59,8 @@ pub struct FuelConverter {
     #[api(skip_get, skip_set)]
     mass: Option<si::Mass>,
     /// FuelConverter specific power
-    /// TODO: make this si::specific_power after Geordie's pull request into `uom`
     #[api(skip_get, skip_set)]
-    specific_pwr_kw_per_kg: Option<f64>,
+    specific_pwr: Option<si::SpecificPower>,
     #[serde(rename = "pwr_out_max_watts")]
     /// max rated brake output power
     pub pwr_out_max: si::Power,
@@ -96,7 +96,6 @@ impl Default for FuelConverter {
 
 impl SerdeAPI for FuelConverter {
     fn init(&mut self) -> anyhow::Result<()> {
-        self.check_mass_consistent()?;
         self.state.init()?;
         Ok(())
     }
@@ -104,48 +103,69 @@ impl SerdeAPI for FuelConverter {
 
 impl Mass for FuelConverter {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
-        self.check_mass_consistent()?;
+        let derived_mass = self
+            .derived_mass()
+            .with_context(|| anyhow!(format_dbg!()))?;
+        if let (Some(derived_mass), Some(set_mass)) = (derived_mass, self.mass) {
+            ensure!(
+                utils::almost_eq_uom(&set_mass, &derived_mass, None),
+                format!(
+                    "{}",
+                    format_dbg!(utils::almost_eq_uom(&set_mass, &derived_mass, None)),
+                )
+            );
+        }
         Ok(self.mass)
     }
 
-    fn update_mass(&mut self, mass: Option<si::Mass>) -> anyhow::Result<()> {
-        match mass {
-            Some(mass) => {
-                self.specific_pwr_kw_per_kg =
-                    Some(self.pwr_out_max.get::<si::kilowatt>() / mass.get::<si::kilogram>());
-                self.mass = Some(mass);
+    fn set_mass(
+        &mut self,
+        new_mass: Option<si::Mass>,
+        side_effect: MassSideEffect,
+    ) -> anyhow::Result<()> {
+        let derived_mass = self
+            .derived_mass()
+            .with_context(|| anyhow!(format_dbg!()))?;
+        if let (Some(derived_mass), Some(new_mass)) = (derived_mass, new_mass) {
+            if derived_mass != new_mass {
+                log::info!(
+                    "Derived mass from `self.specific_pwr` and `self.pwr_out_max` does not match {}",
+                    "provided mass. Updating based on `side_effect`"
+                );
+                match side_effect {
+                    MassSideEffect::Extensive => {
+                        self.pwr_out_max = self.specific_pwr.ok_or_else(|| {
+                            anyhow!(
+                                "{}\nExpected `self.specific_pwr` to be `Some`.",
+                                format_dbg!()
+                            )
+                        })? * new_mass;
+                    }
+                    MassSideEffect::Intensive => {
+                        self.specific_pwr = Some(self.pwr_out_max / new_mass);
+                    }
+                    MassSideEffect::None => {
+                        self.specific_pwr = None;
+                    }
+                }
             }
-            None => match self.specific_pwr_kw_per_kg {
-                Some(spec_pwr_kw_per_kg) => {
-                    self.mass = Some(self.pwr_out_max / (spec_pwr_kw_per_kg * uc::KW / uc::KG));
-                }
-                None => {
-                    bail!(format!(
-                        "{}\n{}",
-                        format_dbg!(),
-                        "Mass must be provided or `self.specific_pwr_kw_per_kg` must be set"
-                    ));
-                }
-            },
+        } else if new_mass.is_none() {
+            log::debug!("Provided mass is None, setting `self.specific_pwr` to None");
+            self.specific_pwr = None;
         }
-
+        self.mass = new_mass;
         Ok(())
     }
 
-    fn check_mass_consistent(&self) -> anyhow::Result<()> {
-        match &self.mass {
-            Some(mass) => match &self.specific_pwr_kw_per_kg {
-                Some(spec_pwr_kw_per_kg) => {
-                    ensure!(self.pwr_out_max / (*spec_pwr_kw_per_kg * uc::KW / uc::KG) == *mass,
-                    format!("{}\n{}", 
-                        format_dbg!(),
-                        "FuelConverter `pwr_out_max`, `specific_pwr_kw_per_kg` and `mass` are not consistent"))
-                }
-                None => {}
-            },
-            None => {}
-        }
-        Ok(())
+    fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        Ok(self
+            .specific_pwr
+            .map(|specific_pwr| self.pwr_out_max / specific_pwr))
+    }
+
+    fn expunge_mass_fields(&mut self) {
+        self.mass = None;
+        self.specific_pwr = None;
     }
 }
 
@@ -364,6 +384,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_that_history_has_len_1() {
         let mut fc: FuelConverter = FuelConverter::default();
         fc.save_interval = Some(1);

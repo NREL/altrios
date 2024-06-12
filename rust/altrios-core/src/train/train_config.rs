@@ -305,8 +305,6 @@ impl TrainSimBuilder {
         let veh = rail_vehicle;
         let train_params = self.train_config.make_train_params(rail_vehicle);
 
-        println!("making train sim parts");
-
         let length = train_params.length;
         // TODO: figure out what to do about rotational mass of locomotive components (e.g. axles, gearboxes, motor shafts)
         let mass_static = train_params.mass_total + self.loco_con.mass()?.unwrap();
@@ -373,7 +371,6 @@ impl TrainSimBuilder {
             save_interval,
         );
 
-        println!("made train sim parts");
         Ok((state, path_tpc, train_res, fric_brake))
     }
 

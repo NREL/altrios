@@ -188,9 +188,7 @@ impl Default for ReversibleEnergyStorage {
 
 impl Mass for ReversibleEnergyStorage {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
-        let derived_mass = self
-            .derived_mass()
-            .with_context(|| anyhow!(format_dbg!()))?;
+        let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
         if let (Some(derived_mass), Some(set_mass)) = (derived_mass, self.mass) {
             ensure!(
                 utils::almost_eq_uom(&set_mass, &derived_mass, None),
@@ -208,9 +206,7 @@ impl Mass for ReversibleEnergyStorage {
         new_mass: Option<si::Mass>,
         side_effect: MassSideEffect,
     ) -> anyhow::Result<()> {
-        let derived_mass = self
-            .derived_mass()
-            .with_context(|| anyhow!(format_dbg!()))?;
+        let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
         if let (Some(derived_mass), Some(new_mass)) = (derived_mass, new_mass) {
             if derived_mass != new_mass {
                 log::info!(
@@ -257,8 +253,8 @@ impl Mass for ReversibleEnergyStorage {
 
 impl SerdeAPI for ReversibleEnergyStorage {
     fn init(&mut self) -> anyhow::Result<()> {
-        let _ = self.mass().with_context(|| anyhow!(format_dbg!()))?;
-        self.state.init().with_context(|| anyhow!(format_dbg!()))?;
+        let _ = self.mass().with_context(|| format_dbg!())?;
+        self.state.init().with_context(|| format_dbg!())?;
         Ok(())
     }
 }

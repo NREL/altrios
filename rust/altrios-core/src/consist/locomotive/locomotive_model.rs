@@ -250,7 +250,7 @@ impl LocoTrait for DummyLoco {
             assert_limits: true,
             pwr_aux_offset: loco_params.pwr_aux_offset,
             pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
-            force_max: Some(loco_params.force_max),
+            force_max: loco_params.force_max,
             ..Default::default()
         })
     }
@@ -276,7 +276,7 @@ impl LocoTrait for DummyLoco {
             assert_limits: true,
             pwr_aux_offset: loco_params.pwr_aux_offset,
             pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
-            force_max: Some(loco_params.force_max),
+            force_max: loco_params.force_max,
             ..Default::default()
         };
         // make sure save_interval is propagated
@@ -310,7 +310,7 @@ impl LocoTrait for DummyLoco {
             ))),
             pwr_aux_offset: loco_params.pwr_aux_offset,
             pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
-            force_max: Some(loco_params.force_max),
+            force_max: loco_params.force_max,
             state: Default::default(),
             save_interval,
             history: LocomotiveStateHistoryVec::new(),
@@ -347,7 +347,7 @@ impl LocoTrait for DummyLoco {
             assert_limits: true,
             pwr_aux_offset: loco_params.pwr_aux_offset,
             pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
-            force_max: Some(loco_params.force_max),
+            force_max: loco_params.force_max,
             ..Default::default()
 
         };
@@ -366,7 +366,7 @@ impl LocoTrait for DummyLoco {
             assert_limits: true,
             pwr_aux_offset: 50e3 * uc::W,
             pwr_aux_traction_coeff: 0.01 * uc::R,
-            force_max: Some(50e6 * uc::N),
+            force_max: 50e6 * uc::N,
             ..Default::default()
         };
         dummy.set_mass(None, MassSideEffect::None).unwrap();
@@ -464,15 +464,39 @@ impl LocoTrait for DummyLoco {
     }
 
     #[getter("force_max_pounds")]
-    fn get_force_max_pounds_py(&self) -> anyhow::Result<Option<f64>> {
-        Ok(self.force_max()?.map(|f| f.get::<si::pound_force>()))
+    fn get_force_max_pounds_py(&self) -> anyhow::Result<f64> {
+        Ok(self.force_max()?.get::<si::pound_force>())
     }
 
     #[getter("force_max_newtons")]
-    fn get_force_max_newtons_py(&self) -> anyhow::Result<Option<f64>> {
-        Ok(
-            self.force_max()?.map(|f| f.get::<si::newton>())
-        )
+    fn get_force_max_newtons_py(&self) -> anyhow::Result<f64> {
+        Ok(self.force_max()?.get::<si::newton>())
+    }
+
+    #[pyo3(name="set_force_max_newtons")]
+    fn set_force_max_newtons_py(
+        &mut self,
+        force_max: f64,
+        side_effect: String
+    ) -> anyhow::Result<()> {
+        self.set_force_max(
+            force_max * uc::N,
+            side_effect.try_into()?
+        )?;
+        Ok(())
+    }
+
+    #[pyo3(name="set_force_max_pounds")]
+    fn set_force_max_pounds_py(
+        &mut self,
+        force_max: f64,
+        side_effect: String
+    ) -> anyhow::Result<()> {
+        self.set_force_max(
+            force_max * uc::LBF,
+            side_effect.try_into()?
+        )?;
+        Ok(())
     }
 
     #[getter]
@@ -488,6 +512,24 @@ impl LocoTrait for DummyLoco {
     #[getter]
     fn get_baseline_mass_kg(&self) -> anyhow::Result<Option<f64>> {
         Ok(self.baseline_mass.map(|m| m.get::<si::kilogram>()))
+    }
+
+    #[getter]
+    fn get_mu_py(&self) -> anyhow::Result<Option<f64>> {
+        Ok(self.mu()?.map(|mu| mu.get::<si::ratio>()))
+    }
+
+    #[pyo3(name="set_mu")]
+    fn set_mu_py(
+        &mut self,
+        mu: f64,
+        mu_side_effect: String
+    ) -> anyhow::Result<()> {
+        self.set_mu(
+            mu * uc::R,
+            mu_side_effect.try_into()?
+        )?;
+        Ok(())
     }
 )]
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -505,7 +547,7 @@ pub struct Locomotive {
     /// Locomotive mass
     mass: Option<si::Mass>,
     /// Locomotive coefficient of friction between wheels and rail when
-    /// stopped
+    /// stopped (i.e. traction coefficient)
     #[api(skip_get, skip_set)]
     mu: Option<si::Ratio>,
     /// Ballast mass, any mass that must be added to achieve nominal
@@ -535,7 +577,7 @@ pub struct Locomotive {
     pub pwr_aux_traction_coeff: si::Ratio,
     /// maximum tractive force
     #[api(skip_get, skip_set)]
-    force_max: Option<si::Force>,
+    force_max: si::Force,
 }
 
 impl Default for Locomotive {
@@ -546,7 +588,7 @@ impl Default for Locomotive {
             pwr_aux_offset: loco_params.pwr_aux_offset,
             pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
             mass: loco_params.mass,
-            force_max: Some(loco_params.force_max),
+            force_max: loco_params.force_max,
             state: Default::default(),
             ballast_mass: Default::default(),
             baseline_mass: Default::default(),
@@ -561,10 +603,11 @@ impl Default for Locomotive {
             MassSideEffect::None,
         )
         .unwrap();
-        loco.update_force_max(
+        loco.set_force_max(
             // 150,000 pounds of force = 667.3e3 N
             // TODO: track down source for this
-            Some(667.2e3 * uc::N),
+            667.2e3 * uc::N,
+            ForceMaxSideEffect::Mu,
         )
         .unwrap();
         loco
@@ -573,7 +616,7 @@ impl Default for Locomotive {
 
 impl SerdeAPI for Locomotive {
     fn init(&mut self) -> anyhow::Result<()> {
-        let _mass = self.mass().with_context(|| anyhow!(format_dbg!()))?;
+        let _mass = self.mass().with_context(|| format_dbg!())?;
         self.loco_type.init()?;
         Ok(())
     }
@@ -581,9 +624,7 @@ impl SerdeAPI for Locomotive {
 
 impl Mass for Locomotive {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
-        let derived_mass = self
-            .derived_mass()
-            .with_context(|| anyhow!(format_dbg!()))?;
+        let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
         match (derived_mass, self.mass) {
             (Some(derived_mass), Some(set_mass)) => {
                 ensure!(
@@ -613,9 +654,7 @@ impl Mass for Locomotive {
             "At the locomotive level, only `MassSideEffect::None` is allowed"
         );
 
-        let derived_mass = self
-            .derived_mass()
-            .with_context(|| anyhow!(format_dbg!()))?;
+        let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
         self.mass = match new_mass {
             // Set using provided `new_mass`, setting constituent mass fields to `None` to match if inconsistent
             Some(new_mass) => {
@@ -665,39 +704,43 @@ impl Locomotive {
     ///
     /// Arugments:
     /// * `force_max` - option for setting `self.force_max` directly
-    pub fn update_force_max(&mut self, force_max: Option<si::Force>) -> anyhow::Result<()> {
-        match force_max {
-            Some(force_max) => {
-                self.force_max = Some(force_max);
+    /// * `side_effect` - which dependent parameter to correspondingly update
+    pub fn set_force_max(
+        &mut self,
+        force_max: si::Force,
+        side_effect: ForceMaxSideEffect,
+    ) -> anyhow::Result<()> {
+        self.force_max = force_max;
+        match side_effect {
+            ForceMaxSideEffect::Mass => self.set_mass(
+                Some(
+                    force_max
+                        / (self
+                            .mu()?
+                            .with_context(|| format_dbg!("Expected `mu` to be Some."))?
+                            * uc::ACC_GRAV),
+                ),
+                MassSideEffect::None,
+            )?,
+            ForceMaxSideEffect::Mu => {
                 self.mu = self.mass.map(|mass| force_max / (mass * uc::ACC_GRAV))
             }
-            // derive force_max from other parameters
-            None => {
-                self.force_max = match self.mu {
-                    Some(mu) => match self.mass {
-                        Some(mass) => Some(mass * uc::ACC_GRAV * mu),
-                        None => {
-                            bail!("Must set `self.mass`")
-                        }
-                    },
-                    None => match self.mu {
-                        Some(_mu) => bail!("Must set `self.mu`"),
-                        None => bail!("Must set `self.mu` and `self.mass`"),
-                    },
-                }
-            }
-        };
+        }
         Ok(())
     }
 
-    pub fn force_max(&self) -> anyhow::Result<Option<si::Force>> {
+    pub fn force_max(&self) -> anyhow::Result<si::Force> {
         self.check_force_max()?;
         Ok(self.force_max)
     }
 
     pub fn check_force_max(&self) -> anyhow::Result<()> {
-        if let (Some(f), Some(mu), Some(mass)) = (self.force_max, self.mu, self.mass) {
-            ensure!(utils::almost_eq_uom(&f, &(mu * mass * uc::ACC_GRAV), None));
+        if let (Some(mu), Some(mass)) = (self.mu, self.mass) {
+            ensure!(utils::almost_eq_uom(
+                &self.force_max,
+                &(mu * mass * uc::ACC_GRAV),
+                None
+            ));
         }
         Ok(())
     }
@@ -1052,6 +1095,40 @@ impl Locomotive {
             si::Power::ZERO
         };
     }
+
+    pub fn mu(&self) -> anyhow::Result<Option<si::Ratio>> {
+        let mu = match self.mu {
+            Some(mu) => match self.mass()? {
+                Some(mass) => {
+                    ensure!(mass * mu * uc::ACC_GRAV == self.force_max);
+                    Some(mu)
+                }
+                None => {
+                    bail!(format_dbg!("`mu` and `mass` are both `None`"))
+                }
+            },
+            None => None,
+        };
+        Ok(mu)
+    }
+
+    pub fn set_mu(&mut self, mu: si::Ratio, mu_side_effect: MuSideEffect) -> anyhow::Result<()> {
+        self.mu = Some(mu);
+        match mu_side_effect {
+            MuSideEffect::Mass => self.set_mass(
+                Some(self.force_max / (mu * uc::ACC_GRAV)),
+                MassSideEffect::None,
+            ),
+            MuSideEffect::ForceMax => {
+                self.force_max = mu
+                    * uc::ACC_GRAV
+                    * self
+                        .mass()?
+                        .with_context(|| format_dbg!("Expected `mass` to be Some."))?;
+                Ok(())
+            }
+        }
+    }
 }
 
 fn set_pwr_lims(state: &mut LocomotiveState, edrv: &ElectricDrivetrain) {
@@ -1156,5 +1233,47 @@ impl Default for LocomotiveState {
             pwr_aux: Default::default(),
             energy_aux: Default::default(),
         }
+    }
+}
+
+pub enum MuSideEffect {
+    /// Update `mass`
+    Mass,
+    /// Update `force_max`
+    ForceMax,
+}
+
+impl TryFrom<String> for MuSideEffect {
+    type Error = anyhow::Error;
+    fn try_from(value: String) -> anyhow::Result<Self> {
+        let mass_side_effect = match value.as_str() {
+            "Mass" => Self::Mass,
+            "ForceMax" => Self::ForceMax,
+            _ => {
+                bail!(format!("`MuSideEffect` must be 'Mass' or 'ForceMax'."))
+            }
+        };
+        Ok(mass_side_effect)
+    }
+}
+
+pub enum ForceMaxSideEffect {
+    /// Update mass
+    Mass,
+    /// Update traction coefficient
+    Mu,
+}
+
+impl TryFrom<String> for ForceMaxSideEffect {
+    type Error = anyhow::Error;
+    fn try_from(value: String) -> anyhow::Result<Self> {
+        let mass_side_effect = match value.as_str() {
+            "Mass" => Self::Mass,
+            "Mu" => Self::Mu,
+            _ => {
+                bail!(format!("`ForceMaxSideEffect` must be 'Mass' or 'Mu'."))
+            }
+        };
+        Ok(mass_side_effect)
     }
 }

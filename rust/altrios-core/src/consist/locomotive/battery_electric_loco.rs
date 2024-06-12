@@ -66,7 +66,7 @@ impl BatteryElectricLoco {
 
 impl Mass for BatteryElectricLoco {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
-        self.derived_mass().with_context(|| anyhow!(format_dbg!()))
+        self.derived_mass().with_context(|| format_dbg!())
     }
 
     fn set_mass(
@@ -81,7 +81,7 @@ impl Mass for BatteryElectricLoco {
     }
 
     fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
-        self.res.mass().with_context(|| anyhow!(format_dbg!()))
+        self.res.mass().with_context(|| format_dbg!())
     }
 
     fn expunge_mass_fields(&mut self) {

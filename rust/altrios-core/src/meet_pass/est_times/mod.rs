@@ -481,7 +481,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     let dests = &speed_limit_train_sim.dests;
     let (link_idx_options, origs) =
         get_link_idx_options(&speed_limit_train_sim.origs, dests, network)
-            .with_context(|| anyhow!(format_dbg!()))?;
+            .with_context(|| format_dbg!())?;
 
     let mut est_times = Vec::with_capacity(network.len() * 10);
     let mut consist_out = None;
@@ -556,7 +556,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                 let mut train_sim = Box::new(speed_limit_train_sim.clone());
                 train_sim
                     .extend_path(network, &[orig.link_idx])
-                    .with_context(|| anyhow!(format_dbg!()))?;
+                    .with_context(|| format_dbg!())?;
                 train_sim
             },
             join_paths: vec![],
@@ -590,7 +590,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
 
         'path: loop {
             sim.update_movement(&mut movement)
-                .with_context(|| anyhow!(format_dbg!()))?;
+                .with_context(|| format_dbg!())?;
             update_est_times_add(
                 &mut est_times_add,
                 &movement,
@@ -661,20 +661,20 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                     );
                     sim.train_sim
                         .extend_path(network, &[link_idx_next_alt])
-                        .with_context(|| anyhow!(format_dbg!()))?;
+                        .with_context(|| format_dbg!())?;
                 } else {
                     if link_idx_options.contains(&link_idx_next_alt) {
                         let mut new_sim = sim.clone();
                         new_sim
                             .train_sim
                             .extend_path(network, &[link_idx_next_alt])
-                            .with_context(|| anyhow!(format_dbg!()))?;
+                            .with_context(|| format_dbg!())?;
                         new_sim.check_dests(dests);
                         saved_sims.push(new_sim);
                     }
                     sim.train_sim
                         .extend_path(network, &[link_idx_next])
-                        .with_context(|| anyhow!(format_dbg!()))?;
+                        .with_context(|| format_dbg!())?;
                 }
                 sim.check_dests(dests);
             }

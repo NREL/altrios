@@ -28,9 +28,9 @@ impl TryFrom<String> for MassSideEffect {
     type Error = anyhow::Error;
     fn try_from(value: String) -> anyhow::Result<MassSideEffect> {
         let mass_side_effect = match value.as_str() {
-            "None" => MassSideEffect::None,
-            "Extensive" => MassSideEffect::Extensive,
-            "Intensive" => MassSideEffect::Intensive,
+            "None" => Self::None,
+            "Extensive" => Self::Extensive,
+            "Intensive" => Self::Intensive,
             _ => {
                 bail!(format!(
                     "`MassSideEffect` must be 'Intensive', 'Extensive', or 'None'. "

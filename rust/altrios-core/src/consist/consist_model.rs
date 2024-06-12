@@ -122,7 +122,7 @@ pub struct Consist {
 
 impl SerdeAPI for Consist {
     fn init(&mut self) -> anyhow::Result<()> {
-        let _mass = self.mass().with_context(|| anyhow!(format_dbg!()))?;
+        let _mass = self.mass().with_context(|| format_dbg!())?;
         self.set_pwr_dyn_brake_max();
         self.loco_vec.init()?;
         self.pdct.init()?;
@@ -181,8 +181,8 @@ impl Consist {
             0. * uc::N,
             |f_sum, (i, loco)| -> anyhow::Result<si::Force> {
                 Ok(loco
-                    .force_max()?
-                    .ok_or_else(|| anyhow!("Locomotive {i} does not have `force_max` set"))?
+                    .force_max()
+                    .with_context(|| format!("{}\n{}{}", format_dbg!(), "locomotive: ", i))?
                     + f_sum)
             },
         )

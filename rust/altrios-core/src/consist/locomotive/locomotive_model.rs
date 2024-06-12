@@ -474,6 +474,11 @@ impl LocoTrait for DummyLoco {
     }
 
     #[pyo3(name="set_force_max_newtons")]
+    /// Sets max tractive force and applies `side_effect`.  Note that this should be 
+    /// used only on a standalone `Locomotive` (i.e. not nested in another object).
+    /// # Arguments
+    /// - `force_max`: max tractive force
+    /// - `side_effect`: string form of `ForceMaxSideEffect`
     fn set_force_max_newtons_py(
         &mut self,
         force_max: f64,
@@ -519,6 +524,11 @@ impl LocoTrait for DummyLoco {
         Ok(self.mu()?.map(|mu| mu.get::<si::ratio>()))
     }
 
+    /// Sets traction coefficient and applies `side_effect`.  Note that this should be 
+    /// used only on a standalone `Locomotive` (i.e. not nested in another object).
+    /// # Arguments
+    /// - `mu`: tractive coefficient between wheel and rail
+    /// - `side_effect`: string form of `MuSideEffect`
     #[pyo3(name="set_mu")]
     fn set_mu_py(
         &mut self,

@@ -127,6 +127,7 @@ const TOL: f64 = 1e-3;
 pub struct ReversibleEnergyStorage {
     /// struct for tracking current state
     #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ReversibleEnergyStorageState,
     /// ReversibleEnergyStorage mass
     #[serde(default)]

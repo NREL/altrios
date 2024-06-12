@@ -110,6 +110,7 @@ pub struct Consist {
     #[api(skip_set)] // setter needs to also apply to individual locomotives
     /// whether to panic if TPC requires more power than consist can deliver
     assert_limits: bool,
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ConsistState,
     /// Custom vector of [Self::state]
     pub history: ConsistStateHistoryVec,

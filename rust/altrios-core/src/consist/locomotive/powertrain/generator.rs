@@ -74,6 +74,7 @@ use crate::pyo3::*;
 pub struct Generator {
     #[serde(default)]
     /// struct for tracking current state
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: GeneratorState,
     /// Generator mass
     #[serde(default)]

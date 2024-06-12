@@ -463,7 +463,7 @@ impl LocoTrait for DummyLoco {
         self.get_pwr_rated().get::<si::kilowatt>()
     }
 
-    #[getter("force_max_pounds")]
+    #[getter("force_max_lbs")]
     fn get_force_max_pounds_py(&self) -> anyhow::Result<f64> {
         Ok(self.force_max()?.get::<si::pound_force>())
     }
@@ -519,7 +519,7 @@ impl LocoTrait for DummyLoco {
         Ok(self.baseline_mass.map(|m| m.get::<si::kilogram>()))
     }
 
-    #[getter]
+    #[getter("mu")]
     fn get_mu_py(&self) -> anyhow::Result<Option<f64>> {
         Ok(self.mu()?.map(|mu| mu.get::<si::ratio>()))
     }
@@ -551,6 +551,7 @@ pub struct Locomotive {
     pub loco_type: PowertrainType,
     /// current state of locomotive
     #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: LocomotiveState,
     #[api(skip_get, skip_set)]
     #[serde(default)]
@@ -617,7 +618,7 @@ impl Default for Locomotive {
             // 150,000 pounds of force = 667.3e3 N
             // TODO: track down source for this
             667.2e3 * uc::N,
-            ForceMaxSideEffect::Mu,
+            ForceMaxSideEffect::None,
         )
         .unwrap();
         loco
@@ -1088,7 +1089,7 @@ impl Locomotive {
                     loco.edrv.state.pwr_mech_prop_out - loco.edrv.state.pwr_mech_dyn_brake;
             }
             PowertrainType::BatteryElectricLoco(loco) => {
-                //todo: put something in hear for deep sleep that is the
+                //todo: put something in here for deep sleep that is the
                 //equivalent of engine_on in conventional loco
                 loco.solve_energy_consumption(pwr_out_req, dt, self.state.pwr_aux)?;
                 self.state.pwr_out =
@@ -1117,9 +1118,7 @@ impl Locomotive {
                     ensure!(mass * mu * uc::ACC_GRAV == self.force_max);
                     Some(mu)
                 }
-                None => {
-                    bail!(format_dbg!("`mu` and `mass` are both `None`"))
-                }
+                None => Some(mu),
             },
             None => None,
         };

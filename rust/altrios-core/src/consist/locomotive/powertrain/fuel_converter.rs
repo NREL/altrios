@@ -53,6 +53,7 @@ const TOL: f64 = 1e-3;
 pub struct FuelConverter {
     #[serde(default)]
     /// struct for tracking current state
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: FuelConverterState,
     /// FuelConverter mass
     #[serde(default)]

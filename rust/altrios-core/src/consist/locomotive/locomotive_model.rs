@@ -1112,17 +1112,8 @@ impl Locomotive {
     }
 
     pub fn mu(&self) -> anyhow::Result<Option<si::Ratio>> {
-        let mu = match self.mu {
-            Some(mu) => match self.mass()? {
-                Some(mass) => {
-                    ensure!(mass * mu * uc::ACC_GRAV == self.force_max);
-                    Some(mu)
-                }
-                None => Some(mu),
-            },
-            None => None,
-        };
-        Ok(mu)
+        self.check_force_max()?;
+        Ok(self.mu)
     }
 
     pub fn set_mu(&mut self, mu: si::Ratio, mu_side_effect: MuSideEffect) -> anyhow::Result<()> {

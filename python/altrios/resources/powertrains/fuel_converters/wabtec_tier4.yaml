@@ -1,7 +1,7 @@
 # [Tier 4](https://www.wabteccorp.com/media/3641/download?inline)
 
 # max steady state power consist fuel converters can produce
-pwr_out_max_watts: 3.255e6
+pwr_out_max_watts: 3.356e6
 # time to ramp from min to max power
 pwr_ramp_lag_seconds: 25
 # idle fuel power usage

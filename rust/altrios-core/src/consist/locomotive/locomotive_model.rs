@@ -735,6 +735,10 @@ impl Locomotive {
             ForceMaxSideEffect::Mu => {
                 self.mu = self.mass.map(|mass| force_max / (mass * uc::ACC_GRAV))
             }
+            ForceMaxSideEffect::None => {
+                self.mu = None;
+                self.mass = None;
+            }
         }
         Ok(())
     }
@@ -1272,6 +1276,8 @@ pub enum ForceMaxSideEffect {
     Mass,
     /// Update traction coefficient
     Mu,
+    /// Set both mass and mu to be `None`
+    None,
 }
 
 impl TryFrom<String> for ForceMaxSideEffect {
@@ -1280,6 +1286,7 @@ impl TryFrom<String> for ForceMaxSideEffect {
         let mass_side_effect = match value.as_str() {
             "Mass" => Self::Mass,
             "Mu" => Self::Mu,
+            "None" => Self::None,
             _ => {
                 bail!(format!("`ForceMaxSideEffect` must be 'Mass' or 'Mu'."))
             }

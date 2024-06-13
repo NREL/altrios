@@ -52,8 +52,8 @@ const TOL: f64 = 1e-3;
 /// Struct for modeling Fuel Converter (e.g. engine, fuel cell.)
 pub struct FuelConverter {
     #[serde(default)]
-    /// struct for tracking current state
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    /// struct for tracking current state
     pub state: FuelConverterState,
     /// FuelConverter mass
     #[serde(default)]

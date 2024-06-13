@@ -56,8 +56,8 @@ use crate::pyo3::*;
 /// everything involved in converting high voltage electrical power to force exerted by the wheel on the track.  
 pub struct ElectricDrivetrain {
     #[serde(default)]
-    /// struct for tracking current state
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    /// struct for tracking current state
     pub state: ElectricDrivetrainState,
     /// Shaft output power fraction array at which efficiencies are evaluated.
     pub pwr_out_frac_interp: Vec<f64>,

@@ -73,8 +73,8 @@ use crate::pyo3::*;
 /// Struct for modeling generator/alternator.
 pub struct Generator {
     #[serde(default)]
-    /// struct for tracking current state
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    /// struct for tracking current state
     pub state: GeneratorState,
     /// Generator mass
     #[serde(default)]

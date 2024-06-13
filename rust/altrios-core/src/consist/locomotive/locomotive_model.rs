@@ -202,7 +202,9 @@ impl Default for LocoParams {
             pwr_aux_offset: 8554.15 * uc::W,
             pwr_aux_traction_coeff: 0.000539638 * uc::R,
             force_max: 667.2e3 * uc::N,
-            mass: None,
+            // https://www.wabteccorp.com/media/3641/download?inline
+            // per above, 432,000 lbs = 195,000 kg
+            mass: Some(195_000.0 * uc::KG),
         }
     }
 }
@@ -618,7 +620,7 @@ impl Default for Locomotive {
             // 150,000 pounds of force = 667.3e3 N
             // TODO: track down source for this
             667.2e3 * uc::N,
-            ForceMaxSideEffect::None,
+            ForceMaxSideEffect::Mu,
         )
         .unwrap();
         loco

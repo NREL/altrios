@@ -110,6 +110,7 @@ pub struct Consist {
     #[api(skip_set)] // setter needs to also apply to individual locomotives
     /// whether to panic if TPC requires more power than consist can deliver
     assert_limits: bool,
+    #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ConsistState,
     /// Custom vector of [Self::state]
@@ -504,8 +505,9 @@ impl Mass for Consist {
             0. * uc::KG,
             |m_acc, (i, loco)| -> anyhow::Result<si::Mass> {
                 let loco_mass = loco
-                    .mass()?
-                    .ok_or_else(|| anyhow!("Locomotive {i} does not have `mass` set"))?;
+                    .mass()
+                    .with_context(|| format!("locomotive at index {i}"))?
+                    .with_context(|| format!("Locomotive {i} does not have `mass` set"))?;
                 let new_mass: si::Mass = loco_mass + m_acc;
                 Ok(new_mass)
             },

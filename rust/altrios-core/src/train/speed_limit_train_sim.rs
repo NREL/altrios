@@ -139,6 +139,7 @@ pub struct SpeedLimitTrainSim {
     pub origs: Vec<Location>,
     pub dests: Vec<Location>,
     pub loco_con: Consist,
+    #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: TrainState,
     #[api(skip_set, skip_get)]

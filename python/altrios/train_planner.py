@@ -924,7 +924,6 @@ def run_train_planner(
     Outputs:
     ----------
     """
-    print("entering train planner")
     config.loco_info = append_loco_info(config.loco_info)
     demand, node_list = demand_loader(demand_file)
     if refuelers is None: 
@@ -1057,9 +1056,7 @@ def run_train_planner(
                         scenario_year
                     )
 
-                    print("Calling alt.make_est_times()")
                     (est_time_net, loco_con_out) = alt.make_est_times(slts, network)
-                    print("Finished with alt.make_est_times()")
                     travel_time = (
                         est_time_net.get_running_time_hours()
                         * config.dispatch_scaling_dict["time_mult_factor"] 

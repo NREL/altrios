@@ -35,6 +35,8 @@ class ScenarioInfo:
     - `simulation_days`: Number of days included in these results (after any warm-start or cool-down 
     days were excluded)
 
+    - `annualize`: Whether to scale up output metrics to a full year's equivalent.
+
     - `scenario_year`: Year that is being considered in this scenario.
 
     - `loco_pool`: `polars.DataFrame` defining the pool of locomotives that were available

@@ -22,7 +22,7 @@ def simulate_prescribed_rollout(
     network_filename_path: str = str(alt.resources_root() / "networks/Taconite.yaml"),
     save_interval: Optional[int] = None,
     freight_demand_percent_growth:float = 0.0,
-    demand_file_path= defaults.DEMAND_FILE,
+    demand_file: Union[pl.DataFrame, Path, str] = defaults.DEMAND_FILE,
     train_planner_config: train_planner.TrainPlannerConfig = train_planner.TrainPlannerConfig(),
     count_unused_locomotives = False,
     write_complete_results: Optional[bool] = False,
@@ -47,17 +47,17 @@ def simulate_prescribed_rollout(
         file.writelines(["*"])
 
 
-    base_freight_demand_df = pd.read_csv(demand_file_path)
+    base_freight_demand_df = pd.read_csv(demand_file)
     demand_paths = []
     for year in years:
         if freight_demand_percent_growth > 0:
-            demand_filename = results_folder + '/' + os.path.basename(demand_file_path).replace('.csv',str(year) + '.csv')
+            demand_filename = results_folder + '/' + os.path.basename(demand_file).replace('.csv',str(year) + '.csv')
             base_freight_demand_df.to_csv(demand_filename, float_format="%.0f")
             demand_paths.append(demand_filename)
             base_freight_demand_df.Number_of_Cars = base_freight_demand_df.Number_of_Cars * (1 + freight_demand_percent_growth/100)
             base_freight_demand_df.Number_of_Containers = base_freight_demand_df.Number_of_Containers * (1 + freight_demand_percent_growth/100)
         else:
-            demand_paths.append(demand_file_path)
+            demand_paths.append(demand_file)
 
     rail_vehicle_map = alt.import_rail_vehicles(
         str(alt.resources_root() / "rolling_stock/rail_vehicles.csv")
@@ -81,7 +81,7 @@ def simulate_prescribed_rollout(
             target_bel_share=target_bel_shares[idx],
             debug=True,
             train_planner_config=train_planner_config,
-            demand_file_path=demand_paths[idx],
+            demand_file=demand_paths[idx],
         )
 
         t1 = time.perf_counter()
@@ -125,13 +125,13 @@ def simulate_prescribed_rollout(
         if write_complete_results:
             sims.to_file(
                 str(results_folder / 'RolloutResults_Year {}_Demand {}.json'
-                    .format(scenario_year, Path(demand_file_path).name)
+                    .format(scenario_year, Path(demand_file).name)
                 )
                 .replace('.csv',''))
             
             train_consist_plan.write_csv(
                 str(results_folder / 'ConsistPlan_Year {}_Demand {}.csv'
-                    .format(scenario_year, Path(demand_file_path).name)
+                    .format(scenario_year, Path(demand_file).name)
                 )
                 .replace('.csv','') + '.csv')
             
@@ -148,12 +148,12 @@ def simulate_prescribed_rollout(
         print
         (results_folder /
             'Metrics_Demand {}_DemandFile {}.xlsx'.format(
-                scenario_year, os.path.basename(demand_file_path)
+                scenario_year, os.path.basename(demand_file)
             ).replace('.csv','')
         )
         metrics.to_pandas().to_excel(
             results_folder / 'Metrics_Demand {}_DemandFile {}.xlsx'.format(
-                scenario_year, os.path.basename(demand_file_path)).replace('.csv','')
+                scenario_year, os.path.basename(demand_file)).replace('.csv','')
         )
     
     t3 = time.perf_counter()

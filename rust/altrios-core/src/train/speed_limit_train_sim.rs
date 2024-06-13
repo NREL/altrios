@@ -407,10 +407,18 @@ impl SpeedLimitTrainSim {
         let f_applied_target =
             res_net + self.state.mass_static * (speed_target - self.state.speed) / self.state.dt;
 
-        let pwr_pos_max =
-            self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
-                self.state.pwr_whl_out + self.loco_con.state.pwr_rate_out_max * self.state.dt,
-            ));
+        let pwr_pos_max = self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
+            // TODO: the effect of rate may already be accounted for in this snippet
+            // from fuel_converter.rs:
+
+            // ```
+            // self.state.pwr_out_max = (self.state.pwr_brake
+            //     + (self.pwr_out_max / self.pwr_ramp_lag) * dt)
+            //     .min(self.pwr_out_max)
+            //     .max(self.pwr_out_max_init);
+            // ```
+            self.state.pwr_whl_out + self.loco_con.state.pwr_rate_out_max * self.state.dt,
+        ));
         let pwr_neg_max = self.loco_con.state.pwr_dyn_brake_max.max(si::Power::ZERO);
         ensure!(
             pwr_pos_max >= si::Power::ZERO,
@@ -438,12 +446,56 @@ impl SpeedLimitTrainSim {
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
             log::error!("{}", format_dbg!(self.path_tpc));
             bail!(
-                "{}\nTrain does not have sufficient power to move!\nforce_max={:?},\nres_net={:?},\ntrain_state={:?}", // ,\nlink={:?}
+                "{}\nTrain does not have sufficient power to move!\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", // ,\nlink={:?}
                 format_dbg!(),
-                f_pos_max,
-                res_net,
-                self.state,
-            );
+                // force_max
+                format!(
+                    "force_max: {} N", 
+                    self
+                        .loco_con
+                        .force_max()?
+                        .get::<si::newton>()
+                        .format_eng(Some(5))
+                    ),
+                    // force based on speed target
+                    format!("pwr_pos_max / speed_target.min(v_max): {} N", (pwr_pos_max / speed_target.min(v_max)).get::<si::newton>().format_eng(Some(5))),
+                    // pwr_pos_max
+                    format!("pwr_pos_max: {} W", pwr_pos_max.get::<si::watt>().format_eng(Some(5))
+                ),
+                // SOC across all RES-equipped locomotives
+                format!(
+                    "SOCs: {:?}", 
+                    self
+                        .loco_con
+                        .loco_vec
+                        .iter()
+                        .map(|loco| {
+                            loco.reversible_energy_storage()
+                                .map(|res| res.state.soc.get::<si::ratio>().format_eng(Some(5)))
+                                .unwrap_or_else(|| "N/A".into())})
+                        .collect::<Vec<String>>()
+                ),
+                // minimum allowable SOC across all RES-equipped locomotives
+                format!(
+                    "Minimum allowed SOCs: {:?}", 
+                    self
+                        .loco_con
+                        .loco_vec
+                        .iter()
+                        .map(|loco| {
+                            loco.reversible_energy_storage()
+                                .map(|res| res.state.min_soc.get::<si::ratio>().format_eng(Some(5)))
+                                .unwrap_or_else(|| "N/A".into())
+                        })
+                        .collect::<Vec<String>>()
+                ),
+                // grade at front of train
+                format!("grade_front: {}", self.state.grade_front.get::<si::ratio>().format_eng(Some(5))),
+                // grade at rear of train
+                format!("grade_back: {}", self.state.grade_back.get::<si::ratio>().format_eng(Some(5))),
+                format!("f_pos_max: {} N", f_pos_max.get::<si::newton>().format_eng(Some(5))),
+                format!("res_net: {} N", res_net.get::<si::newton>().format_eng(Some(5)))
+            )
         }
 
         self.fric_brake.set_cur_force_max_out(self.state.dt)?;

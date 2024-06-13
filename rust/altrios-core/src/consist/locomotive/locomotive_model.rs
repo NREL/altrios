@@ -611,7 +611,7 @@ impl Default for Locomotive {
             mu: Default::default(),
         };
         loco.set_mass(
-            // Steve Fritz said 432,000 lbs is expected
+            // https://www.wabteccorp.com/media/3641/download?inline
             Some(432e3 * uc::LB),
             MassSideEffect::None,
         )

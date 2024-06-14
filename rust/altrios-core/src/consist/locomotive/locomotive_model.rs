@@ -620,7 +620,7 @@ impl Default for Locomotive {
             // 150,000 pounds of force = 667.3e3 N
             // TODO: track down source for this
             667.2e3 * uc::N,
-            ForceMaxSideEffect::Mu,
+            ForceMaxSideEffect::UpdateMu,
         )
         .unwrap();
         loco
@@ -728,19 +728,17 @@ impl Locomotive {
             ForceMaxSideEffect::Mass => self.set_mass(
                 Some(
                     force_max
-                        / (self
-                            .mu()?
-                            .with_context(|| format_dbg!("Expected `mu` to be Some."))?
-                            * uc::ACC_GRAV),
+                        / (self.mu()?.with_context(|| {
+                            format_dbg!("Expected traction coefficient to be set.")
+                        })? * uc::ACC_GRAV),
                 ),
                 MassSideEffect::None,
             )?,
-            ForceMaxSideEffect::Mu => {
+            ForceMaxSideEffect::UpdateMu => {
                 self.mu = self.mass.map(|mass| force_max / (mass * uc::ACC_GRAV))
             }
-            ForceMaxSideEffect::None => {
+            ForceMaxSideEffect::SetMuToNone => {
                 self.mu = None;
-                self.mass = None;
             }
         }
         Ok(())
@@ -1275,9 +1273,9 @@ pub enum ForceMaxSideEffect {
     /// Update mass
     Mass,
     /// Update traction coefficient
-    Mu,
-    /// Set both mass and mu to be `None`
-    None,
+    UpdateMu,
+    /// Set both mass and traction coefficient to be `None`
+    SetMuToNone,
 }
 
 impl TryFrom<String> for ForceMaxSideEffect {
@@ -1285,8 +1283,8 @@ impl TryFrom<String> for ForceMaxSideEffect {
     fn try_from(value: String) -> anyhow::Result<Self> {
         let mass_side_effect = match value.as_str() {
             "Mass" => Self::Mass,
-            "Mu" => Self::Mu,
-            "None" => Self::None,
+            "UpdateMu" => Self::UpdateMu,
+            "SetMuToNone" => Self::SetMuToNone,
             _ => {
                 bail!(format!("`ForceMaxSideEffect` must be 'Mass' or 'Mu'."))
             }

@@ -126,9 +126,8 @@ def set_param_from_path(
     # Example usage
     ```python
     import altrios as alt
-    loco_conventional = alt.Locomotive.default()
-    altpy.set_param_from_path(
-        loco_conventional, "fc.pwr_ramp_lag_seconds", 0.000001)
+    res = alt.ReversibleEnergyStorage.default()
+    alt.set_param_from_path(res, "state.soc", 1.0)
     ```
     """
     path_list = path.split(".")

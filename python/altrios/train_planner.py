@@ -98,6 +98,7 @@ class TrainPlannerConfig:
         self.dispatch_scaling_dict = dispatch_scaling_dict
         self.loco_info = loco_info
         self.refueler_info = refueler_info
+        self.drag_coeff_function = drag_coeff_function
 
 def demand_loader(
     demand_file: Union[pl.DataFrame, Path, str]

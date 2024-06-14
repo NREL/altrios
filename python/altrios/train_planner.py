@@ -21,6 +21,7 @@ class TrainPlannerConfig:
                  manifest_empty_return_ratio: float = 0.6,
                  cars_per_locomotive: int = 70,
                  refuelers_per_incoming_corridor: int = 4,
+                 drag_coeff_function: List = None,
                  hp_required_per_ton: Dict = {
                      "Default": {
                         "Unit": 2.0,
@@ -979,54 +980,6 @@ def run_train_planner(
     speed_limit_train_sims = []
     est_time_nets = []
 
-    ## Building drag coefficient vector from slide 24
-
-    # Change in drag coefficient for the periodic case as a function of gap size
-    def drag_change_pct(gap_size: float) -> float:
-        gap_size_array = [0.508, 0.968, 1.186, 1.407, 
-                    1.564, 1.627, 1.851] #gap size in meters from digitized plot
-        drag_change_array = [-32.56, -24.93, -17.85, 
-                            -6.678, 0.009, 1.7, 
-                            7.876] # Change in drag coefficient for periodic boundary in %
-        
-        return np.interp(gap_size, xp=gap_size_array, 
-                        fp=drag_change_array)
-
-    def create_drag_vec(num_rail_vehicles: int, ps_gap_size: float) -> List[float]:
-
-        ## From slide 16 of the Aerodynamic model PPT
-        drag_vec_10cars_liang = [1.168, 0.292, 0.228,
-                                0.217, 0.238, 0.209,
-                            0.244,0.244,0.244, 0.409] 
-        
-        ## From slide 16 of the Aerodynamic model PPT
-        periodic_drag_coeff_liang = 0.193
-        
-        rel_drag_change = drag_change_pct(ps_gap_size)
-        drag_coeff_baseline = 0.108
-        periodic_drag_coeff_ps = drag_coeff_baseline*(1+rel_drag_change/100)
-        drag_ratio = periodic_drag_coeff_ps/periodic_drag_coeff_liang
-        drag_vec = drag_vec_10cars_liang[0:num_rail_vehicles]
-
-        ## For num_rail_vehicles 1, 2, and 3: 
-        ## scaled the value for Liang's car from values in slide 24 
-        if num_rail_vehicles == 1:
-            drag_vec = [2.296] 
-        elif num_rail_vehicles == 2:  
-            drag_vec[-1] = 2.296 - drag_vec_10cars_liang[0]
-        elif num_rail_vehicles == 3:  
-            drag_vec[-1] = 2.296 - sum(drag_vec[:-1])
-        elif num_rail_vehicles >= 4:
-            drag_vec[-1] = drag_vec_10cars_liang[-1]
-            if num_rail_vehicles > 10:
-                drag_vec = drag_vec_10cars_liang[:-1] + \
-                    [0.105]*(num_rail_vehicles-9)
-                drag_vec[-1] = drag_vec_10cars_liang[-1]
-
-        drag_vec_ps = [round(drag_ratio*x, 3)
-                            for x in drag_vec]
-        return drag_vec_ps
-
     done = False
     # start at first departure time
     current_time = dispatch_times.get_column("Hour").min()
@@ -1052,20 +1005,13 @@ def run_train_planner(
                         )
                         dispatched = loco_pool.filter(selected)
                     
-
-                    num_rail_vehicles = (int(this_train['Cars_Per_Train_Empty']) + \
-                                         int(this_train['Cars_Per_Train_Loaded']))
-                    drag_vec = create_drag_vec(num_rail_vehicles = num_rail_vehicles, 
-                                               ps_gap_size = 0.610)
                     train_config = alt.TrainConfig(
                         cars_empty = int(this_train['Cars_Per_Train_Empty']),
                         cars_loaded = int(this_train['Cars_Per_Train_Loaded']),
                         rail_vehicle_type = this_train['Train_Type'],
                         train_type = train_type,
                         # TODO: put drag coeff vec here
-                        drag_coeff_vec = np.array(drag_vec)*\
-                                          rail_vehicle_map.drag_area_loaded_square_meters
-                        
+                        drag_coeff_vec = TrainPlannerConfig().drag_coeff_function
                     )
 
                     loco_start_soc_j = dispatched.get_column("SOC_J")

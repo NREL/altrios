@@ -336,7 +336,6 @@ impl LocoTrait for DummyLoco {
         drivetrain: ElectricDrivetrain,
         loco_params: LocoParams,
         save_interval: Option<usize>,
-
     ) -> anyhow::Result<Self> {
         let mut loco = Self {
             loco_type: PowertrainType::BatteryElectricLoco(BatteryElectricLoco::new(
@@ -594,6 +593,7 @@ pub struct Locomotive {
 }
 
 impl Default for Locomotive {
+    /// Returns locomotive with defaults for Tier 4 [ConventionalLoco]
     fn default() -> Self {
         let loco_params = LocoParams::default();
         let mut loco = Self {
@@ -764,11 +764,17 @@ impl Locomotive {
 
     pub fn default_battery_electric_loco() -> Self {
         // TODO: add `pwr_aux_offset` and `pwr_aux_traction_coeff` based on calibration
-        let bel_type = PowertrainType::BatteryElectricLoco(BatteryElectricLoco::default());
-        Locomotive {
-            loco_type: bel_type,
-            ..Default::default()
-        }
+        Locomotive::build_battery_electric_loco(
+            ReversibleEnergyStorage::default(),
+            ElectricDrivetrain::default(),
+            LocoParams {
+                // source: https://www.wabteccorp.com/media/466/download?inline
+                mass: Some(194.6e3 * uc::KG),
+                ..Default::default()
+            },
+            Default::default(),
+        )
+        .unwrap()
     }
 
     pub fn default_hybrid_electric_loco() -> Self {

@@ -123,8 +123,13 @@ def set_param_from_path(
     """
     Set parameter `value` on `model` for `path` to parameter
 
-    Example usage:
-    todo
+    # Example usage
+    ```python
+    import altrios as alt
+    loco_conventional = alt.Locomotive.default()
+    altpy.set_param_from_path(
+        loco_conventional, "fc.pwr_ramp_lag_seconds", 0.000001)
+    ```
     """
     path_list = path.split(".")
 

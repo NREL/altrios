@@ -770,9 +770,11 @@ impl Locomotive {
             LocoParams {
                 // source: https://www.wabteccorp.com/media/466/download?inline
                 mass: Some(194.6e3 * uc::KG),
-                ..Default::default()
+                pwr_aux_offset: 8.55e3 * uc::W,
+                pwr_aux_traction_coeff: 540e-6 * uc::R,
+                force_max: 667.2e3 * uc::N,
             },
-            Default::default(),
+            Some(1),
         )
         .unwrap()
     }

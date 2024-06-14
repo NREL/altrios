@@ -391,11 +391,9 @@ impl ReversibleEnergyStorage {
     }
 
     /// Returns max output and max regen power based on current state
-    /// Arguments:
-    /// - charge_buffer: min future train energy state - current train energy state.
-    /// If provided, reserves some charge capacity for future.
-    /// - discharge_buffer: max future train energy state - current train energy state.
-    /// If provided, reserves some discharge capacity for future.
+    /// # Arguments:
+    /// - charge_buffer: If provided, reserves some charge capacity by reducing maximum SOC.
+    /// - discharge_buffer: If provided, reserves some discharge capacity by increasing minimum SOC.
     pub fn set_cur_pwr_out_max(
         &mut self,
         pwr_aux: si::Power,

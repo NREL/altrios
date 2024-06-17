@@ -8,8 +8,8 @@ class TestLocomotive(unittest.TestCase):
         from altrios import LocomotiveSimulation, Locomotive, PowerTrace
         mock_df = mock_pymoo_conv_cal_df()
         pt = PowerTrace(
-            mock_df['time [s]'],
-            mock_df['Tractive Power [W]'],
+            mock_df['time [s]'].to_numpy(),
+            mock_df['Tractive Power [W]'].to_numpy(),
             engine_on=mock_df['engine_on'],
         )
         loco_sim = LocomotiveSimulation(

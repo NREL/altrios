@@ -4,12 +4,11 @@ from .mock_resources import *
 
 class TestParamPath(unittest.TestCase):
     def test_param_path_list(self):
-        from altrios.optimization import cal_and_val as cval
         from altrios import LocomotiveSimulation, Locomotive, PowerTrace
         mock_df = mock_pymoo_conv_cal_df()
         pt = PowerTrace(
-            mock_df['time [s]'].to_numpy(),
-            mock_df['Tractive Power [W]'].to_numpy(),
+            mock_df['time [s]'],
+            mock_df['Tractive Power [W]'],
             engine_on=mock_df['engine_on'],
         )
         loco_sim = LocomotiveSimulation(

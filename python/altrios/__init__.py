@@ -92,7 +92,7 @@ ACCEPTED_RUST_STRUCTS = ['FuelConverter',
 def param_path_list(self, path = "", param_path_list = []) -> list[str]:
     """Returns list of relative paths to all variables and sub-variables within
     class (relative to the class the method was called on) 
-    See example usage in demo_param_paths.py.
+    See example usage in param_paths_demo.py.
     Arguments:
     ----------
     path : Defaults to empty string. This is mainly used within the method in
@@ -129,7 +129,7 @@ def param_path_list(self, path = "", param_path_list = []) -> list[str]:
 def history_path_list(self) -> list[str]:
     """Returns a list of relative paths to all history variables (all variables
     that contain history as a subpath). 
-    See example usage in demo_param_paths.py."""
+    See example usage in param_paths_demo.py."""
     return [item for item in self.param_path_list() if "history" in item]
             
 

@@ -108,6 +108,7 @@ def simulate_prescribed_rollout(
         scenarios.append(ScenarioInfo(
             sims, 
             sim_days,
+            True,
             scenario_year, 
             loco_pool,
             train_consist_plan, 

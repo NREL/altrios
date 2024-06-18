@@ -110,6 +110,8 @@ pub struct Consist {
     #[api(skip_set)] // setter needs to also apply to individual locomotives
     /// whether to panic if TPC requires more power than consist can deliver
     assert_limits: bool,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ConsistState,
     /// Custom vector of [Self::state]
     pub history: ConsistStateHistoryVec,
@@ -122,7 +124,7 @@ pub struct Consist {
 
 impl SerdeAPI for Consist {
     fn init(&mut self) -> anyhow::Result<()> {
-        self.check_mass_consistent()?;
+        let _mass = self.mass().with_context(|| format_dbg!())?;
         self.set_pwr_dyn_brake_max();
         self.loco_vec.init()?;
         self.pdct.init()?;
@@ -181,8 +183,8 @@ impl Consist {
             0. * uc::N,
             |f_sum, (i, loco)| -> anyhow::Result<si::Force> {
                 Ok(loco
-                    .force_max()?
-                    .ok_or_else(|| anyhow!("Locomotive {i} does not have `force_max` set"))?
+                    .force_max()
+                    .with_context(|| format!("{}\n{}{}", format_dbg!(), "locomotive: ", i))?
                     + f_sum)
             },
         )
@@ -413,7 +415,7 @@ impl Default for Consist {
         };
         // ensure propagation to nested components
         consist.set_save_interval(Some(1));
-        consist.check_mass_consistent().unwrap();
+        let _mass = consist.mass().unwrap();
         consist
     }
 }
@@ -495,12 +497,17 @@ impl LocoTrait for Consist {
 
 impl Mass for Consist {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        self.derived_mass()
+    }
+
+    fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
         let mass = self.loco_vec.iter().enumerate().try_fold(
             0. * uc::KG,
             |m_acc, (i, loco)| -> anyhow::Result<si::Mass> {
                 let loco_mass = loco
-                    .mass()?
-                    .ok_or_else(|| anyhow!("Locomotive {i} does not have `mass` set"))?;
+                    .mass()
+                    .with_context(|| format!("locomotive at index {i}"))?
+                    .with_context(|| format!("Locomotive {i} does not have `mass` set"))?;
                 let new_mass: si::Mass = loco_mass + m_acc;
                 Ok(new_mass)
             },
@@ -508,34 +515,28 @@ impl Mass for Consist {
         Ok(Some(mass))
     }
 
-    fn update_mass(&mut self, _mass: Option<si::Mass>) -> anyhow::Result<()> {
+    fn expunge_mass_fields(&mut self) {
         self.loco_vec
             .iter_mut()
-            .enumerate()
-            .try_for_each(|(i, loco)| -> anyhow::Result<()> {
-                loco.update_mass(None).map_err(|e| {
-                    anyhow!("{e}").context(format!("{}\nfailed at loco: {}", format_dbg!(), i))
-                })
-            })
+            .for_each(|l| l.expunge_mass_fields())
     }
 
-    fn check_mass_consistent(&self) -> anyhow::Result<()> {
-        for (i, loco) in self.loco_vec.iter().enumerate() {
-            match loco.check_mass_consistent() {
-                Ok(res) => res,
-                Err(e) => bail!(
-                    "{e}\n{}",
-                    format!(
-                        "{}\nfailed at loco: {}\n{}",
-                        format_dbg!(),
-                        i,
-                        "Try running `update_mass` method."
-                    )
-                ),
-            };
-        }
+    fn set_mass_specific_property(&mut self) -> anyhow::Result<()> {
+        Err(anyhow!(
+            "Setting mass specific properties not enabled at {} level",
+            stringify!(Consist)
+        ))
+    }
 
-        Ok(())
+    fn set_mass(
+        &mut self,
+        _mass: Option<si::Mass>,
+        _side_effect: MassSideEffect,
+    ) -> anyhow::Result<()> {
+        Err(anyhow!(
+            "Setting mass not enabled at {} level",
+            stringify!(Consist)
+        ))
     }
 }
 /// Locomotive State
@@ -558,7 +559,7 @@ pub struct ConsistState {
     /// [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives
     pub pwr_out_max_reves: si::Power,
     /// power demand not fulfilled by
-    /// [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives
+    /// [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equipped locomotives
     pub pwr_out_deficit: si::Power,
     /// max power demand from
     /// non-[RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives

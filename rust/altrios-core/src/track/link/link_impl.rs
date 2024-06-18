@@ -325,7 +325,7 @@ impl SerdeAPI for Network {
             Ok(network) => network,
             Err(err) => NetworkOld::from_file(filepath)
                 .map_err(|old_err| {
-                    anyhow!("attempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err)
+                    anyhow!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err)
                 })?
                 .into(),
         };

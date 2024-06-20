@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "altrios"
-version = "0.2.2"
+version = "0.2.3"
 authors = [
     { name = "ALTRIOS Team", email = "altrios@nrel.gov" },
     { name = "Chad Baker, Lead Developer" },
@@ -34,7 +34,7 @@ classifiers = [
 ]
 dependencies = [
     "pandas>=2",
-    "numpy",
+    "numpy==1.24",
     "pymoo==0.6",
     "openpyxl",
     "xlrd",

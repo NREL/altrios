@@ -392,17 +392,19 @@ impl SpeedLimitTrainSim {
 
         // Verify that train can slow down
         // TODO: figure out if dynamic braking needs to be separately accounted for here
-        if self.fric_brake.force_max + res_net <= si::Force::ZERO {
-            bail!(
-                "Train {} does not have sufficient braking to slow down at time{:?}.
-            Fric brake force = {:?}.
-            Net resistance = {:?}",
-                self.train_id,
-                self.state.time,
-                self.fric_brake.force_max,
-                res_net
-            );
-        }
+
+        ensure!(
+            self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO,
+            format!(
+                "Insufficient braking force.\n{}\n{}\n{}\n{}\n{}\n{}",
+                format_dbg!(self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO),
+                format_dbg!(self.fric_brake.force_max),
+                format_dbg!(self.state.res_net()),
+                format_dbg!(self.state.res_grade),
+                format_dbg!(self.state.grade_front),
+                format_dbg!(self.state.grade_back),
+            )
+        );
 
         // TODO: Validate that this makes sense considering friction brakes
         let (speed_limit, speed_target) = self.braking_points.calc_speeds(
@@ -445,13 +447,13 @@ impl SpeedLimitTrainSim {
             .min(pwr_pos_max / speed_target.min(v_max));
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
+            log::error!("{}", format_dbg!(self.path_tpc));
             bail!(
                 "{}\nTrain does not have sufficient power to move!\nforce_max={:?},\nres_net={:?},\ntrain_state={:?}", // ,\nlink={:?}
                 format_dbg!(),
                 f_pos_max,
                 res_net,
                 self.state,
-                // self.path_tpc
             );
         }
 

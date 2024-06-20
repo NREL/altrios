@@ -562,7 +562,7 @@ pub struct ConsistState {
     /// [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives
     pub pwr_out_max_reves: si::Power,
     /// power demand not fulfilled by
-    /// [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives
+    /// [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equipped locomotives
     pub pwr_out_deficit: si::Power,
     /// max power demand from
     /// non-[RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives

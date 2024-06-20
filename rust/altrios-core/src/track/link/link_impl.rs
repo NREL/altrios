@@ -325,7 +325,11 @@ impl SerdeAPI for Network {
         })?;
         let mut network = match Self::from_reader(file, extension) {
             Ok(network) => network,
-            Err(err) => NetworkOld::from_file(filepath).with_context(|| err)?.into(),
+            Err(err) => NetworkOld::from_file(filepath)
+                .map_err(|old_err| {
+                    anyhow!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err)
+                })?
+                .into(),
         };
         network.init()?;
 

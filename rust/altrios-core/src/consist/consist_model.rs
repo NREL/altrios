@@ -183,8 +183,8 @@ impl Consist {
             0. * uc::N,
             |f_sum, (i, loco)| -> anyhow::Result<si::Force> {
                 Ok(loco
-                    .force_max()
-                    .with_context(|| format!("{}\n{}{}", format_dbg!(), "locomotive: ", i))?
+                    .force_max()?
+                    .with_context(|| anyhow!("Locomotive {i} does not have `force_max` set"))?
                     + f_sum)
             },
         )
@@ -333,7 +333,11 @@ impl Consist {
         // maybe put logic for toggling `engine_on` here
 
         for (i, (loco, pwr_out)) in self.loco_vec.iter_mut().zip(pwr_out_vec.iter()).enumerate() {
-            log::info!("Solving locomotive #{}", i);
+            log::info!(
+                "Solving locomotive #{}\n`pwr_out: `{} MW",
+                i,
+                pwr_out.get::<si::megawatt>().format_eng(None)
+            );
             loco.solve_energy_consumption(*pwr_out, dt, engine_on)
                 .map_err(|err| {
                     err.context(format!(
@@ -505,9 +509,8 @@ impl Mass for Consist {
             0. * uc::KG,
             |m_acc, (i, loco)| -> anyhow::Result<si::Mass> {
                 let loco_mass = loco
-                    .mass()
-                    .with_context(|| format!("locomotive at index {i}"))?
-                    .with_context(|| format!("Locomotive {i} does not have `mass` set"))?;
+                    .mass()?
+                    .with_context(|| anyhow!("Locomotive {i} does not have `mass` set"))?;
                 let new_mass: si::Mass = loco_mass + m_acc;
                 Ok(new_mass)
             },

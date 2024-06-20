@@ -171,13 +171,13 @@ impl LocoParams {
     fn from_hash(mut params: HashMap<&str, f64>) -> anyhow::Result<Self> {
         let pwr_aux_offset_watts = params
             .remove("pwr_aux_offset_watts")
-            .ok_or_else(|| anyhow!("Must provide 'pwr_aux_offset_watts'."))?;
+            .with_context(|| anyhow!("Must provide 'pwr_aux_offset_watts'."))?;
         let pwr_aux_traction_coeff_ratio = params
             .remove("pwr_aux_traction_coeff_ratio")
-            .ok_or_else(|| anyhow!("Must provide 'pwr_aux_traction_coeff_ratio'."))?;
+            .with_context(|| anyhow!("Must provide 'pwr_aux_traction_coeff_ratio'."))?;
         let force_max_newtons = params
             .remove("force_max_newtons")
-            .ok_or_else(|| anyhow!("Must provide 'force_max_newtons'."))?;
+            .with_context(|| anyhow!("Must provide 'force_max_newtons'."))?;
         let mass_kg = params.remove("mass_kg");
         ensure!(
             params.is_empty(),
@@ -662,7 +662,8 @@ impl Locomotive {
     }
 
     pub fn force_max(&self) -> anyhow::Result<Option<si::Force>> {
-        self.check_force_max()?;
+        self.check_force_max()
+            .with_context(|| anyhow!(format_dbg!()))?;
         Ok(self.force_max)
     }
 

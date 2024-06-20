@@ -97,7 +97,7 @@ impl LocoTrait for Box<HybridLoco> {
         dt: si::Time,
     ) -> anyhow::Result<()> {
         self.res.set_cur_pwr_out_max(
-            pwr_aux.ok_or(anyhow!(format_dbg!("`pwr_aux` not provided")))?,
+            pwr_aux.with_context(|| anyhow!(format_dbg!("`pwr_aux` not provided")))?,
             None,
             None,
         )?;

@@ -139,6 +139,8 @@ pub struct SpeedLimitTrainSim {
     pub origs: Vec<Location>,
     pub dests: Vec<Location>,
     pub loco_con: Consist,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: TrainState,
     #[api(skip_set, skip_get)]
     pub train_res: TrainRes,
@@ -246,9 +248,9 @@ impl SpeedLimitTrainSim {
     pub fn extend_path(&mut self, network: &[Link], link_path: &[LinkIdx]) -> anyhow::Result<()> {
         self.path_tpc
             .extend(network, link_path)
-            .with_context(|| anyhow!(format_dbg!()))?;
+            .with_context(|| format_dbg!())?;
         self.recalc_braking_points()
-            .with_context(|| anyhow!(format_dbg!()))?;
+            .with_context(|| format_dbg!())?;
         Ok(())
     }
     pub fn clear_path(&mut self) {

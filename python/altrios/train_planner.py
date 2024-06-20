@@ -1060,9 +1060,7 @@ def run_train_planner(
                         scenario_year
                     )
 
-                    print("Calling alt.make_est_times()")
                     (est_time_net, loco_con_out) = alt.make_est_times(slts, network)
-                    print("Finished with alt.make_est_times()")
                     travel_time = (
                         est_time_net.get_running_time_hours()
                         * config.dispatch_scaling_dict["time_mult_factor"] 

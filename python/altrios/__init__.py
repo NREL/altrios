@@ -104,7 +104,8 @@ def param_path_list(self, path = "", param_path_list = []) -> list[str]:
     specified by user. Specifies a list of paths to be appended to the list
     returned by the method.
     """
-    variable_list = [attr for attr in self.__dir__() if not attr.startswith("__") and not callable(getattr(self,attr))]
+    variable_list = [attr for attr in self.__dir__() if not attr.startswith("__")\
+         and not callable(getattr(self,attr))]
     for variable in variable_list:
         if not type(getattr(self,variable)).__name__ in ACCEPTED_RUST_STRUCTS:
             if path == "":
@@ -112,7 +113,8 @@ def param_path_list(self, path = "", param_path_list = []) -> list[str]:
             else:
                 variable_path = path + "." + variable
             param_path_list.append(variable_path)
-        elif len([attr for attr in getattr(self,variable).__dir__() if not attr.startswith("__") and not callable(getattr(getattr(self,variable),attr))]) == 0:
+        elif len([attr for attr in getattr(self,variable).__dir__() if not attr.startswith("__")\
+                 and not callable(getattr(getattr(self,variable),attr))]) == 0:
             if path == "":
                 variable_path = variable
             else:
@@ -123,7 +125,10 @@ def param_path_list(self, path = "", param_path_list = []) -> list[str]:
                 variable_path = variable
             else:
                 variable_path = path + "." + variable
-            param_path_list = getattr(self,variable).param_path_list(path = variable_path, param_path_list = param_path_list)
+            param_path_list = getattr(self,variable).param_path_list(
+                path=variable_path,
+                param_path_list=param_path_list,
+            )
     return param_path_list
 
 def history_path_list(self) -> list[str]:

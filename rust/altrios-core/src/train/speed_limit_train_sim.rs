@@ -130,7 +130,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
         self.walk_timed_path(&network, timed_path)
     }
 )]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 /// Train simulation in which speed is allowed to vary according to train capabilities and speed
 /// limit.  Note that this is not guaranteed to produce identical results to [super::SetSpeedTrainSim]
 /// because of differences in braking controls but should generally be very close (i.e. error in cumulative
@@ -295,6 +295,11 @@ impl SpeedLimitTrainSim {
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
         self.solve_required_pwr()?;
+        log::debug!(
+            "{}\ntime step: {}",
+            format_dbg!(),
+            self.state.time.get::<si::second>().format_eng(Some(9))
+        );
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
             self.state.dt,
@@ -320,6 +325,14 @@ impl SpeedLimitTrainSim {
             || (self.state.offset < self.path_tpc.offset_end()
                 && self.state.speed != si::Velocity::ZERO)
         {
+            log::debug!(
+                "{}",
+                format_dbg!(
+                    self.state.offset < self.path_tpc.offset_end() - 1000.0 * uc::FT
+                        || (self.state.offset < self.path_tpc.offset_end()
+                            && self.state.speed != si::Velocity::ZERO)
+                )
+            );
             self.step()?;
         }
         Ok(())
@@ -381,17 +394,19 @@ impl SpeedLimitTrainSim {
 
         // Verify that train can slow down
         // TODO: figure out if dynamic braking needs to be separately accounted for here
-        if self.fric_brake.force_max + res_net <= si::Force::ZERO {
-            bail!(
-                "Train {} does not have sufficient braking to slow down at time{:?}.
-            Fric brake force = {:?}.
-            Net resistance = {:?}",
-                self.train_id,
-                self.state.time,
-                self.fric_brake.force_max,
-                res_net
-            );
-        }
+
+        ensure!(
+            self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO,
+            format!(
+                "Insufficient braking force.\n{}\n{}\n{}\n{}\n{}\n{}",
+                format_dbg!(self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO),
+                format_dbg!(self.fric_brake.force_max),
+                format_dbg!(self.state.res_net()),
+                format_dbg!(self.state.res_grade),
+                format_dbg!(self.state.grade_front),
+                format_dbg!(self.state.grade_back),
+            )
+        );
 
         // TODO: Validate that this makes sense considering friction brakes
         let (speed_limit, speed_target) = self.braking_points.calc_speeds(
@@ -434,13 +449,13 @@ impl SpeedLimitTrainSim {
             .min(pwr_pos_max / speed_target.min(v_max));
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
+            log::error!("{}", format_dbg!(self.path_tpc));
             bail!(
                 "{}\nTrain does not have sufficient power to move!\nforce_max={:?},\nres_net={:?},\ntrain_state={:?}", // ,\nlink={:?}
                 format_dbg!(),
                 f_pos_max,
                 res_net,
                 self.state,
-                // self.path_tpc
             );
         }
 
@@ -582,6 +597,21 @@ impl SpeedLimitTrainSim {
             &self.train_res,
             &self.path_tpc,
         )
+    }
+}
+
+impl SerdeAPI for SpeedLimitTrainSim {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.origs.init()?;
+        self.dests.init()?;
+        self.loco_con.init()?;
+        self.state.init()?;
+        self.train_res.init()?;
+        self.path_tpc.init()?;
+        self.braking_points.init()?;
+        self.fric_brake.init()?;
+        self.history.init()?;
+        Ok(())
     }
 }
 

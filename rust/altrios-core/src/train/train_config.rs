@@ -426,7 +426,7 @@ impl TrainSimBuilder {
             // `self.origin_id` verified to be `Some` earlier
             location_map
                 .get(self.origin_id.as_ref().unwrap())
-                .ok_or_else(|| {
+                .with_context(|| {
                     anyhow!(format!(
                         "{}\n`origin_id`: \"{}\" not found in `location_map` keys: {:?}",
                         format_dbg!(),
@@ -437,7 +437,7 @@ impl TrainSimBuilder {
             // `self.destination_id` verified to be `Some` earlier
             location_map
                 .get(self.destination_id.as_ref().unwrap())
-                .ok_or_else(|| {
+                .with_context(|| {
                     anyhow!(format!(
                         "{}\n`destination_id`: \"{}\" not found in `location_map` keys: {:?}",
                         format_dbg!(),
@@ -994,7 +994,7 @@ pub fn run_speed_limit_train_sims(
         self.set_save_interval(save_interval);
     }
 )]
-#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SpeedLimitTrainSimVec(pub Vec<SpeedLimitTrainSim>);
 
 impl SpeedLimitTrainSimVec {
@@ -1041,6 +1041,13 @@ impl SpeedLimitTrainSimVec {
         self.0
             .iter_mut()
             .for_each(|slts| slts.set_save_interval(save_interval));
+    }
+}
+
+impl SerdeAPI for SpeedLimitTrainSimVec {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.0.iter_mut().try_for_each(|ts| ts.init())?;
+        Ok(())
     }
 }
 

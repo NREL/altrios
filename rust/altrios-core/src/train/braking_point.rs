@@ -106,12 +106,13 @@ impl BrakingPoints {
                     ensure!(
                         fric_brake.force_max + train_state.res_net() > si::Force::ZERO,
                         format!(
-                            "{}\n{}\n{}",
+                            "{}\n{}\n{}\n{}",
                             format_dbg!(
                                 fric_brake.force_max + train_state.res_net() > si::Force::ZERO
                             ),
                             format_dbg!(fric_brake.force_max),
                             format_dbg!(train_state.res_net()),
+                            format_dbg!(train_state.res_grade),
                         )
                     );
                     let vel_change = train_state.dt

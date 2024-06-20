@@ -4,7 +4,7 @@ use super::powertrain::ElectricMachine;
 use super::LocoTrait;
 use crate::imports::*;
 
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
+#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods)]
 #[altrios_api(
     #[new]
     fn __new__(
@@ -64,6 +64,14 @@ impl BatteryElectricLoco {
     }
 }
 
+impl SerdeAPI for BatteryElectricLoco {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.res.init()?;
+        self.edrv.init()?;
+        Ok(())
+    }
+}
+
 impl LocoTrait for BatteryElectricLoco {
     fn set_cur_pwr_max_out(
         &mut self,
@@ -72,7 +80,7 @@ impl LocoTrait for BatteryElectricLoco {
     ) -> anyhow::Result<()> {
         // TODO: proposed interface location to feed in the catenary
         self.res.set_cur_pwr_out_max(
-            pwr_aux.ok_or(anyhow!(format_dbg!("`pwr_aux` not provided")))?,
+            pwr_aux.with_context(|| anyhow!(format_dbg!("`pwr_aux` not provided")))?,
             None,
             None,
         )?;

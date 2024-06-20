@@ -45,4 +45,4 @@ eng_fmt = "0.1.2"
 
 # local crates in this workspace
 altrios-core = { path = "./altrios-core" }
-altrios-proc-macros = { path = "./altrios-core/altrios-proc-macros", version = "0.2.2" }
+altrios-proc-macros = { path = "./altrios-core/altrios-proc-macros", version = "0.2.3" }

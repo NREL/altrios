@@ -173,7 +173,7 @@ pub struct PowerTraceElement {
         Ok(())
     }
 )]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, SerdeAPI)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 /// Struct for simulating operation of a standalone locomotive.
 pub struct LocomotiveSimulation {
     pub loco_unit: Locomotive,
@@ -283,6 +283,14 @@ impl LocomotiveSimulation {
     }
 }
 
+impl SerdeAPI for LocomotiveSimulation {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.loco_unit.init()?;
+        self.power_trace.init()?;
+        Ok(())
+    }
+}
+
 impl Default for LocomotiveSimulation {
     fn default() -> Self {
         let power_trace = PowerTrace::default();
@@ -302,6 +310,12 @@ impl Default for LocomotiveSimulation {
 #[derive(Clone, Debug, Serialize, Deserialize, SerdeAPI, PartialEq)]
 pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
 
+impl SerdeAPI for LocomotiveSimulationVec {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.0.iter_mut().try_for_each(|l| l.init())?;
+        Ok(())
+    }
+}
 impl Default for LocomotiveSimulationVec {
     fn default() -> Self {
         Self(vec![LocomotiveSimulation::default(); 3])

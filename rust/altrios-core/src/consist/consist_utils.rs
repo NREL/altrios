@@ -22,9 +22,16 @@ pub trait LocoTrait {
 }
 
 #[altrios_api]
-#[derive(Default, Serialize, Deserialize, Clone, PartialEq, SerdeAPI)]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
 /// Wrapper struct for `Vec<Locomotive>` to expose various methods to Python.
 pub struct Pyo3VecLocoWrapper(pub Vec<Locomotive>);
+
+impl SerdeAPI for Pyo3VecLocoWrapper {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.0.iter_mut().try_for_each(|l| l.init())?;
+        Ok(())
+    }
+}
 
 pub trait SolvePower {
     /// Returns vector of locomotive tractive powers during positive traction events

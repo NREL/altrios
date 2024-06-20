@@ -15,7 +15,7 @@ struct OldSpeedSets(Vec<OldSpeedSet>);
 pub struct Link {
     /// Index of current link
     pub idx_curr: LinkIdx,
-    /// Index of adjacent link in reverse direction
+    /// Index of current link in reverse direction
     pub idx_flip: LinkIdx,
     /// see [EstTime::idx_next]
     pub idx_next: LinkIdx,
@@ -69,10 +69,12 @@ impl Link {
         self.speed_set = Some(
             self.speed_sets
                 .get(&train_type)
-                .ok_or(anyhow!(
-                    "No value found for train_type: {:?} in `speed_sets`.",
-                    train_type
-                ))?
+                .with_context(|| {
+                    anyhow!(
+                        "No value found for train_type: {:?} in `speed_sets`.",
+                        train_type
+                    )
+                })?
                 .clone(),
         );
         self.speed_sets = HashMap::new();
@@ -323,7 +325,11 @@ impl SerdeAPI for Network {
         })?;
         let mut network = match Self::from_reader(file, extension) {
             Ok(network) => network,
-            Err(err) => NetworkOld::from_file(filepath).with_context(|| err)?.into(),
+            Err(err) => NetworkOld::from_file(filepath)
+                .map_err(|old_err| {
+                    anyhow!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err)
+                })?
+                .into(),
         };
         network.init()?;
 

@@ -124,6 +124,10 @@ impl SerdeAPI for Consist {
     fn init(&mut self) -> anyhow::Result<()> {
         self.check_mass_consistent()?;
         self.set_pwr_dyn_brake_max();
+        self.loco_vec.init()?;
+        self.pdct.init()?;
+        self.state.init()?;
+        self.history.init()?;
         Ok(())
     }
 }
@@ -178,7 +182,7 @@ impl Consist {
             |f_sum, (i, loco)| -> anyhow::Result<si::Force> {
                 Ok(loco
                     .force_max()?
-                    .ok_or_else(|| anyhow!("Locomotive {i} does not have `force_max` set"))?
+                    .with_context(|| anyhow!("Locomotive {i} does not have `force_max` set"))?
                     + f_sum)
             },
         )
@@ -327,7 +331,11 @@ impl Consist {
         // maybe put logic for toggling `engine_on` here
 
         for (i, (loco, pwr_out)) in self.loco_vec.iter_mut().zip(pwr_out_vec.iter()).enumerate() {
-            log::info!("Solving locomotive #{}", i);
+            log::info!(
+                "Solving locomotive #{}\n`pwr_out: `{} MW",
+                i,
+                pwr_out.get::<si::megawatt>().format_eng(None)
+            );
             loco.solve_energy_consumption(*pwr_out, dt, engine_on)
                 .map_err(|err| {
                     err.context(format!(
@@ -496,7 +504,7 @@ impl Mass for Consist {
             |m_acc, (i, loco)| -> anyhow::Result<si::Mass> {
                 let loco_mass = loco
                     .mass()?
-                    .ok_or_else(|| anyhow!("Locomotive {i} does not have `mass` set"))?;
+                    .with_context(|| anyhow!("Locomotive {i} does not have `mass` set"))?;
                 let new_mass: si::Mass = loco_mass + m_acc;
                 Ok(new_mass)
             },
@@ -554,7 +562,7 @@ pub struct ConsistState {
     /// [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives
     pub pwr_out_max_reves: si::Power,
     /// power demand not fulfilled by
-    /// [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives
+    /// [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equipped locomotives
     pub pwr_out_deficit: si::Power,
     /// max power demand from
     /// non-[RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives

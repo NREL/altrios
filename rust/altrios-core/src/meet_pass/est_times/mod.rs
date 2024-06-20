@@ -491,6 +491,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     let time_depart = speed_limit_train_sim.state.time;
 
     // Push initial fake nodes
+    log::debug!("{}", format_dbg!("Push initial fake nodes."));
     est_times.push(EstTime {
         idx_next: 1,
         ..Default::default()
@@ -502,6 +503,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     });
 
     // Add origin estimated times
+    log::debug!("{}", format_dbg!("Add origin estimated times."));
     for orig in origs {
         ensure!(
             orig.offset == si::Length::ZERO,
@@ -520,6 +522,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
             ..Default::default()
         };
 
+        log::debug!("{}", format_dbg!());
         insert_est_time(
             &mut est_times,
             &mut est_alt,
@@ -535,6 +538,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                 ..Default::default()
             },
         );
+        log::debug!("{}", format_dbg!());
         insert_est_time(
             &mut est_times,
             &mut est_alt,
@@ -565,6 +569,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     }
 
     // Fix distances for different origins
+    log::debug!("{}", format_dbg!("Fix distances for different origins"));
     {
         let mut est_idx_fix = 1;
         while est_idx_fix != EST_IDX_NA {
@@ -580,6 +585,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     let mut est_idxs_end = Vec::<EstIdx>::with_capacity(8);
 
     // Iterate and process all saved sims
+    log::debug!("{}", format_dbg!("Iterate and process all saved sims"));
     while let Some(mut sim) = saved_sims.pop() {
         let mut has_split = false;
         ensure!(

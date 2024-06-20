@@ -13,19 +13,13 @@ from altrios.utilities import package_root, resources_root
 # make everything in altrios_pyo3 available here
 from altrios.altrios_pyo3 import *
 
-
-# Set up logging
-logging.basicConfig(
-    format="%(asctime)s.%(msecs)03d | %(filename)s#%(lineno)s | %(levelname)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
-utils.enable_logging()
-
-# Set up logging
-logging.basicConfig(
+DEFAULT_LOGGING_CONFIG = dict(
     format="%(asctime)s.%(msecs)03d | %(filename)s:%(lineno)s | %(levelname)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+
+# Set up logging
+logging.basicConfig(**DEFAULT_LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
 
 def __array__(self):

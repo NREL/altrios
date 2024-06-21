@@ -183,7 +183,7 @@ impl Consist {
             0. * uc::N,
             |f_sum, (i, loco)| -> anyhow::Result<si::Force> {
                 Ok(loco
-                    .force_max()?
+                    .force_max()
                     .with_context(|| anyhow!("Locomotive {i} does not have `force_max` set"))?
                     + f_sum)
             },

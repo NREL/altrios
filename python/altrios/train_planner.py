@@ -1012,7 +1012,7 @@ def run_train_planner(
                         rail_vehicle_type = this_train['Train_Type'],
                         train_type = train_type,
                         # TODO: put drag coeff vec here
-                        drag_coeff_vec = TrainPlannerConfig().drag_coeff_function
+                        drag_coeff_vec = config.drag_coeff_function
                     )
 
                     loco_start_soc_j = dispatched.get_column("SOC_J")

@@ -1173,7 +1173,7 @@ if __name__ == "__main__":
         config.refuelers_per_incoming_corridor)
 
     output = run_train_planner(
-        rail_vehicle=rail_vehicle_map, 
+        rail_vehicle_map=rail_vehicle_map, 
         location_map=location_map, 
         network=network,
         loco_pool=loco_pool,

@@ -21,10 +21,10 @@ The Advanced Locomotive Technology and Rail Infrastructure Optimization System (
 1. Setup a python environment. ALTRIOS can work with Python 3.9, or 3.10, but we recommend 3.10 for better performance and user experience. Create a python environment for ALTRIOS with either of two methods:
    - Option 1 -- [Python Venv](https://docs.python.org/3/library/venv.html)
      1. Navigate to the ALTRIOS folder you just cloned or any folder you'd like for using ALTRIOS. Remember the folder you use!
-     1. Assuming you have Python 3.10 installed, run `python3.10 -m venv altrios-venv` in your terminal enviroment (we recommend PowerShell in Windows, which comes pre-installed). This tells Python 3.10 to use the `venv` module to create a virtual environment (which will be ignored by git if named `altrios-venv`) in the `ALTRIOS/altrios-venv/`.
+     1. Assuming you have Python 3.10 installed, run `(path to your python3.10 e.g. ~/AppData/Local/Programs/Python/Python310/python.exe) -m venv altrios-venv` in your terminal enviroment (we recommend PowerShell in Windows, which comes pre-installed). This tells Python 3.10 to use the `venv` module to create a virtual environment (which will be ignored by git if named `altrios-venv`) in the `ALTRIOS/altrios-venv/`.
      1. Activate the environment you just created to install packages or anytime you're running ALTRIOS:
         - Mac and Linux: `source altrios-venv/bin/activate`
-        - Windows: `altrios-venv/Scripts/activate.bat` in a windows command prompt or power shell or `source ./altrios-venv/scripts/activate` in git bash terminal
+        - Windows: `altrios-venv/Scripts/activate.bat` in a windows command prompt or power shell or `source altrios-venv/Scripts/activate` in git bash terminal
         - When the environment is activated, your terminal session will have a decorator that looks like `(altrios-venv)`.
    - Option 2 -- Anaconda:
      1. Open an Anaconda prompt (in Windows, we recommend Anaconda Powershell Prompt) and run the command `conda create -n altrios python=3.10` to create an Anaconda environment named `altrios`.
@@ -33,6 +33,7 @@ The Advanced Locomotive Technology and Rail Infrastructure Optimization System (
 #### ALTRIOS Setup
 
 With your Python environment activated, run `pip install altrios`.
+If you choose to opt in developer version, run `python -m pip install “.[dev]”`
 
 Congratulations, you've completed installation! Whenever you need to use ALTRIOS, be sure to activate your python environment created above.
 

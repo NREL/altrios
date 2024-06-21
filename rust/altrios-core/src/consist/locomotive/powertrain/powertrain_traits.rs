@@ -41,6 +41,8 @@ impl TryFrom<String> for MassSideEffect {
     }
 }
 
+/// Trait for handling locomotive and component masses such that coflicting values
+/// are checked for and prevented
 pub trait Mass {
     /// Returns mass of Self, either from `self.mass` or
     /// the derived from fields that store mass data. `Mass::mass` also checks that

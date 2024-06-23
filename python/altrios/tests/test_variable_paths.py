@@ -3,7 +3,7 @@ import altrios as alt
 from .mock_resources import *
 
 class TestParamPath(unittest.TestCase):
-    def test_param_path_list(self):
+    def test_variable_path_list(self):
         from altrios import LocomotiveSimulation, Locomotive, PowerTrace
         mock_df = mock_pymoo_conv_cal_df()
         pt = PowerTrace(
@@ -95,8 +95,8 @@ class TestParamPath(unittest.TestCase):
                                            'loco_unit.fc.history.pwr_idle_fuel_watts', 'loco_unit.fc.history.energy_loss_joules', 'loco_unit.fc.history.pwr_brake_watts', 
                                            'loco_unit.fc.history.eta']
         # compare relative variable paths within fuel converter to baseline
-        assert(baseline_variable_paths.sort()==loco_sim.param_path_list().sort())
-        # self.assertAlmostEqual(baseline_variable_paths, loco_sim.param_path_list())
+        assert(baseline_variable_paths.sort()==loco_sim.variable_path_list().sort())
+        # self.assertAlmostEqual(baseline_variable_paths, loco_sim.variable_path_list())
         # compare relative history variable paths within fuel converter to baseline
         assert(baseline_history_variable_paths.sort()==loco_sim.history_path_list().sort())
         # self.assertAlmostEqual(baseline_history_variable_paths, loco_sim.history_path_list())
@@ -104,4 +104,4 @@ class TestParamPath(unittest.TestCase):
 
 if __name__ == "__main__":
     a = TestParamPath()
-    a.test_param_path_list()
+    a.test_variable_path_list()

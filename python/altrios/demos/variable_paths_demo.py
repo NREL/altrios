@@ -1,10 +1,10 @@
-# %%
-# Script demonstrating how to use param_path_list() and history_path_list()
-# demos to find the paths to variables within altrios classes.
+"""
+Script demonstrating how to use variable_path_list() and history_path_list()
+demos to find the paths to variables within altrios classes.
+"""
 
 import altrios as alt
 
-# %%
 SAVE_INTERVAL = 1
 # load hybrid consist
 fc = alt.FuelConverter.default()
@@ -31,7 +31,8 @@ conv = alt.Locomotive.build_conventional_loco(
 pt = alt.PowerTrace.default()
 
 sim = alt.LocomotiveSimulation(conv, pt, SAVE_INTERVAL)
+
 # print relative variable paths within locomotive simulation
-print("Locomotive simulation variable paths: ", sim.param_path_list())
+print("Locomotive simulation variable paths: ", sim.variable_path_list())
 # print relative history variable paths within locomotive simulation
 print("Locomotive simulation history variable paths: ", sim.history_path_list())

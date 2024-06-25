@@ -306,8 +306,18 @@ impl TrainSimBuilder {
         let train_params = self.train_config.make_train_params(rail_vehicle);
 
         let length = train_params.length;
-        // TODO: figure out what to do about rotational mass of locomotive components (e.g. axles, gearboxes, motor shafts)
-        let mass_static = train_params.mass_total + self.loco_con.mass()?.unwrap();
+        // TODO: account for rotational mass of locomotive components (e.g. axles, gearboxes, motor shafts)
+        let mass_static = train_params.mass_total
+            + self
+                .loco_con
+                .mass()
+                .with_context(|| format_dbg!())?
+                .unwrap_or_else(|| {
+                    log::warn!(
+                        "Consist has no mass set so train dynamics don't include consist mass."
+                    );
+                    0. * uc::KG
+                });
         let cars_total = self.train_config.cars_total() as f64;
         let mass_adj = mass_static + veh.mass_extra_per_axle * train_params.axle_count as f64;
         let mass_freight =

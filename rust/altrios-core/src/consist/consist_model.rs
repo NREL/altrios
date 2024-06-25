@@ -179,15 +179,11 @@ impl Consist {
     }
 
     pub fn force_max(&self) -> anyhow::Result<si::Force> {
-        self.loco_vec.iter().enumerate().try_fold(
-            0. * uc::N,
-            |f_sum, (i, loco)| -> anyhow::Result<si::Force> {
-                Ok(loco
-                    .force_max()
-                    .with_context(|| anyhow!("Locomotive {i} does not have `force_max` set"))?
-                    + f_sum)
-            },
-        )
+        self.loco_vec
+            .iter()
+            .try_fold(0. * uc::N, |f_sum, loco| -> anyhow::Result<si::Force> {
+                Ok(loco.force_max().with_context(|| format_dbg!())? + f_sum)
+            })
     }
 
     pub fn get_loco_vec(&self) -> Vec<Locomotive> {
@@ -505,11 +501,30 @@ impl Mass for Consist {
     }
 
     fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        ensure!(!self.loco_vec.is_empty());
+
+        let init = self.loco_vec.first().unwrap().mass()?.is_none();
+        if self
+            .loco_vec
+            .iter()
+            .try_fold(init, |acc, l| -> anyhow::Result<bool> {
+                if acc == l.mass()?.is_none() {
+                    Ok(acc)
+                } else {
+                    Err(anyhow!(
+                        "All elements in `loco_vec` must either be `None` or `Some`."
+                    ))
+                }
+            })?
+        {
+            return Ok(None);
+        }
         let mass = self.loco_vec.iter().enumerate().try_fold(
             0. * uc::KG,
             |m_acc, (i, loco)| -> anyhow::Result<si::Mass> {
                 let loco_mass = loco
-                    .mass()?
+                    .mass()
+                    .with_context(|| format_dbg!())?
                     .with_context(|| anyhow!("Locomotive {i} does not have `mass` set"))?;
                 let new_mass: si::Mass = loco_mass + m_acc;
                 Ok(new_mass)

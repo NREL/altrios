@@ -457,7 +457,7 @@ impl SpeedLimitTrainSim {
             .min(pwr_pos_max / speed_target.min(v_max));
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
-            log::error!("{}", format_dbg!(self.path_tpc));
+            log::debug!("{}", format_dbg!(self.path_tpc));
             bail!(
                 "{}\nTrain does not have sufficient power to move!\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", // ,\nlink={:?}
                 format_dbg!(),

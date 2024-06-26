@@ -33,6 +33,6 @@ pt = alt.PowerTrace.default()
 sim = alt.LocomotiveSimulation(conv, pt, SAVE_INTERVAL)
 
 # print relative variable paths within locomotive simulation
-print("Locomotive simulation variable paths: ", sim.variable_path_list())
+print("Locomotive simulation variable paths:\n", "\n".join(sim.variable_path_list()))
 # print relative history variable paths within locomotive simulation
-print("Locomotive simulation history variable paths: ", sim.history_path_list())
+print("Locomotive simulation history variable paths:\n", ".\n".join(sim.history_path_list()))

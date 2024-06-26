@@ -43,7 +43,7 @@ ACCEPTED_RUST_STRUCTS = [attr for attr in alt.__dir__() if not\
                                     ("altrios" in str(inspect.getmodule(getattr(alt,attr))))]
 
 def variable_path_list(self, path = "") -> list[str]:
-    f"""Returns list of relative paths to all variables and sub-variables within
+    """Returns list of relative paths to all variables and sub-variables within
     class (relative to the class the method was called on).  
     See example usage in `altrios/demos/variable_paths_demo.py`.
     Arguments:

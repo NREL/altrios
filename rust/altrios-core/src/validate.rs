@@ -10,7 +10,7 @@ pub type ValidationError = anyhow::Error;
 pub type ValidationErrors = ComboErrors<ValidationError>;
 pub type ValidationResults = Result<(), ValidationErrors>;
 
-///Generate valid default like input for use in other objects
+///Generate valid default-like input for use in other objects
 pub trait Valid: Sized + Default {
     fn valid() -> Self {
         Default::default()

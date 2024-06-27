@@ -1,4 +1,5 @@
 use crate::imports::*;
+use crate::track::PathTpc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, HistoryVec)]
 #[altrios_api(
@@ -72,11 +73,18 @@ pub struct TrainState {
     pub time: si::Time,
     /// index for time steps
     pub i: usize,
+    /// Linear-along-track, directional distance from initial starting position.
+    ///
     /// If this is provided in [InitTrainState::new], it gets set as the train length or the value,
     /// whichever is larger, and if it is not provided, then it defaults to the train length.
     pub offset: si::Length,
     pub offset_back: si::Length,
+    /// Linear-along-track, cumulative, absolute distance from initial starting position.
     pub total_dist: si::Length,
+    /// Current link containing head end (i.e. pulling locomotives) of train
+    pub link_idx_front: u32,
+    /// Offset from start of current link
+    pub offset_in_link: si::Length,
     /// Achieved speed based on consist capabilities and train resistance
     pub speed: si::Velocity,
     /// Speed limit
@@ -98,6 +106,9 @@ pub struct TrainState {
 
     /// Grade at front of train
     pub grade_front: si::Ratio,
+    /// Grade at back of train of train if strap method is used
+    // TODO: make this an option
+    pub grade_back: si::Ratio,
     /// Elevation at front of train
     pub elev_front: si::Length,
 
@@ -122,6 +133,8 @@ impl Default for TrainState {
             offset: Default::default(),
             offset_back: Default::default(),
             total_dist: si::Length::ZERO,
+            link_idx_front: Default::default(),
+            offset_in_link: Default::default(),
             speed: Default::default(),
             speed_limit: Default::default(),
             dt: uc::S,
@@ -132,6 +145,7 @@ impl Default for TrainState {
             elev_front: Default::default(),
             energy_whl_out: Default::default(),
             grade_front: Default::default(),
+            grade_back: Default::default(),
             speed_target: Default::default(),
             weight_static: Default::default(),
             res_rolling: Default::default(),
@@ -203,7 +217,7 @@ impl Valid for TrainState {
     }
 }
 
-///TODO: Add new values!
+// TODO: Add new values!
 impl ObjState for TrainState {
     fn validate(&self) -> ValidationResults {
         let mut errors = ValidationErrors::new();
@@ -214,4 +228,31 @@ impl ObjState for TrainState {
         // si_chk_num_gtz_fin(&mut errors, &self.drag_area, "Drag area");
         errors.make_err()
     }
+}
+
+/// Sets `link_idx_front` and `offset_in_link` based on `state` and `path_tpc`
+///
+/// Assumes that `offset` in `link_points()` is monotically increasing, which may not always be true.
+pub fn set_link_and_offset(state: &mut TrainState, path_tpc: &PathTpc) -> anyhow::Result<()> {
+    let idx_curr_link = path_tpc
+        .link_points()
+        .iter()
+        .position(|&lp| lp.offset >= state.offset)
+        // if None, assume that it's the last element
+        .unwrap_or_else(|| path_tpc.link_points().len())
+        - 1;
+    state.link_idx_front = path_tpc
+        .link_points()
+        .get(idx_curr_link)
+        .with_context(|| format_dbg!())?
+        .link_idx
+        .idx() as u32;
+    state.offset_in_link = state.offset
+        - path_tpc
+            .link_points()
+            .get(idx_curr_link)
+            .with_context(|| format_dbg!())?
+            .offset;
+
+    Ok(())
 }

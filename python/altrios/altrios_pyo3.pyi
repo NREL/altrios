@@ -1,7 +1,8 @@
+import altrios.altrios_pyo3 as altpy
 from typing import Any, Dict, List, Optional
 import polars as pl
 from typing_extensions import Self
-from typing import Union
+from typing import Union, Tuple
 from dataclasses import dataclass
 
 
@@ -14,7 +15,7 @@ class SerdeAPI(object):
     def from_yaml(cls) -> Self: ...
     @classmethod
     def from_file(cls) -> Self: ...
-    def to_file(self): ... 
+    def to_file(self): ...
     def to_bincode(self) -> bytes: ...
     def to_json(self) -> str: ...
     def to_yaml(self) -> str: ...
@@ -300,7 +301,7 @@ class LocoParams:
     mass_kilograms: Optional[float]
 
     @classmethod
-    def from_dict(cls, param_dict: Dict[str, float]) -> Self: 
+    def from_dict(cls, param_dict: Dict[str, float]) -> Self:
         """
         Argument `param_dict` has keys matching attributes of class
         """
@@ -612,6 +613,7 @@ class SpeedTrace(SerdeAPI):
     def __copy__(self) -> Any: ...
     def __len__(self) -> int: ...
     def from_csv_file(pathstr: str) -> Self: ...
+    def to_csv_file(self, pathstr: str): ...
 
 
 class TrainState:
@@ -620,6 +622,9 @@ class TrainState:
     offset_meters: float
     offset_back_meters: float
     total_dist_meters: float
+    link_idx_front: int
+    offset_in_link_meters: float
+    grade_front: float
     speed_meters_per_second: float
     speed_limit_meters_per_second: float
     speed_target_meters_per_second: float
@@ -667,6 +672,10 @@ class TrainState:
 class TrainStateHistoryVec(SerdeAPI):
     time_seconds: list[float]
     offset_meters: list[float]
+    offset_back_meters: list[float]
+    link_idx_front: list[int]
+    offset_in_link_meters: list[float]
+    grade_front: list[float]
     speed_meters_per_second: list[float]
     speed_limit_meters_per_second: list[float]
     speed_target_meters_per_second: list[float]
@@ -721,13 +730,102 @@ class SetSpeedTrainSim(SerdeAPI):
     def set_save_interval(self, save_interval: int): ...
 
 
+class LinkPoint(SerdeAPI):
+    offset_meters: float
+    grade_count: int
+    curve_count: int
+    cat_power_count: int
+    link_idx: LinkIdx
+
+
+class PathResCoeff(SerdeAPI):
+    offset: float
+    res_coeff: float
+    res_net: float
+
+
+class SpeedLimitPoint(SerdeAPI):
+    offset: float
+    speed_limit: float
+
+
+class CatPowerLimit(SerdeAPI):
+    offset_start: float
+    offset_end: float
+    power_limit: float
+    district_id: Optional[str]
+
+
+class TrainParams(SerdeAPI):
+    length: float
+    speed_max: float
+    mass_total: float
+    mass_per_brake: float
+    axle_count: int
+    train_type: TrainType
+    curve_coeff_0: float
+    curve_coeff_1: float
+    curve_coeff_2: float
+
+
+class PathTpc(SerdeAPI):
+    link_points: List[LinkPoint]
+    grades: List[PathResCoeff]
+    curves: List[PathResCoeff]
+    speed_points: List[SpeedLimitPoint]
+    cat_power_limits: List[CatPowerLimit]
+    train_params: TrainParams
+    is_finished: bool
+
+
+class BrakingPoint(SerdeAPI):
+    offset_meters: float
+    speed_limit_meters_per_second: float
+    speed_target_meters_per_second: float
+
+
+
+class BrakingPoints(SerdeAPI):
+    points: List[BrakingPoint]
+    idx_curr: int
+
+
+class FricBrakeState(SerdeAPI):
+    i: int
+    force_newtons: float
+    force_max_curr_newtons: float
+
+
+class FricBrakeStateHistoryVec(SerdeAPI):
+    i: List[int]
+    force_newtons: List[float]
+    force_max_curr_newtons: List[float]
+
+
+class FricBrake(SerdeAPI):
+    force_max_newtons: float
+    ramp_up_time_seconds: float
+    ramp_up_coeff_ratio: float
+    state: FricBrakeState
+    history: FricBrakeStateHistoryVec
+    save_interval: Optional[int]
+
+
+
 class SpeedLimitTrainSim(SerdeAPI):
+    train_id: str
+    origs: List[Location]
+    dests: List[Location]
     loco_con: Consist
     state: TrainState
+    # train_res: TrainRes # not accessible in Python
+    path_tpc: PathTpc
+    braking_points: BrakingPoints
+    fric_brake: FricBrake
     history: TrainStateHistoryVec
-    i: int
     save_interval: Optional[int]
     simulation_days: Optional[int]
+    scenario_year: Optional[int]
 
     @classmethod
     def __init__(
@@ -778,6 +876,7 @@ class TrainSimBuilder(SerdeAPI):
     train_config: TrainConfig
     loco_con: Consist
     init_train_state: Optional[InitTrainState]
+    drag_coeff_vec: Optional[List[float]]
     @classmethod
     def default(cls) -> Self: ...
 
@@ -819,6 +918,7 @@ class TrainConfig(SerdeAPI):
     train_type: str
     train_length_meters: Optional[float]
     train_mass_kilograms: Optional[float]
+    drag_coeff_vec: Optional[List[float]]
     @classmethod
     def default(cls) -> Self: ...
 
@@ -868,7 +968,24 @@ class Link(SerdeAPI):
     def default(cls) -> Self: ...
 
 
-def import_network(filename: str) -> List[Link]: ...
+class Elev(SerdeAPI):
+    offset_meters: float
+    elev_meters: float
+    @classmethod
+    def default(cls) -> Self: ...
+
+
+class Heading(SerdeAPI):
+    offset_meters: float
+    heading: float
+    lat: Optional[float]
+    lon: Optional[float]
+    @classmethod
+    def default(cls) -> Self: ...
+
+class SpeedSet(SerdeAPI): ...
+    # TODO: finish fleshing this out
+
 def import_locations(filename: str) -> Dict[str, List[Location]]: ...
 def import_rail_vehicles(filename: str) -> Dict[str, RailVehicle]: ...
 
@@ -900,6 +1017,13 @@ def run_dispatch(
     print_train_move: bool,
     print_train_exit: bool,
 ) -> List[TimedLinkPath]: ...
+
+
+def make_est_times(
+    speed_limit_train_sim: SpeedLimitTrainSim,
+    network: List[Link],
+) -> Tuple[EstTimeNet, Consist]:
+    ...
 
 
 @dataclass
@@ -936,6 +1060,7 @@ class Network(SerdeAPI):
     def __getitem__(self, index) -> Any: ...
     def __len__(self) -> Any: ...
     def __setitem__(self, index, object) -> Any: ...
+    def set_speed_set_for_train_type(self, train_type: TrainType): ...
 
 
 @dataclass
@@ -964,3 +1089,14 @@ class InitTrainState(SerdeAPI):
     dt_seconds: float
     @classmethod
     def default(cls) -> Self: ...
+
+
+
+@dataclass
+class TrainType(SerdeAPI):
+    Freight = altpy.TrainType.Freight,
+    Passenger = altpy.TrainType.Passenger,
+    Intermodal = altpy.TrainType.Intermodal,
+    HighSpeedPassenger = altpy.TrainType.HighSpeedPassenger,
+    TiltTrain = altpy.TrainType.TiltTrain,
+    Commuter = altpy.TrainType.Commuter,

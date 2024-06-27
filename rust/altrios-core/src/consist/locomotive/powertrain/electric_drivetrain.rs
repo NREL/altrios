@@ -51,7 +51,7 @@ use crate::pyo3::*;
         Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
     }
 )]
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods, SerdeAPI)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
 /// Struct for modeling electric drivetrain.  This includes power electronics, motor, axle ...
 /// everything involved in converting high voltage electrical power to force exerted by the wheel on the track.  
 pub struct ElectricDrivetrain {
@@ -68,7 +68,7 @@ pub struct ElectricDrivetrain {
     #[serde(skip)]
     #[api(skip_set)]
     pub pwr_in_frac_interp: Vec<f64>,
-    /// ElectricDrivetrain maximum output power
+    /// ElectricDrivetrain maximum output power assuming that positive and negative tractive powers have same magnitude
     #[serde(rename = "pwr_out_max_watts")]
     pub pwr_out_max: si::Power,
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
@@ -233,6 +233,13 @@ impl ElectricDrivetrain {
 //     env!("CARGO_MANIFEST_DIR"),
 //     "/src/consist/locomotive/powertrain/electric_drivetrain.default.yaml"
 // ));
+
+impl SerdeAPI for ElectricDrivetrain {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.state.init()?;
+        Ok(())
+    }
+}
 
 impl Default for ElectricDrivetrain {
     fn default() -> Self {

@@ -77,80 +77,74 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     } else if let syn::Fields::Unnamed(syn::FieldsUnnamed { unnamed, .. }) = &mut ast.fields {
         // tuple struct
-        let ident_str = ast.ident.to_string();
-        if ["Vec", "Network", "Path"]
-            .iter()
-            .any(|&x| ident_str.contains(x))
-        {
-            assert!(unnamed.len() == 1);
-            for field in unnamed.iter() {
-                let ftype = field.ty.clone();
-                if let syn::Type::Path(type_path) = ftype.clone() {
-                    let type_str = type_path.clone().into_token_stream().to_string();
-                    if type_str.contains("Vec") {
-                        let re = Regex::new(r"Vec < (.+) >").unwrap();
-                        // println!("{}", type_str);
-                        // println!("{}", &re.captures(&type_str).unwrap()[1]);
-                        let contained_dtype: TokenStream2 = re.captures(&type_str).unwrap()[1]
-                            .to_string()
-                            .parse()
-                            .unwrap();
-                        py_impl_block.extend::<TokenStream2>(
-                            quote! {
-                                #[new]
-                                /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
-                                fn __new__(v: Vec<#contained_dtype>) -> Self {
-                                    Self(v)
-                                }
-                                /// Rust-defined `__repr__` magic method for Python used exposed via PyO3.
-                                fn __repr__(&self) -> String {
-                                    format!("Pyo3Vec({:?})", self.0)
-                                }
-                                /// Rust-defined `__str__` magic method for Python used exposed via PyO3.
-                                fn __str__(&self) -> String {
-                                    format!("{:?}", self.0)
-                                }
-                                /// Rust-defined `__getitem__` magic method for Python used exposed via PyO3.
-                                /// Prevents the Python user getting item directly using indexing.
-                                fn __getitem__(&self, _idx: usize) -> anyhow::Result<()> {
-                                    bail!(PyNotImplementedError::new_err(
-                                        "Getting Rust vector value at index is not implemented.
-                                        Run `tolist` method to convert to standalone Python list.",
-                                    ))
-                                }
-                                /// Rust-defined `__setitem__` magic method for Python used exposed via PyO3.
-                                /// Prevents the Python user setting item using indexing.
-                                fn __setitem__(&mut self, _idx: usize, _new_value: #contained_dtype) -> anyhow::Result<()> {
-                                    bail!(PyNotImplementedError::new_err(
-                                        "Setting list value at index is not implemented.
-                                        Run `tolist` method, modify value at index, and
-                                        then set entire list.",
-                                    ))
-                                }
-                                /// PyO3-exposed method to convert vec-containing struct to Python list. 
-                                fn tolist(&self) -> anyhow::Result<Vec<#contained_dtype>> {
-                                    Ok(self.0.clone())
-                                }
-                                /// Rust-defined `__len__` magic method for Python used exposed via PyO3.
-                                /// Returns the length of the Rust vector.
-                                fn __len__(&self) -> usize {
-                                    self.0.len()
-                                }
-                                /// PyO3-exposed method to check if the vec-containing struct is empty.
-                                fn is_empty(&self) -> bool {
-                                    self.0.is_empty()
-                                }
+        assert!(unnamed.len() == 1);
+        for field in unnamed.iter() {
+            let ftype = field.ty.clone();
+            if let syn::Type::Path(type_path) = ftype.clone() {
+                let type_str = type_path.clone().into_token_stream().to_string();
+                if type_str.contains("Vec") {
+                    let re = Regex::new(r"Vec < (.+) >").unwrap();
+                    // println!("{}", type_str);
+                    // println!("{}", &re.captures(&type_str).unwrap()[1]);
+                    let contained_dtype: TokenStream2 = re.captures(&type_str).unwrap()[1]
+                        .to_string()
+                        .parse()
+                        .unwrap();
+                    py_impl_block.extend::<TokenStream2>(
+                        quote! {
+                            #[new]
+                            /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
+                            fn __new__(v: Vec<#contained_dtype>) -> Self {
+                                Self(v)
                             }
-                        );
-                        impl_block.extend::<TokenStream2>(quote! {
-                            impl #ident{
-                                /// Implement the non-Python `new` method.
-                                pub fn new(value: Vec<#contained_dtype>) -> Self {
-                                    Self(value)
-                                }
+                            /// Rust-defined `__repr__` magic method for Python used exposed via PyO3.
+                            fn __repr__(&self) -> String {
+                                format!("Pyo3Vec({:?})", self.0)
                             }
-                        });
-                    }
+                            /// Rust-defined `__str__` magic method for Python used exposed via PyO3.
+                            fn __str__(&self) -> String {
+                                format!("{:?}", self.0)
+                            }
+                            /// Rust-defined `__getitem__` magic method for Python used exposed via PyO3.
+                            /// Prevents the Python user getting item directly using indexing.
+                            fn __getitem__(&self, _idx: usize) -> anyhow::Result<()> {
+                                bail!(PyNotImplementedError::new_err(
+                                    "Getting Rust vector value at index is not implemented.
+                            Run `tolist` method to convert to standalone Python list.",
+                                ))
+                            }
+                            /// Rust-defined `__setitem__` magic method for Python used exposed via PyO3.
+                            /// Prevents the Python user setting item using indexing.
+                            fn __setitem__(&mut self, _idx: usize, _new_value: #contained_dtype) -> anyhow::Result<()> {
+                                bail!(PyNotImplementedError::new_err(
+                                    "Setting list value at index is not implemented.
+                            Run `tolist` method, modify value at index, and
+                            then set entire list.",
+                                ))
+                            }
+                            /// PyO3-exposed method to convert vec-containing struct to Python list.
+                            fn tolist(&self) -> anyhow::Result<Vec<#contained_dtype>> {
+                                Ok(self.0.clone())
+                            }
+                            /// Rust-defined `__len__` magic method for Python used exposed via PyO3.
+                            /// Returns the length of the Rust vector.
+                            fn __len__(&self) -> usize {
+                                self.0.len()
+                            }
+                            /// PyO3-exposed method to check if the vec-containing struct is empty.
+                            fn is_empty(&self) -> bool {
+                                self.0.is_empty()
+                            }
+                        }
+                    );
+                    impl_block.extend::<TokenStream2>(quote! {
+                        impl #ident{
+                            /// Implement the non-Python `new` method.
+                            pub fn new(value: Vec<#contained_dtype>) -> Self {
+                                Self(value)
+                            }
+                        }
+                    });
                 }
             }
         }
@@ -168,82 +162,61 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             Ok(Self::default())
         }
 
-        /// Write (serialize) an object into a string
-        ///
-        /// # Arguments:
-        ///
-        /// * `format`: `str` - The target format, any of those listed in [`ACCEPTED_STR_FORMATS`](`SerdeAPI::ACCEPTED_STR_FORMATS`)
-        ///
+        /// See [SerdeAPI::to_str]
         #[pyo3(name = "to_str")]
         pub fn to_str_py(&self, format: &str) -> anyhow::Result<String> {
             self.to_str(format)
         }
 
-        /// Read (deserialize) an object from a string
-        ///
-        /// # Arguments:
-        ///
-        /// * `contents`: `str` - The string containing the object data
-        /// * `format`: `str` - The source format, any of those listed in [`ACCEPTED_STR_FORMATS`](`SerdeAPI::ACCEPTED_STR_FORMATS`)
-        ///
+        /// See [SerdeAPI::from_str]
         #[staticmethod]
         #[pyo3(name = "from_str")]
         pub fn from_str_py(contents: &str, format: &str) -> anyhow::Result<Self> {
             Self::from_str(contents, format)
         }
 
-        /// Write (serialize) an object to a JSON string
+        /// See [SerdeAPI::to_json]
         #[pyo3(name = "to_json")]
         fn to_json_py(&self) -> anyhow::Result<String> {
             self.to_json()
         }
 
-        /// Read (deserialize) an object to a JSON string
-        ///
-        /// # Arguments
-        ///
-        /// * `json_str`: `str` - JSON-formatted string to deserialize from
-        ///
+        /// See [SerdeAPI::from_json]
         #[staticmethod]
         #[pyo3(name = "from_json")]
         fn from_json_py(json_str: &str) -> anyhow::Result<Self> {
             Self::from_json(json_str)
         }
 
-        /// Write (serialize) an object to a YAML string
+        /// See [SerdeAPI::to_yaml]
         #[pyo3(name = "to_yaml")]
         fn to_yaml_py(&self) -> anyhow::Result<String> {
             self.to_yaml()
         }
 
-        /// Read (deserialize) an object from a YAML string
-        ///
-        /// # Arguments
-        ///
-        /// * `yaml_str`: `str` - YAML-formatted string to deserialize from
-        ///
+        /// See [SerdeAPI::from_yaml]
         #[staticmethod]
         #[pyo3(name = "from_yaml")]
         fn from_yaml_py(yaml_str: &str) -> anyhow::Result<Self> {
             Self::from_yaml(yaml_str)
         }
 
-        /// Write (serialize) an object to bincode-encoded `bytes`
+        /// See [SerdeAPI::to_bincode]
         #[pyo3(name = "to_bincode")]
         fn to_bincode_py<'py>(&self, py: Python<'py>) -> anyhow::Result<&'py PyBytes> {
             Ok(PyBytes::new(py, &self.to_bincode()?))
         }
 
-        /// Read (deserialize) an object from bincode-encoded `bytes`
-        ///
-        /// # Arguments
-        ///
-        /// * `encoded`: `bytes` - Encoded bytes to deserialize from
-        ///
+        /// See [SerdeAPI::from_bincode]
         #[staticmethod]
         #[pyo3(name = "from_bincode")]
         fn from_bincode_py(encoded: &PyBytes) -> anyhow::Result<Self> {
             Self::from_bincode(encoded.as_bytes())
+        }
+
+        #[pyo3(name = "init")]
+        fn init_py(&mut self) -> PyResult<()> {
+            Ok(self.init()?)
         }
 
         /// `__copy__` magic method that uses `clone`.

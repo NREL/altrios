@@ -116,8 +116,8 @@ def get_train_sim_inputs(df: pd.DataFrame, file_path: Path) -> bytes:
     else:
         raise ValueError("Directionality is invalid.")
 
-    network = alt.import_network(
-        str(alt.package_root() / "../../../data/StockToBar_10thPoint_corrected.yaml"))
+    network = alt.Network.from_file(
+        alt.package_root() / "../../../data/StockToBar_10thPoint_corrected.yaml")
 
     max_offset = network[link_path[0].idx].length_meters - 1e3
 

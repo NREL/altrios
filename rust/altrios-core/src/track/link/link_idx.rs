@@ -105,7 +105,7 @@ impl ObjState for LinkIdx {
     fn from_csv_file_py(filepath: &PyAny) -> anyhow::Result<Self> {
         Self::from_csv_file(PathBuf::extract(filepath)?)
     }
-    
+
     #[pyo3(name = "to_csv_file")]
     fn to_csv_file_py(&self, filepath: &PyAny) -> anyhow::Result<()> {
         self.to_csv_file(PathBuf::extract(filepath)?)
@@ -150,7 +150,7 @@ impl LinkPath {
 
     /// Load from csv file
     pub fn to_csv_file<P: AsRef<Path>>(&self, filepath: P) -> anyhow::Result<()> {
-        let file = File::open(filepath)?;
+        let file = std::fs::OpenOptions::new().write(true).open(filepath)?;
         let mut wrtr = csv::WriterBuilder::new()
             .has_headers(true)
             .from_writer(file);

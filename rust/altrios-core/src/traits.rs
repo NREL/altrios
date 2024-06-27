@@ -113,6 +113,8 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     const ACCEPTED_STR_FORMATS: &'static [&'static str] = &["yaml", "json"];
 
     /// Specialized code to execute upon initialization
+    // TODO: make sure that init methods cascades down the hierarchy.
+    // This could be done via proc macro.
     fn init(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
@@ -210,7 +212,10 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     /// * `rdr` - The reader from which to read object data
     /// * `format` - The source format, any of those listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`)
     ///
-    fn from_reader<R: std::io::Read>(rdr: R, format: &str) -> anyhow::Result<Self> {
+    fn from_reader<R>(rdr: R, format: &str) -> anyhow::Result<Self>
+    where
+        R: std::io::Read,
+    {
         let mut deserialized: Self = match format.trim_start_matches('.').to_lowercase().as_str() {
             "yaml" | "yml" => serde_yaml::from_reader(rdr)?,
             "json" => serde_json::from_reader(rdr)?,

@@ -1,7 +1,7 @@
-use crate::imports::*;
 use super::{braking_point::BrakingPoints, friction_brakes::*, train_imports::*};
-use crate::track::{LinkPoint, Location};
+use crate::imports::*;
 use crate::track::link::link_impl::Network;
+use crate::track::{LinkPoint, Location};
 
 #[altrios_api(
     #[new]
@@ -101,7 +101,6 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     #[pyo3(name = "extend_path")]
     pub fn extend_path_py(&mut self, network_file_path: String, link_path: Vec<LinkIdx>) -> anyhow::Result<()> {
         let network = Vec::<Link>::from_file(network_file_path).unwrap();
-        network.validate().unwrap();
 
         self.extend_path(&network, &link_path)?;
         Ok(())
@@ -109,8 +108,8 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 
     #[pyo3(name = "walk_timed_path")]
     pub fn walk_timed_path_py(
-        &mut self, 
-        network: &PyAny, 
+        &mut self,
+        network: &PyAny,
         timed_path: &PyAny,
     ) -> anyhow::Result<()> {
         let network = match network.extract::<Network>() {
@@ -118,7 +117,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
                 Network(n)
-            }   
+            }
         };
 
         let timed_path = match timed_path.extract::<TimedLinkPath>() {
@@ -126,12 +125,14 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
             Err(_) => {
                 let tp = timed_path.extract::<Vec<LinkIdxTime>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
                 TimedLinkPath(tp)
-            }   
+            }
         };
         self.walk_timed_path(&network, timed_path)
     }
 )]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+/// Train simulation in which speed is allowed to vary according to train capabilities and speed
+/// limit
 pub struct SpeedLimitTrainSim {
     #[api(skip_set)]
     pub train_id: String,
@@ -243,8 +244,11 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn extend_path(&mut self, network: &[Link], link_path: &[LinkIdx]) -> anyhow::Result<()> {
-        self.path_tpc.extend(network, link_path)?;
-        self.recalc_braking_points()?;
+        self.path_tpc
+            .extend(network, link_path)
+            .with_context(|| anyhow!(format_dbg!()))?;
+        self.recalc_braking_points()
+            .with_context(|| anyhow!(format_dbg!()))?;
         Ok(())
     }
     pub fn clear_path(&mut self) {
@@ -287,13 +291,19 @@ impl SpeedLimitTrainSim {
         self.loco_con.set_pwr_aux(Some(true))?;
         self.loco_con.set_cur_pwr_max_out(None, self.state.dt)?;
         self.train_res
-            .update_res::<{ Dir::Fwd }>(&mut self.state, &self.path_tpc)?;
+            .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
         self.solve_required_pwr()?;
+        log::debug!(
+            "{}\ntime step: {}",
+            format_dbg!(),
+            self.state.time.get::<si::second>().format_eng(Some(9))
+        );
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
             self.state.dt,
             Some(true),
         )?;
+        set_link_and_offset(&mut self.state, &self.path_tpc)?;
         Ok(())
     }
 
@@ -313,6 +323,14 @@ impl SpeedLimitTrainSim {
             || (self.state.offset < self.path_tpc.offset_end()
                 && self.state.speed != si::Velocity::ZERO)
         {
+            log::debug!(
+                "{}",
+                format_dbg!(
+                    self.state.offset < self.path_tpc.offset_end() - 1000.0 * uc::FT
+                        || (self.state.offset < self.path_tpc.offset_end()
+                            && self.state.speed != si::Velocity::ZERO)
+                )
+            );
             self.step()?;
         }
         Ok(())
@@ -342,6 +360,7 @@ impl SpeedLimitTrainSim {
         let mut idx_prev = 0;
         while idx_prev != timed_path.len() - 1 {
             let mut idx_next = idx_prev + 1;
+            log::debug!("Solving idx: {}", idx_next);
             while idx_next + 1 < timed_path.len() - 1 && timed_path[idx_next].time < self.state.time
             {
                 idx_next += 1;
@@ -373,16 +392,19 @@ impl SpeedLimitTrainSim {
 
         // Verify that train can slow down
         // TODO: figure out if dynamic braking needs to be separately accounted for here
-        if self.fric_brake.force_max + res_net <= si::Force::ZERO {
-            bail!("Train {} does not have sufficient braking to slow down at time{:?}.
-            Fric brake force = {:?}.
-            Net resistance = {:?}",
-            self.train_id,
-            self.state.time,
-            self.fric_brake.force_max,
-            res_net
+
+        ensure!(
+            self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO,
+            format!(
+                "Insufficient braking force.\n{}\n{}\n{}\n{}\n{}\n{}",
+                format_dbg!(self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO),
+                format_dbg!(self.fric_brake.force_max),
+                format_dbg!(self.state.res_net()),
+                format_dbg!(self.state.res_grade),
+                format_dbg!(self.state.grade_front),
+                format_dbg!(self.state.grade_back),
+            )
         );
-        }
 
         // TODO: Validate that this makes sense considering friction brakes
         let (speed_limit, speed_target) = self.braking_points.calc_speeds(
@@ -425,13 +447,13 @@ impl SpeedLimitTrainSim {
             .min(pwr_pos_max / speed_target.min(v_max));
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
+            log::error!("{}", format_dbg!(self.path_tpc));
             bail!(
                 "{}\nTrain does not have sufficient power to move!\nforce_max={:?},\nres_net={:?},\ntrain_state={:?}", // ,\nlink={:?}
                 format_dbg!(),
                 f_pos_max,
                 res_net,
                 self.state,
-                // self.path_tpc
             );
         }
 
@@ -576,6 +598,21 @@ impl SpeedLimitTrainSim {
     }
 }
 
+impl SerdeAPI for SpeedLimitTrainSim {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.origs.init()?;
+        self.dests.init()?;
+        self.loco_con.init()?;
+        self.state.init()?;
+        self.train_res.init()?;
+        self.path_tpc.init()?;
+        self.braking_points.init()?;
+        self.fric_brake.init()?;
+        self.history.init()?;
+        Ok(())
+    }
+}
+
 impl Default for SpeedLimitTrainSim {
     fn default() -> Self {
         let mut slts = Self {
@@ -600,7 +637,7 @@ impl Default for SpeedLimitTrainSim {
 
 impl Valid for SpeedLimitTrainSim {
     fn valid() -> Self {
-        let mut train_sim = Self{
+        let mut train_sim = Self {
             path_tpc: PathTpc::valid(),
             ..Default::default()
         };

@@ -4,13 +4,14 @@ build-backend = "maturin"
 
 [project]
 name = "altrios"
-version = "0.1.6"
+version = "0.2.3"
 authors = [
     { name = "ALTRIOS Team", email = "altrios@nrel.gov" },
     { name = "Chad Baker, Lead Developer" },
     { name = "Nick Reinicke, Developer" },
     { name = "Matt Bruchon, Developer" },
     { name = "Saad Akhtar, Developer" },
+    { name = "Steven Shi, Developer" },
     { name = "Jinghu Hu, Developer" },
     { name = "Grant Payne, Developer" },
     { name = "Jason Lustbader, PI" },
@@ -33,7 +34,7 @@ classifiers = [
 ]
 dependencies = [
     "pandas>=2",
-    "numpy",
+    "numpy==1.24",
     "pymoo==0.6",
     "openpyxl",
     "xlrd",
@@ -58,7 +59,7 @@ dev = ["black", "pytest", "maturin", "ipykernel"]
 profile = "release"
 python-source = "python"
 features = ["pyo3/extension-module"]
-module-name = "altrios.altrios_py"
+module-name = "altrios.altrios_pyo3"
 manifest-path = "rust/altrios-py/Cargo.toml"
 include = [
     { format = "sdist", path = "rust/altrios-core/Cargo.toml" },

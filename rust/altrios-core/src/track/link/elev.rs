@@ -2,10 +2,24 @@ use crate::imports::*;
 
 /// Struct containing elevation for a particular offset w.r.t. `Link`
 #[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize, SerdeAPI)]
-#[altrios_api]
+#[altrios_api(
+    #[new]
+    fn __new__(
+        offset_meters: f64,
+        elev_meters: f64,
+    ) -> PyResult<Self> {
+        Ok(Self::new(offset_meters * uc::M, elev_meters * uc::M))
+    }
+)]
 pub struct Elev {
     pub offset: si::Length,
     pub elev: si::Length,
+}
+
+impl Elev {
+    pub fn new(offset: si::Length, elev: si::Length) -> Self {
+        Self { offset, elev }
+    }
 }
 
 impl Valid for Elev {}
@@ -50,7 +64,15 @@ impl ObjState for [Elev] {
             errors.push(anyhow!("There must be at least two elevations!"));
         }
         if !self.windows(2).all(|w| w[0].offset < w[1].offset) {
-            errors.push(anyhow!("Offsets must be sorted and unique!"));
+            let err_pairs: Vec<Vec<si::Length>> = self
+                .windows(2)
+                .filter(|w| w[0].offset >= w[1].offset)
+                .map(|w| vec![w[0].offset, w[1].offset])
+                .collect();
+            errors.push(anyhow!(
+                "Offsets must be sorted and unique! Invalid offsets: {:?}",
+                err_pairs
+            ));
         }
         errors.make_err()
     }

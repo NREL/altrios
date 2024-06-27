@@ -8,7 +8,7 @@ import time
 import seaborn as sns
 from pathlib import Path
 
-sns.set()
+sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()
 # %
@@ -21,10 +21,11 @@ plot_dir.mkdir(exist_ok=True)
 # %%
 
 t0_import = time.perf_counter()
+t0_total = time.perf_counter()
 
 rail_vehicle_map = alt.import_rail_vehicles(alt.resources_root() / "rolling_stock/rail_vehicles.csv")
 location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")
-network = alt.import_network(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
+network = alt.Network.from_file(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 
 t1_import = time.perf_counter()
 print(
@@ -110,14 +111,14 @@ v_total_fuel_gal = summary_sims.get_energy_fuel_joules(annualize=False) / 1e3 / 
     defaults.RHO_DIESEL_KG_PER_M3 * utilities.LITER_PER_M3 * utilities.GALLONS_PER_LITER
 
 print(f"Total fuel used: {v_total_fuel_gal:.3g} gallons")
+print(f"Total elapsed time: {time.perf_counter() - t0_total} s")
 
 
 # %%
 
 if SHOW_PLOTS:
     for idx, sim in enumerate(sims_list[:10]):
-        # sim = alt.SpeedLimitTrainSim.from_bincode(
-        #     sim.to_bincode())  # to support linting
+        sim: alt.SpeedLimitTrainSim
         fig, ax = plt.subplots(3, 1, sharex=True)
 
         loco0 = sim.loco_con.loco_vec.tolist()[0]

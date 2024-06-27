@@ -2,6 +2,7 @@
 //! expose most structs, methods, and functions to Python.
 
 use altrios_core::prelude::*;
+use altrios_core::track::SpeedSet;
 pub use pyo3::exceptions::{
     PyAttributeError, PyFileNotFoundError, PyIndexError, PyNotImplementedError, PyRuntimeError,
 };
@@ -10,7 +11,7 @@ pub use pyo3::types::PyType;
 pub use pyo3_polars::PyDataFrame;
 
 #[pymodule]
-fn altrios_py(_py: Python, m: &PyModule) -> PyResult<()> {
+fn altrios_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
     pyo3_log::init();
     m.add_class::<FuelConverter>()?;
     m.add_class::<FuelConverterState>()?;
@@ -49,9 +50,12 @@ fn altrios_py(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<TimedLinkPath>()?;
     m.add_class::<LinkPoint>()?;
     m.add_class::<Link>()?;
+    m.add_class::<Elev>()?;
+    m.add_class::<Heading>()?;
     m.add_class::<Location>()?;
     m.add_class::<Network>()?;
     m.add_class::<LinkPath>()?;
+    m.add_class::<SpeedSet>()?;
 
     m.add_class::<InitTrainState>()?;
     m.add_class::<TrainState>()?;
@@ -66,7 +70,6 @@ fn altrios_py(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<EstTimeNet>()?;
     m.add_function(wrap_pyfunction!(import_rail_vehicles_py, m)?)?;
     m.add_function(wrap_pyfunction!(import_locations_py, m)?)?;
-    m.add_function(wrap_pyfunction!(import_network_py, m)?)?;
     m.add_function(wrap_pyfunction!(make_est_times_py, m)?)?;
     m.add_function(wrap_pyfunction!(run_dispatch_py, m)?)?;
     m.add_function(wrap_pyfunction!(check_od_pair_valid, m)?)?;

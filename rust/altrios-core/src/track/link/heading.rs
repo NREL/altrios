@@ -8,6 +8,18 @@ pub struct Heading {
     pub offset: si::Length,
     #[api(skip_set)]
     pub heading: si::Angle,
+    /// Optional latitude at `self.offset`.  No checks are currently performed to ensure consistency
+    /// between headind and lat/lon, and this is not actually used in the code.  
+    #[api(skip_set)]
+    #[serde(rename = "Lat")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lat: Option<f64>,
+    /// Optional longitude at `self.offset`.  No checks are currently performed to ensure
+    /// consistency between headind and lat/lon, and this is not actually used in the code.
+    #[api(skip_set)]
+    #[serde(rename = "Lon")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lon: Option<f64>,
 }
 
 impl Valid for Heading {}
@@ -35,10 +47,14 @@ impl Valid for Vec<Heading> {
             Heading {
                 offset: offset_end * 0.5,
                 heading: si::Angle::ZERO,
+                lat: Default::default(),
+                lon: Default::default(),
             },
             Heading {
                 offset: offset_end,
                 heading: uc::RAD,
+                lat: Default::default(),
+                lon: Default::default(),
             },
         ]
     }
@@ -57,7 +73,15 @@ impl ObjState for [Heading] {
             errors.push(anyhow!("There must be at least two headings!"));
         }
         if !self.windows(2).all(|w| w[0].offset < w[1].offset) {
-            errors.push(anyhow!("Offsets must be sorted and unique!"));
+            let err_pairs: Vec<Vec<si::Length>> = self
+                .windows(2)
+                .filter(|w| w[0].offset >= w[1].offset)
+                .map(|w| vec![w[0].offset, w[1].offset])
+                .collect();
+            errors.push(anyhow!(
+                "Offsets must be sorted and unique! Invalid offsets: {:?}",
+                err_pairs
+            ));
         }
         errors.make_err()
     }

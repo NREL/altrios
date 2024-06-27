@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 
-sns.set()
+sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()
 

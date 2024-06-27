@@ -1,5 +1,6 @@
 """Module for general functions, classes, and unit conversion factors."""
 
+from __future__ import annotations
 import re
 import numpy as np
 from typing import Tuple, Union, Optional, Dict, Any, TYPE_CHECKING
@@ -30,7 +31,7 @@ def resources_root() -> Path:
     path = package_root() / "resources"
     return path
 
-from altrios.altrios_py import (
+from altrios.altrios_pyo3 import (
     SetSpeedTrainSim,
     ConsistSimulation,
     Consist,
@@ -264,15 +265,63 @@ def smoothen(signal: npt.ArrayLike, period: int = 9) -> npt.ArrayLike:
 def print_dt():
     print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
+def set_log_level(level: str | int) -> int:
+    """
+    Sets logging level for both Python and Rust.
+    The default logging level is WARNING (30).
+    https://docs.python.org/3/library/logging.html#logging-levels
 
-def set_log_level(level: Union[str, int]):
+    Parameters
+    ----------
+    level: `str` | `int`
+        Logging level to set. `str` level name or `int` logging level
+        
+        =========== ================
+        Level       Numeric value
+        =========== ================
+        CRITICAL    50
+        ERROR       40
+        WARNING     30
+        INFO        20
+        DEBUG       10
+        NOTSET      0
+    
+    Returns
+    -------
+    `int`
+        Previous log level
+    """
     # Map string name to logging level
+
+    allowed_args = [
+        ("CRITICAL", 50),
+        ("ERROR", 40),
+        ("WARNING", 30),
+        ("INFO", 20),
+        ("DEBUG", 10),
+        ("NOTSET", 0),
+        # no logging of anything ever!
+        ("NONE", logging.CRITICAL + 1),
+    ]
+    allowed_str_args = [a[0] for a in allowed_args]
+    allowed_int_args = [a[1] for a in allowed_args]
+
+    err_str = f"Invalid arg: '{level}'.  See doc string:\n{set_log_level.__doc__}"
+
     if isinstance(level, str):
-        level = logging._nameToLevel[level]
-    # Set logging level
-    logging.getLogger("").setLevel(level)
+        assert level.upper() in allowed_str_args, err_str
+        level = logging._nameToLevel[level.upper()]
+    else:
+        assert level in allowed_int_args, err_str
 
-
+    # Extract previous log level and set new log level
+    python_logger  = logging.getLogger("altrios")
+    previous_level = python_logger .level
+    python_logger .setLevel(level)
+    rust_logger = logging.getLogger("altrios_core")
+    rust_logger.setLevel(level)
+    return previous_level
+    
 def disable_logging():
     set_log_level(logging.CRITICAL + 1)
 

@@ -8,6 +8,7 @@ use super::powertrain::reversible_energy_storage::ReversibleEnergyStorage;
 use super::powertrain::ElectricMachine;
 use super::LocoTrait;
 use crate::imports::*;
+use uom::ConstZero; // this should be covered in `crate::imports` but is needed
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, HistoryMethods)]
 #[altrios_api(
@@ -63,7 +64,15 @@ pub struct HybridLoco {
     i: usize,
 }
 
-impl SerdeAPI for HybridLoco {}
+impl SerdeAPI for HybridLoco {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.fc.init()?;
+        self.gen.init()?;
+        self.res.init()?;
+        self.edrv.init()?;
+        Ok(())
+    }
+}
 
 impl Default for HybridLoco {
     fn default() -> Self {
@@ -88,7 +97,7 @@ impl LocoTrait for Box<HybridLoco> {
         dt: si::Time,
     ) -> anyhow::Result<()> {
         self.res.set_cur_pwr_out_max(
-            pwr_aux.ok_or(anyhow!(format_dbg!("`pwr_aux` not provided")))?,
+            pwr_aux.with_context(|| anyhow!(format_dbg!("`pwr_aux` not provided")))?,
             None,
             None,
         )?;

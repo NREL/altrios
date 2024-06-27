@@ -1,24 +1,95 @@
 use super::*;
 
-#[enum_dispatch(LocoTrait)]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum PowertrainType {
-    ConventionalLoco,
+    ConventionalLoco(ConventionalLoco),
     HybridLoco(Box<HybridLoco>),
-    BatteryElectricLoco,
-    DummyLoco,
+    BatteryElectricLoco(BatteryElectricLoco),
+    DummyLoco(DummyLoco),
+}
+
+impl SerdeAPI for PowertrainType {
+    fn init(&mut self) -> anyhow::Result<()> {
+        match self {
+            Self::ConventionalLoco(l) => l.init()?,
+            Self::HybridLoco(l) => l.init()?,
+            Self::BatteryElectricLoco(l) => l.init()?,
+            Self::DummyLoco(_) => {}
+        };
+        Ok(())
+    }
+}
+
+impl LocoTrait for PowertrainType {
+    fn set_cur_pwr_max_out(
+        &mut self,
+        pwr_aux: Option<si::Power>,
+        dt: si::Time,
+    ) -> anyhow::Result<()> {
+        match self {
+            PowertrainType::ConventionalLoco(conv) => conv.set_cur_pwr_max_out(pwr_aux, dt),
+            PowertrainType::HybridLoco(hel) => hel.set_cur_pwr_max_out(pwr_aux, dt),
+            PowertrainType::BatteryElectricLoco(bel) => bel.set_cur_pwr_max_out(pwr_aux, dt),
+            PowertrainType::DummyLoco(dummy) => dummy.set_cur_pwr_max_out(pwr_aux, dt),
+        }
+    }
+
+    fn save_state(&mut self) {
+        match self {
+            PowertrainType::ConventionalLoco(conv) => conv.save_state(),
+            PowertrainType::HybridLoco(hel) => hel.save_state(),
+            PowertrainType::BatteryElectricLoco(bel) => bel.save_state(),
+            PowertrainType::DummyLoco(dummy) => dummy.save_state(),
+        }
+    }
+
+    fn step(&mut self) {
+        match self {
+            PowertrainType::ConventionalLoco(conv) => conv.step(),
+            PowertrainType::HybridLoco(hel) => hel.step(),
+            PowertrainType::BatteryElectricLoco(bel) => bel.step(),
+            PowertrainType::DummyLoco(dummy) => dummy.step(),
+        }
+    }
+
+    fn get_energy_loss(&self) -> si::Energy {
+        match self {
+            PowertrainType::ConventionalLoco(conv) => conv.get_energy_loss(),
+            PowertrainType::HybridLoco(hel) => hel.get_energy_loss(),
+            PowertrainType::BatteryElectricLoco(bel) => bel.get_energy_loss(),
+            PowertrainType::DummyLoco(dummy) => dummy.get_energy_loss(),
+        }
+    }
+}
+
+impl From<ConventionalLoco> for PowertrainType {
+    fn from(value: ConventionalLoco) -> Self {
+        Self::ConventionalLoco(value)
+    }
 }
 
 impl From<HybridLoco> for PowertrainType {
     fn from(value: HybridLoco) -> Self {
-        Self::from(Box::new(value))
+        Self::HybridLoco(Box::new(value))
+    }
+}
+
+impl From<BatteryElectricLoco> for PowertrainType {
+    fn from(value: BatteryElectricLoco) -> Self {
+        Self::BatteryElectricLoco(value)
+    }
+}
+
+impl From<DummyLoco> for PowertrainType {
+    fn from(value: DummyLoco) -> Self {
+        Self::DummyLoco(value)
     }
 }
 
 #[cfg(feature = "pyo3")]
 impl TryFrom<&PyAny> for PowertrainType {
     type Error = PyErr;
-    /// This allows us to construct PowertrainType any struct that can be converted into PowertrainType
+    /// This allows us to construct PowertrainType from any struct that can be converted into PowertrainType
     fn try_from(value: &PyAny) -> std::result::Result<Self, Self::Error> {
         value
             .extract::<ConventionalLoco>()
@@ -96,16 +167,17 @@ pub struct LocoParams {
 }
 
 impl LocoParams {
+    #[allow(unused)]
     fn from_hash(mut params: HashMap<&str, f64>) -> anyhow::Result<Self> {
         let pwr_aux_offset_watts = params
             .remove("pwr_aux_offset_watts")
-            .ok_or_else(|| anyhow!("Must provide 'pwr_aux_offset_watts'."))?;
+            .with_context(|| anyhow!("Must provide 'pwr_aux_offset_watts'."))?;
         let pwr_aux_traction_coeff_ratio = params
             .remove("pwr_aux_traction_coeff_ratio")
-            .ok_or_else(|| anyhow!("Must provide 'pwr_aux_traction_coeff_ratio'."))?;
+            .with_context(|| anyhow!("Must provide 'pwr_aux_traction_coeff_ratio'."))?;
         let force_max_newtons = params
             .remove("force_max_newtons")
-            .ok_or_else(|| anyhow!("Must provide 'force_max_newtons'."))?;
+            .with_context(|| anyhow!("Must provide 'force_max_newtons'."))?;
         let mass_kg = params.remove("mass_kg");
         ensure!(
             params.is_empty(),
@@ -499,6 +571,7 @@ impl Default for Locomotive {
 impl SerdeAPI for Locomotive {
     fn init(&mut self) -> anyhow::Result<()> {
         self.check_mass_consistent()?;
+        self.loco_type.init()?;
         Ok(())
     }
 }
@@ -582,7 +655,8 @@ impl Locomotive {
     }
 
     pub fn force_max(&self) -> anyhow::Result<Option<si::Force>> {
-        self.check_force_max()?;
+        self.check_force_max()
+            .with_context(|| anyhow!(format_dbg!()))?;
         Ok(self.force_max)
     }
 
@@ -596,17 +670,19 @@ impl Locomotive {
     pub fn default_battery_electric_loco() -> Self {
         // TODO: add `pwr_aux_offset` and `pwr_aux_traction_coeff` based on calibration
         let bel_type = PowertrainType::BatteryElectricLoco(BatteryElectricLoco::default());
-        let mut bel = Locomotive::default();
-        bel.loco_type = bel_type;
-        bel
+        Locomotive {
+            loco_type: bel_type,
+            ..Default::default()
+        }
     }
 
     pub fn default_hybrid_electric_loco() -> Self {
         // TODO: add `pwr_aux_offset` and `pwr_aux_traction_coeff` based on calibration
         let hel_type = PowertrainType::HybridLoco(Box::default());
-        let mut hel = Locomotive::default();
-        hel.loco_type = hel_type;
-        hel
+        Locomotive {
+            loco_type: hel_type,
+            ..Default::default()
+        }
     }
 
     pub fn get_pwr_rated(&self) -> si::Power {

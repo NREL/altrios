@@ -866,6 +866,7 @@ def run_train_planner(
     refuelers: pl.DataFrame,
     simulation_days: int,
     scenario_year: int,
+    train_type: alt.TrainType = alt.TrainType.Freight, 
     config: TrainPlannerConfig = TrainPlannerConfig(),
     demand_file_path=defaults.DEMAND_FILE,
     network_charging_guidelines: pl.DataFrame = None,
@@ -956,7 +957,9 @@ def run_train_planner(
                     train_config = alt.TrainConfig(
                         cars_empty = int(this_train['Cars_Per_Train_Empty']),
                         cars_loaded = int(this_train['Cars_Per_Train_Loaded']),
-                        rail_vehicle_type = this_train['Train_Type'])
+                        rail_vehicle_type = this_train['Train_Type'],
+                        train_type = train_type,
+                    )
                     
                     dispatched = loco_pool.filter(selected)
                     loco_start_soc_j = dispatched.get_column("SOC_J")
@@ -1111,7 +1114,7 @@ if __name__ == "__main__":
     location_map = alt.import_locations(
         str(alt.resources_root() / "networks/default_locations.csv")
     )
-    network = alt.import_network(
+    network = alt.Network.from_file(
         str(alt.resources_root() / "networks/Taconite.yaml")
     )
     config = TrainPlannerConfig()

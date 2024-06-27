@@ -65,7 +65,7 @@ def simulate_prescribed_rollout(
     location_map = alt.import_locations(
         str(alt.resources_root() / "networks/default_locations.csv")
     )
-    network = alt.import_network(network_filename_path)
+    network = alt.Network.from_file(network_filename_path)
     sim_days = defaults.SIMULATION_DAYS
     scenarios = []
     for idx, scenario_year in enumerate(years):

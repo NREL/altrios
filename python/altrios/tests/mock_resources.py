@@ -200,8 +200,6 @@ def mock_set_speed_train_simulation(
     return sim
 
 # def mock_speed_limit_train_simulation(
-#     # TODO: make test for this
-#     # TODO: add SpeedLimitTrainSim to pyi file
 #     consist: Optional[alt.Consist] = None,
 #     # path_tpc_file: Optional[int] = None,  # `None` triggers default
 #     save_interval: Optional[int] = 1,

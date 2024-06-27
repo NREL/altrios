@@ -1,0 +1,47 @@
+name: py-tests 
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "python/**"
+      - "rust/**"
+  pull_request:
+    paths:
+      - "python/**"
+      - "rust/**"
+  workflow_dispatch:
+  workflow_call:
+
+
+jobs:
+  call-rust-tests:
+    uses: nrel/altrios/.github/workflows/rust-tests.yaml@main
+  test:
+    needs: call-rust-tests
+    if: github.repository == 'nrel/altrios' || github.repository == 'nrel/altrios-private'
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.10']
+
+    env:
+      PYTHON: ${{ matrix.python-version }}
+      SHOW_PLOTS: false
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: set up python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Python unit tests 
+      run: |
+        pip install maturin pytest
+        pip install -e ".[dev]" 
+        pytest python/altrios -s

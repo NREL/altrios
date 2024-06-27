@@ -1,7 +1,7 @@
 # Rail Network
 
 ## How Links Are Connected
-The following schematic shows how links in a network are connected.  
+The following schematic shows how links in a network are connected:  
 ![Conceptual schematic of rail network links in ALTRIOS](./rail%20track%20network.drawio.svg)
 
 In ALTRIOS, each link (path between junctions along the rail with heading, grade, and location) in the rail network has both a direction and a location so each link has a unique link identification (ID) number for each direction.   Each link can must be connected to at least one other link and up to four other links, two in each direction, comprising a previous link, an alternate previous link, a next link, and an alternate next link. Based on the above schematic, we can say that the links are interconnected thusly
@@ -24,3 +24,7 @@ In ALTRIOS, each link (path between junctions along the rail with heading, grade
 | 14      | 7          | N/A     | N/A         | 11      | N/A         |
 
 Note that for a particular link, the links corresponding to the "Prev" and "Next" IDs are swapped in the reverse direction -- i.e. in the forward direction, link 4 has links 1 and 3 as "ID Prev" and "ID Prev Alt", respectively, and in the reverse direction, link 4 becomes 11 and has links 8 and 10 as "ID Next" and "ID Next Alt", respectively.  
+
+## Link Lockout
+The following schematic shows how link lockouts occur:  
+![Conceptual schematic of links that trigger lockouts](../images/lockout_concept.png)

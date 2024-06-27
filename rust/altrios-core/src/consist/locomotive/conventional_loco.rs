@@ -5,7 +5,7 @@ use super::powertrain::ElectricMachine;
 use super::LocoTrait;
 use crate::imports::*;
 
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
+#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods)]
 #[altrios_api(
     #[new]
     pub fn __new__(
@@ -84,6 +84,15 @@ impl ConventionalLoco {
     }
 }
 
+impl SerdeAPI for ConventionalLoco {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.fc.init()?;
+        self.gen.init()?;
+        self.edrv.init()?;
+        Ok(())
+    }
+}
+
 impl LocoTrait for ConventionalLoco {
     /// returns current max power, current max power rate, and current max regen
     /// power that can be absorbed by the RES/battery
@@ -95,7 +104,7 @@ impl LocoTrait for ConventionalLoco {
         self.fc.set_cur_pwr_out_max(dt)?;
         self.gen.set_cur_pwr_max_out(
             self.fc.state.pwr_out_max,
-            Some(pwr_aux.ok_or(anyhow!(format_dbg!("`pwr_aux` not provided")))?),
+            Some(pwr_aux.with_context(|| format_dbg!("`pwr_aux` not provided"))?),
         )?;
         self.edrv
             .set_cur_pwr_max_out(self.gen.state.pwr_elec_prop_out_max, None)?;

@@ -2,45 +2,116 @@ use super::cat_power::*;
 use super::elev::*;
 use super::heading::*;
 use super::link_idx::*;
+use super::link_old::Link as LinkOld;
 use super::speed::*;
-#[allow(unused_imports)]
-use crate::meet_pass::est_times::EstTime;
-
 use crate::imports::*;
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+struct OldSpeedSets(Vec<OldSpeedSet>);
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 /// An arbitrary unit of single track that does not include turnouts
-#[altrios_api]
+#[altrios_api()]
 pub struct Link {
-    pub elevs: Vec<Elev>,
-    #[serde(default)]
-    pub headings: Vec<Heading>,
-    pub speed_sets: Vec<SpeedSet>,
-    #[serde(default)]
-    pub cat_power_limits: Vec<CatPowerLimit>,
-    pub length: si::Length,
-
+    /// Index of current link
+    pub idx_curr: LinkIdx,
+    /// Index of current link in reverse direction
+    pub idx_flip: LinkIdx,
     /// see [EstTime::idx_next]
     pub idx_next: LinkIdx,
-    /// see [EstTime::idx_next_alt]
+    /// see [EstTime::idx_next_alt]  
+    /// if it does not exist, it should be `LinkIdx{idx: 0}`
     pub idx_next_alt: LinkIdx,
     /// see [EstTime::idx_prev]
     pub idx_prev: LinkIdx,
-    /// see [EstTime::idx_prev_alt]
+    /// see [EstTime::idx_prev_alt]  
+    /// if it does not exist, it should be `LinkIdx{idx: 0}`
     pub idx_prev_alt: LinkIdx,
-    /// Index of current link
-    pub idx_curr: LinkIdx,
-    /// Index of adjacent link in reverse direction
-    pub idx_flip: LinkIdx,
+    /// Optional OpenStreetMap ID -- not used in simulation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub osm_id: Option<String>,
+    /// Total length of [Self]
+    pub length: si::Length,
+
+    /// Spatial vector of elevation values and corresponding positions along track
+    pub elevs: Vec<Elev>,
     #[serde(default)]
+    /// Spatial vector of compass heading values and corresponding positions along track
+    pub headings: Vec<Heading>,
+    /// Map of train types and corresponding speed sets
+    #[serde(default)]
+    pub speed_sets: HashMap<TrainType, SpeedSet>,
+    /// Optional train-type-neutral [SpeedSet].  If provided, overrides [Link::speed_sets].
+    pub speed_set: Option<SpeedSet>,
+    #[serde(default)]
+    /// Spatial vector of catenary power limit values and corresponding positions along track
+    pub cat_power_limits: Vec<CatPowerLimit>,
+
+    #[serde(default)]
+    /// Prevents provided links from being occupied when the current link has a train on it. An
+    /// example would be at a switch, where there would be foul links running from the switch points
+    /// to the clearance point. Due to the geometric overlap of the foul links, only one may be
+    /// occupied at a given time. For further explanation, see the [graphical
+    /// example](https://nrel.github.io/altrios/api-doc/rail-network.html?highlight=network#link-lockout).
     pub link_idxs_lockout: Vec<LinkIdx>,
 }
+
 impl Link {
     fn is_linked_prev(&self, idx: LinkIdx) -> bool {
         self.idx_curr.is_fake() || self.idx_prev == idx || self.idx_prev_alt == idx
     }
     fn is_linked_next(&self, idx: LinkIdx) -> bool {
         self.idx_curr.is_fake() || self.idx_next == idx || self.idx_next_alt == idx
+    }
+
+    /// Sets `self.speed_set` based on `self.speed_sets` value corresponding to `train_type` key
+    pub fn set_speed_set_for_train_type(&mut self, train_type: TrainType) -> anyhow::Result<()> {
+        self.speed_set = Some(
+            self.speed_sets
+                .get(&train_type)
+                .with_context(|| {
+                    anyhow!(
+                        "No value found for train_type: {:?} in `speed_sets`.",
+                        train_type
+                    )
+                })?
+                .clone(),
+        );
+        self.speed_sets = HashMap::new();
+        Ok(())
+    }
+}
+
+impl From<LinkOld> for Link {
+    fn from(l: LinkOld) -> Self {
+        let mut speed_sets: HashMap<TrainType, SpeedSet> = HashMap::new();
+        for oss in l.speed_sets {
+            speed_sets.insert(
+                oss.train_type,
+                SpeedSet {
+                    speed_limits: oss.speed_limits,
+                    speed_params: oss.speed_params,
+                    is_head_end: oss.is_head_end,
+                },
+            );
+        }
+
+        Self {
+            elevs: l.elevs,
+            headings: l.headings,
+            speed_sets,
+            speed_set: Default::default(),
+            cat_power_limits: l.cat_power_limits,
+            length: l.length,
+            idx_next: l.idx_next,
+            idx_next_alt: l.idx_next_alt,
+            idx_prev: l.idx_prev,
+            idx_prev_alt: l.idx_prev_alt,
+            idx_curr: l.idx_curr,
+            idx_flip: l.idx_flip,
+            osm_id: l.osm_id,
+            link_idxs_lockout: l.link_idxs_lockout,
+        }
     }
 }
 
@@ -49,7 +120,7 @@ impl Valid for Link {
         Self {
             elevs: Vec::<Elev>::valid(),
             headings: Vec::<Heading>::valid(),
-            speed_sets: Vec::<SpeedSet>::valid(),
+            speed_sets: HashMap::<TrainType, SpeedSet>::valid(),
             length: uc::M * 10000.0,
             idx_curr: LinkIdx::valid(),
             ..Self::default()
@@ -75,6 +146,10 @@ impl ObjState for Link {
             validate_field_fake(&mut errors, &self.elevs, "Elevations");
             validate_field_fake(&mut errors, &self.headings, "Headings");
             validate_field_fake(&mut errors, &self.speed_sets, "Speed sets");
+            validate_field_fake(&mut errors, &self.speed_sets, "Speed sets");
+            if let Some(speed_set) = &self.speed_set {
+                validate_field_fake(&mut errors, speed_set, "Speed set");
+            }
             // validate cat_power_limits
             if !self.cat_power_limits.is_empty() {
                 errors.push(anyhow!(
@@ -88,7 +163,29 @@ impl ObjState for Link {
             if !self.headings.is_empty() {
                 validate_field_real(&mut errors, &self.headings, "Headings");
             }
-            validate_field_real(&mut errors, &self.speed_sets, "Speed sets");
+            if !self.speed_sets.is_empty() {
+                validate_field_real(&mut errors, &self.speed_sets, "Speed sets");
+                if self.speed_set.is_some() {
+                    errors.push(anyhow!(
+                        "`speed_sets` is not empty and `speed_set` is `Some(speed_set). {}",
+                        "Change one of these."
+                    ));
+                }
+            } else if let Some(speed_set) = &self.speed_set {
+                validate_field_real(&mut errors, speed_set, "Speed set");
+                if !self.speed_sets.is_empty() {
+                    errors.push(anyhow!(
+                        "`speed_sets` is not empty and `speed_set` is `Some(speed_set)`. {}",
+                        "Change one of these."
+                    ));
+                }
+            } else {
+                errors.push(anyhow!(
+                    "{}\n`SpeedSets` is empty and `SpeedSet` is `None`. {}",
+                    format_dbg!(),
+                    "One of these fields must be provided"
+                ));
+            }
             validate_field_real(&mut errors, &self.cat_power_limits, "Catenary power limits");
 
             early_err!(errors, "Link");
@@ -126,12 +223,14 @@ impl ObjState for Link {
                 ));
             }
 
+            // verify that first offset is zero
             if self.elevs.first().unwrap().offset != si::Length::ZERO {
                 errors.push(anyhow!(
                     "First elevation offset = {:?} is invalid, must equal zero!",
                     self.elevs.first().unwrap().offset
                 ));
             }
+            // verify that last offset is equal to length
             if self.elevs.last().unwrap().offset != self.length {
                 errors.push(anyhow!(
                     "Last elevation offset = {:?} is invalid, must equal length = {:?}!",
@@ -140,12 +239,14 @@ impl ObjState for Link {
                 ));
             }
             if !self.headings.is_empty() {
+                // verify that first offset is zero
                 if self.headings.first().unwrap().offset != si::Length::ZERO {
                     errors.push(anyhow!(
                         "First heading offset = {:?} is invalid, must equal zero!",
                         self.headings.first().unwrap().offset
                     ));
                 }
+                // verify that last offset is equal to length
                 if self.headings.last().unwrap().offset != self.length {
                     errors.push(anyhow!(
                         "Last heading offset = {:?} is invalid, must equal length = {:?}!",
@@ -154,6 +255,8 @@ impl ObjState for Link {
                     ));
                 }
             }
+            // if cat power limits are not specified for entire length of link, assume that no cat
+            // power is available
             if !self.cat_power_limits.is_empty() {
                 if self.cat_power_limits.first().unwrap().offset_start < si::Length::ZERO {
                     errors.push(anyhow!(
@@ -174,11 +277,84 @@ impl ObjState for Link {
     }
 }
 
+#[altrios_api(
+    #[pyo3(name = "set_speed_set_for_train_type")]
+    fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> PyResult<()> {
+        Ok(self.set_speed_set_for_train_type(train_type)?)
+    }
+)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+/// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
+/// Python
+pub struct Network(pub Vec<Link>);
+
+impl Network {
+    /// Sets `self.speed_set` based on `self.speed_sets` value corresponding to `train_type` key for
+    /// all links
+    pub fn set_speed_set_for_train_type(&mut self, train_type: TrainType) -> anyhow::Result<()> {
+        for l in self.0.iter_mut().skip(1) {
+            l.set_speed_set_for_train_type(train_type)
+                .with_context(|| format!("`idx_curr`: {}", l.idx_curr))?;
+        }
+        Ok(())
+    }
+}
+
+impl ObjState for Network {
+    fn is_fake(&self) -> bool {
+        self.0.is_fake()
+    }
+    fn validate(&self) -> ValidationResults {
+        self.0.validate()
+    }
+}
+
+impl SerdeAPI for Network {
+    fn from_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
+        let filepath = filepath.as_ref();
+        let extension = filepath
+            .extension()
+            .and_then(OsStr::to_str)
+            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
+        let file = File::open(filepath).with_context(|| {
+            if !filepath.exists() {
+                format!("File not found: {filepath:?}")
+            } else {
+                format!("Could not open file: {filepath:?}")
+            }
+        })?;
+        let mut network = match Self::from_reader(file, extension) {
+            Ok(network) => network,
+            Err(err) => NetworkOld::from_file(filepath)
+                .map_err(|old_err| {
+                    anyhow!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err)
+                })?
+                .into(),
+        };
+        network.init()?;
+
+        Ok(network)
+    }
+
+    fn init(&mut self) -> anyhow::Result<()> {
+        Ok(self.as_ref().validate()?)
+    }
+}
+
+impl From<NetworkOld> for Network {
+    fn from(old: NetworkOld) -> Self {
+        Network(old.0.iter().map(|l| Link::from(l.clone())).collect())
+    }
+}
+
 #[altrios_api]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
 /// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
-pub struct Network(pub Vec<Link>);
+///
+/// # Note:
+/// This struct will be deprecated and superseded by [Network]
+pub struct NetworkOld(pub Vec<LinkOld>);
 
 impl AsRef<[Link]> for Network {
     fn as_ref(&self) -> &[Link] {
@@ -190,14 +366,6 @@ impl From<&Vec<Link>> for Network {
     fn from(value: &Vec<Link>) -> Self {
         Self(value.to_vec())
     }
-}
-
-#[cfg(feature = "pyo3")]
-#[cfg_attr(feature = "pyo3", pyfunction(name = "import_network"))]
-pub fn import_network_py(filepath: &PyAny) -> anyhow::Result<Vec<Link>> {
-    let network = Vec::<Link>::from_file(PathBuf::extract(filepath)?)?;
-    network.validate()?;
-    Ok(network)
 }
 
 impl Valid for Vec<Link> {
@@ -216,7 +384,7 @@ impl ObjState for [Link] {
             return Err(errors);
         }
         validate_slice_fake(&mut errors, &self[..1], "Link");
-        validate_slice_real_shift(&mut errors, &self[1..], "Link", 1);
+        validate_slice_real_shift(&mut errors, &self[1..], "Link", 0);
         early_err!(errors, "Links");
 
         for (idx, link) in self.iter().enumerate().skip(1) {
@@ -314,7 +482,7 @@ impl ObjState for [Link] {
 }
 
 #[cfg(test)]
-mod test_link {
+mod tests {
     use super::*;
     use crate::testing::*;
 
@@ -430,12 +598,6 @@ mod test_link {
             link.validate().unwrap_err();
         }
     }
-}
-
-#[cfg(test)]
-mod test_links {
-    use super::*;
-    use crate::testing::*;
 
     impl Cases for Vec<Link> {
         fn real_cases() -> Vec<Self> {
@@ -450,9 +612,30 @@ mod test_links {
 
     #[test]
     fn test_to_and_from_file_for_links() {
+        // TODO: make use of `tempfile` or similar crate
         let links = Vec::<Link>::valid();
-        links.to_file("links_test2.yaml").unwrap();
-        assert_eq!(Vec::<Link>::from_file("links_test2.yaml").unwrap(), links);
-        std::fs::remove_file("links_test2.yaml").unwrap();
+        let tempdir = tempfile::tempdir().unwrap();
+        let temp_file_path = tempdir.path().join("links_test2.yaml");
+        links.to_file(temp_file_path.clone()).unwrap();
+        assert_eq!(Vec::<Link>::from_file(temp_file_path).unwrap(), links);
+        tempdir.close().unwrap();
+    }
+
+    #[test]
+    fn test_set_speed_set_from_train_type() {
+        let network_file_path = project_root::get_project_root()
+            .unwrap()
+            .join("../python/altrios/resources/networks/Taconite.yaml");
+        let network_speed_sets = Network::from_file(network_file_path).unwrap();
+        let mut network_speed_set = network_speed_sets.clone();
+        network_speed_set
+            .set_speed_set_for_train_type(TrainType::Freight)
+            .unwrap();
+        assert!(
+            network_speed_sets.0[1].speed_sets[&TrainType::Freight]
+                == *network_speed_set.0[1].speed_set.as_ref().unwrap()
+        );
+        assert!(network_speed_set.0[1].speed_sets.is_empty());
+        assert!(network_speed_sets.0[1].speed_set.is_none());
     }
 }

@@ -72,7 +72,15 @@ impl ObjState for [PathResCoeff] {
             errors.push(anyhow!("There must be at least two path res coeffs!"));
         }
         if !self.windows(2).all(|w| w[0].offset < w[1].offset) {
-            errors.push(anyhow!("Offsets must be sorted and unique!"));
+            let err_pairs: Vec<Vec<si::Length>> = self
+                .windows(2)
+                .filter(|w| w[0].offset >= w[1].offset)
+                .map(|w| vec![w[0].offset, w[1].offset])
+                .collect();
+            errors.push(anyhow!(
+                "Offsets must be sorted and unique! Invalid offsets: {:?}",
+                err_pairs
+            ));
         }
         if !self
             .windows(2)

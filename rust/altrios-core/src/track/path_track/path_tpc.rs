@@ -383,7 +383,7 @@ fn extract_speed_set<'a>(
             speed_sets
                 .iter()
                 .find(|&sps| sps.0 == &train_params.train_type)
-                .ok_or_else(|| {
+                .with_context(|| {
                     anyhow!(
                         "`speed_set` is `None` and `train_params.train_type` {:?} not found in `speed_sets.keys()` {:?}",
                         train_params.train_type,

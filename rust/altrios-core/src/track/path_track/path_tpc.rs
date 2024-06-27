@@ -190,16 +190,16 @@ impl PathTpc {
             } else {
                 let mut res_net_prev = self.grades.last().unwrap().res_net;
                 for (prev, curr) in link.elevs.windows(2).map(|x| (&x[0], &x[1])) {
-                    let res_coeff = (curr.elev - prev.elev) / (curr.offset - prev.offset);
-                    let res_net = res_net_prev + curr.elev - prev.elev;
+                    let grade = (curr.elev - prev.elev) / (curr.offset - prev.offset);
+                    let res_net_grade = res_net_prev + curr.elev - prev.elev;
 
-                    self.grades.last_mut().unwrap().res_coeff = res_coeff;
+                    self.grades.last_mut().unwrap().res_coeff = grade;
                     self.grades.push(PathResCoeff {
                         offset: offset_base + curr.offset,
-                        res_net,
+                        res_net: res_net_grade,
                         ..Default::default()
                     });
-                    res_net_prev = res_net;
+                    res_net_prev = res_net_grade;
                 }
             }
 

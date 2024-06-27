@@ -17,7 +17,7 @@ pub trait ResMethod {
 }
 
 /// Train resistance calculator that calculates resistive powers due to rolling, curvature, flange,
-/// grade, and bearing resistances.  
+/// grade, and bearing resistances.
 // TODO: May also include inertial -- figure this out and modify doc string above
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 pub enum TrainRes {

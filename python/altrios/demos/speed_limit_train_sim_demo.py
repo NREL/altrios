@@ -10,7 +10,7 @@ sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()
 
-SAVE_INTERVAL = 100
+SAVE_INTERVAL = 1
 
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
@@ -74,7 +74,7 @@ location_map = alt.import_locations(
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
     rail_vehicle=rail_vehicle,
     location_map=location_map,
-    save_interval=1,
+    save_interval=SAVE_INTERVAL,
 )
 train_sim.set_save_interval(SAVE_INTERVAL)
 
@@ -88,6 +88,10 @@ timed_link_path = alt.run_dispatch(
     False,
 )[0]
 
+# Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `link_path`
+# link_path = alt.LinkPath([x.link_idx for x in timed_link_path.tolist()])
+# link_path.to_csv_file(alt.resources_root() / "demo_data/link_path.csv")
+
 # uncomment this line to see example of logging functionality
 # alt.utils.set_log_level("DEBUG")
 
@@ -99,6 +103,15 @@ train_sim.walk_timed_path(
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 assert len(train_sim.history) > 1
+
+# Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `speed_trace`
+speed_trace = alt.SpeedTrace(
+    train_sim.history.time_seconds.tolist(),
+    train_sim.history.speed_meters_per_second.tolist()
+)
+speed_trace.to_csv_file(
+    alt.resources_root() / "demo_data/speed_trace.csv"
+)
 
 loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 
@@ -220,6 +233,5 @@ plt.tight_layout()
 
 
 if SHOW_PLOTS:
-    plt.tight_layout()
     plt.show()
 # Impact of sweep of battery capacity TODO: make this happen

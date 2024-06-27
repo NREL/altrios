@@ -132,7 +132,9 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 /// Train simulation in which speed is allowed to vary according to train capabilities and speed
-/// limit
+/// limit.  Note that this is not guaranteed to produce identical results to [super::SetSpeedTrainSim]
+/// because of differences in braking controls but should generally be very close (i.e. error in cumulative
+/// fuel/battery energy should be less than 0.1%)
 pub struct SpeedLimitTrainSim {
     #[api(skip_set)]
     pub train_id: String,
@@ -309,7 +311,7 @@ impl SpeedLimitTrainSim {
 
     fn save_state(&mut self) {
         if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 || 1 == self.state.i {
+            if self.state.i % interval == 0 {
                 self.history.push(self.state);
                 self.loco_con.save_state();
                 self.fric_brake.save_state();

@@ -65,12 +65,14 @@ rail_vehicle = alt.RailVehicle.from_file(
     alt.resources_root() / rail_vehicle_file)
 
 network = alt.Network.from_file(
-    alt.resources_root() / "networks/Taconite.yaml")
+    alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 network.set_speed_set_for_train_type(alt.TrainType.Freight)
+# file created from ./speed_limit_train_sim_demo.py:L92
 link_path = alt.LinkPath.from_csv_file(
-    alt.resources_root() / "demo_data/link_points_idx.csv"
+    alt.resources_root() / "demo_data/link_path.csv"
 )
 
+# file created from ./speed_limit_train_sim_demo.py:L105
 speed_trace = alt.SpeedTrace.from_csv_file(
     alt.resources_root() / "demo_data/speed_trace.csv"
 )
@@ -89,7 +91,9 @@ train_sim.walk()
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 
-fig, ax = plt.subplots(3, 1, sharex=True)
+loco0: alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
+
+fig, ax = plt.subplots(4, 1, sharex=True)
 ax[0].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
     np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
@@ -126,17 +130,85 @@ ax[1].plot(
 ax[1].set_ylabel('Force [MN]')
 ax[1].legend()
 
+ax[2].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(loco0.res.history.soc)
+)
+ax[2].set_ylabel('SOC')
+
 ax[-1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.speed_trace.speed_meters_per_second,
+    train_sim.history.speed_meters_per_second,
+    label='achieved'
+)
+ax[-1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.speed_limit_meters_per_second,
+    label='limit'
 )
 ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')
-
+ax[-1].legend()
 plt.suptitle("Set Speed Train Sim Demo")
 
-if SHOW_PLOTS:
-    plt.tight_layout()
-    plt.show()
+fig1, ax1 = plt.subplots(3, 1, sharex=True)
+ax1[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.offset_in_link_meters) / 1_000,
+    label='current link',
+)
+ax1[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.offset_meters) / 1_000,
+    label='overall',
+)
+ax1[0].legend()
+ax1[0].set_ylabel('Net Dist. [km]')
 
-# %%
+ax1[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.link_idx_front,
+    linestyle='',
+    marker='.',
+)
+ax1[1].set_ylabel('Link Idx Front')
+
+ax1[-1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.speed_meters_per_second,
+)
+ax1[-1].set_xlabel('Time [hr]')
+ax1[-1].set_ylabel('Speed [m/s]')
+
+plt.suptitle("Set Speed Train Sim Demo")
+plt.tight_layout()
+
+
+
+fig2, ax2 = plt.subplots(3, 1, sharex=True)
+ax2[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
+    label="tract pwr",
+)
+ax2[0].set_ylabel('Power [MW]')
+ax2[0].legend()
+
+ax2[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.grade_front) * 100.,
+)
+ax2[1].set_ylabel('Grade [%] at\nHead End')
+
+ax2[-1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.speed_meters_per_second,
+)
+ax2[-1].set_xlabel('Time [hr]')
+ax2[-1].set_ylabel('Speed [m/s]')
+
+plt.suptitle("Set Speed Train Sim Demo")
+plt.tight_layout()
+
+if SHOW_PLOTS:
+    plt.show()

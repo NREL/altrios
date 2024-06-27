@@ -438,7 +438,7 @@ impl TrainSimBuilder {
             // `self.origin_id` verified to be `Some` earlier
             location_map
                 .get(self.origin_id.as_ref().unwrap())
-                .ok_or_else(|| {
+                .with_context(|| {
                     anyhow!(format!(
                         "{}\n`origin_id`: \"{}\" not found in `location_map` keys: {:?}",
                         format_dbg!(),
@@ -449,7 +449,7 @@ impl TrainSimBuilder {
             // `self.destination_id` verified to be `Some` earlier
             location_map
                 .get(self.destination_id.as_ref().unwrap())
-                .ok_or_else(|| {
+                .with_context(|| {
                     anyhow!(format!(
                         "{}\n`destination_id`: \"{}\" not found in `location_map` keys: {:?}",
                         format_dbg!(),

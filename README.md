@@ -7,7 +7,7 @@
 
 ![Model Framework Schematic](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS_schematic_Alfred_Hicks.png)
 
-The Advanced Locomotive Technology and Rail Infrastructure Optimization System ([ALTRIOS](https://www.nrel.gov/transportation/altrios.html)) is a unique, fully integrated, open-source software tool to evaluate strategies for deploying advanced locomotive technologies and associated infrastructure for cost-effective decarbonization. ALTRIOS simulates freight-demand driven train scheduling, mainline meet-pass planning, locomotive dynamics, train dynamics, energy conversion efficiencies, and energy storage dynamics of line-haul train operations. Because new locomotives represent a significant long-term capital investment and new technologies must be thoroughly demonstrated before deployment, this tool provides guidance on the risk/reward tradeoffs of different technology rollout strategies. An open, integrated simulation tool is invaluable for identifying future research needs and making decisions on technology development, routes, and train selection. ALTRIOS was developed as part of a collaborative effort by a team comprising The National Renewable Energy Laboratory (NREL), University of Illinois Urbana-Champaign (UIUC), Southwest Research Institute (SwRI), and BNSF Railway.
+The Advanced Locomotive Technology and Rail Infrastructure Optimization System ([ALTRIOS](https://www.nrel.gov/transportation/altrios.html)) is a unique, fully integrated, open-source software tool to evaluate strategies for deploying advanced locomotive technologies and associated infrastructure for cost-effective decarbonization. ALTRIOS simulates freight-demand driven train scheduling, mainline meet-pass planning, locomotive dynamics, train dynamics, energy conversion efficiencies, and energy storage dynamics of line-haul train operations. Because new locomotives represent a significant long-term capital investment and new technologies must be thoroughly demonstrated before deployment, this tool provides guidance on the risk/reward tradeoffs of different technology rollout strategies. An open, integrated simulation tool is invaluable for identifying future research needs and making decisions on technology development, routes, and train selection. ALTRIOS was developed as part of a collaborative effort by a team comprising The National Renewable Energy Laboratory (NREL), University of Texas (UT), Southwest Research Institute (SwRI), and BNSF Railway.
 
 ## Installation
 
@@ -21,13 +21,18 @@ The Advanced Locomotive Technology and Rail Infrastructure Optimization System (
 1. Setup a python environment. ALTRIOS can work with Python 3.9, or 3.10, but we recommend 3.10 for better performance and user experience. Create a python environment for ALTRIOS with either of two methods:
    - Option 1 -- [Python Venv](https://docs.python.org/3/library/venv.html)
      1. Navigate to the ALTRIOS folder you just cloned or any folder you'd like for using ALTRIOS. Remember the folder you use!
-     1. Assuming you have Python 3.10 installed, run `(path to your python3.10 e.g. ~/AppData/Local/Programs/Python/Python310/python.exe) -m venv altrios-venv` in your terminal enviroment (we recommend PowerShell in Windows, which comes pre-installed). This tells Python 3.10 to use the `venv` module to create a virtual environment (which will be ignored by git if named `altrios-venv`) in the `ALTRIOS/altrios-venv/`.
+     1. Assuming you have Python 3.10 installed, run 
+         - `(path to your python3.10 e.g. ~/AppData/Local/Programs/Python/Python310/python.exe) -m venv altrios-venv` in Windows
+         - `python3.10 -m venv altrios-venv` in Mac/Unix/Linux
+        in your terminal enviroment (we recommend PowerShell in Windows, which comes pre-installed). 
+      
+        This tells Python 3.10 to use the `venv` module to create a virtual environment (which will be ignored by git if named `altrios-venv`) in the `ALTRIOS/altrios-venv/`.
      1. Activate the environment you just created to install packages or anytime you're running ALTRIOS:
         - Mac and Linux: `source altrios-venv/bin/activate`
         - Windows: `altrios-venv/Scripts/activate.bat` in a windows command prompt or power shell or `source altrios-venv/Scripts/activate` in git bash terminal
         - When the environment is activated, your terminal session will have a decorator that looks like `(altrios-venv)`.
    - Option 2 -- Anaconda:
-     1. Open an Anaconda prompt (in Windows, we recommend Anaconda Powershell Prompt) and run the command `conda create -n altrios python=3.10` to create an Anaconda environment named `altrios`.
+     1. Open an Anaconda prompt (in Windows, we recommend _Anaconda_ Powershell Prompt) and run the command `conda create -n altrios python=3.10` to create an Anaconda environment named `altrios`.
      1. Activate the environment to install packages or anytime you're running ALTRIOS: run `conda activate altrios`.
 
 #### ALTRIOS Setup

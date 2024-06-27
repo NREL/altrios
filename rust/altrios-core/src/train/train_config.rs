@@ -346,9 +346,11 @@ impl TrainSimBuilder {
             let davis_b = res_kind::davis_b::Basic::new(veh.davis_b);
             let res_aero =
                 res_kind::aerodynamic::Basic::new(match &self.train_config.drag_coeff_vec {
-                    Some(dcv) => dcv
-                        .iter()
-                        .fold(0. * uc::M2, |acc, dc| *dc * veh.drag_area_loaded + acc),
+                    Some(dcv) => {
+                        log::info!("Using `drag_coeff_vec` to calculate aero resistance.");
+                        dcv.iter()
+                            .fold(0. * uc::M2, |acc, dc| *dc * veh.drag_area_loaded + acc)
+                    }
                     None => {
                         veh.drag_area_empty * self.train_config.cars_empty as f64
                             + veh.drag_area_loaded * self.train_config.cars_loaded as f64

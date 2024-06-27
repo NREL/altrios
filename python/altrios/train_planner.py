@@ -11,7 +11,7 @@ from itertools import repeat
 import altrios as alt
 from altrios import defaults, utilities
 
-pl.enable_string_cache()
+pl.enable_string_cache(enable=True)
 
 class TrainPlannerConfig:
     def __init__(self, 
@@ -21,6 +21,7 @@ class TrainPlannerConfig:
                  manifest_empty_return_ratio: float = 0.6,
                  cars_per_locomotive: int = 70,
                  refuelers_per_incoming_corridor: int = 4,
+                 drag_coeff_function: List = None,
                  hp_required_per_ton: Dict = {
                      "Default": {
                         "Unit": 2.0,
@@ -97,6 +98,7 @@ class TrainPlannerConfig:
         self.dispatch_scaling_dict = dispatch_scaling_dict
         self.loco_info = loco_info
         self.refueler_info = refueler_info
+        self.drag_coeff_function = drag_coeff_function
 
 def demand_loader(
     demand_file: Union[pl.DataFrame, Path, str]
@@ -1003,12 +1005,14 @@ def run_train_planner(
                             this_train['HP_Required_Per_Ton']
                         )
                         dispatched = loco_pool.filter(selected)
+                    
                     train_config = alt.TrainConfig(
                         cars_empty = int(this_train['Cars_Per_Train_Empty']),
                         cars_loaded = int(this_train['Cars_Per_Train_Loaded']),
                         rail_vehicle_type = this_train['Train_Type'],
                         train_type = train_type,
                         # TODO: put drag coeff vec here
+                        drag_coeff_vec = config.drag_coeff_function
                     )
 
                     loco_start_soc_j = dispatched.get_column("SOC_J")
@@ -1169,7 +1173,7 @@ if __name__ == "__main__":
         config.refuelers_per_incoming_corridor)
 
     output = run_train_planner(
-        rail_vehicle=rail_vehicle_map, 
+        rail_vehicle_map=rail_vehicle_map, 
         location_map=location_map, 
         network=network,
         loco_pool=loco_pool,

@@ -11,7 +11,7 @@ from itertools import repeat
 import altrios as alt
 from altrios import defaults, utilities
 
-pl.enable_string_cache(enable=True)
+pl.enable_string_cache()
 
 class TrainPlannerConfig:
     def __init__(self, 

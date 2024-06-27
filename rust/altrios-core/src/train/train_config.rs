@@ -21,8 +21,7 @@ use pyo3_polars::PyDataFrame;
 #[altrios_api(
     #[new]
     fn __new__(
-        cars_empty: u32,
-        cars_loaded: u32,
+        n_cars_by_type: HashMap<String, u32>,
         rail_vehicle_type: Option<String>,
         train_type: Option<TrainType>,
         train_length_meters: Option<f64>,
@@ -30,8 +29,7 @@ use pyo3_polars::PyDataFrame;
         drag_coeff_vec: Option<Vec<f64>>,
     ) -> anyhow::Result<Self> {
         Self::new(
-            cars_empty,
-            cars_loaded,
+            n_cars_by_type,
             rail_vehicle_type,
             train_type.unwrap_or_default(),
             train_length_meters.map(|v| v * uc::M),
@@ -41,8 +39,8 @@ use pyo3_polars::PyDataFrame;
     }
 
     #[pyo3(name = "make_train_params")]
-    fn make_train_params_py(&self, rail_vehicle: RailVehicle) -> anyhow::Result<TrainParams> {
-        Ok(self.make_train_params(&rail_vehicle))
+    fn make_train_params_py(&self, rail_vehicles: Vec<RailVehicle>) -> anyhow::Result<TrainParams> {
+        self.make_train_params(&rail_vehicles)
     }
 
     #[getter]

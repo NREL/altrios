@@ -468,9 +468,7 @@ impl LocoTrait for DummyLoco {
 
     #[getter("force_max_newtons")]
     fn get_force_max_newtons_py(&self) -> anyhow::Result<Option<f64>> {
-        Ok(
-            self.force_max()?.map(|f| f.get::<si::newton>())
-        )
+        Ok(self.force_max()?.map(|f| f.get::<si::newton>()))
     }
 
     #[getter]

@@ -162,9 +162,23 @@ impl TrainConfig {
             mass
         });
 
-        let length = self
-            .train_length
-            .unwrap_or(rail_vehicles.length * self.cars_total() as f64);
+        let length = self.train_length.unwrap_or_else(|| {
+            rail_vehicles
+                .iter()
+                .try_fold(0. * uc::M, |acc, rv| -> anyhow::Result<si::Length> {
+                    let length: si::Length = acc
+                        + rv.length
+                            * *self.n_cars_by_type.get(&rv.car_type).with_context(|| {
+                                anyhow!(
+                                    "{}\nExpected `self.n_cars_by_type` to contain '{}'",
+                                    format_dbg!(),
+                                    rv.car_type
+                                )
+                            })? as f64;
+                    Ok(length)
+                })
+                .with_context(|| format_dbg!())?
+        });
 
         let train_params = TrainParams {
             length,
@@ -190,8 +204,7 @@ impl Valid for TrainConfig {
     fn valid() -> Self {
         Self {
             rail_vehicle_type: Some("Bulk".to_string()),
-            cars_empty: 0,
-            cars_loaded: 100,
+            n_cars_by_type: HashMap::from([("loaded".into(), 100_u32)]),
             train_type: TrainType::Freight,
             train_length: None,
             train_mass: None,
@@ -309,23 +322,23 @@ impl TrainSimBuilder {
 
     fn make_train_sim_parts(
         &self,
-        rail_vehicle: &RailVehicle,
+        rail_vehicles: &[RailVehicle],
         save_interval: Option<usize>,
     ) -> anyhow::Result<(TrainState, PathTpc, TrainRes, FricBrake)> {
-        let veh = rail_vehicle;
-        let train_params = self.train_config.make_train_params(rail_vehicle);
+        let rvs = rail_vehicles;
+        let train_params = self.train_config.make_train_params(rail_vehicles);
 
         let length = train_params.length;
         // TODO: figure out what to do about rotational mass of locomotive components (e.g. axles, gearboxes, motor shafts)
         let mass_static = train_params.mass_total + self.loco_con.mass()?.unwrap();
         let cars_total = self.train_config.cars_total() as f64;
-        let mass_adj = mass_static + veh.mass_extra_per_axle * train_params.axle_count as f64;
+        let mass_adj = mass_static + rvs.mass_extra_per_axle * train_params.axle_count as f64;
         let mass_freight =
-            si::Mass::ZERO.max(train_params.mass_total - veh.mass_static_empty * cars_total);
+            si::Mass::ZERO.max(train_params.mass_total - rvs.mass_static_empty * cars_total);
         let max_fric_braking = uc::ACC_GRAV
             * train_params.mass_total
-            * (veh.braking_ratio_empty * self.train_config.cars_empty as f64
-                + veh.braking_ratio_loaded * self.train_config.cars_loaded as f64)
+            * (rvs.braking_ratio_empty * self.train_config.cars_empty as f64
+                + rvs.braking_ratio_loaded * self.train_config.cars_loaded as f64)
             / cars_total;
 
         let state = TrainState::new(
@@ -340,18 +353,18 @@ impl TrainSimBuilder {
 
         let train_res = {
             let res_bearing = res_kind::bearing::Basic::new(
-                veh.bearing_res_per_axle * train_params.axle_count as f64,
+                rvs.bearing_res_per_axle * train_params.axle_count as f64,
             );
-            let res_rolling = res_kind::rolling::Basic::new(veh.rolling_ratio);
-            let davis_b = res_kind::davis_b::Basic::new(veh.davis_b);
+            let res_rolling = res_kind::rolling::Basic::new(rvs.rolling_ratio);
+            let davis_b = res_kind::davis_b::Basic::new(rvs.davis_b);
             let res_aero =
                 res_kind::aerodynamic::Basic::new(match &self.train_config.drag_coeff_vec {
                     Some(dcv) => dcv
                         .iter()
-                        .fold(0. * uc::M2, |acc, dc| *dc * veh.drag_area_loaded + acc),
+                        .fold(0. * uc::M2, |acc, dc| *dc * rvs.drag_area_loaded + acc),
                     None => {
-                        veh.drag_area_empty * self.train_config.cars_empty as f64
-                            + veh.drag_area_loaded * self.train_config.cars_loaded as f64
+                        rvs.drag_area_empty * self.train_config.cars_empty as f64
+                            + rvs.drag_area_loaded * self.train_config.cars_loaded as f64
                     }
                 });
             let res_grade = res_kind::path_res::Strap::new(path_tpc.grades(), &state)?;

@@ -455,7 +455,10 @@ impl ObjState for [Link] {
         for (idx, link) in self.iter().enumerate().skip(1) {
             match link.validate() {
                 ValidationResults::Ok(_) => {}
-                ValidationResults::Err(e) => errors.push(anyhow!(e)),
+                ValidationResults::Err(e) => errors.push(
+                    anyhow!(e)
+                        .with_context(|| anyhow!("{}\nlink: {}", format_dbg!(), link.idx_curr)),
+                ),
             }
 
             // Validate flip and curr

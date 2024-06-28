@@ -5,6 +5,7 @@ use crate::train::TrainState;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, SerdeAPI)]
 #[altrios_api]
 pub struct Basic {
+    // TODO: change name to `cd_area`
     drag_area: si::Area,
 }
 impl Basic {
@@ -12,6 +13,7 @@ impl Basic {
         Self { drag_area }
     }
 
+    // TODO: figure out why this function is never used and deprecate if appropriate
     /// Return instance of [Self] with customized total drag area
     /// # Arguments
     /// - `drag_area_single`: drag area (incl. drag coefficient) of a single, standalone railcar
@@ -28,6 +30,10 @@ impl Basic {
         Self { drag_area }
     }
 
+    /// Note that the factor of 0.5 typically used in
+    /// [the drag equation](https://en.wikipedia.org/wiki/Drag_(physics)#The_drag_equation)
+    /// is traditionally lumped into a coefficient in the Davis equation and is treated
+    /// the same here.
     pub fn calc_res(&mut self, state: &TrainState) -> si::Force {
         self.drag_area * uc::rho_air() * state.speed * state.speed
     }

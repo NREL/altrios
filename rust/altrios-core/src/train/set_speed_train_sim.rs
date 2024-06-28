@@ -259,6 +259,8 @@ pub struct SpeedTraceElement {
 /// Train simulation in which speed is prescribed
 pub struct SetSpeedTrainSim {
     pub loco_con: Consist,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: TrainState,
     pub speed_trace: SpeedTrace,
     #[api(skip_get, skip_set)]

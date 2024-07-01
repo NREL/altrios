@@ -697,7 +697,7 @@ mod tests {
     fn test_set_speed_set_from_train_type() {
         let network_file_path = project_root::get_project_root()
             .unwrap()
-            .join("../python/altrios/resources/networks/Taconite.yaml");
+            .join("../python/altrios/resources/networks/Taconite-NoBalloon.yaml");
         let network_speed_sets = Network::from_file(network_file_path).unwrap();
         let mut network_speed_set = network_speed_sets.clone();
         network_speed_set

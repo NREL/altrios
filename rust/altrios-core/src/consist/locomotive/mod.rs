@@ -22,5 +22,3 @@ use crate::consist::locomotive::powertrain::electric_drivetrain::ElectricDrivetr
 use crate::consist::locomotive::powertrain::fuel_converter::FuelConverter;
 use crate::consist::locomotive::powertrain::generator::Generator;
 use crate::consist::locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage;
-
-use anyhow::Result;

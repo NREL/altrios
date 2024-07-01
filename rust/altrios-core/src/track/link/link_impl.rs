@@ -1,6 +1,3 @@
-use polars::frame::hash_join::JoinValidation;
-use pyo3::anyhow;
-
 use super::cat_power::*;
 use super::elev::*;
 use super::heading::*;
@@ -351,7 +348,7 @@ impl Network {
                 format!("Could not open file: {filepath:?}")
             }
         })?;
-        let mut network = match Self::from_reader(file, extension) {
+        let network = match Self::from_reader(file, extension) {
             Ok(network) => network,
             Err(err) => NetworkOld::from_file(filepath)
                 .map_err(|old_err| {
@@ -456,8 +453,10 @@ impl ObjState for [Link] {
             match link.validate() {
                 ValidationResults::Ok(_) => {}
                 ValidationResults::Err(e) => errors.push(
-                    anyhow!(e)
-                        .with_context(|| anyhow!("{}\nlink: {}", format_dbg!(), link.idx_curr)),
+                    Err(anyhow!(e))
+                        .with_context(|| anyhow!("{}\nlink: {}", format_dbg!(), link.idx_curr))
+                        // `unwrap` should always be safe here
+                        .unwrap(),
                 ),
             }
 

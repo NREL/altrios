@@ -866,7 +866,7 @@ impl Locomotive {
         }
     }
 
-    pub fn set_fuel_converter(&mut self, fc: FuelConverter) -> Result<()> {
+    pub fn set_fuel_converter(&mut self, fc: FuelConverter) -> anyhow::Result<()> {
         match &mut self.loco_type {
             PowertrainType::ConventionalLoco(loco) => {
                 loco.fc = fc;
@@ -899,7 +899,7 @@ impl Locomotive {
         }
     }
 
-    pub fn set_generator(&mut self, gen: Generator) -> Result<()> {
+    pub fn set_generator(&mut self, gen: Generator) -> anyhow::Result<()> {
         match &mut self.loco_type {
             PowertrainType::ConventionalLoco(loco) => {
                 loco.gen = gen;
@@ -932,7 +932,10 @@ impl Locomotive {
         }
     }
 
-    pub fn set_reversible_energy_storage(&mut self, res: ReversibleEnergyStorage) -> Result<()> {
+    pub fn set_reversible_energy_storage(
+        &mut self,
+        res: ReversibleEnergyStorage,
+    ) -> anyhow::Result<()> {
         match &mut self.loco_type {
             PowertrainType::ConventionalLoco(_) => {
                 bail!("Conventional has no ReversibleEnergyStorage.")
@@ -967,7 +970,7 @@ impl Locomotive {
         }
     }
 
-    pub fn set_electric_drivetrain(&mut self, edrv: ElectricDrivetrain) -> Result<()> {
+    pub fn set_electric_drivetrain(&mut self, edrv: ElectricDrivetrain) -> anyhow::Result<()> {
         match &mut self.loco_type {
             PowertrainType::ConventionalLoco(loco) => {
                 loco.edrv = edrv;

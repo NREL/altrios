@@ -223,14 +223,14 @@ impl ObjState for Link {
                 ));
             }
 
-            // verify that first offset is zero
+            // verify that first elevation offset is zero
             if self.elevs.first().unwrap().offset != si::Length::ZERO {
                 errors.push(anyhow!(
                     "First elevation offset = {:?} is invalid, must equal zero!",
                     self.elevs.first().unwrap().offset
                 ));
             }
-            // verify that last offset is equal to length
+            // verify that last elevation offset is equal to length
             if self.elevs.last().unwrap().offset != self.length {
                 errors.push(anyhow!(
                     "Last elevation offset = {:?} is invalid, must equal length = {:?}!",
@@ -238,15 +238,44 @@ impl ObjState for Link {
                     self.length
                 ));
             }
+
+            // verify that grade does not exceed 5%
+            let grades = self
+                .elevs
+                .windows(2)
+                .map(|elevs| {
+                    let (curr, prev) = (elevs[1], elevs[0]);
+                    (curr.elev - prev.elev) / (curr.offset - prev.offset)
+                })
+                .collect::<Vec<si::Ratio>>();
+            // TODO: figure out a good way to specify the 5% threshold rather than hard coding it.  Options:
+            // - hardcode
+            // - put in some sort of config file
+            // - add `max_allowed_grade` as field
+            const GRADE_TOL: f64 = 0.05;
+            if grades.iter().any(|&g| g.abs() >= uc::R * GRADE_TOL) {
+                grades.iter().zip(&self.elevs).for_each(|(g, e)| {
+                    if g.abs() >= uc::R * 0.05 {
+                        errors.push(anyhow!(
+                            "{}\nGrade {}% at offset {} m exceeds error threshold {}%",
+                            format_dbg!(),
+                            g.get::<si::ratio>() * 100.,
+                            e.offset.get::<si::meter>(),
+                            GRADE_TOL * 100.
+                        ))
+                    }
+                });
+            }
+
             if !self.headings.is_empty() {
-                // verify that first offset is zero
+                // verify that first heading offset is zero
                 if self.headings.first().unwrap().offset != si::Length::ZERO {
                     errors.push(anyhow!(
                         "First heading offset = {:?} is invalid, must equal zero!",
                         self.headings.first().unwrap().offset
                     ));
                 }
-                // verify that last offset is equal to length
+                // verify that last heading offset is equal to length
                 if self.headings.last().unwrap().offset != self.length {
                     errors.push(anyhow!(
                         "Last heading offset = {:?} is invalid, must equal length = {:?}!",
@@ -282,6 +311,12 @@ impl ObjState for Link {
     fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> PyResult<()> {
         Ok(self.set_speed_set_for_train_type(train_type)?)
     }
+
+    #[staticmethod]
+    #[pyo3(name = "from_file_unchecked")]
+    pub fn from_file_unchecked_py(filepath: &PyAny) -> anyhow::Result<Self> {
+        Self::from_file_unchecked(PathBuf::extract(filepath)?)
+    }
 )]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 /// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
@@ -297,6 +332,33 @@ impl Network {
                 .with_context(|| format!("`idx_curr`: {}", l.idx_curr))?;
         }
         Ok(())
+    }
+
+    /// Loads `Network` from file and does not perform any validation checks
+    fn from_file_unchecked<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
+        let filepath = filepath.as_ref();
+        let extension = filepath
+            .extension()
+            .and_then(OsStr::to_str)
+            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
+        let file = File::open(filepath).with_context(|| {
+            if !filepath.exists() {
+                format!("File not found: {filepath:?}")
+            } else {
+                format!("Could not open file: {filepath:?}")
+            }
+        })?;
+        let network = match Self::from_reader(file, extension) {
+            Ok(network) => network,
+            Err(err) => NetworkOld::from_file(filepath)
+                .map_err(|old_err| {
+                    anyhow!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err)
+                })?
+                .into(),
+        };
+        // network.init()?; -- this has been commented to illustrate the difference w.r.t. `from_file`
+
+        Ok(network)
     }
 }
 
@@ -388,6 +450,16 @@ impl ObjState for [Link] {
         early_err!(errors, "Links");
 
         for (idx, link) in self.iter().enumerate().skip(1) {
+            match link.validate() {
+                ValidationResults::Ok(_) => {}
+                ValidationResults::Err(e) => errors.push(
+                    Err(anyhow!(e))
+                        .with_context(|| anyhow!("{}\nlink: {}", format_dbg!(), link.idx_curr))
+                        // `unwrap` should always be safe here
+                        .unwrap(),
+                ),
+            }
+
             // Validate flip and curr
             if link.idx_curr.idx() != idx {
                 errors.push(anyhow!(
@@ -625,7 +697,7 @@ mod tests {
     fn test_set_speed_set_from_train_type() {
         let network_file_path = project_root::get_project_root()
             .unwrap()
-            .join("../python/altrios/resources/networks/Taconite.yaml");
+            .join("../python/altrios/resources/networks/Taconite-NoBalloon.yaml");
         let network_speed_sets = Network::from_file(network_file_path).unwrap();
         let mut network_speed_set = network_speed_sets.clone();
         network_speed_set

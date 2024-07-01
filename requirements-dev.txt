@@ -174,7 +174,7 @@ plotly==5.14.1
     #   altrios
 pluggy==1.0.0
     # via pytest
-polars==0.18.7
+polars==0.20.25
     # via
     #   -c requirements.txt
     #   altrios

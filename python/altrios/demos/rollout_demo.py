@@ -30,7 +30,7 @@ for target in targets:
         max_bel_share=target,
         number_of_years=1,
         results_folder=Path(__file__).parent / "results/case study/",
-        demand_file_path=File,
+        demand_file=File,
         train_planner_config=train_planner_config,
         count_unused_locomotives=False,
         write_complete_results=False,

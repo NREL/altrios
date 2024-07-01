@@ -1,7 +1,7 @@
 use super::powertrain::electric_drivetrain::ElectricDrivetrain;
 use super::powertrain::reversible_energy_storage::ReversibleEnergyStorage;
 use super::powertrain::ElectricMachine;
-use super::LocoTrait;
+use super::{LocoTrait, Mass, MassSideEffect};
 use crate::imports::*;
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods)]
@@ -61,6 +61,31 @@ impl BatteryElectricLoco {
             )?;
         }
         Ok(())
+    }
+}
+
+impl Mass for BatteryElectricLoco {
+    fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        self.derived_mass().with_context(|| format_dbg!())
+    }
+
+    fn set_mass(
+        &mut self,
+        _new_mass: Option<si::Mass>,
+        _side_effect: MassSideEffect,
+    ) -> anyhow::Result<()> {
+        Err(anyhow!(
+            "`set_mass` not enabled for {}",
+            stringify!(BatteryElectricLoco)
+        ))
+    }
+
+    fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        self.res.mass().with_context(|| format_dbg!())
+    }
+
+    fn expunge_mass_fields(&mut self) {
+        self.res.expunge_mass_fields();
     }
 }
 

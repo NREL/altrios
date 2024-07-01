@@ -35,6 +35,8 @@ pub struct FricBrake {
     // /// rate at which brakes can be recovered after full release
     // pub recharge_rate_pa_per_sec: f64,
     // TODO: add in whatever is needed to estimate aux load impact
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: FricBrakeState,
     #[serde(default)]
     /// Custom vector of [Self::state]

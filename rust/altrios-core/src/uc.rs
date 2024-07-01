@@ -85,6 +85,7 @@ pub fn rho_air() -> MassDensity {
     KGPM3 * 1.225
 }
 
+/// Returns air density for given temperature and elevation
 pub fn get_rho_air(temperature: ThermodynamicTemperature, elevation: Length) -> MassDensity {
     let cur_elevation_std_temp = (15.04 - 0.00649 * elevation.get::<meter>() + 273.15) * KELVIN;
     let cur_pressure = (101.29e3 * PASCAL)

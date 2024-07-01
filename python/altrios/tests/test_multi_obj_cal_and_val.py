@@ -16,9 +16,9 @@ class TestLocomotive(unittest.TestCase):
             loco_unit=Locomotive.default(),
             power_trace=pt,
             save_interval=1)
-        loco_sim_bincode = loco_sim.to_bincode()
+        loco_sim_ser = loco_sim.to_json()
         mod_err = cval.ModelError(
-            bincode_model_dict={0: loco_sim_bincode},
+            ser_model_dict={0: loco_sim_ser},
             dfs={0: mock_df},
             objectives=[(
                 "Fuel Power [W]",

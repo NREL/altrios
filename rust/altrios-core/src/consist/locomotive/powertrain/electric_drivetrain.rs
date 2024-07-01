@@ -56,6 +56,7 @@ use crate::pyo3::*;
 /// everything involved in converting high voltage electrical power to force exerted by the wheel on the track.  
 pub struct ElectricDrivetrain {
     #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     /// struct for tracking current state
     pub state: ElectricDrivetrainState,
     /// Shaft output power fraction array at which efficiencies are evaluated.
@@ -71,6 +72,7 @@ pub struct ElectricDrivetrain {
     /// ElectricDrivetrain maximum output power assuming that positive and negative tractive powers have same magnitude
     #[serde(rename = "pwr_out_max_watts")]
     pub pwr_out_max: si::Power,
+    // TODO: add `mass` here
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
@@ -395,6 +397,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::field_reassign_with_default)]
     fn test_that_history_has_len_1() {
         let mut edrv: ElectricDrivetrain = ElectricDrivetrain::default();
         edrv.save_interval = Some(1);

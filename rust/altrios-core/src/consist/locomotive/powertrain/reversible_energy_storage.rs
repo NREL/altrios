@@ -88,11 +88,12 @@ const TOL: f64 = 1e-3;
         self.set_eta_range(eta_range)
     }
 
-    #[setter("__mass_kg")]
-    fn update_mass_py(&mut self, mass_kg: Option<f64>) -> anyhow::Result<()> {
-        self.update_mass(mass_kg.map(|m| m * uc::KG))?;
-        Ok(())
-    }
+    // TODO: uncomment and fix     
+    // #[setter("__mass_kg")]
+    // fn set_mass_py(&mut self, mass_kg: Option<f64>) -> anyhow::Result<()> {
+    //     self.set_mass(mass_kg.map(|m| m * uc::KG))?;
+    //     Ok(())
+    // }
 
     #[getter("mass_kg")]
     fn get_mass_kg_py(&mut self) -> anyhow::Result<Option<f64>> {
@@ -126,6 +127,7 @@ const TOL: f64 = 1e-3;
 pub struct ReversibleEnergyStorage {
     /// struct for tracking current state
     #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ReversibleEnergyStorageState,
     /// ReversibleEnergyStorage mass
     #[serde(default)]
@@ -187,50 +189,73 @@ impl Default for ReversibleEnergyStorage {
 
 impl Mass for ReversibleEnergyStorage {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
-        self.check_mass_consistent()?;
+        let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
+        if let (Some(derived_mass), Some(set_mass)) = (derived_mass, self.mass) {
+            ensure!(
+                utils::almost_eq_uom(&set_mass, &derived_mass, None),
+                format!(
+                    "{}",
+                    format_dbg!(utils::almost_eq_uom(&set_mass, &derived_mass, None)),
+                )
+            );
+        }
         Ok(self.mass)
     }
 
-    fn update_mass(&mut self, mass: Option<si::Mass>) -> anyhow::Result<()> {
-        match mass {
-            Some(mass) => {
-                self.specific_energy = Some(self.energy_capacity / mass);
-                self.mass = Some(mass)
-            }
-            None => match self.specific_energy {
-                Some(e) => self.mass = Some(self.energy_capacity / e),
-                None => {
-                    bail!(format!(
-                        "{}\n{}",
-                        format_dbg!(),
-                        "Mass must be provided or `self.specific_energy` must be set"
-                    ));
+    fn set_mass(
+        &mut self,
+        new_mass: Option<si::Mass>,
+        side_effect: MassSideEffect,
+    ) -> anyhow::Result<()> {
+        let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
+        if let (Some(derived_mass), Some(new_mass)) = (derived_mass, new_mass) {
+            if derived_mass != new_mass {
+                log::info!(
+                    "Derived mass from `self.specific_energy` and `self.energy_capacity` does not match {}",
+                    "provided mass. Updating based on `side_effect`"
+                );
+                match side_effect {
+                    MassSideEffect::Extensive => {
+                        self.energy_capacity = self.specific_energy.ok_or_else(|| {
+                            anyhow!(
+                                "{}\nExpected `self.specific_energy` to be `Some`.",
+                                format_dbg!()
+                            )
+                        })? * new_mass;
+                    }
+                    MassSideEffect::Intensive => {
+                        self.specific_energy = Some(self.energy_capacity / new_mass);
+                    }
+                    MassSideEffect::None => {
+                        self.specific_energy = None;
+                    }
                 }
-            },
-        };
+            }
+        } else if new_mass.is_none() {
+            log::debug!("Provided mass is None, setting `self.specific_energy` to None");
+            self.specific_energy = None;
+        }
+        self.mass = new_mass;
 
         Ok(())
     }
 
-    fn check_mass_consistent(&self) -> anyhow::Result<()> {
-        match &self.mass {
-            Some(mass) => match &self.specific_energy {
-                Some(e) => {
-                    ensure!(self.energy_capacity / *e == *mass,
-                    format!("{}\n{}", format_dbg!(), "ReversibleEnergyStorage `energy_capacity`, `specific_energy` and `mass` are not consistent"))
-                }
-                None => {}
-            },
-            None => {}
-        }
-        Ok(())
+    fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        Ok(self
+            .specific_energy
+            .map(|specific_energy| self.energy_capacity / specific_energy))
+    }
+
+    fn expunge_mass_fields(&mut self) {
+        self.mass = None;
+        self.specific_energy = None;
     }
 }
 
 impl SerdeAPI for ReversibleEnergyStorage {
     fn init(&mut self) -> anyhow::Result<()> {
-        self.check_mass_consistent()?;
-        self.state.init()?;
+        let _ = self.mass().with_context(|| format_dbg!())?;
+        self.state.init().with_context(|| format_dbg!())?;
         Ok(())
     }
 }
@@ -366,11 +391,9 @@ impl ReversibleEnergyStorage {
     }
 
     /// Returns max output and max regen power based on current state
-    /// Arguments:
-    /// - charge_buffer: min future train energy state - current train energy state.
-    /// If provided, reserves some charge capacity for future.
-    /// - discharge_buffer: max future train energy state - current train energy state.
-    /// If provided, reserves some discharge capacity for future.
+    /// # Arguments:
+    /// - charge_buffer: If provided, reserves some charge capacity by reducing maximum SOC.
+    /// - discharge_buffer: If provided, reserves some discharge capacity by increasing minimum SOC.
     pub fn set_cur_pwr_out_max(
         &mut self,
         pwr_aux: si::Power,

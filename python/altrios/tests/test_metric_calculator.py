@@ -12,6 +12,7 @@ class TestMetricCalculator(unittest.TestCase):
             scenario_infos.append(metric_calculator.ScenarioInfo(
                 mock_speed_limit_train_simulation_vector(scenario_year=year), 
                 21,
+                False,
                 year, 
                 pl.DataFrame(),
                 pl.DataFrame(),

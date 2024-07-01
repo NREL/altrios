@@ -36,7 +36,7 @@ ANNUAL_LOCO_TURNOVER = 1.0/LOCO_LIFESPAN
 
 DEMAND_FILE = alt.resources_root() / "Default Demand.csv"
 FUEL_EMISSIONS_FILE = alt.resources_root() / "metrics_inputs" / "GREET-CA_Emissions_Factors.csv"
-GRID_EMISSIONS_FILE = alt.resources_root() / "metrics_inputs" / "Cambium22_MidCase_annual_gea.csv"
+GRID_EMISSIONS_FILE = alt.resources_root() / "metrics_inputs" / "Cambium23_allScenarios_annual_gea.csv"
 ELECTRICITY_PRICE_FILE = alt.resources_root() / "metrics_inputs" / "EIA_Electricity_Prices.csv"
 LIQUID_FUEL_PRICE_FILE = alt.resources_root() / "metrics_inputs" / "EIA_Liquid_Fuel_Prices.csv"
 BATTERY_PRICE_FILE = alt.resources_root() / "metrics_inputs" / "NREL_ATB_Battery_Cost_Forecasts.csv"

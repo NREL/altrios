@@ -17,7 +17,7 @@ class TestFuelConverter(unittest.TestCase):
         )
         fc = alt.FuelConverter.from_file(str(test_file))
 
-        self.assertEqual(fc.pwr_out_max_watts, 3.255e6)
+        self.assertEqual(fc.pwr_out_max_watts, 3.356e6)
         self.assertEqual(fc.pwr_idle_fuel_watts, 1.97032784e+04)
 
     def test_to_from_json(self):

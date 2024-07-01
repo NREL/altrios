@@ -5,6 +5,8 @@ from typing_extensions import Self
 from typing import Union, Tuple
 from dataclasses import dataclass
 
+# TODO: udpate to include api for `force_max` and `mu`
+
 
 class SerdeAPI(object):
     @classmethod

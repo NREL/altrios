@@ -57,6 +57,7 @@ LITER_PER_M3 = 1.0e3
 G_PER_TONNE = 1.0e6
 GALLONS_PER_LITER = 1.0 / 3.79
 KWH_PER_MJ = 0.277778 # https://www.eia.gov/energyexplained/units-and-calculators/energy-conversion-calculators.php
+MWH_PER_J = 2.77778e-10
 MWH_PER_MJ = KWH_PER_MJ / 1.0e3
 
 def print_dt():
@@ -76,26 +77,6 @@ def cumutrapz(x, y):
     for i in np.arange(1, len(x)):
         z[i] = z[i - 1] + 0.5 * (y[i] + y[i - 1]) * (x[i] - x[i - 1])
     return z
-
-
-R_air = np.float64(287)  # J/(kg*K)
-
-
-def get_rho_air(temperature_degC, elevation_m=180):
-    """Returns air density [kg/m**3] for given elevation and temperature.
-    Source: https://www.grc.nasa.gov/WWW/K-12/rocket/atmosmet.html
-    Arguments:
-    ----------
-    temperature_degC : ambient temperature [°C]
-    elevation_m : elevation above sea level [m].
-        Default 180 m is for Chicago, IL"""
-    #     T = 15.04 - .00649 * h
-    #     p = 101.29 * [(T + 273.1)/288.08]^5.256
-    T_standard = 15.04 - 0.00649 * elevation_m  # nasa [degC]
-    p = 101.29e3 * ((T_standard + 273.1) / 288.08) ** 5.256  # nasa [Pa]
-    rho = p / (R_air * (temperature_degC + 273.15))  # [kg/m**3]
-
-    return rho
 
 
 def set_param_from_path_dict(mod_dict: dict, path: str, value: float) -> Dict:
@@ -142,8 +123,12 @@ def set_param_from_path(
     """
     Set parameter `value` on `model` for `path` to parameter
 
-    Example usage:
-    todo
+    # Example usage
+    ```python
+    import altrios as alt
+    res = alt.ReversibleEnergyStorage.default()
+    alt.set_param_from_path(res, "state.soc", 1.0)
+    ```
     """
     path_list = path.split(".")
 
@@ -321,6 +306,8 @@ def set_log_level(level: str | int) -> int:
     rust_logger = logging.getLogger("altrios_core")
     rust_logger.setLevel(level)
     return previous_level
+
+set_log_level(logging.WARNING)
     
 def disable_logging():
     set_log_level(logging.CRITICAL + 1)

@@ -67,7 +67,7 @@ pillow==10.0.1
     # via matplotlib
 plotly==5.14.1
     # via altrios (pyproject.toml)
-polars==0.18.7
+polars==0.20.25
     # via altrios (pyproject.toml)
 pyarrow==12.0.0
     # via altrios (pyproject.toml)

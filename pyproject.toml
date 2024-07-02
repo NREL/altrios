@@ -43,7 +43,7 @@ dependencies = [
     "plotly",
     "typing_extensions",
     "pyyaml",
-    "polars==0.18.7",
+    "polars==0.20.25",
     "pyarrow",
     "requests",
 ]

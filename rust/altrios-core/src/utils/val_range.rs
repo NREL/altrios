@@ -11,6 +11,7 @@ pub struct ValRange<T>(
 
 impl<T> SerdeAPI for ValRange<T> where T: Serialize + for<'a> Deserialize<'a> {}
 
+#[allow(dead_code)]
 /// Some common functionality that should exist when working with a value in
 /// a [ValRange] or when comparing to another [ValRange].
 trait ValRangeCheck<T> {

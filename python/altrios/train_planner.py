@@ -620,7 +620,7 @@ def append_charging_guidelines(
         .with_columns(pl.col("Origin").cast(pl.Categorical)))
     refuelers = (refuelers
         .join(network_charging_guidelines, left_on="Node", right_on="Origin", how="left")
-        .with_columns(pl.when(pl.col("Locomotive_Type")=="Electricity")
+        .with_columns(pl.when(pl.col("Fuel_Type")=="Electricity")
             .then(pl.col("Battery_Headroom_J"))
             .otherwise(0)
             .fill_null(0)
@@ -794,8 +794,7 @@ def update_refuel_queue(
             .drop(['Refueler_J_Per_Hr','Port_Count','Battery_Headroom_J'])
             .join(
                 refuelers.select(["Node","Locomotive_Type","Fuel_Type","Refueler_J_Per_Hr","Port_Count",'Battery_Headroom_J']), 
-                left_on=["Node", "Locomotive_Type" ,"Fuel_Type"],
-                right_on=["Node", "Locomotive_Type" ,"Fuel_Type"],
+                on=["Node", "Locomotive_Type" ,"Fuel_Type"],
                 how="left")
             .with_columns(
                 pl.when(arrived)
@@ -816,7 +815,6 @@ def update_refuel_queue(
             )
             .partition_by(["Node","Locomotive_Type"])
         )
-        
         charger_type_list = []
         for charger_type in charger_type_breakouts:
             loco_ids = charger_type.get_column("Locomotive_ID")

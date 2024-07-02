@@ -54,6 +54,13 @@ pub struct Link {
     /// occupied at a given time. For further explanation, see the [graphical
     /// example](https://nrel.github.io/altrios/api-doc/rail-network.html?highlight=network#link-lockout).
     pub link_idxs_lockout: Vec<LinkIdx>,
+    /// Maximum absolute grade that will not trigger an error
+    #[serde(default = "five_percent")]
+    pub max_allowed_grade: si::Ratio,
+}
+
+fn five_percent() -> si::Ratio {
+    uc::R * 0.05
 }
 
 impl Link {
@@ -111,6 +118,7 @@ impl From<LinkOld> for Link {
             idx_flip: l.idx_flip,
             osm_id: l.osm_id,
             link_idxs_lockout: l.link_idxs_lockout,
+            max_allowed_grade: uc::R * 0.05,
         }
     }
 }
@@ -239,7 +247,7 @@ impl ObjState for Link {
                 ));
             }
 
-            // verify that grade does not exceed 5%
+            // verify that grade does not exceed `self.max_allowed_grade`
             let grades = self
                 .elevs
                 .windows(2)
@@ -248,20 +256,18 @@ impl ObjState for Link {
                     (curr.elev - prev.elev) / (curr.offset - prev.offset)
                 })
                 .collect::<Vec<si::Ratio>>();
-            // TODO: figure out a good way to specify the 5% threshold rather than hard coding it.  Options:
-            // - hardcode
-            // - put in some sort of config file
-            // - add `max_allowed_grade` as field
-            const GRADE_TOL: f64 = 0.05;
-            if grades.iter().any(|&g| g.abs() >= uc::R * GRADE_TOL) {
+            if grades
+                .iter()
+                .any(|&g| g.abs() >= uc::R * self.max_allowed_grade)
+            {
                 grades.iter().zip(&self.elevs).for_each(|(g, e)| {
                     if g.abs() >= uc::R * 0.05 {
                         errors.push(anyhow!(
-                            "{}\nGrade {}% at offset {} m exceeds error threshold {}%",
+                            "{}\nGrade {}% at offset {} m exceeds absolute error threshold of {}%",
                             format_dbg!(),
                             g.get::<si::ratio>() * 100.,
                             e.offset.get::<si::meter>(),
-                            GRADE_TOL * 100.
+                            self.max_allowed_grade.get::<si::ratio>() * 100.
                         ))
                     }
                 });

@@ -162,11 +162,12 @@ impl TrainConfig {
             mass
         });
 
-        let length = self.train_length.unwrap_or_else(|| {
-            rail_vehicles
-                .iter()
-                .try_fold(0. * uc::M, |acc, rv| -> anyhow::Result<si::Length> {
-                    let length: si::Length = acc
+        let length: si::Length = match self.train_length {
+            Some(tl) => tl,
+            None => rail_vehicles.iter().try_fold(
+                0. * uc::M,
+                |acc, rv| -> anyhow::Result<si::Length> {
+                    Ok(acc
                         + rv.length
                             * *self.n_cars_by_type.get(&rv.car_type).with_context(|| {
                                 anyhow!(
@@ -174,24 +175,38 @@ impl TrainConfig {
                                     format_dbg!(),
                                     rv.car_type
                                 )
-                            })? as f64;
-                    Ok(length)
-                })
-                .with_context(|| format_dbg!())?
-        });
+                            })? as f64)
+                },
+            )?,
+        };
 
         let train_params = TrainParams {
             length,
-            speed_max: rail_vehicles.speed_max_loaded.max(if self.cars_empty > 0 {
-                rail_vehicles.speed_max_empty
-            } else {
-                uc::MPS * f64::INFINITY
-            }),
+            speed_max: rail_vehicles.iter().try_fold(
+                f64::INFINITY * uc::MPS,
+                |acc, rv| -> anyhow::Result<si::Velocity> {
+                    Ok(
+                        if *self.n_cars_by_type.get(&rv.car_type).with_context(|| {
+                            anyhow!(
+                                "{}\nExpected `self.n_cars_by_type` to contain '{}'",
+                                format_dbg!(),
+                                rv.car_type
+                            )
+                        })? > 0
+                        {
+                            acc.min(rv.speed_max)
+                        } else {
+                            acc
+                        },
+                    )
+                },
+            )?,
             mass_total: mass_static,
             mass_per_brake: mass_static
                 / (self.cars_total() * rail_vehicles.brake_count as u32) as f64,
             axle_count: self.cars_total() * rail_vehicles.axle_count as u32,
             train_type: self.train_type,
+            // TODO: change it so that curve coefficient is specified at the train level.
             curve_coeff_0: rail_vehicles.curve_coeff_0,
             curve_coeff_1: rail_vehicles.curve_coeff_1,
             curve_coeff_2: rail_vehicles.curve_coeff_2,

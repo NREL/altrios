@@ -1,6 +1,6 @@
 # assumes a python environment has been created and activated
 echo "Testing rust" && \
-(cd rust/ && cargo test --workspace) && \
+cd rust/ && cargo test --workspace && cd ..\
 echo "Building python API" && \
 pip install -qe ".[dev]" && \ 
 echo "Running python tests" && \

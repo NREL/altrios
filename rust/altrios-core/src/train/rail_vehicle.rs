@@ -18,9 +18,12 @@ pub struct RailVehicle {
     #[serde(alias = "Brake Count")]
     pub brake_count: u8,
 
-    /// Railcar mass
+    /// Railcar mass, not including freight
     #[serde(alias = "Mass Static (kg)")]
-    pub mass_static: si::Mass,
+    pub mass_static_empty: si::Mass,
+    /// Freight component of total static mass
+    #[serde(alias = "Mass Freight (kg)")]
+    pub mass_static_freight: si::Mass,
     /// Railcar speed limit
     #[serde(alias = "Speed Max (m/s)")]
     pub speed_max: si::Velocity,
@@ -29,12 +32,14 @@ pub struct RailVehicle {
     pub braking_ratio: si::Ratio,
 
     /// Additional mass value to adjust for rotating mass in wheels and axles (typically 1,500 lbs)
+    // TODO: maybe change this to `mass_rot_per_axle`
     #[serde(alias = "Mass Extra per Axle (kg)")]
     pub mass_extra_per_axle: si::Mass,
     /// Bearing resistance as force
     #[serde(alias = "Bearing Res per Axle (N)")]
     pub bearing_res_per_axle: si::Force,
-    /// Rolling resistance ratio (lb/ton is customary, lb/lb internal to code)
+    /// Rolling resistance ratio (lb/ton is customary, lb/lb internal to code).
+    /// This is the rolling resistance force per weight for each axle.
     #[serde(alias = "Rolling Ratio")]
     pub rolling_ratio: si::Ratio,
     /// Davis B coefficient (typically very close to zero)
@@ -43,6 +48,7 @@ pub struct RailVehicle {
     /// Drag area (Cd*A), where Cd is drag coefficient and A is front cross-sectional area
     #[serde(alias = "Drag Area Cd*A (m^2)")]
     pub drag_area: si::Area,
+    // TODO: move these curve coefficients to the train somewhere?
     /// Curve coefficient 0
     #[serde(alias = "Curve Coefficient 0")]
     pub curve_coeff_0: si::Ratio,
@@ -54,6 +60,13 @@ pub struct RailVehicle {
     pub curve_coeff_2: si::Ratio,
 }
 
+impl RailVehicle {
+    /// Returns total non-rotational mass, sum of `mass_static_freight` and `mass_static_empty`
+    pub fn mass_static_total(&self) -> si::Mass {
+        self.mass_static_empty + self.mass_static_freight
+    }
+}
+
 pub type RailVehicleMap = HashMap<String, RailVehicle>;
 
 #[cfg(feature = "pyo3")]
@@ -62,6 +75,8 @@ pub fn import_rail_vehicles_py(filepath: &PyAny) -> anyhow::Result<RailVehicleMa
     import_rail_vehicles(PathBuf::extract(filepath)?)
 }
 
+// TODO: change this to a method called `from_csv_file`, check file type, and
+// make sure to do this the same as elsewhere
 pub fn import_rail_vehicles<P: AsRef<Path>>(filename: P) -> anyhow::Result<RailVehicleMap> {
     let file_read = File::open(filename.as_ref())?;
     let mut reader = csv::Reader::from_reader(file_read);

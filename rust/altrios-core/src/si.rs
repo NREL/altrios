@@ -4,6 +4,7 @@
 
 use uom::si;
 
+pub use si::area::square_meter;
 pub use si::available_energy::{joule_per_kilogram, kilojoule_per_kilogram};
 pub use si::energy::{joule, watt_hour};
 pub use si::f64::{

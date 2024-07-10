@@ -1003,14 +1003,23 @@ def run_train_planner(
                             this_train['HP_Required_Per_Ton']
                         )
                         dispatched = loco_pool.filter(selected)
-                    
+                    # TODO: make this look more like:
+                    # ```
+                    # # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
+                    # train_config = alt.TrainConfig(
+                    #     n_cars_by_type={"Manifest_Loaded": 50},
+                    #     # TODO: should `rail_vehicle_type` even be provided here?  
+                    #     rail_vehicle_type="Manifest_Loaded",
+                    #     train_length_meters=None,
+                    #     train_mass_kilograms=None,
+                    # )
+                    # ```
                     train_config = alt.TrainConfig(
                         cars_empty = int(this_train['Cars_Per_Train_Empty']),
                         cars_loaded = int(this_train['Cars_Per_Train_Loaded']),
                         rail_vehicle_type = this_train['Train_Type'],
                         train_type = train_type,
-                        # TODO: put drag coeff vec here
-                        drag_coeff_vec = config.drag_coeff_function
+                        cd_area_vec = config.drag_coeff_function
                     )
 
                     loco_start_soc_j = dispatched.get_column("SOC_J")
@@ -1048,7 +1057,7 @@ def run_train_planner(
                     )
                     
                     slts = tsb.make_speed_limit_train_sim(
-                        rail_vehicle_map[train_config.rail_vehicle_type], 
+                        [rail_vehicle_map[train_config.rail_vehicle_type]], 
                         location_map, 
                         None, 
                         simulation_days, 

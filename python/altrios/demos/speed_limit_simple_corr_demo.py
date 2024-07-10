@@ -18,12 +18,12 @@ SAVE_INTERVAL = 1
 res = alt.ReversibleEnergyStorage.from_file(
     alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
 )
+
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
-    cars_empty=50,
-    cars_loaded=50,
-    rail_vehicle_type="Manifest",
-    train_type=None, 
+    n_cars_by_type={"Manifest_Loaded": 50},
+    # TODO: should `rail_vehicle_type` even be provided here?  
+    rail_vehicle_type="Manifest_Loaded",
     train_length_meters=None,
     train_mass_kilograms=None,
 )
@@ -69,7 +69,7 @@ network = alt.Network.from_file(
 
 location_map = alt.import_locations(alt.resources_root() / "networks/simple_corridor_locations.csv")
 train_sim: alt.SetSpeedTrainSim = tsb.make_speed_limit_train_sim(
-    rail_vehicle=rail_vehicle,
+    rail_vehicles=[rail_vehicle],
     location_map=location_map,
     save_interval=1,
 )

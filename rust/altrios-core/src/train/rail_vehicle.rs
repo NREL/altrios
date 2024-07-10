@@ -46,8 +46,8 @@ pub struct RailVehicle {
     #[serde(alias = "Davis B (s/m)")]
     pub davis_b: si::InverseVelocity,
     /// Drag area (Cd*A), where Cd is drag coefficient and A is front cross-sectional area
-    #[serde(alias = "Drag Area Cd*A (m^2)")]
-    pub drag_area: si::Area,
+    #[serde(alias = "Cd*A (m^2)")]
+    pub cd_area: si::Area,
     // TODO: move these curve coefficients to the train somewhere?
     /// Curve coefficient 0
     #[serde(alias = "Curve Coefficient 0")]
@@ -83,6 +83,7 @@ pub fn import_rail_vehicles<P: AsRef<Path>>(filename: P) -> anyhow::Result<RailV
     let mut rail_vehicle_map = RailVehicleMap::default();
     for result in reader.deserialize() {
         let rail_vehicle: RailVehicle = result?;
+        log::debug!("Loaded `rail_vehicle`: {}", rail_vehicle.car_type);
         rail_vehicle_map.insert(rail_vehicle.car_type.clone(), rail_vehicle);
     }
     Ok(rail_vehicle_map)

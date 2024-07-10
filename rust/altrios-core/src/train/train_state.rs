@@ -225,7 +225,7 @@ impl ObjState for TrainState {
         si_chk_num_gtz_fin(&mut errors, &self.length, "Length");
         // si_chk_num_gtz_fin(&mut errors, &self.res_bearing, "Resistance bearing");
         // si_chk_num_fin(&mut errors, &self.res_davis_b, "Resistance Davis B");
-        // si_chk_num_gtz_fin(&mut errors, &self.drag_area, "Drag area");
+        // si_chk_num_gtz_fin(&mut errors, &self.cd_area, "cd area");
         errors.make_err()
     }
 }

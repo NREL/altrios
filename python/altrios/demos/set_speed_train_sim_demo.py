@@ -14,10 +14,9 @@ SAVE_INTERVAL = 1
 
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
-    cars_empty=50,
-    cars_loaded=50,
-    rail_vehicle_type="Manifest",
-    train_type=None,
+    n_cars_by_type={"Manifest_Loaded": 50},
+    # TODO: should `rail_vehicle_type` even be provided here?  
+    rail_vehicle_type="Manifest_Loaded",
     train_length_meters=None,
     train_mass_kilograms=None,
 )
@@ -76,7 +75,7 @@ speed_trace = alt.SpeedTrace.from_csv_file(
 )
 
 train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
-    rail_vehicle=rail_vehicle,
+    rail_vehicles=[rail_vehicle],
     network=network,
     link_path=link_path,
     speed_trace=speed_trace,

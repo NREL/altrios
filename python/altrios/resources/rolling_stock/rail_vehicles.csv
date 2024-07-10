@@ -1,7 +1,7 @@
-﻿Car Type,Length (m),Axle Count,Brake Count,Mass Static (kg),Speed Max (m/s),Braking Ratio,Mass Extra per Axle (kg),Bearing Res per Axle (N),Rolling Ratio,Davis B (s/m),Drag Area Cd*A (m^2),Curve Coefficient 0,Curve Coefficient 1,Curve Coefficient 2
-Unit_Empty,10.7,4,1,26500,20,0.25,750,80,0.00075,0,4,0.056,0.4387579,0.01025485
-Unit_Loaded,10.7,4,1,117000,20,0.11,750,80,0.00075,0,4,0.056,0.4387579,0.01025485
-Intermodal_Empty,18,4,1,28500,20,0.25,750,80,0.00075,0,4,0,0,0
-Intermodal_Loaded,18,4,1,130000,20,0.11,750,80,0.00075,0,4,0,0,0
-Manifest_Empty,18,4,1,28500,20,0.25,750,40.26,0.001546,0,1.231,0.056,0.4387579,0.01025485
-Manifest_Loaded,18,4,1,130000,20,0.11,750,40.26,0.001546,0,4.087,0.056,0.4387579,0.01025485
+﻿Car Type,Length (m),Axle Count,Brake Count,Mass Static (kg),Mass Freight (kg),Speed Max (m/s),Braking Ratio,Mass Extra per Axle (kg),Bearing Res per Axle (N),Rolling Ratio,Davis B (s/m),Cd*A (m^2),Curve Coefficient 0,Curve Coefficient 1,Curve Coefficient 2
+Unit_Empty,10.7,4,1,26500,0,20,0.25,750,80,0.00075,0,4,0.056,0.4387579,0.01025485
+Unit_Loaded,10.7,4,1,26500,90500,20,0.11,750,80,0.00075,0,4,0.056,0.4387579,0.01025485
+Intermodal_Empty,18,4,1,28500,0,20,0.25,750,80,0.00075,0,4,0,0,0
+Intermodal_Loaded,18,4,1,28500,101500,20,0.11,750,80,0.00075,0,4,0,0,0
+Manifest_Empty,18,4,1,28500,0,20,0.25,750,40.26,0.001546,0,1.231,0.056,0.4387579,0.01025485
+Manifest_Loaded,18,4,1,28500,101500,20,0.11,750,40.26,0.001546,0,4.087,0.056,0.4387579,0.01025485

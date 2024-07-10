@@ -25,7 +25,7 @@ use pyo3_polars::PyDataFrame;
         train_type: Option<TrainType>,
         train_length_meters: Option<f64>,
         train_mass_kilograms: Option<f64>,
-        drag_area_vec: Option<Vec<f64>>,
+        cd_area_vec: Option<Vec<f64>>,
     ) -> anyhow::Result<Self> {
         Self::new(
             n_cars_by_type,
@@ -33,7 +33,7 @@ use pyo3_polars::PyDataFrame;
             train_type.unwrap_or_default(),
             train_length_meters.map(|v| v * uc::M),
             train_mass_kilograms.map(|v| v * uc::KG),
-            drag_area_vec.map(|dcv| dcv.iter().map(|dc| *dc * uc::M2).collect())
+            cd_area_vec.map(|dcv| dcv.iter().map(|dc| *dc * uc::M2).collect())
         )
     }
 
@@ -66,8 +66,8 @@ use pyo3_polars::PyDataFrame;
     }
 
     #[getter]
-    fn get_drag_coeff_vec_meters_squared(&self) -> Option<Vec<f64>> {
-        self.drag_area_vec
+    fn get_cd_area_vec_meters_squared(&self) -> Option<Vec<f64>> {
+        self.cd_area_vec
             .as_ref()
                 .map(
                     |dcv| dcv.iter().cloned().map(|x| x.get::<si::square_meter>()).collect()
@@ -75,8 +75,8 @@ use pyo3_polars::PyDataFrame;
     }
 
     #[setter]
-    fn set_drag_coeff_vec(&mut self, new_val: Vec<f64>) -> anyhow::Result<()> {
-        self.drag_area_vec = Some(new_val.iter().map(|x| *x * uc::M2).collect());
+    fn set_cd_area_vec(&mut self, new_val: Vec<f64>) -> anyhow::Result<()> {
+        self.cd_area_vec = Some(new_val.iter().map(|x| *x * uc::M2).collect());
         Ok(())
     }
 )]
@@ -104,13 +104,14 @@ pub struct TrainConfig {
     /// for each car.  If provided, the total drag area (drag coefficient
     /// times frontal area) calculated from this vector is the sum of these
     /// coefficients.
-    pub drag_area_vec: Option<Vec<si::Area>>,
+    pub cd_area_vec: Option<Vec<si::Area>>,
 }
 
 impl SerdeAPI for TrainConfig {
     fn init(&mut self) -> anyhow::Result<()> {
-        match &self.drag_area_vec {
+        match &self.cd_area_vec {
             Some(dcv) => {
+                // TODO: account for locomotive drag here, too
                 ensure!(dcv.len() as u32 == self.cars_total());
             }
             None => {}
@@ -126,7 +127,7 @@ impl TrainConfig {
         train_type: TrainType,
         train_length: Option<si::Length>,
         train_mass: Option<si::Mass>,
-        drag_area_vec: Option<Vec<si::Area>>,
+        cd_area_vec: Option<Vec<si::Area>>,
     ) -> anyhow::Result<Self> {
         let mut train_config = Self {
             n_cars_by_type,
@@ -134,7 +135,7 @@ impl TrainConfig {
             train_type,
             train_length,
             train_mass,
-            drag_area_vec,
+            cd_area_vec,
         };
         train_config.init()?;
         Ok(train_config)
@@ -254,7 +255,7 @@ impl Valid for TrainConfig {
             train_type: TrainType::Freight,
             train_length: None,
             train_mass: None,
-            drag_area_vec: None,
+            cd_area_vec: None,
         }
     }
 }
@@ -316,14 +317,14 @@ impl Valid for TrainConfig {
     #[pyo3(name = "make_speed_limit_train_sim")]
     fn make_speed_limit_train_sim_py(
         &self,
-        rail_vehicle: Vec<RailVehicle>,
+        rail_vehicles: Vec<RailVehicle>,
         location_map: LocationMap,
         save_interval: Option<usize>,
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
     ) -> anyhow::Result<SpeedLimitTrainSim> {
         self.make_speed_limit_train_sim(
-            &rail_vehicle,
+            &rail_vehicles,
             &location_map,
             save_interval,
             simulation_days,
@@ -407,7 +408,6 @@ impl TrainSimBuilder {
                     Ok(mass)
                 })?
                 * train_params.axle_count as f64;
-        // TODO: this does not account for the unloaded mass of the railcar for loaded rail cars
         let mass_freight =
             rvs.iter()
                 .try_fold(0. * uc::KG, |acc, rv| -> anyhow::Result<si::Mass> {
@@ -522,16 +522,16 @@ impl TrainSimBuilder {
                 },
             )?);
             let res_aero =
-                res_kind::aerodynamic::Basic::new(match &self.train_config.drag_area_vec {
+                res_kind::aerodynamic::Basic::new(match &self.train_config.cd_area_vec {
                     Some(dave) => {
-                        log::info!("Using `drag_coeff_vec` to calculate aero resistance.");
+                        log::info!("Using `cd_area_vec` to calculate aero resistance.");
                         dave.iter().fold(0. * uc::M2, |acc, dc| *dc + acc)
                     }
                     None => rvs.iter().try_fold(
                         0.0 * uc::M2,
                         |acc, rv| -> anyhow::Result<si::Area> {
                             let train_drag = acc
-                                + rv.drag_area
+                                + rv.cd_area
                                     * *self
                                         .train_config
                                         .n_cars_by_type

@@ -14,10 +14,9 @@ SAVE_INTERVAL = 100
 
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
-    cars_empty=50,
-    cars_loaded=50,
-    rail_vehicle_type="Manifest",
-    train_type=alt.TrainType.Freight,
+    n_cars_by_type={"Manifest_Loaded": 50},
+    # TODO: should `rail_vehicle_type` even be provided here?  
+    rail_vehicle_type="Manifest_Loaded",
     train_length_meters=None,
     train_mass_kilograms=None,
 )
@@ -72,7 +71,7 @@ location_map = alt.import_locations(
     alt.resources_root() / "networks/default_locations.csv")
 
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
-    rail_vehicle=rail_vehicle,
+    rail_vehicles=[rail_vehicle],
     location_map=location_map,
     save_interval=1,
 )

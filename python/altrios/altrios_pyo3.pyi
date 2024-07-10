@@ -893,7 +893,7 @@ class TrainSimBuilder(SerdeAPI):
     ) -> None: ...
 
     def make_set_speed_train_sim(
-        rail_vehicle: RailVehicle,
+        rail_vehicles: List[RailVehicle],
         network: List[Link],
         link_path: List[LinkIdx],
         speed_trace: SpeedTrace,
@@ -903,7 +903,7 @@ class TrainSimBuilder(SerdeAPI):
 
     def make_speed_limit_train_sim(
         self,
-        rail_vehicle: RailVehicle,
+        rail_vehicles: List[RailVehicle],
         location_map: Dict[str, List[Location]],
         save_interval: Optional[int],
         simulation_days: Optional[int],
@@ -914,13 +914,12 @@ class TrainSimBuilder(SerdeAPI):
 
 @dataclass
 class TrainConfig(SerdeAPI):
-    rail_vehicle_type: str
-    cars_empty: int
-    cars_loaded: int
-    train_type: str
+    n_cars_by_type: Dict[str, int]
+    rail_vehicle_type: Optional[str]
+    train_type: Optional[TrainType]
     train_length_meters: Optional[float]
     train_mass_kilograms: Optional[float]
-    drag_coeff_vec: Optional[List[float]]
+    cd_area_vec: Optional[List[float]]
     @classmethod
     def default(cls) -> Self: ...
 
@@ -933,8 +932,8 @@ class RailVehicle(SerdeAPI):
     braking_ratio_loaded: float
     car_type: str
     davis_b_seconds_per_meter: float
-    drag_area_empty_square_meters: float
-    drag_area_loaded_square_meters: float
+    cd_area_empty_square_meters: float
+    cd_area_loaded_square_meters: float
     length_meters: float
     mass_extra_per_axle_kilograms: float
     mass_static_empty_kilograms: float

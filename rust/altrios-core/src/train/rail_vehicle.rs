@@ -20,10 +20,10 @@ pub struct RailVehicle {
 
     /// Railcar mass, not including freight
     #[serde(alias = "Mass Static (kg)")]
-    pub mass_static_empty: si::Mass,
-    /// Freight component of total static mass
+    pub mass_static: si::Mass,
+    /// Freight component of total static railcar mass
     #[serde(alias = "Mass Freight (kg)")]
-    pub mass_static_freight: si::Mass,
+    pub mass_freight: si::Mass,
     /// Railcar speed limit
     #[serde(alias = "Speed Max (m/s)")]
     pub speed_max: si::Velocity,
@@ -61,9 +61,9 @@ pub struct RailVehicle {
 }
 
 impl RailVehicle {
-    /// Returns total non-rotational mass, sum of `mass_static_freight` and `mass_static_empty`
+    /// Returns total non-rotational mass, sum of `mass_static_freight` and `mass_static`
     pub fn mass_static_total(&self) -> si::Mass {
-        self.mass_static_empty + self.mass_static_freight
+        self.mass_static + self.mass_freight
     }
 }
 

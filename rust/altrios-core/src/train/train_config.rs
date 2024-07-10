@@ -250,7 +250,7 @@ impl Valid for TrainConfig {
     fn valid() -> Self {
         Self {
             rail_vehicle_type: Some("Bulk".to_string()),
-            n_cars_by_type: HashMap::from([("loaded".into(), 100_u32)]),
+            n_cars_by_type: HashMap::from([("Bulk".into(), 100_u32)]),
             train_type: TrainType::Freight,
             train_length: None,
             train_mass: None,
@@ -412,7 +412,7 @@ impl TrainSimBuilder {
             rvs.iter()
                 .try_fold(0. * uc::KG, |acc, rv| -> anyhow::Result<si::Mass> {
                     let mass = acc
-                        + rv.mass_static_freight
+                        + rv.mass_freight
                             * *self
                                 .train_config
                                 .n_cars_by_type

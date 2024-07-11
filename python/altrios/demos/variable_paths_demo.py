@@ -97,5 +97,10 @@ train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
 # train_sim.variable_path_list()
 
 # print relative variable paths within locomotive simulation
+
+print("Locomotive simulation variable paths:\n", "\n".join(sim.variable_path_list()))
+# print relative history variable paths within locomotive simulation
+print("Locomotive simulation history variable paths:\n", ".\n".join(sim.history_path_list()))
+
 print("Locomotive simulation variable paths: ", train_sim.variable_path_list())
 # print(type(train_sim.loco_con.loco_vec.tolist()[0].res))

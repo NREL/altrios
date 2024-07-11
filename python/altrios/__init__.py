@@ -45,7 +45,7 @@ ACCEPTED_RUST_STRUCTS = [attr for attr in alt.__dir__() if not\
 def variable_path_list(self, path = "") -> list[str]:
     """Returns list of relative paths to all variables and sub-variables within
     class (relative to the class the method was called on).  
-    See example usage in param_paths_demo.py.
+    See example usage in `altrios/demos/variable_paths_demo.py`.
     Arguments:
     ----------
     path : Defaults to empty string. This is mainly used within the method in
@@ -129,7 +129,7 @@ def variable_path_list(self, path = "") -> list[str]:
 def history_path_list(self) -> list[str]:
     """Returns a list of relative paths to all history variables (all variables
     that contain history as a subpath). 
-    See example usage in param_paths_demo.py."""
+    See example usage in `altrios/demos/variable_paths_demo.py`"""
     return [item for item in self.variable_path_list() if "history" in item]
             
 

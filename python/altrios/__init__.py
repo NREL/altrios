@@ -52,29 +52,78 @@ def variable_path_list(self, path = "") -> list[str]:
     order to call the method recursively and should not be specified by user. 
     Specifies a path to be added in front of all paths returned by the method.
     """
-    variable_list = [attr for attr in self.__dir__() if not attr.startswith("__")\
-         and not callable(getattr(self,attr))]
     variable_paths = []
-    for variable in variable_list:
-        if not type(getattr(self,variable)).__name__ in ACCEPTED_RUST_STRUCTS:
-            if path == "":
-                variable_path = variable
-            else:
-                variable_path = path + "." + variable
-            variable_paths.append(variable_path)
-        elif len([attr for attr in getattr(self,variable).__dir__() if not attr.startswith("__")\
-                 and not callable(getattr(getattr(self,variable),attr))]) == 0:
-            if path == "":
-                variable_path = variable
-            else:
-                variable_path = path + "." + variable
-            variable_paths.append(variable_path)    
+    if "tolist" in self.__dir__():
+        print(type(self.tolist()))
+        if len(self.tolist()) != 0:
+            for counter in range(len(self.tolist())):
+                print(self.tolist()[counter])
+                if self.tolist()[counter] == None:
+                    if path == "":
+                        variable_path = "tolist()[" + str(counter) + "]"
+                    else:
+                        variable_path = path + ".tolist()[" + str(counter) + "]"
+                    variable_paths.append(variable_path)
+                elif not type(self.tolist()[counter]).__name__ in ACCEPTED_RUST_STRUCTS:
+                    if path == "":
+                        variable_path = "tolist()[" + str(counter) + "]"
+                    else:
+                        variable_path = path + ".tolist()[" + str(counter) + "]"
+                    variable_paths.append(variable_path)
+                else:            
+                    if path == "":
+                        variable_path = "tolist()[" + str(counter) + "]"
+                    else:
+                        variable_path = path + ".tolist()[" + str(counter) + "]"
+                    variable_paths.extend(self.tolist()[counter].variable_path_list(path=variable_path))
         else:
-            if path == "":
-                variable_path = variable
+            variable_path = path + ".to_list()"
+            variable_paths.append(variable_path)
+    else:
+        variable_list = [attr for attr in self.__dir__() if not attr.startswith("__")]
+        # getattr(self,attr) I think returns a runtime error if the attr is an option that turns out to be 
+        # None -- how to I get around this??
+        variable_list = [attr for attr in variable_list if not getattr(self,attr) is None]
+        variable_list = [attr for attr in variable_list if not callable(getattr(self,attr))]
+        # variable_list = [attr for attr in variable_list if not attr.startswith("__")\
+        #                  and not getattr(self,attr) == None and not callable(getattr(self,attr))]
+        for variable in variable_list:
+            if not type(getattr(self,variable)).__name__ in ACCEPTED_RUST_STRUCTS:
+                if path == "":
+                    variable_path = variable
+                else:
+                    variable_path = path + "." + variable
+                variable_paths.append(variable_path)
+            # elif "tolist" in getattr(self,variable).__dir__():
+            #     print(variable, "dir with tolist:", getattr(self,variable).__dir__())
+            #     for counter in 0..variable.tolist().len():
+            #         if not type(getattr(self,variable).tolist()[counter]).__name__ in ACCEPTED_RUST_STRUCTS:
+            #             if path == "":
+            #                 variable_path = variable
+            #             else:
+            #                 variable_path = path + "." + variable
+            #             variable_paths.append(variable_path)
+            #         else:            
+            #             if path == "":
+            #                 variable_path = variable + ".tolist()[" + str(counter) + "]"
+            #             else:
+            #                 variable_path = path + "." + variable + ".tolist()[" + str(counter) + "]"
+            #             variable_paths.extend(getattr(self,variable).tolist()[counter].variable_path_list(path=variable_path))
+            # elif len([attr for attr in getattr(self,variable).__dir__() if not attr.startswith("__")\
+            #         and not callable(getattr(getattr(self,variable),attr))]) == 0\
+            #               and "tolist" not in getattr(self,variable).__dir__():
+            #     if path == "":
+            #         variable_path = variable
+            #     else:
+            #         variable_path = path + "." + variable
+            #     variable_paths.append(variable_path)    
             else:
-                variable_path = path + "." + variable
-            variable_paths.extend(getattr(self,variable).variable_path_list(path=variable_path))
+                if path == "":
+                    variable_path = variable
+                else:
+                    variable_path = path + "." + variable
+                print(variable_path, "got through to variable_path_list iteration.")
+                variable_paths.extend(getattr(self,variable).variable_path_list(path=variable_path))
     return variable_paths
 
 def history_path_list(self) -> list[str]:

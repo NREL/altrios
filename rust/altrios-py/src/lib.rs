@@ -1,6 +1,7 @@
 //! Crate that wraps `altrios-core` and enables the `pyo3` feature to
 //! expose most structs, methods, and functions to Python.
 
+use altrios_core::consist::Pyo3VecLocoWrapper;
 use altrios_core::prelude::*;
 use altrios_core::track::SpeedSet;
 pub use pyo3::exceptions::{
@@ -80,6 +81,7 @@ fn altrios_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Pyo3Vec2Wrapper>()?;
     m.add_class::<Pyo3Vec3Wrapper>()?;
     m.add_class::<Pyo3VecBoolWrapper>()?;
+    m.add_class::<Pyo3VecLocoWrapper>()?;
 
     Ok(())
 }

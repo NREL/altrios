@@ -388,6 +388,30 @@ impl TrainSimBuilder {
                     );
                     0. * uc::KG
                 });
+        // check that `self.train_config.n_cars_by_type` has keys matching `rail_vehicles`
+        let rv_car_type_set =
+            HashSet::<String>::from_iter(rail_vehicles.iter().cloned().map(|rv| rv.car_type));
+        let n_cars_type_set =
+            HashSet::<String>::from_iter(self.train_config.n_cars_by_type.keys().cloned());
+        let extra_keys_in_rv = rv_car_type_set
+            .difference(&n_cars_type_set)
+            .collect::<Vec<&String>>();
+        if !extra_keys_in_rv.is_empty() {
+            bail!(
+                "Extra values in `car_type` that are not in `n_cars_by_type`: {:?}",
+                extra_keys_in_rv
+            );
+        }
+        let extra_keys_in_n_cars = n_cars_type_set
+            .difference(&rv_car_type_set)
+            .collect::<Vec<&String>>();
+        if !extra_keys_in_n_cars.is_empty() {
+            bail!(
+                "Extra values in `n_cars_by_type` that are not in `car_type`: {:?}",
+                extra_keys_in_n_cars
+            );
+        }
+
         let mass_adj = train_mass_static
             + rvs
                 .iter()

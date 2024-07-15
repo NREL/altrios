@@ -4,7 +4,8 @@ use std::collections::HashMap;
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
 #[altrios_api]
 pub struct RailVehicle {
-    /// Unique user-defined identifier for the car type
+    /// Unique user-defined identifier for the car type.  This should include
+    /// meta information about the car type's weight, e.g. `loaded`, `empty`, `partial`.
     #[serde(alias = "Car Type")]
     pub car_type: String,
 

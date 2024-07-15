@@ -14,7 +14,11 @@ SAVE_INTERVAL = 100
 
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
-    n_cars_by_type={"Manifest_Loaded": 50},
+    n_cars_by_type={
+        "Manifest_Loaded": 50,
+        "Manifest_Empty": 50,
+        "stivelrlydt": 50,
+    },
     # TODO: should `rail_vehicle_type` even be provided here?  
     rail_vehicle_type="Manifest_Loaded",
     train_length_meters=None,

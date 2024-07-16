@@ -224,6 +224,7 @@ impl LocomotiveSimulation {
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
+        log::info!("Solving time step #{}", self.i);
         // linear aux model
         let engine_on = self.power_trace.engine_on[self.i];
         self.loco_unit.set_pwr_aux(engine_on);

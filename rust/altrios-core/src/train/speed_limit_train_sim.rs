@@ -288,6 +288,7 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
+        log::info!("Solving time step #{}", self.state.i);
         self.loco_con
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
         self.loco_con.set_pwr_aux(Some(true))?;

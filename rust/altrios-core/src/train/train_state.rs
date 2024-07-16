@@ -91,17 +91,29 @@ pub struct TrainState {
     pub speed_limit: si::Velocity,
     /// Speed target from meet-pass planner
     pub speed_target: si::Velocity,
+    /// Time step size
     pub dt: si::Time,
+    /// Train length
     pub length: si::Length,
+    /// Static mass of train
     pub mass_static: si::Mass,
+    /// Mass of train including rotational mass
     pub mass_adj: si::Mass,
+    /// Mass of freight being hauled by the train (not including railcar empty weight)
     pub mass_freight: si::Mass,
+    /// Static weight of train
     pub weight_static: si::Force,
+    /// Rolling resistance force
     pub res_rolling: si::Force,
+    /// Bearing resistance force
     pub res_bearing: si::Force,
+    /// Davis B term resistance force
     pub res_davis_b: si::Force,
+    /// Aerodynamic resistance force
     pub res_aero: si::Force,
+    /// Grade resistance force
     pub res_grade: si::Force,
+    /// Curvature resistance force
     pub res_curve: si::Force,
 
     /// Grade at front of train
@@ -117,7 +129,9 @@ pub struct TrainState {
     /// Power to overcome inertial forces
     pub pwr_accel: si::Power,
 
+    /// Combined power output at wheels across all locomotives
     pub pwr_whl_out: si::Power,
+    /// Integral of [Self::pwr_whl_out]
     pub energy_whl_out: si::Energy,
     /// Energy out during positive or zero traction
     pub energy_whl_out_pos: si::Energy,

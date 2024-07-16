@@ -386,8 +386,6 @@ impl TrainSimBuilder {
         let extra_keys_in_n_cars = n_cars_type_set
             .difference(&rv_car_type_set)
             .collect::<Vec<&String>>();
-        log::debug!("{}", format_dbg!(extra_keys_in_rv));
-        log::debug!("{}", format_dbg!(extra_keys_in_n_cars));
         if !extra_keys_in_rv.is_empty() {
             bail!(
                 "Extra values in `car_type` for `rail_vehicles` that are not in `n_cars_by_type`: {:?}",
@@ -535,7 +533,7 @@ impl TrainSimBuilder {
             let davis_b = res_kind::davis_b::Basic::new(rvs.iter().try_fold(
                 0.0 * uc::S / uc::M,
                 |acc, rv| -> anyhow::Result<si::InverseVelocity> {
-                    let train_rolling_ratio = acc
+                    let train_davis_b = acc
                         + rv.davis_b * rv.mass_static_total() / train_mass_static
                             * *self
                                 .train_config
@@ -548,7 +546,7 @@ impl TrainSimBuilder {
                                         rv.car_type
                                     )
                                 })? as f64;
-                    Ok(train_rolling_ratio)
+                    Ok(train_davis_b)
                 },
             )?);
             let res_aero =

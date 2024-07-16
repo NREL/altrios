@@ -8,6 +8,9 @@ import seaborn as sns
 import altrios as alt
 sns.set_theme()
 
+# uncomment this line to see example of logging functionality
+alt.utils.set_log_level("INFO")
+
 SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 100
@@ -17,10 +20,7 @@ train_config = alt.TrainConfig(
     n_cars_by_type={
         "Manifest_Loaded": 50,
         "Manifest_Empty": 50,
-        "stivelrlydt": 50,
     },
-    # TODO: should `rail_vehicle_type` even be provided here?  
-    rail_vehicle_type="Manifest_Loaded",
     train_length_meters=None,
     train_mass_kilograms=None,
 )
@@ -64,9 +64,10 @@ tsb = alt.TrainSimBuilder(
     loco_con=loco_con,
 )
 
-rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
-rail_vehicle = alt.RailVehicle.from_file(
-    alt.resources_root() / rail_vehicle_file)
+rail_vehicle_loaded = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Loaded.yaml")
+rail_vehicle_empty = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Empty.yaml")
 
 network = alt.Network.from_file(
     alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
@@ -75,7 +76,7 @@ location_map = alt.import_locations(
     alt.resources_root() / "networks/default_locations.csv")
 
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
-    rail_vehicles=[rail_vehicle],
+    rail_vehicles=[rail_vehicle_loaded, rail_vehicle_empty],
     location_map=location_map,
     save_interval=1,
 )
@@ -90,9 +91,6 @@ timed_link_path = alt.run_dispatch(
     False,
     False,
 )[0]
-
-# uncomment this line to see example of logging functionality
-# alt.utils.set_log_level("DEBUG")
 
 t0 = time.perf_counter()
 train_sim.walk_timed_path(

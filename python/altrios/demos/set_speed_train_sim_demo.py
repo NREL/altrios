@@ -18,8 +18,6 @@ train_config = alt.TrainConfig(
         "Manifest_Loaded": 50,
         "Manifest_Empty": 50,
     },
-    # TODO: should `rail_vehicle_type` even be provided here?  
-    rail_vehicle_type="Manifest_Loaded",
     train_length_meters=None,
     train_mass_kilograms=None,
 )
@@ -62,9 +60,10 @@ tsb = alt.TrainSimBuilder(
     loco_con=loco_con,
 )
 
-rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
-rail_vehicle = alt.RailVehicle.from_file(
-    alt.resources_root() / rail_vehicle_file)
+rail_vehicle_loaded = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Loaded.yaml")
+rail_vehicle_empty = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Empty.yaml")
 
 network = alt.Network.from_file(
     alt.resources_root() / "networks/Taconite.yaml")
@@ -78,7 +77,7 @@ speed_trace = alt.SpeedTrace.from_csv_file(
 )
 
 train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
-    rail_vehicles=[rail_vehicle],
+    rail_vehicles=[rail_vehicle_loaded, rail_vehicle_empty],
     network=network,
     link_path=link_path,
     speed_trace=speed_trace,

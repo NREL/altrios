@@ -16,12 +16,12 @@ SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 1
 
+alt.utils.set_log_level("DEBUG")
+
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
     n_cars_by_type={"Manifest_Loaded": 50},
-    # TODO: should `rail_vehicle_type` even be provided here?  
-    rail_vehicle_type="Manifest_Loaded",
     train_length_meters=None,
     train_mass_kilograms=None,
 )
@@ -42,9 +42,11 @@ tsb = alt.TrainSimBuilder(
     loco_con=loco_con,
 )
 
-rail_vehicle_file = "rolling_stock/rail_vehicles.csv"
-rail_vehicle_map = alt.import_rail_vehicles(alt.resources_root() / rail_vehicle_file)
-rail_vehicle = rail_vehicle_map[train_config.rail_vehicle_type]
+
+rail_vehicle_loaded = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Loaded.yaml")
+rail_vehicle_empty = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Empty.yaml")
 
 network = alt.Network.from_file(
     alt.resources_root() / 'networks/simple_corridor_network.yaml')
@@ -62,7 +64,7 @@ speed_trace = alt.SpeedTrace.from_csv_file(
 )
 
 train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
-    rail_vehicle=rail_vehicle,
+    rail_vehicles=[rail_vehicle_loaded, rail_vehicle_empty],
     network=network,
     link_path=link_path,
     speed_trace=speed_trace,

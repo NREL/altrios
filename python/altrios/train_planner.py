@@ -1008,8 +1008,6 @@ def run_train_planner(
                     # # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
                     # train_config = alt.TrainConfig(
                     #     n_cars_by_type={"Manifest_Loaded": 50},
-                    #     # TODO: should `rail_vehicle_type` even be provided here?  
-                    #     rail_vehicle_type="Manifest_Loaded",
                     #     train_length_meters=None,
                     #     train_mass_kilograms=None,
                     # )
@@ -1017,7 +1015,6 @@ def run_train_planner(
                     train_config = alt.TrainConfig(
                         cars_empty = int(this_train['Cars_Per_Train_Empty']),
                         cars_loaded = int(this_train['Cars_Per_Train_Loaded']),
-                        rail_vehicle_type = this_train['Train_Type'],
                         train_type = train_type,
                         cd_area_vec = config.drag_coeff_function
                     )
@@ -1057,6 +1054,7 @@ def run_train_planner(
                     )
                     
                     slts = tsb.make_speed_limit_train_sim(
+                        # TODO: provising for not using `rail_vehicle_map` here.  See examples in `set_speed_train_sim_demo.py`
                         [rail_vehicle_map[train_config.rail_vehicle_type]], 
                         location_map, 
                         None, 

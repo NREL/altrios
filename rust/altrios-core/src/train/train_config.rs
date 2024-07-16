@@ -85,7 +85,9 @@ use pyo3_polars::PyDataFrame;
 /// [crate::prelude::TrainParams]. Any optional fields will be populated later
 /// in [TrainSimBuilder::make_train_sim_parts]
 pub struct TrainConfig {
-    /// Optional user-defined identifier for the car type on this train.
+    /// Optional user-defined identifier for the car type on this train.  This
+    /// is needed only if [RailVehicleMap] will be used in loading the `RailVehicle`
+    /// data.
     pub rail_vehicle_type: Option<String>,
     /// Number of railcars by type on the train
     pub n_cars_by_type: HashMap<String, u32>,
@@ -250,7 +252,7 @@ impl TrainConfig {
 impl Valid for TrainConfig {
     fn valid() -> Self {
         Self {
-            rail_vehicle_type: Some("Bulk".to_string()),
+            rail_vehicle_type: Some(String::from("Bulk")),
             n_cars_by_type: HashMap::from([("Bulk".into(), 100_u32)]),
             train_type: TrainType::Freight,
             train_length: None,
@@ -396,18 +398,20 @@ impl TrainSimBuilder {
         let extra_keys_in_rv = rv_car_type_set
             .difference(&n_cars_type_set)
             .collect::<Vec<&String>>();
-        if !extra_keys_in_rv.is_empty() {
-            bail!(
-                "Extra values in `car_type` that are not in `n_cars_by_type`: {:?}",
-                extra_keys_in_rv
-            );
-        }
         let extra_keys_in_n_cars = n_cars_type_set
             .difference(&rv_car_type_set)
             .collect::<Vec<&String>>();
+        log::debug!("{}", format_dbg!(extra_keys_in_rv));
+        log::debug!("{}", format_dbg!(extra_keys_in_n_cars));
+        if !extra_keys_in_rv.is_empty() {
+            bail!(
+                "Extra values in `car_type` for `rail_vehicles` that are not in `n_cars_by_type`: {:?}",
+                extra_keys_in_rv
+            );
+        }
         if !extra_keys_in_n_cars.is_empty() {
             bail!(
-                "Extra values in `n_cars_by_type` that are not in `car_type`: {:?}",
+                "Extra values in `n_cars_by_type` that are not in `car_type` for `rail_vehicles`: {:?}",
                 extra_keys_in_n_cars
             );
         }
@@ -615,8 +619,9 @@ impl TrainSimBuilder {
             format_dbg!()
         );
 
-        let (state, mut path_tpc, train_res, _fric_brake) =
-            self.make_train_sim_parts(rail_vehicles, save_interval)?;
+        let (state, mut path_tpc, train_res, _fric_brake) = self
+            .make_train_sim_parts(rail_vehicles, save_interval)
+            .with_context(|| format_dbg!())?;
 
         path_tpc.extend(network, link_path)?;
         Ok(SetSpeedTrainSim::new(

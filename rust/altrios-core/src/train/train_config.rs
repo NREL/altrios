@@ -515,9 +515,8 @@ impl TrainSimBuilder {
                 0.0 * uc::R,
                 |acc, rv| -> anyhow::Result<si::Ratio> {
                     let train_rolling_ratio = acc
-                        + rv.rolling_ratio * rv.mass_static_total()
-                            / train_mass_static
-                            / *self
+                        + rv.rolling_ratio * rv.mass_static_total() / train_mass_static
+                            * *self
                                 .train_config
                                 .n_cars_by_type
                                 .get(&rv.car_type)
@@ -531,15 +530,14 @@ impl TrainSimBuilder {
                     Ok(train_rolling_ratio)
                 },
             )?);
-            log::debug!(format_dbg!(&res_rolling));
+            log::debug!("{}", format_dbg!(&res_rolling));
             // TODO: ask Tyler if total train davis b can be calculated on a rail car mass-averaged basis
             let davis_b = res_kind::davis_b::Basic::new(rvs.iter().try_fold(
                 0.0 * uc::S / uc::M,
                 |acc, rv| -> anyhow::Result<si::InverseVelocity> {
                     let train_rolling_ratio = acc
-                        + rv.davis_b * rv.mass_static_total()
-                            / train_mass_static
-                            / *self
+                        + rv.davis_b * rv.mass_static_total() / train_mass_static
+                            * *self
                                 .train_config
                                 .n_cars_by_type
                                 .get(&rv.car_type)

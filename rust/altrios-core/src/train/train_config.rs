@@ -531,7 +531,8 @@ impl TrainSimBuilder {
                     Ok(train_rolling_ratio)
                 },
             )?);
-            // TODO: ask Tyler if total train rolling ratio can be calculated on a rail car mass-averaged basis
+            log::debug!(format_dbg!(&res_rolling));
+            // TODO: ask Tyler if total train davis b can be calculated on a rail car mass-averaged basis
             let davis_b = res_kind::davis_b::Basic::new(rvs.iter().try_fold(
                 0.0 * uc::S / uc::M,
                 |acc, rv| -> anyhow::Result<si::InverseVelocity> {

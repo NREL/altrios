@@ -16,12 +16,14 @@ SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 1
 
-alt.utils.set_log_level("DEBUG")
+# alt.utils.set_log_level("DEBUG")
 
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
-# https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
-    n_cars_by_type={"Manifest_Loaded": 50},
+    n_cars_by_type={
+        "Manifest_Loaded": 50,
+        "Manifest_Empty": 50,
+    },
     train_length_meters=None,
     train_mass_kilograms=None,
 )

@@ -375,21 +375,6 @@ impl TrainSimBuilder {
         save_interval: Option<usize>,
     ) -> anyhow::Result<(TrainState, PathTpc, TrainRes, FricBrake)> {
         let rvs = rail_vehicles;
-        let train_params = self.train_config.make_train_params(rail_vehicles)?;
-
-        let length = train_params.length;
-        // TODO: account for rotational mass of locomotive components (e.g. axles, gearboxes, motor shafts)
-        let train_mass_static = train_params.mass_total
-            + self
-                .loco_con
-                .mass()
-                .with_context(|| format_dbg!())?
-                .unwrap_or_else(|| {
-                    log::warn!(
-                        "Consist has no mass set so train dynamics don't include consist mass."
-                    );
-                    0. * uc::KG
-                });
         // check that `self.train_config.n_cars_by_type` has keys matching `rail_vehicles`
         let rv_car_type_set =
             HashSet::<String>::from_iter(rail_vehicles.iter().cloned().map(|rv| rv.car_type));
@@ -415,6 +400,24 @@ impl TrainSimBuilder {
                 extra_keys_in_n_cars
             );
         }
+        let train_params = self
+            .train_config
+            .make_train_params(rail_vehicles)
+            .with_context(|| format_dbg!())?;
+
+        let length = train_params.length;
+        // TODO: account for rotational mass of locomotive components (e.g. axles, gearboxes, motor shafts)
+        let train_mass_static = train_params.mass_total
+            + self
+                .loco_con
+                .mass()
+                .with_context(|| format_dbg!())?
+                .unwrap_or_else(|| {
+                    log::warn!(
+                        "Consist has no mass set so train dynamics don't include consist mass."
+                    );
+                    0. * uc::KG
+                });
 
         let mass_adj = train_mass_static
             + rvs

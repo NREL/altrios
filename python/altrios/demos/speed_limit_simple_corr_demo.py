@@ -12,6 +12,7 @@ import seaborn as sns
 import altrios as alt 
 sns.set_theme()
 
+# TODO: get Kyle to look at this
 alt.utils.set_log_level("DEBUG")
 
 SHOW_PLOTS = alt.utils.show_plots()
@@ -20,13 +21,6 @@ SAVE_INTERVAL = 1
 
 res = alt.ReversibleEnergyStorage.from_file(
     alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
-)
-
-# https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
-train_config = alt.TrainConfig(
-    n_cars_by_type={"Manifest_Loaded": 50},
-    train_length_meters=None,
-    train_mass_kilograms=None,
 )
 
 edrv = alt.ElectricDrivetrain(
@@ -52,6 +46,17 @@ loco_con = alt.Consist(
     loco_vec
 )
 
+
+# https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
+train_config = alt.TrainConfig(
+    # n_cars_by_type={
+    #     "Manifest_Loaded": 50,
+    #     "Manifest_Empty": 50,
+    # },
+    n_cars_by_type={"Manifest_Loaded": 50},
+    train_length_meters=None,
+    train_mass_kilograms=None,
+)
 
 tsb = alt.TrainSimBuilder(
     train_id="0",
@@ -85,6 +90,8 @@ timed_link_path = alt.run_dispatch(
     False,
     False,
 )[0]
+
+alt.utils.set_log_level("WARNING")
 
 t0 = time.perf_counter()
 train_sim.walk_timed_path(

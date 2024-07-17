@@ -104,6 +104,9 @@ pub struct TrainState {
     pub res_grade: si::Force,
     pub res_curve: si::Force,
 
+    /// Number of cars included on the train
+    pub cars_total: u32,
+
     /// Grade at front of train
     pub grade_front: si::Ratio,
     /// Grade at back of train of train if strap method is used
@@ -142,6 +145,7 @@ impl Default for TrainState {
             mass_static: Default::default(),
             mass_adj: Default::default(),
             mass_freight: Default::default(),
+            cars_total: Default::default(),
             elev_front: Default::default(),
             energy_whl_out: Default::default(),
             grade_front: Default::default(),

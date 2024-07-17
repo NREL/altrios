@@ -57,14 +57,19 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
         Ok(self.get_save_interval())
     }
 
+    #[pyo3(name = "get_kilometers")]
+    pub fn get_kilometers_py(&self, annualize: bool)  -> f64 {
+        self.get_kilometers(annualize)
+    }
+
     #[pyo3(name = "get_megagram_kilometers")]
     pub fn get_megagram_kilometers_py(&self, annualize: bool)  -> f64 {
         self.get_megagram_kilometers(annualize)
     }
 
-    #[pyo3(name = "get_kilometers")]
-    pub fn get_kilometers_py(&self, annualize: bool)  -> f64 {
-        self.get_kilometers(annualize)
+    #[pyo3(name = "get_car_kilometers")]
+    pub fn get_car_kilometers_py(&self, annualize: bool)  -> f64 {
+        self.get_car_kilometers(annualize)
     }
 
     #[pyo3(name = "get_res_kilometers")]
@@ -206,14 +211,19 @@ impl SpeedLimitTrainSim {
         }
     }
 
+    pub fn get_kilometers(&self, annualize: bool) -> f64 {
+        self.state.total_dist.get::<si::kilometer>() * self.get_scaling_factor(annualize)
+    }
+
     pub fn get_megagram_kilometers(&self, annualize: bool) -> f64 {
         self.state.mass_freight.get::<si::megagram>()
             * self.state.total_dist.get::<si::kilometer>()
             * self.get_scaling_factor(annualize)
     }
 
-    pub fn get_kilometers(&self, annualize: bool) -> f64 {
-        self.state.total_dist.get::<si::kilometer>() * self.get_scaling_factor(annualize)
+    pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
+        let n_cars = self.state.cars_total as f64;
+        self.state.total_dist.get::<si::kilometer>() * n_cars * self.get_scaling_factor(annualize)
     }
 
     pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {

@@ -328,13 +328,14 @@ impl TrainSimBuilder {
                 + veh.braking_ratio_loaded * self.train_config.cars_loaded as f64)
             / cars_total;
 
-        let state = TrainState::new(
+        let mut state = TrainState::new(
             length,
             mass_static,
             mass_adj,
             mass_freight,
             self.init_train_state,
         );
+        state.cars_total = self.train_config.cars_total();
 
         let path_tpc = PathTpc::new(train_params);
 
@@ -984,14 +985,19 @@ pub fn run_speed_limit_train_sims(
         self.get_net_energy_res(annualize).get::<si::joule>()
     }
 
+    #[pyo3(name = "get_kilometers")]
+    pub fn get_kilometers_py(&self, annualize: bool) -> f64 {
+        self.get_kilometers(annualize)
+    }
+
     #[pyo3(name = "get_megagram_kilometers")]
     pub fn get_megagram_kilometers_py(&self, annualize: bool) -> f64 {
         self.get_megagram_kilometers(annualize)
     }
 
-    #[pyo3(name = "get_kilometers")]
-    pub fn get_kilometers_py(&self, annualize: bool) -> f64 {
-        self.get_kilometers(annualize)
+    #[pyo3(name = "get_car_kilometers")]
+    pub fn get_car_kilometers_py(&self, annualize: bool) -> f64 {
+        self.get_car_kilometers(annualize)
     }
 
     #[pyo3(name = "get_res_kilometers")]
@@ -1027,6 +1033,10 @@ impl SpeedLimitTrainSimVec {
             .sum()
     }
 
+    pub fn get_kilometers(&self, annualize: bool) -> f64 {
+        self.0.iter().map(|sim| sim.get_kilometers(annualize)).sum()
+    }
+
     pub fn get_megagram_kilometers(&self, annualize: bool) -> f64 {
         self.0
             .iter()
@@ -1034,8 +1044,11 @@ impl SpeedLimitTrainSimVec {
             .sum()
     }
 
-    pub fn get_kilometers(&self, annualize: bool) -> f64 {
-        self.0.iter().map(|sim| sim.get_kilometers(annualize)).sum()
+    pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
+        self.0
+            .iter()
+            .map(|sim| sim.get_car_kilometers(annualize))
+            .sum()
     }
 
     pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {

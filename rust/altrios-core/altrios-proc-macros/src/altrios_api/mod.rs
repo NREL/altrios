@@ -239,6 +239,7 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
     let py_impl_block = quote! {
         #[pymethods]
         #[cfg(feature="pyo3")]
+        #[allow(non_snake_case)]
         /// Implement methods exposed and used in Python via PyO3
         impl #ident {
             #py_impl_block

@@ -20,8 +20,8 @@ pub struct RailVehicle {
     pub brake_count: u8,
 
     /// Railcar mass, not including freight
-    #[serde(alias = "Mass Static (kg)")]
-    pub mass_static: si::Mass,
+    #[serde(alias = "Mass Static Base (kg)")]
+    pub mass_static_base: si::Mass,
     /// Freight component of total static railcar mass
     #[serde(alias = "Mass Freight (kg)")]
     pub mass_freight: si::Mass,
@@ -64,7 +64,7 @@ pub struct RailVehicle {
 impl RailVehicle {
     /// Returns total non-rotational mass, sum of `mass_static_freight` and `mass_static`
     pub fn mass_static_total(&self) -> si::Mass {
-        self.mass_static + self.mass_freight
+        self.mass_static_base + self.mass_freight
     }
 }
 

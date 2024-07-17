@@ -9,7 +9,7 @@ import altrios as alt
 sns.set_theme()
 
 # uncomment this line to see example of logging functionality
-alt.utils.set_log_level("INFO")
+# alt.utils.set_log_level("INFO")
 
 SHOW_PLOTS = alt.utils.show_plots()
 

@@ -3,7 +3,7 @@ car_type: Intermodal_Loaded
 length: 18.0
 axle_count: 4
 brake_count: 1
-mass_static: 28500.0
+mass_static_base: 28500.0
 mass_freight: 101500.0
 speed_max: 20.0
 braking_ratio: 0.11

@@ -12,6 +12,8 @@ SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 1
 
+alt.utils.set_log_level("DEBUG")
+
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
     n_cars_by_type={
@@ -83,6 +85,8 @@ train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
     speed_trace=speed_trace,
     save_interval=SAVE_INTERVAL,
 )
+
+alt.utils.set_log_level("WARNING")
 
 train_sim.set_save_interval(SAVE_INTERVAL)
 t0 = time.perf_counter()

@@ -3,7 +3,7 @@ car_type: Unit_Loaded
 length: 10.7
 axle_count: 4
 brake_count: 1
-mass_static: 26500.0
+mass_static_base: 26500.0
 mass_freight: 90500.0
 speed_max: 20.0
 braking_ratio: 0.11

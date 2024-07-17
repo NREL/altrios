@@ -1,4 +1,4 @@
-﻿Car Type,Length (m),Axle Count,Brake Count,Mass Static (kg),Mass Freight (kg),Speed Max (m/s),Braking Ratio,Mass Extra per Axle (kg),Bearing Res per Axle (N),Rolling Ratio,Davis B (s/m),Cd*A (m^2),Curve Coefficient 0,Curve Coefficient 1,Curve Coefficient 2
+﻿Car Type,Length (m),Axle Count,Brake Count,Mass Static Base (kg),Mass Freight (kg),Speed Max (m/s),Braking Ratio,Mass Extra per Axle (kg),Bearing Res per Axle (N),Rolling Ratio,Davis B (s/m),Cd*A (m^2),Curve Coefficient 0,Curve Coefficient 1,Curve Coefficient 2
 Unit_Empty,10.7,4,1,26500,0,20,0.25,750,80,0.00075,0,4,0.056,0.4387579,0.01025485
 Unit_Loaded,10.7,4,1,26500,90500,20,0.11,750,80,0.00075,0,4,0.056,0.4387579,0.01025485
 Intermodal_Empty,18,4,1,28500,0,20,0.25,750,80,0.00075,0,4,0,0,0

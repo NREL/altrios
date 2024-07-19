@@ -271,7 +271,10 @@ pub(crate) fn impl_getters_and_setters(
                 uom::si::velocity::meter_per_second,
                 uom::si::velocity::mile_per_hour
             ),
-            _ => abort!(inner_path.span(), "Unknown si quantity!"),
+            _ => abort!(
+                inner_path.span(),
+                "Unknown si quantity! Make sure it's implemented in `impl_getters_and_setters`"
+            ),
         };
         for (field_units, unit_name) in &unit_impls {
             impl_get_set_si(

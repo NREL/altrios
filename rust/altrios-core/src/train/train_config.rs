@@ -367,6 +367,7 @@ impl TrainSimBuilder {
                 .mass()
                 .with_context(|| format_dbg!())?
                 .unwrap_or_else(|| {
+                    #[cfg(feature = "logging")]
                     log::warn!(
                         "Consist has no mass set so train dynamics don't include consist mass."
                     );
@@ -417,6 +418,7 @@ impl TrainSimBuilder {
                         * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
                 },
             ));
+            #[cfg(feature = "logging")]
             log::debug!("{}", format_dbg!(&res_rolling));
             let davis_b = res_kind::davis_b::Basic::new(rvs.iter().fold(
                 0.0 * uc::S / uc::M,
@@ -428,6 +430,7 @@ impl TrainSimBuilder {
             let res_aero =
                 res_kind::aerodynamic::Basic::new(match &self.train_config.cd_area_vec {
                     Some(dave) => {
+                        #[cfg(feature = "logging")]
                         log::info!("Using `cd_area_vec` to calculate aero resistance.");
                         dave.iter().fold(0. * uc::M2, |acc, dc| *dc + acc)
                     }

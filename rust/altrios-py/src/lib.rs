@@ -12,6 +12,7 @@ pub use pyo3_polars::PyDataFrame;
 
 #[pymodule]
 fn altrios_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
+    #[cfg(feature = "logging")]
     pyo3_log::init();
     m.add_class::<FuelConverter>()?;
     m.add_class::<FuelConverterState>()?;

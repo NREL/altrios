@@ -334,6 +334,7 @@ impl SetSpeedTrainSim {
 
     /// Solves time step.
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
+        #[cfg(feature = "logging")]
         log::info!("Solving time step #{}", self.state.i);
         ensure!(
             self.speed_trace.speed[self.state.i] >= si::Velocity::ZERO,

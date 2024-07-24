@@ -84,6 +84,7 @@ pub fn import_rail_vehicles<P: AsRef<Path>>(filename: P) -> anyhow::Result<RailV
     let mut rail_vehicle_map = RailVehicleMap::default();
     for result in reader.deserialize() {
         let rail_vehicle: RailVehicle = result?;
+        #[cfg(feature = "logging")]
         log::debug!("Loaded `rail_vehicle`: {}", rail_vehicle.car_type);
         rail_vehicle_map.insert(rail_vehicle.car_type.clone(), rail_vehicle);
     }

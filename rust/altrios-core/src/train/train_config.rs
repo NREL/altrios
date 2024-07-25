@@ -1,5 +1,6 @@
 use super::resistance::kind as res_kind;
 use super::resistance::method as res_method;
+use super::TrainResWrapper;
 use crate::consist::locomotive::locomotive_model::PowertrainType;
 use crate::consist::Mass;
 
@@ -244,6 +245,43 @@ impl Valid for TrainConfig {
         )
     }
 
+    #[pyo3(name = "make_set_speed_train_sim_and_parts")]
+    fn make_set_speed_train_sim_and_parts_py(
+        &self,
+        rail_vehicle: &RailVehicle,
+        network: &PyAny,
+        link_path: &PyAny,
+        speed_trace: SpeedTrace,
+        save_interval: Option<usize>
+    ) -> anyhow::Result<(SetSpeedTrainSim, PathTpc, TrainResWrapper, FricBrake)> {
+        let network = match network.extract::<Network>() {
+            Ok(n) => n,
+            Err(_) => {
+                let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                Network(n)
+            }
+        };
+
+        let link_path = match link_path.extract::<LinkPath>() {
+            Ok(lp) => lp,
+            Err(_) => {
+                let lp = link_path.extract::<Vec<LinkIdx>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                LinkPath(lp)
+            }
+        };
+
+        let (ts, path_tpc, tr, fb) = self.make_set_speed_train_sim_and_parts(
+            &rail_vehicle,
+            network,
+            link_path,
+            speed_trace,
+            save_interval
+        ).with_context(|| format_dbg!())?;
+
+        let trw = TrainResWrapper(tr);
+        Ok((ts, path_tpc, trw, fb))
+    }
+
     #[pyo3(name = "make_speed_limit_train_sim")]
     fn make_speed_limit_train_sim_py(
         &self,
@@ -260,6 +298,27 @@ impl Valid for TrainConfig {
             simulation_days,
             scenario_year,
         )
+    }
+
+    #[pyo3(name = "make_speed_limit_train_sim_and_parts")]
+    fn make_speed_limit_train_sim_and_parts_py(
+        &self,
+        rail_vehicle: RailVehicle,
+        location_map: LocationMap,
+        save_interval: Option<usize>,
+        simulation_days: Option<i32>,
+        scenario_year: Option<i32>,
+    ) -> anyhow::Result<(SpeedLimitTrainSim, PathTpc, TrainResWrapper, FricBrake)> {
+        let (ts, path_tpc, tr, fb) =  self.make_speed_limit_train_sim_and_parts(
+            &rail_vehicle,
+            &location_map,
+            save_interval,
+            simulation_days,
+            scenario_year,
+        )?;
+
+        let trw = TrainResWrapper(tr);
+        Ok((ts, path_tpc, trw, fb))
     }
 )]
 #[derive(Debug, Default, Clone, Deserialize, Serialize, PartialEq, SerdeAPI)]
@@ -414,6 +473,40 @@ impl TrainSimBuilder {
         ))
     }
 
+    pub fn make_set_speed_train_sim_and_parts<Q: AsRef<[Link]>, R: AsRef<[LinkIdx]>>(
+        &self,
+        rail_vehicles: &RailVehicle,
+        network: Q,
+        link_path: R,
+        speed_trace: SpeedTrace,
+        save_interval: Option<usize>,
+    ) -> anyhow::Result<(SetSpeedTrainSim, PathTpc, TrainRes, FricBrake)> {
+        ensure!(
+            self.origin_id.is_none() & self.destination_id.is_none(),
+            "{}\n`origin_id` and `destination_id` must both be `None` when calling `make_set_speed_train_sim`.",
+            format_dbg!()
+        );
+
+        let (state, mut path_tpc, train_res, fric_brake) = self
+            .make_train_sim_parts(rail_vehicles, save_interval)
+            .with_context(|| format_dbg!())?;
+
+        path_tpc.extend(network, link_path)?;
+        Ok((
+            SetSpeedTrainSim::new(
+                self.loco_con.clone(),
+                state,
+                speed_trace,
+                train_res.clone(),
+                path_tpc.clone(),
+                save_interval,
+            ),
+            path_tpc,
+            train_res,
+            fric_brake,
+        ))
+    }
+
     pub fn make_speed_limit_train_sim(
         &self,
         rail_vehicle: &RailVehicle,
@@ -466,6 +559,61 @@ impl TrainSimBuilder {
             simulation_days,
             scenario_year,
         ))
+    }
+
+    pub fn make_speed_limit_train_sim_and_parts(
+        &self,
+        rail_vehicle: &RailVehicle,
+        location_map: &LocationMap,
+        save_interval: Option<usize>,
+        simulation_days: Option<i32>,
+        scenario_year: Option<i32>,
+    ) -> anyhow::Result<(SpeedLimitTrainSim, PathTpc, TrainRes, FricBrake)> {
+        let (state, path_tpc, train_res, fric_brake) = self
+            .make_train_sim_parts(rail_vehicle, save_interval)
+            .with_context(|| format_dbg!())?;
+
+        ensure!(
+            self.origin_id.is_some() & self.destination_id.is_some(),
+            "{}\nBoth `origin_id` and `destination_id` must be provided when initializing{} ",
+            format_dbg!(),
+            "`TrainSimBuilder` for `make_speed_limit_train_sim` to work."
+        );
+
+        let ts = SpeedLimitTrainSim::new(
+            self.train_id.clone(),
+            // `self.origin_id` verified to be `Some` earlier
+            location_map
+                .get(self.origin_id.as_ref().unwrap())
+                .with_context(|| {
+                    anyhow!(format!(
+                        "{}\n`origin_id`: \"{}\" not found in `location_map` keys: {:?}",
+                        format_dbg!(),
+                        self.origin_id.as_ref().unwrap(),
+                        location_map.keys(),
+                    ))
+                })?,
+            // `self.destination_id` verified to be `Some` earlier
+            location_map
+                .get(self.destination_id.as_ref().unwrap())
+                .with_context(|| {
+                    anyhow!(format!(
+                        "{}\n`destination_id`: \"{}\" not found in `location_map` keys: {:?}",
+                        format_dbg!(),
+                        self.destination_id.as_ref().unwrap(),
+                        location_map.keys(),
+                    ))
+                })?,
+            self.loco_con.clone(),
+            state,
+            train_res.clone(),
+            path_tpc.clone(),
+            fric_brake.clone(),
+            save_interval,
+            simulation_days,
+            scenario_year,
+        );
+        Ok((ts, path_tpc, train_res, fric_brake))
     }
 }
 

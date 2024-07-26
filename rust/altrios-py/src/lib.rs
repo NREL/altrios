@@ -2,7 +2,6 @@
 //! expose most structs, methods, and functions to Python.
 
 use altrios_core::prelude::*;
-use altrios_core::track::SpeedSet;
 pub use pyo3::exceptions::{
     PyAttributeError, PyFileNotFoundError, PyIndexError, PyNotImplementedError, PyRuntimeError,
 };
@@ -62,6 +61,8 @@ fn altrios_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<TrainStateHistoryVec>()?;
 
     m.add_class::<TrainConfig>()?;
+    m.add_class::<TrainResWrapper>()?;
+    m.add_class::<PathTpc>()?;
     m.add_class::<TrainType>()?;
     m.add_class::<TrainParams>()?;
     m.add_class::<RailVehicle>()?;

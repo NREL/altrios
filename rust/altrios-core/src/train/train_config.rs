@@ -272,7 +272,7 @@ impl Valid for TrainConfig {
         };
 
         let (ts, path_tpc, tr, fb) = self.make_set_speed_train_sim_and_parts(
-            &rail_vehicle,
+            rail_vehicle,
             network,
             link_path,
             speed_trace,

@@ -68,8 +68,13 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     }
 
     #[pyo3(name = "get_car_kilometers")]
-    pub fn get_car_kilometers_py(&self, annualize: bool)  -> f64 {
-        self.get_car_kilometers(annualize)
+    pub fn get_car_kilometers_py(&self, include_empty: bool, include_loaded: bool, annualize: bool)  -> f64 {
+        self.get_car_kilometers(include_empty, include_loaded, annualize)
+    }
+
+    #[pyo3(name = "get_cars_moved")]
+    pub fn get_cars_moved_py(&self, include_empty: bool, include_loaded: bool, annualize: bool)  -> f64 {
+        self.get_cars_moved(include_empty, include_loaded, annualize)
     }
 
     #[pyo3(name = "get_res_kilometers")]
@@ -221,9 +226,17 @@ impl SpeedLimitTrainSim {
             * self.get_scaling_factor(annualize)
     }
 
-    pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
-        let n_cars = self.state.cars_total as f64;
-        self.state.total_dist.get::<si::kilometer>() * n_cars * self.get_scaling_factor(annualize)
+    pub fn get_car_kilometers(&self, include_empty: bool, include_loaded: bool, annualize: bool) -> f64 {
+        let n_cars = self.get_cars_moved(include_empty, include_loaded, annualize);
+        // Note: n_cars already includes an annualization scaling factor; no need to multiply twice.
+        self.state.total_dist.get::<si::kilometer>() * n_cars
+    }
+
+    pub fn get_cars_moved(&self, include_empty: bool, include_loaded: bool, annualize: bool) -> f64 {
+        let n_cars = 
+            (self.state.cars_empty * (include_empty as u32)
+            + self.state.cars_loaded * (include_loaded as u32)) as f64;
+        n_cars * self.get_scaling_factor(annualize)
     }
 
     pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {

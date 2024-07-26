@@ -117,11 +117,14 @@ def main(
         scenario_infos: Union[ScenarioInfo, List[ScenarioInfo]],
         annual_metrics: Union[Tuple[str, str],
                               List[Tuple[str, str]]] = [
-            ('Mt-km', 'million tonne-km'),
+            ('Freight_Moved', 'million tonne-mi'),
+            ('Freight_Moved', 'car-miles'),
+            ('Freight_Moved', 'cars'),
             ('GHG', 'tonne CO2-eq'),
             ('Count_Locomotives', 'assets'),
             ('Count_Refuelers', 'assets'),
-            ('Energy_Costs', 'USD')
+            ('Energy_Costs', 'USD'),
+            ('Energy_Per_Freight_Moved', 'kWh per car-mile')
         ],
         calculate_multiyear_metrics: bool = True
 ) -> pl.DataFrame:
@@ -146,7 +149,7 @@ def main(
     for annual_metric in annual_metrics:
         for scenario_info in scenario_infos:
             annual_values.append(calculate_annual_metric(annual_metric[0], annual_metric[1], scenario_info))
-
+            
     values = pl.concat(annual_values, how="diagonal_relaxed").unique()
     
     if calculate_multiyear_metrics: 
@@ -157,7 +160,8 @@ def main(
     values = (values
         .filter(pl.col("Value").is_not_null())
         .unique()
-        .sort(["Metric","Units","Year","Subset"], descending = [False, False, False, True])
+        .sort(["Metric","Units","Year","Subset"], 
+              descending = [False, False, False, True])
     )
 
     return values
@@ -257,6 +261,44 @@ def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
         metric("LCOTKM", "USD per million tonne-km (levelized)", lcotkm_all)
     ])
 
+def calculate_energy_per_freight(info: ScenarioInfo,
+        units: str) -> MetricType:
+    """
+    Given a years' worth of simulation results, computes a single year energy usage per unit of freight moved.
+    Arguments:
+    ----------
+    info: A scenario information object representing parameters and results for a single year
+    units: Requested units
+    Outputs:
+    ----------
+    DataFrame of energy usage per freight moved (metric name, units, value, and scenario year)
+    """
+    if "per car-mile" not in units:
+        print(f"Units of {units} not supported for energy-per-freight calculation.")
+        return metric("Energy_Per_Freight_Moved", units, None)
+    
+    conversion_from_megajoule = 0
+    if "MJ" in units:
+        conversion_from_megajoule = 1
+    elif "MWh" in units:
+        conversion_from_megajoule = utilities.KWH_PER_MJ / 1e3
+    elif "kWh" in units:
+        conversion_from_megajoule = utilities.KWH_PER_MJ
+
+    diesel_mj = calculate_diesel_use(info, units="MJ")
+    electricity_mj = calculate_electricity_use(info, units="MJ")
+    total_mj = value_from_metrics(diesel_mj) + value_from_metrics(electricity_mj, subset="All")
+    total_energy = total_mj * conversion_from_megajoule
+    freight_moved = calculate_freight_moved(info, units="car-miles")
+    freight_val = value_from_metrics(freight_moved)
+    return metrics_from_list([
+        diesel_mj,
+        electricity_mj,
+        metric("Energy_Use", "MJ", total_mj),
+        metric("Energy_Per_Freight_Moved", units, total_energy / freight_val)
+    ])
+
+
 def calculate_energy_cost(info: ScenarioInfo,
         units: str) -> MetricType:
     """
@@ -273,8 +315,7 @@ def calculate_energy_cost(info: ScenarioInfo,
         return metric("Cost_Energy", units, None)
     
     diesel_used = calculate_diesel_use(info, units="gallons")
-    electricity_used = (calculate_electricity_use(info, units="kWh")
-                        )
+    electricity_used = calculate_electricity_use(info, units="kWh")
     electricity_costs_disagg = (electricity_used
         .filter(pl.col("Subset") != "All")
         .join(info.nodal_energy_prices.filter(pl.col("Fuel")=="Electricity"), left_on="Subset", right_on="Node", how="left")
@@ -292,11 +333,15 @@ def calculate_energy_cost(info: ScenarioInfo,
     # Diesel refueling is not yet tracked spatiotemporally; just use average price across the network.
     diesel_price = info.nodal_energy_prices.filter(pl.col("Fuel")=="Diesel").get_column("Price").mean()
     diesel_cost_value = value_from_metrics(diesel_used,"Diesel_Usage") * diesel_price
-    return metrics_from_list([diesel_used, 
-                      metric("Cost_Diesel", "USD", diesel_cost_value), 
-                      electricity_costs_disagg, 
-                      electricity_costs_agg, 
-                      metric("Cost_Energy", units, diesel_cost_value + electricity_cost_value)])
+    if electricity_cost_value is None: electricity_cost_value = 0.0
+    if diesel_cost_value is None: diesel_cost_value = 0
+    return metrics_from_list([
+        diesel_used, 
+        electricity_used,
+        metric("Cost_Diesel", "USD", diesel_cost_value), 
+        electricity_costs_disagg, 
+        electricity_costs_agg, 
+        metric("Cost_Energy", units, diesel_cost_value + electricity_cost_value)])
 
 def calculate_diesel_use(
         info: ScenarioInfo,
@@ -351,7 +396,7 @@ def calculate_electricity_use(
         print(f"Units of {units} not supported for electricity use calculation.")
         return metric("Electricity_Usage", units, None)
        
-   if info.refuel_sessions is None: 
+   if (info.refuel_sessions is None) or (info.refuel_sessions.filter(pl.col("Fuel_Type")==pl.lit("Electricity")).height == 0): 
         # No refueling session data: charging was not explicitly modeled, 
         # so take total net energy at RES and apply charging efficiency factor
         return metric("Electricity_Usage", units, 
@@ -385,20 +430,33 @@ def calculate_electricity_use(
             disagg_energy])
 
 
-def calculate_freight(
+def calculate_freight_moved(
         info: ScenarioInfo,
         units: str) -> MetricType:
     """
-    Given a years' worth of simulation results, computes a single year gross million tonne-km of freight delivered
+    Given a years' worth of simulation results, computes a single year quantity of freight moved
     Arguments:
     ----------
     info: A scenario information object representing parameters and results for a single year
     units: Requested units
     Outputs:
     ----------
-    DataFrame of gross million tonne-km of freight (metric name, units, value, and scenario year)
+    DataFrame of quantity of freight (metric name, units, value, and scenario year)
     """
-    return metric("Mt-km", units, info.sims.get_megagram_kilometers(annualize=info.annualize)/1.0e6)
+    if "-mi" in units:
+        conversion_from_km = utilities.MI_PER_KM
+    else:
+        conversion_from_km = 1.0
+    
+    if units in ["million tonne-km", "million tonne-mi"]:
+        return metric("Freight_Moved", units, info.sims.get_megagram_kilometers(annualize=info.annualize) * conversion_from_km /1.0e6)
+    elif units in ["car-km", "car-miles"]:
+        return metric("Freight_Moved", units, info.sims.get_car_kilometers(include_empty=True, include_loaded=True, annualize=info.annualize) * conversion_from_km)
+    elif units == "cars":
+        return metric("Freight_Moved", units, info.sims.get_cars_moved(include_empty=True, include_loaded=True, annualize=info.annualize))
+    else:
+        print(f"Units of {units} not supported for freight movement calculation.")
+        return metric("Freight_Moved", units, None)
 
 def calculate_ghg(
         info: ScenarioInfo,
@@ -445,9 +503,6 @@ def calculate_ghg(
                 to the desired region before passing the emissions factor dataframe into the metrics calculator.""")
         else:
             if electricity_MWh.filter(pl.col("Subset") != "All").height > 0:
-                print(diesel_MJ)
-                print(info.emissions_factors)
-                print(electricity_MWh)
                 # Disaggregated results are available
                 electricity_ghg_val = (electricity_MWh
                     .filter(pl.col("Subset") != pl.lit("All"))
@@ -1011,7 +1066,8 @@ def add_battery_costs(loco_info: pd.DataFrame, year: int) -> pd.DataFrame:
 
 
 function_mappings = {'Energy_Costs': calculate_energy_cost,
-    'Mt-km': calculate_freight,
+    'Freight_Moved': calculate_freight_moved,
+    'Energy_Per_Freight_Moved': calculate_energy_per_freight,
     'GHG': calculate_ghg,
     'Count_Locomotives': calculate_locomotive_counts,
     'Count_Refuelers': calculate_refueler_counts

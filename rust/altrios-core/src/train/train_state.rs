@@ -104,8 +104,10 @@ pub struct TrainState {
     pub res_grade: si::Force,
     pub res_curve: si::Force,
 
-    /// Number of cars included on the train
-    pub cars_total: u32,
+    /// Number of empty cars included on the train
+    pub cars_empty: u32,
+    /// Number of loaded cars included on the train
+    pub cars_loaded: u32,
 
     /// Grade at front of train
     pub grade_front: si::Ratio,
@@ -145,7 +147,8 @@ impl Default for TrainState {
             mass_static: Default::default(),
             mass_adj: Default::default(),
             mass_freight: Default::default(),
-            cars_total: Default::default(),
+            cars_empty: Default::default(),
+            cars_loaded: Default::default(),
             elev_front: Default::default(),
             energy_whl_out: Default::default(),
             grade_front: Default::default(),

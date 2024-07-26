@@ -335,7 +335,8 @@ impl TrainSimBuilder {
             mass_freight,
             self.init_train_state,
         );
-        state.cars_total = self.train_config.cars_total();
+        state.cars_empty = self.train_config.cars_empty;
+        state.cars_loaded = self.train_config.cars_loaded;
 
         let path_tpc = PathTpc::new(train_params);
 
@@ -996,8 +997,13 @@ pub fn run_speed_limit_train_sims(
     }
 
     #[pyo3(name = "get_car_kilometers")]
-    pub fn get_car_kilometers_py(&self, annualize: bool) -> f64 {
-        self.get_car_kilometers(annualize)
+    pub fn get_car_kilometers_py(&self, include_empty: bool, include_loaded: bool, annualize: bool) -> f64 {
+        self.get_car_kilometers(include_empty, include_loaded, annualize)
+    }
+
+    #[pyo3(name = "get_cars_moved")]
+    pub fn get_cars_moved_py(&self, include_empty: bool, include_loaded: bool, annualize: bool) -> f64 {
+        self.get_cars_moved(include_empty, include_loaded, annualize)
     }
 
     #[pyo3(name = "get_res_kilometers")]
@@ -1044,10 +1050,17 @@ impl SpeedLimitTrainSimVec {
             .sum()
     }
 
-    pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
+    pub fn get_car_kilometers(&self, include_empty: bool, include_loaded: bool, annualize: bool) -> f64 {
         self.0
             .iter()
-            .map(|sim| sim.get_car_kilometers(annualize))
+            .map(|sim| sim.get_car_kilometers(include_empty, include_loaded, annualize))
+            .sum()
+    }
+
+    pub fn get_cars_moved(&self, include_empty: bool, include_loaded: bool, annualize: bool) -> f64 {
+        self.0
+            .iter()
+            .map(|sim| sim.get_cars_moved(include_empty, include_loaded, annualize))
             .sum()
     }
 

@@ -387,7 +387,6 @@ impl SetSpeedTrainSim {
     /// - drag
     /// - inertia
     /// - acceleration
-    /// (some of these aren't implemented yet)
     pub fn solve_required_pwr(&mut self, dt: si::Time) {
         self.state.pwr_res = self.state.res_net() * self.speed_trace.mean(self.state.i);
         self.state.pwr_accel = self.state.mass_adj / (2.0 * self.speed_trace.dt(self.state.i))

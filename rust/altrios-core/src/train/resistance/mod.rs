@@ -32,6 +32,7 @@ pub trait ResMethod {
 /// Wrapper for `TrainRes` to enable exposing contents of enum variants in python
 pub struct TrainResWrapper(pub TrainRes);
 
+#[cfg(feature = "pyo3")]
 impl TrainResWrapper {
     fn get_point(&self) -> Option<method::Point> {
         match &self.0 {

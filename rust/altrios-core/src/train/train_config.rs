@@ -1,5 +1,6 @@
 use super::resistance::kind as res_kind;
 use super::resistance::method as res_method;
+#[cfg(feature = "pyo3")]
 use super::TrainResWrapper;
 use crate::consist::locomotive::locomotive_model::PowertrainType;
 use crate::consist::Mass;

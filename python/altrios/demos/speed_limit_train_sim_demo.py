@@ -8,8 +8,9 @@ import seaborn as sns
 import altrios as alt
 sns.set_theme()
 
-# uncomment this line to see example of logging functionality
-# alt.utils.set_log_level("INFO")
+# Uncomment and run `maturin develop --release --features logging` to enable logging, 
+# which is needed because logging bogs the CPU and is off by default.
+# alt.utils.set_log_level("DEBUG")
 
 SHOW_PLOTS = alt.utils.show_plots()
 

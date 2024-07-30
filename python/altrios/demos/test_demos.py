@@ -12,12 +12,5 @@ def demo_paths():
 @pytest.mark.parametrize("demo_path", demo_paths(), ids=[dp.name for dp in demo_paths()])
 def test_demo(demo_path: Path):
     os.environ['SHOW_PLOTS'] = "false"
-    rslt = subprocess.run(
-        ["python", demo_path], 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE, 
-        text=True
-    )
-
-    assert rslt.returncode == 0, rslt.stderr
+    exec(open(demo_path).read())
 

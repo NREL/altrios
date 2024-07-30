@@ -12,7 +12,9 @@ SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 1
 
-alt.utils.set_log_level("DEBUG")
+# Uncomment and run `maturin develop --release --features logging` to enable logging, 
+# which is needed because logging bogs the CPU and is off by default.
+# alt.utils.set_log_level("DEBUG")
 
 # Build the train config
 rail_vehicle_loaded = alt.RailVehicle.from_file(

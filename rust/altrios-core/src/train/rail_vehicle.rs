@@ -31,8 +31,7 @@ pub struct RailVehicle {
     #[serde(alias = "Braking Ratio")]
     pub braking_ratio: si::Ratio,
 
-    /// Additional mass value to adjust for rotating mass in wheels and axles (typically 1,500 lbs)
-    // TODO: maybe change this to `mass_rot_per_axle`
+    /// Additional mass value to adjust for rotating mass in wheels and axles (typically 1,500 lbs or 680 kg)
     #[serde(alias = "Mass Extra per Axle (kg)")]
     pub mass_extra_per_axle: si::Mass,
     /// Bearing resistance as force
@@ -48,7 +47,6 @@ pub struct RailVehicle {
     /// Drag area (Cd*A), where Cd is drag coefficient and A is front cross-sectional area
     #[serde(alias = "Cd*A (m^2)")]
     pub cd_area: si::Area,
-    // TODO: move these curve coefficients to the train somewhere?
     /// Curve coefficient 0
     #[serde(alias = "Curve Coefficient 0")]
     pub curve_coeff_0: si::Ratio,

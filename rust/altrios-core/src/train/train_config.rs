@@ -156,7 +156,6 @@ impl TrainConfig {
     /// all the `car_type` fields in `rail_vehicles` have matching keys in
     /// `self.n_cars_by_type`.
     pub fn make_train_params(&self, rail_vehicles: &[RailVehicle]) -> anyhow::Result<TrainParams> {
-        // TODO: make sure locomotive mass is included here
         // total train mass including locomotive consist
         let train_mass_static = self.train_mass.unwrap_or({
             rail_vehicles

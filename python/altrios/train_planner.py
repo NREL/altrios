@@ -263,7 +263,7 @@ def generate_demand_trains(
     demand: pl.DataFrame,
     demand_returns: pl.DataFrame,
     demand_rebalancing: pl.DataFrame,
-    rail_vehicle_map: Dict[str, alt.RailVehicle],
+    rail_vehicles: List[alt.RailVehicle],
     config: TrainPlannerConfig
 ) -> pl.DataFrame:
     """
@@ -299,7 +299,7 @@ def generate_demand_trains(
     #vehicle_types = [
     #    vt.replace("_Empty", "") for vt in demand.get_column("Train_Type").unique().to_list()
     #]
-    vehicle_types = [key for key in rail_vehicle_map]
+    vehicle_types = [rv.car_type for rv in rail_vehicles]
     kg_empty = [get_kg_empty(rail_vehicle_map[veh_type]) for veh_type in vehicle_types]
     kg_loaded = [get_kg_loaded(rail_vehicle_map[veh_type]) for veh_type in vehicle_types]
     ton_per_car = (
@@ -891,7 +891,7 @@ def update_refuel_queue(
     return loco_pool.sort("Locomotive_ID"), event_tracker
     
 def run_train_planner(
-    rail_vehicle_map: Dict[str, alt.RailVehicle],
+    rail_vehicles: List[alt.RailVehicle],
     location_map: Dict[str, List[alt.Location]],
     network: List[alt.Link],
     loco_pool: pl.DataFrame,
@@ -913,7 +913,7 @@ def run_train_planner(
     Run the train planner
     Arguments:
     ----------
-    rail_vehicle_map:
+    rail_vehicles:
     location_map:
     network:
     loco_pool:
@@ -941,7 +941,7 @@ def run_train_planner(
         demand = generate_demand_trains(demand, 
                                         demand_returns = pl.DataFrame(), 
                                         demand_rebalancing = pl.DataFrame(), 
-                                        rail_vehicle_map = rail_vehicle_map, 
+                                        rail_vehicle = rail_vehicle, 
                                         config = config)
         dispatch_times = (demand
             .with_row_index(name="index")
@@ -954,7 +954,7 @@ def run_train_planner(
         if demand.filter(pl.col("Train_Type").str.contains("Manifest")).height > 0:
             demand_origin_manifest = generate_origin_manifest_demand(demand, node_list, config)
             demand_rebalancing = balance_trains(demand_origin_manifest)
-        demand = generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicle_map, config)
+        demand = generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicles, config)
         dispatch_times = calculate_dispatch_times(demand, simulation_days * 24)
 
     final_departure = dispatch_times.get_column("Hour").max()
@@ -1156,9 +1156,7 @@ def run_train_planner(
 
 
 if __name__ == "__main__":
-    rail_vehicle_map = alt.import_rail_vehicles(
-        str(alt.resources_root() / "rolling_stock/rail_vehicles.csv")
-    )
+
     location_map = alt.import_locations(
         str(alt.resources_root() / "networks/default_locations.csv")
     )

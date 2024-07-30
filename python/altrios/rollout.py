@@ -59,9 +59,8 @@ def simulate_prescribed_rollout(
         else:
             demand_paths.append(demand_file)
 
-    rail_vehicle_map = alt.import_rail_vehicles(
-        str(alt.resources_root() / "rolling_stock/rail_vehicles.csv")
-    )
+    # TODO: Matt, can you get a sense of what needs to happen here? I'm not totally sure.  We could meet about it if that would help.
+    rail_vehicles = []
     location_map = alt.import_locations(
         str(alt.resources_root() / "networks/default_locations.csv")
     )
@@ -74,7 +73,7 @@ def simulate_prescribed_rollout(
             train_consist_plan, loco_pool, refuel_facilities, grid_emissions_factors, nodal_energy_prices, speed_limit_train_sims, timed_paths
         ) = sim_manager.main(
             network=network,
-            rail_vehicle_map=rail_vehicle_map,
+            rail_vehicles=rail_vehicles,
             location_map=location_map,
             simulation_days=sim_days,
             scenario_year=scenario_year,

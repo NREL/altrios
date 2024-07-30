@@ -23,7 +23,7 @@ plot_dir.mkdir(exist_ok=True)
 t0_import = time.perf_counter()
 t0_total = time.perf_counter()
 
-rail_vehicle_map = alt.import_rail_vehicles(alt.resources_root() / "rolling_stock/rail_vehicles.csv")
+rail_vehicles = []
 location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")
 network = alt.Network.from_file(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 

@@ -95,8 +95,8 @@ pub struct TrainState {
     pub dt: si::Time,
     /// Train length
     pub length: si::Length,
-    /// Static mass of train
-    pub mass_static: si::Mass,
+    /// Static mass of train, not including freight
+    pub mass_static_base: si::Mass,
     /// Mass of train including rotational mass
     pub mass_adj: si::Mass,
     /// Mass of freight being hauled by the train (not including railcar empty weight)
@@ -153,7 +153,7 @@ impl Default for TrainState {
             speed_limit: Default::default(),
             dt: uc::S,
             length: Default::default(),
-            mass_static: Default::default(),
+            mass_static_base: Default::default(),
             mass_adj: Default::default(),
             mass_freight: Default::default(),
             elev_front: Default::default(),
@@ -199,7 +199,7 @@ impl TrainState {
             // updated after the first time step anyway
             speed_limit: init_train_state.speed,
             length,
-            mass_static,
+            mass_static_base: mass_static,
             mass_adj,
             mass_freight,
             ..Self::default()
@@ -214,6 +214,11 @@ impl TrainState {
             + self.res_grade
             + self.res_curve
     }
+
+    /// Returns total non-rotational mass, sum of `mass_static_freight` and `mass_static`
+    pub fn mass_static_total(&self) -> si::Mass {
+        self.mass_static_base + self.mass_freight
+    }
 }
 
 impl Valid for TrainState {
@@ -222,7 +227,7 @@ impl Valid for TrainState {
             length: 2000.0 * uc::M,
             offset: 2000.0 * uc::M,
             offset_back: si::Length::ZERO,
-            mass_static: 6000.0 * uc::TON,
+            mass_static_base: 6000.0 * uc::TON,
             mass_adj: 6200.0 * uc::TON,
 
             dt: uc::S,
@@ -235,7 +240,7 @@ impl Valid for TrainState {
 impl ObjState for TrainState {
     fn validate(&self) -> ValidationResults {
         let mut errors = ValidationErrors::new();
-        si_chk_num_gtz_fin(&mut errors, &self.mass_static, "Mass static");
+        si_chk_num_gtz_fin(&mut errors, &self.mass_static_base, "Mass static");
         si_chk_num_gtz_fin(&mut errors, &self.length, "Length");
         // si_chk_num_gtz_fin(&mut errors, &self.res_bearing, "Resistance bearing");
         // si_chk_num_fin(&mut errors, &self.res_davis_b, "Resistance Davis B");

@@ -422,8 +422,8 @@ impl SpeedLimitTrainSim {
         self.state.speed_limit = speed_limit;
         self.state.speed_target = speed_target;
 
-        let f_applied_target =
-            res_net + self.state.mass_static * (speed_target - self.state.speed) / self.state.dt;
+        let f_applied_target = res_net
+            + self.state.mass_static_base * (speed_target - self.state.speed) / self.state.dt;
 
         let pwr_pos_max = self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
             // TODO: the effect of rate may already be accounted for in this snippet
@@ -442,7 +442,7 @@ impl SpeedLimitTrainSim {
             pwr_pos_max >= si::Power::ZERO,
             format_dbg!(pwr_pos_max >= si::Power::ZERO)
         );
-        let time_per_mass = self.state.dt / self.state.mass_static;
+        let time_per_mass = self.state.dt / self.state.mass_static_base;
 
         // Concept: calculate the final speed such that the worst case
         // (i.e. maximum) acceleration force does not exceed `power_max`

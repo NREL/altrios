@@ -55,6 +55,7 @@ dependencies = [
  "bincode",
  "csv",
  "directories",
+ "document-features",
  "duplicate",
  "easy-ext",
  "eng_fmt",
@@ -93,6 +94,7 @@ name = "altrios-py"
 version = "0.1.0"
 dependencies = [
  "altrios-core",
+ "document-features",
  "polars",
  "polars-lazy",
  "pyo3",
@@ -512,6 +514,15 @@ dependencies = [
  "libc",
  "redox_users",
  "winapi",
+]
+
+[[package]]
+name = "document-features"
+version = "0.2.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb6969eaabd2421f8a2775cfd2471a2b634372b4a25d41e3bd647b79912850a0"
+dependencies = [
+ "litrs",
 ]
 
 [[package]]
@@ -968,6 +979,12 @@ name = "linux-raw-sys"
 version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "01cda141df6706de531b6c46c3a33ecca755538219bd484262fa09410c13539c"
+
+[[package]]
+name = "litrs"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
 
 [[package]]
 name = "lock_api"

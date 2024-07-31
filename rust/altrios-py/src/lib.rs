@@ -1,5 +1,8 @@
 //! Crate that wraps `altrios-core` and enables the `pyo3` feature to
 //! expose most structs, methods, and functions to Python.
+//!
+//! # Feature flags
+#![doc = document_features::document_features!()]
 
 use altrios_core::prelude::*;
 pub use pyo3::exceptions::{

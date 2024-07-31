@@ -229,3 +229,11 @@ if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
 # Impact of sweep of battery capacity TODO: make this happen
+
+if PYTEST:
+    import json
+    json_path = alt.resources_root() / "test_assets/speed_limit_ts_demo.json"
+    with open(json_path, 'r') as file:
+        train_sim_reference = json.load(file)
+    # check speed, loco_vec length, and pos/neg fuel/battery energy used by
+    # each locomotive

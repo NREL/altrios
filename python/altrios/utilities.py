@@ -354,4 +354,11 @@ def show_plots() -> bool:
     """
     Returns true if plots should be displayed
     """
-    return os.environ.get("SHOW_PLOTS", "true").lower() == "true"        
+    return (
+        os.environ.get(
+            # name of environment variable
+            "SHOW_PLOTS",
+            # defaults to true if not provided
+            "true"
+            # only true if provided input is exactly "true", case insensitive
+        ).lower() == "true")        

@@ -4,11 +4,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import os
 
 import altrios as alt 
 sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()
+PYTEST = os.environ.get("PYTEST", "false").lower() == "true"
 
 SAVE_INTERVAL = 1
 
@@ -151,4 +153,11 @@ if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
 
-# %%
+if PYTEST:
+    import json
+    json_path = alt.resources_root() / "test_assets/set_speed_ts_demo.json"
+    with open(json_path, 'r') as file:
+        train_sim_reference = json.load(file)
+    # check speed, loco_vec length, and pos/neg fuel/battery energy used by
+    # each locomotive
+    assert train_sim.state.total_dist_meters == train_sim_reference["state"]["total_dist"]

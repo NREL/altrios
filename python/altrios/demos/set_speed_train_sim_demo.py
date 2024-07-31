@@ -9,14 +9,14 @@ import os
 import altrios as alt 
 sns.set_theme()
 
+# Uncomment and run `maturin develop --release --features logging` to enable logging, 
+# which is needed because logging bogs the CPU and is off by default.
+# alt.utils.set_log_level("DEBUG")
+
 SHOW_PLOTS = alt.utils.show_plots()
 PYTEST = os.environ.get("PYTEST", "false").lower() == "true"
 
 SAVE_INTERVAL = 1
-
-# Uncomment and run `maturin develop --release --features logging` to enable logging, 
-# which is needed because logging bogs the CPU and is off by default.
-# alt.utils.set_log_level("DEBUG")
 
 # Build the train config
 rail_vehicle_loaded = alt.RailVehicle.from_file(
@@ -154,10 +154,36 @@ if SHOW_PLOTS:
     plt.show()
 
 if PYTEST:
+    # to access these checks, run `SHOW_PLOTS=f PYTEST=true python set_speed_train_sim_demo.py`
     import json
     json_path = alt.resources_root() / "test_assets/set_speed_ts_demo.json"
     with open(json_path, 'r') as file:
         train_sim_reference = json.load(file)
-    # check speed, loco_vec length, and pos/neg fuel/battery energy used by
-    # each locomotive
-    assert train_sim.state.total_dist_meters == train_sim_reference["state"]["total_dist"]
+
+    dist_msg = f"`train_sim.state.total_dist_meters`: {train_sim.state.total_dist_meters}\n" + \
+        f"`train_sim_reference['state']['total_dist']`: {train_sim_reference['state']['total_dist']}"
+    energy_whl_out_msg = f"`train_sim.state.energy_whl_out_joules`: {train_sim.state.energy_whl_out_joules}\n" + \
+        f"`train_sim_reference['state']['energy_whl_out']`: {train_sim_reference['state']['energy_whl_out']}"
+    train_sim_fuel = train_sim.loco_con.get_energy_fuel_joules()
+    train_sim_reference_fuel = sum(
+        loco['loco_type']['ConventionalLoco']['fc']['state']['energy_fuel'] if 'ConventionalLoco' in loco['loco_type'] else 0 
+        for loco in train_sim_reference['loco_con']['loco_vec']
+    )
+    fuel_msg = f"`train_sim_fuel`: {train_sim_fuel}\n`train_sim_referenc_fuel`: {train_sim_reference_fuel}"
+    train_sim_net_res = train_sim.loco_con.get_net_energy_res_joules()
+    train_sim_reference_net_res = sum(
+        loco['loco_type']['BatteryElectricLoco']['res']['state']['energy_out_chemical'] if 'BatteryElectricLoco' in loco['loco_type'] else 0 
+        for loco in train_sim_reference['loco_con']['loco_vec']
+    )
+    net_res_msg = f"`train_sim_net_res`: {train_sim_net_res}\n`train_sim_referenc_net_res`: {train_sim_reference_net_res}"
+
+    # check total distance
+    assert train_sim.state.total_dist_meters == train_sim_reference["state"]["total_dist"], dist_msg
+
+    # check total tractive energy
+    assert train_sim.state.energy_whl_out_joules == train_sim_reference["state"]["energy_whl_out"], energy_whl_out_msg
+
+    # check consist-level fuel usage
+    assert train_sim_fuel == train_sim_reference_fuel, fuel_msg
+
+    # check consist-level battery usage

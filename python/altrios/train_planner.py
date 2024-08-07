@@ -13,6 +13,7 @@ from altrios import defaults, utilities
 
 pl.enable_string_cache()
 
+
 class TrainPlannerConfig:
     def __init__(self, 
                  single_train_mode: bool = False,

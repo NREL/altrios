@@ -59,9 +59,9 @@ def simulate_prescribed_rollout(
         else:
             demand_paths.append(demand_file)
 
-    # TODO: Matt, can you get a sense of what needs to happen here? I'm not
-    # totally sure.  We could meet about it if that would help.
-    rail_vehicles = []
+    rail_vehicles=[alt.RailVehicle.from_file(vehicle_file) 
+                for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob('*.yaml')]
+
     location_map = alt.import_locations(
         str(alt.resources_root() / "networks/default_locations.csv")
     )

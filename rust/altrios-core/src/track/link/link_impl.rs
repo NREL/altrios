@@ -55,12 +55,12 @@ pub struct Link {
     /// example](https://nrel.github.io/altrios/api-doc/rail-network.html?highlight=network#link-lockout).
     pub link_idxs_lockout: Vec<LinkIdx>,
     /// Maximum absolute grade that will not trigger an error
-    #[serde(default = "five_percent")]
+    #[serde(default = "max_allowed_grade_default")]
     pub max_allowed_grade: si::Ratio,
 }
 
-fn five_percent() -> si::Ratio {
-    uc::R * 0.05
+fn max_allowed_grade_default() -> si::Ratio {
+    uc::R * 0.06
 }
 
 impl Link {
@@ -118,7 +118,7 @@ impl From<LinkOld> for Link {
             idx_flip: l.idx_flip,
             osm_id: l.osm_id,
             link_idxs_lockout: l.link_idxs_lockout,
-            max_allowed_grade: uc::R * 0.05,
+            max_allowed_grade: max_allowed_grade_default(),
         }
     }
 }

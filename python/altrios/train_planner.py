@@ -620,7 +620,7 @@ def append_charging_guidelines(
         .with_columns(pl.col("Origin").cast(pl.Categorical)))
     refuelers = (refuelers
         .join(network_charging_guidelines, left_on="Node", right_on="Origin", how="left")
-        .with_columns(pl.when(pl.col("Locomotive_Type")=="Electricity")
+        .with_columns(pl.when(pl.col("Fuel_Type")=="Electricity")
             .then(pl.col("Battery_Headroom_J"))
             .otherwise(0)
             .fill_null(0)
@@ -794,8 +794,7 @@ def update_refuel_queue(
             .drop(['Refueler_J_Per_Hr','Port_Count','Battery_Headroom_J'])
             .join(
                 refuelers.select(["Node","Locomotive_Type","Fuel_Type","Refueler_J_Per_Hr","Port_Count",'Battery_Headroom_J']), 
-                left_on=["Node", "Locomotive_Type" ,"Fuel_Type"],
-                right_on=["Node", "Locomotive_Type" ,"Fuel_Type"],
+                on=["Node", "Locomotive_Type" ,"Fuel_Type"],
                 how="left")
             .with_columns(
                 pl.when(arrived)
@@ -816,7 +815,6 @@ def update_refuel_queue(
             )
             .partition_by(["Node","Locomotive_Type"])
         )
-        
         charger_type_list = []
         for charger_type in charger_type_breakouts:
             loco_ids = charger_type.get_column("Locomotive_ID")
@@ -1021,18 +1019,16 @@ def run_train_planner(
                         .rank().alias('rank').cast(pl.UInt32)
                         ).with_row_count().sort('row_nr'))
                     dispatched = dispatched.sort('Locomotive_ID')
-                    loco_types = dispatched.get_column('Locomotive_Type')
                     loco_start_soc_pct = dispatched.select(pl.col('SOC_J') / pl.col('Capacity_J')).to_series()
                     locos = [
                         config.loco_info[config.loco_info['Locomotive_Type']==loco_type]['Rust_Loco'].to_list()[0].clone() 
-                        for loco_type in loco_types
+                        for loco_type in dispatched.get_column('Locomotive_Type')
                     ]
-                    
                     [alt.set_param_from_path(
                         locos[i], 
                         "res.state.soc", 
                         loco_start_soc_pct[i]
-                    ) for i in range(len(locos)) if loco_types[i] == 'BEL']
+                    ) for i in range(len(locos)) if dispatched.get_column('Fuel_Type')[i] == 'Electricity']
 
                     loco_con = alt.Consist(
                         loco_vec=locos,
@@ -1042,7 +1038,6 @@ def run_train_planner(
                     init_train_state = alt.InitTrainState(
                         time_seconds=current_time * 3600
                     )
-                    
                     tsb = alt.TrainSimBuilder(
                         train_id=train_id,
                         origin_id=this_train['Origin'],

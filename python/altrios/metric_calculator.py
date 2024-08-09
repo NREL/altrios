@@ -433,7 +433,7 @@ def calculate_ghg(
         diesel_ghg_factor / utilities.G_PER_TONNE
     
     electricity_ghg_val = None
-    energy_ghg_val = 0.0
+    energy_ghg_val = diesel_ghg_val
     if (electricity_MWh.height > 0) & (electricity_MWh.select(pl.col("Value").sum()).item() > 0):
         if info.emissions_factors is None: 
             energy_ghg_val = None

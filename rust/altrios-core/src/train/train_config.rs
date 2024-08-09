@@ -1,5 +1,7 @@
 use super::resistance::kind as res_kind;
 use super::resistance::method as res_method;
+#[cfg(feature = "pyo3")]
+use super::TrainResWrapper;
 use crate::consist::locomotive::locomotive_model::PowertrainType;
 use crate::consist::Mass;
 
@@ -244,6 +246,43 @@ impl Valid for TrainConfig {
         )
     }
 
+    #[pyo3(name = "make_set_speed_train_sim_and_parts")]
+    fn make_set_speed_train_sim_and_parts_py(
+        &self,
+        rail_vehicle: &RailVehicle,
+        network: &PyAny,
+        link_path: &PyAny,
+        speed_trace: SpeedTrace,
+        save_interval: Option<usize>
+    ) -> anyhow::Result<(SetSpeedTrainSim, PathTpc, TrainResWrapper, FricBrake)> {
+        let network = match network.extract::<Network>() {
+            Ok(n) => n,
+            Err(_) => {
+                let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                Network(n)
+            }
+        };
+
+        let link_path = match link_path.extract::<LinkPath>() {
+            Ok(lp) => lp,
+            Err(_) => {
+                let lp = link_path.extract::<Vec<LinkIdx>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                LinkPath(lp)
+            }
+        };
+
+        let (ts, path_tpc, tr, fb) = self.make_set_speed_train_sim_and_parts(
+            rail_vehicle,
+            network,
+            link_path,
+            speed_trace,
+            save_interval
+        ).with_context(|| format_dbg!())?;
+
+        let trw = TrainResWrapper(tr);
+        Ok((ts, path_tpc, trw, fb))
+    }
+
     #[pyo3(name = "make_speed_limit_train_sim")]
     fn make_speed_limit_train_sim_py(
         &self,
@@ -260,6 +299,27 @@ impl Valid for TrainConfig {
             simulation_days,
             scenario_year,
         )
+    }
+
+    #[pyo3(name = "make_speed_limit_train_sim_and_parts")]
+    fn make_speed_limit_train_sim_and_parts_py(
+        &self,
+        rail_vehicle: RailVehicle,
+        location_map: LocationMap,
+        save_interval: Option<usize>,
+        simulation_days: Option<i32>,
+        scenario_year: Option<i32>,
+    ) -> anyhow::Result<(SpeedLimitTrainSim, PathTpc, TrainResWrapper, FricBrake)> {
+        let (ts, path_tpc, tr, fb) =  self.make_speed_limit_train_sim_and_parts(
+            &rail_vehicle,
+            &location_map,
+            save_interval,
+            simulation_days,
+            scenario_year,
+        )?;
+
+        let trw = TrainResWrapper(tr);
+        Ok((ts, path_tpc, trw, fb))
     }
 )]
 #[derive(Debug, Default, Clone, Deserialize, Serialize, PartialEq, SerdeAPI)]
@@ -306,8 +366,18 @@ impl TrainSimBuilder {
         let train_params = self.train_config.make_train_params(rail_vehicle);
 
         let length = train_params.length;
-        // TODO: figure out what to do about rotational mass of locomotive components (e.g. axles, gearboxes, motor shafts)
-        let mass_static = train_params.mass_total + self.loco_con.mass()?.unwrap();
+        // TODO: account for rotational mass of locomotive components (e.g. axles, gearboxes, motor shafts)
+        let mass_static = train_params.mass_total
+            + self
+                .loco_con
+                .mass()
+                .with_context(|| format_dbg!())?
+                .unwrap_or_else(|| {
+                    log::warn!(
+                        "Consist has no mass set so train dynamics don't include consist mass."
+                    );
+                    0. * uc::KG
+                });
         let cars_total = self.train_config.cars_total() as f64;
         let mass_adj = mass_static + veh.mass_extra_per_axle * train_params.axle_count as f64;
         let mass_freight =
@@ -336,9 +406,11 @@ impl TrainSimBuilder {
             let davis_b = res_kind::davis_b::Basic::new(veh.davis_b);
             let res_aero =
                 res_kind::aerodynamic::Basic::new(match &self.train_config.drag_coeff_vec {
-                    Some(dcv) => dcv
-                        .iter()
-                        .fold(0. * uc::M2, |acc, dc| *dc * veh.drag_area_loaded + acc),
+                    Some(dcv) => {
+                        log::info!("Using `drag_coeff_vec` to calculate aero resistance.");
+                        dcv.iter()
+                            .fold(0. * uc::M2, |acc, dc| *dc * veh.drag_area_loaded + acc)
+                    }
                     None => {
                         veh.drag_area_empty * self.train_config.cars_empty as f64
                             + veh.drag_area_loaded * self.train_config.cars_loaded as f64
@@ -402,6 +474,40 @@ impl TrainSimBuilder {
         ))
     }
 
+    pub fn make_set_speed_train_sim_and_parts<Q: AsRef<[Link]>, R: AsRef<[LinkIdx]>>(
+        &self,
+        rail_vehicles: &RailVehicle,
+        network: Q,
+        link_path: R,
+        speed_trace: SpeedTrace,
+        save_interval: Option<usize>,
+    ) -> anyhow::Result<(SetSpeedTrainSim, PathTpc, TrainRes, FricBrake)> {
+        ensure!(
+            self.origin_id.is_none() & self.destination_id.is_none(),
+            "{}\n`origin_id` and `destination_id` must both be `None` when calling `make_set_speed_train_sim`.",
+            format_dbg!()
+        );
+
+        let (state, mut path_tpc, train_res, fric_brake) = self
+            .make_train_sim_parts(rail_vehicles, save_interval)
+            .with_context(|| format_dbg!())?;
+
+        path_tpc.extend(network, link_path)?;
+        Ok((
+            SetSpeedTrainSim::new(
+                self.loco_con.clone(),
+                state,
+                speed_trace,
+                train_res.clone(),
+                path_tpc.clone(),
+                save_interval,
+            ),
+            path_tpc,
+            train_res,
+            fric_brake,
+        ))
+    }
+
     pub fn make_speed_limit_train_sim(
         &self,
         rail_vehicle: &RailVehicle,
@@ -454,6 +560,61 @@ impl TrainSimBuilder {
             simulation_days,
             scenario_year,
         ))
+    }
+
+    pub fn make_speed_limit_train_sim_and_parts(
+        &self,
+        rail_vehicle: &RailVehicle,
+        location_map: &LocationMap,
+        save_interval: Option<usize>,
+        simulation_days: Option<i32>,
+        scenario_year: Option<i32>,
+    ) -> anyhow::Result<(SpeedLimitTrainSim, PathTpc, TrainRes, FricBrake)> {
+        let (state, path_tpc, train_res, fric_brake) = self
+            .make_train_sim_parts(rail_vehicle, save_interval)
+            .with_context(|| format_dbg!())?;
+
+        ensure!(
+            self.origin_id.is_some() & self.destination_id.is_some(),
+            "{}\nBoth `origin_id` and `destination_id` must be provided when initializing{} ",
+            format_dbg!(),
+            "`TrainSimBuilder` for `make_speed_limit_train_sim` to work."
+        );
+
+        let ts = SpeedLimitTrainSim::new(
+            self.train_id.clone(),
+            // `self.origin_id` verified to be `Some` earlier
+            location_map
+                .get(self.origin_id.as_ref().unwrap())
+                .with_context(|| {
+                    anyhow!(format!(
+                        "{}\n`origin_id`: \"{}\" not found in `location_map` keys: {:?}",
+                        format_dbg!(),
+                        self.origin_id.as_ref().unwrap(),
+                        location_map.keys(),
+                    ))
+                })?,
+            // `self.destination_id` verified to be `Some` earlier
+            location_map
+                .get(self.destination_id.as_ref().unwrap())
+                .with_context(|| {
+                    anyhow!(format!(
+                        "{}\n`destination_id`: \"{}\" not found in `location_map` keys: {:?}",
+                        format_dbg!(),
+                        self.destination_id.as_ref().unwrap(),
+                        location_map.keys(),
+                    ))
+                })?,
+            self.loco_con.clone(),
+            state,
+            train_res.clone(),
+            path_tpc.clone(),
+            fric_brake.clone(),
+            save_interval,
+            simulation_days,
+            scenario_year,
+        );
+        Ok((ts, path_tpc, train_res, fric_brake))
     }
 }
 
@@ -597,13 +758,14 @@ pub fn run_speed_limit_train_sims(
                     refuel_facilities.clone().lazy().select(&[
                         col("Node"),
                         col("Locomotive_Type"),
+                        col("Fuel_Type"),
                         col("Refueler_J_Per_Hr"),
                         col("Refueler_Efficiency"),
                         col("Port_Count"),
                         col("Battery_Headroom_J"),
                     ]),
-                    [col("Node"), col("Locomotive_Type")],
-                    [col("Node"), col("Locomotive_Type")],
+                    [col("Node"), col("Locomotive_Type"), col("Fuel_Type")],
+                    [col("Node"), col("Locomotive_Type"), col("Fuel_Type")],
                     JoinArgs::new(JoinType::Left),
                 )
                 .with_columns(vec![col("Battery_Headroom_J").fill_null(0)])
@@ -759,14 +921,15 @@ pub fn run_speed_limit_train_sims(
             let place_in_queue = loco_pool
                 .clone()
                 .lazy()
-                .select(&[((col("Status")
-                    .eq(lit("Refueling"))
-                    .sum()
-                    .over(["Node", "Locomotive_Type"]))
-                    + (col("Status")
-                        .eq(lit("Queued"))
-                        .cumsum(false)
-                        .over(["Node", "Locomotive_Type"])))
+                .select(&[((col("Status").eq(lit("Refueling")).sum().over([
+                    "Node",
+                    "Locomotive_Type",
+                    "Fuel_Type",
+                ])) + (col("Status").eq(lit("Queued")).cumsum(false).over([
+                    "Node",
+                    "Locomotive_Type",
+                    "Fuel_Type",
+                ])))
                 .alias("place_in_queue")])
                 .collect()?
                 .column("place_in_queue")?
@@ -863,6 +1026,7 @@ pub fn run_speed_limit_train_sims(
             let these_refuel_sessions = df![
                 "Node" => refuel_starting.column("Node").unwrap(),
                 "Locomotive_Type" => refuel_starting.column("Locomotive_Type").unwrap(),
+                "Fuel_Type" => refuel_starting.column("Fuel_Type").unwrap(),
                 "Locomotive_ID" => refuel_starting.column("Locomotive_ID").unwrap(),
                 "Refueler_J_Per_Hr" => refuel_starting.column("Refueler_J_Per_Hr").unwrap(),
                 "Refueler_Efficiency" => refuel_starting.column("Refueler_Efficiency").unwrap(),

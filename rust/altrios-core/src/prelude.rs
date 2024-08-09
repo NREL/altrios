@@ -37,13 +37,15 @@ pub use crate::train::{
 
 pub use crate::meet_pass::est_times::{make_est_times, EstTimeNet};
 
+#[cfg(feature = "pyo3")]
+pub use crate::train::TrainResWrapper;
 pub use crate::train::{
     InitTrainState, LinkIdxTime, RailVehicle, RailVehicleMap, SetSpeedTrainSim, SpeedLimitTrainSim,
-    SpeedLimitTrainSimVec, SpeedTrace, TimedLinkPath, TrainConfig, TrainSimBuilder, TrainState,
-    TrainStateHistoryVec,
+    SpeedLimitTrainSimVec, SpeedTrace, TimedLinkPath, TrainConfig, TrainRes, TrainSimBuilder,
+    TrainState, TrainStateHistoryVec,
 };
 
 pub use crate::track::{
-    Elev, Heading, Link, LinkIdx, LinkPath, LinkPoint, Location, Network, SpeedSet, TrainParams,
-    TrainType,
+    Elev, Heading, Link, LinkIdx, LinkPath, LinkPoint, Location, Network, PathTpc, SpeedSet,
+    TrainParams, TrainType,
 };

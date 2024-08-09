@@ -407,7 +407,7 @@ impl Valid for PathTpc {
     fn valid() -> Self {
         let mut path_tpc = Self::default();
         path_tpc
-            .extend(&Vec::<Link>::valid(), [LinkIdx::valid()])
+            .extend(Vec::<Link>::valid(), [LinkIdx::valid()])
             .unwrap_or_default();
         path_tpc.finish();
         path_tpc

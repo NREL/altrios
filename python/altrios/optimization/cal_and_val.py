@@ -66,9 +66,11 @@ class ModelError(object):
     Dataclass class for calculating model error of various ALTRIOS objects w.r.t. test data.
 
     Attributes:
-    - `bincode_model_dict`:  `dict` variable in which:
-        - key: a `str` representing trip keyword string
-        - value: a `str` converted from Rust locomotive models' `to_bincode()` method
+    - `ser_model_dict`:  `dict` variable in which:
+
+    - key: a `str` representing trip keyword string
+
+    - value: a `str` converted from Rust locomotive models' serialization method
 
     - `model_type`: `str` that can only be `'ConsistSimulation'`, `'SetSpeedTrainSim'` or `'LocomotiveSimulation'`;
       indicates which model to instantiate during optimization process
@@ -91,8 +93,8 @@ class ModelError(object):
 
     - `allow_partial`: whether to allow partial runs, if True, errors out whenever a run can't be completed
     """
-    # `bincode_model_dict` and `dfs` should have the same keys
-    bincode_model_dict: Dict[str, str]
+    # `ser_model_dict` and `dfs` should have the same keys
+    ser_model_dict: Dict[str, str]
     # model_type: tells what model if class instance tries to intantiate when `get_errors()` is called
     model_type: str
     # dictionary of test data
@@ -109,8 +111,8 @@ class ModelError(object):
     allow_partial: bool = True
 
     def __post_init__(self):
-        assert (len(self.dfs) == len(self.bincode_model_dict))
-        self.n_obj = len(self.objectives) * len(self.bincode_model_dict)
+        assert (len(self.dfs) == len(self.ser_model_dict))
+        self.n_obj = len(self.objectives) * len(self.ser_model_dict)
     # current placeholder function; to be over-written to provide constraint violation function
 
     @classmethod
@@ -326,8 +328,8 @@ class ModelError(object):
         else:
             raise AttributeError('cannot initialize models')
 
-        for key, value in self.bincode_model_dict.items():
-            return_model_dict[key] = model_cls.from_bincode(value)
+        for key, value in self.ser_model_dict.items():
+            return_model_dict[key] = model_cls.from_json(value)
 
         for path, x in zip(self.params, xs):
             for key in return_model_dict.keys():

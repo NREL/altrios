@@ -16,6 +16,39 @@ pub trait ResMethod {
     fn fix_cache(&mut self, link_point_del: &LinkPoint);
 }
 
+#[cfg(feature = "pyo3")]
+#[altrios_api(
+    #[getter("point")]
+    fn get_point_py(&self) -> Option<method::Point> {
+        self.get_point()
+    }
+
+    #[getter("strap")]
+    fn get_strap_py(&self) -> Option<method::Strap> {
+        self.get_strap()
+    }
+)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, SerdeAPI)]
+/// Wrapper for `TrainRes` to enable exposing contents of enum variants in python
+pub struct TrainResWrapper(pub TrainRes);
+
+#[cfg(feature = "pyo3")]
+impl TrainResWrapper {
+    fn get_point(&self) -> Option<method::Point> {
+        match &self.0 {
+            TrainRes::Point(p) => Some(p.clone()),
+            _ => None,
+        }
+    }
+
+    fn get_strap(&self) -> Option<method::Strap> {
+        match &self.0 {
+            TrainRes::Strap(s) => Some(s.clone()),
+            _ => None,
+        }
+    }
+}
+
 /// Train resistance calculator that calculates resistive powers due to rolling, curvature, flange,
 /// grade, and bearing resistances.
 // TODO: May also include inertial -- figure this out and modify doc string above

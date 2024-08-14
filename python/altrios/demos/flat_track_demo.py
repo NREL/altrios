@@ -36,7 +36,7 @@ def drag_change_pct(gap_size:
 
 def create_drag_vec(
         num_rail_vehicles: int, 
-        ps_gap_size: float) -> List[float]:
+        gap_size: float) -> List[float]:
     """
     Returns the drag coefficient vector as a function of number of rail vehicles in a consist
     and vehicle gap size
@@ -86,9 +86,9 @@ def create_drag_vec(
                 [0.105]*(num_rail_vehicles-9)
             drag_vec[-1] = drag_vec_10cars_liang[-1]
 
-    drag_vec_ps = [round(drag_ratio*x, 3)
+    drag_vec_rail = [round(drag_ratio*x, 3)
                             for x in drag_vec]
-    return drag_vec_ps
+    return drag_vec_rail
 
 
 

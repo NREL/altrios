@@ -1,5 +1,7 @@
 # ALTRIOS
 
+This `wabtec-noise` branch is intended solely for use in https://github.com/NREL/altrios-wabtec-noise.
+
 ![Altrios Logo](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS-logo-web.jpg)
 
 [![homepage](https://img.shields.io/badge/homepage-altrios-blue)](https://www.nrel.gov/transportation/altrios.html) [![rust-tests](https://github.com/NREL/altrios/actions/workflows/rust-tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/rust-tests.yaml) [![py-tests](https://github.com/NREL/altrios/actions/workflows/py-tests.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/py-tests.yaml) [![wheels](https://github.com/NREL/altrios/actions/workflows/wheels.yaml/badge.svg)](https://github.com/NREL/altrios/actions/workflows/wheels.yaml?event=release) [![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10-blue)](https://pypi.org/project/altrios/) [![Documentation](https://img.shields.io/badge/doc-mdBook-blue.svg)](https://nrel.github.io/altrios/) [![GitHub](https://img.shields.io/badge/GitHub-altrios-blue.svg)](https://github.com/NREL/altrios)

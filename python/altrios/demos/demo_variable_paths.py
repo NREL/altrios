@@ -7,18 +7,27 @@ import polars as pl
 import time
 
 import altrios as alt
+
 SAVE_INTERVAL = 100
+
+# Build the train config
+rail_vehicle_loaded = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Loaded.yaml")
+rail_vehicle_empty = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Empty.yaml")
 
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
-    cars_empty=50,
-    cars_loaded=50,
-    rail_vehicle_type="Manifest",
-    train_type=alt.TrainType.Freight,
+    rail_vehicles=[rail_vehicle_loaded, rail_vehicle_empty],
+    n_cars_by_type={
+        "Manifest_Loaded": 50,
+        "Manifest_Empty": 50,
+    },
     train_length_meters=None,
     train_mass_kilograms=None,
 )
 
+# Build the locomotive consist model
 # instantiate battery model
 # https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/reversible_energy_storage/struct.ReversibleEnergyStorage.html#
 res = alt.ReversibleEnergyStorage.from_file(
@@ -50,6 +59,7 @@ loco_con = alt.Consist(
     SAVE_INTERVAL,
 )
 
+# Instantiate the intermediate `TrainSimBuilder`
 tsb = alt.TrainSimBuilder(
     train_id="0",
     origin_id="Minneapolis",
@@ -58,10 +68,7 @@ tsb = alt.TrainSimBuilder(
     loco_con=loco_con,
 )
 
-rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
-rail_vehicle = alt.RailVehicle.from_file(
-    alt.resources_root() / rail_vehicle_file)
-
+# Load the network and construct the timed link path through the network.  
 network = alt.Network.from_file(
     alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 
@@ -69,9 +76,8 @@ location_map = alt.import_locations(
     alt.resources_root() / "networks/default_locations.csv")
 
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
-    rail_vehicle=rail_vehicle,
     location_map=location_map,
-    save_interval=1,
+    save_interval=SAVE_INTERVAL,
 )
 train_sim.set_save_interval(SAVE_INTERVAL)
 
@@ -84,9 +90,6 @@ timed_link_path = alt.run_dispatch(
     False,
     False,
 )[0]
-
-# uncomment this line to see example of logging functionality
-# alt.utils.set_log_level("DEBUG")
 
 t0 = time.perf_counter()
 train_sim.walk_timed_path(

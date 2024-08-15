@@ -1,6 +1,6 @@
 # ALTRIOS
 
-This `wabtec-noise` branch is intended solely for use in https://github.com/NREL/altrios-wabtec-noise.
+This `wabtec-noise` branch is intended solely for use in https://github.com/NREL/altrios-wabtec-noise and should never be merged into any other altrios branch.
 
 ![Altrios Logo](https://raw.githubusercontent.com/NREL/altrios/main/.github/images/ALTRIOS-logo-web.jpg)
 

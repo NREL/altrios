@@ -272,7 +272,7 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
     let mut final_output = TokenStream2::default();
     final_output.extend::<TokenStream2>(quote! {
-        #[cfg_attr(feature="pyo3", pyclass(module="altrios"))]
+        #[cfg_attr(feature="pyo3", pyclass(module="altrios_pyo3", subclass))]
     });
     let mut output: TokenStream2 = ast.to_token_stream();
     output.extend(impl_block);

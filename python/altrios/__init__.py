@@ -2,6 +2,7 @@ from pkg_resources import get_distribution
 __version__ = get_distribution("altrios").version
 
 from pathlib import Path
+import re
 import numpy as np
 import logging
 import inspect
@@ -35,7 +36,7 @@ def __array__(self):
 # history_path_list() added as methods
 ACCEPTED_RUST_STRUCTS = [
     attr for attr in altrios_pyo3.__dir__() if not attr.startswith("__") and isinstance(getattr(altrios_pyo3, attr), type) and
-    attr[0].isupper() and ("altrios_pyo3" in str(inspect.getmodule(getattr(altrios_pyo3, attr))))
+    attr[0].isupper() 
 ]
 
 def variable_path_list(self, element_as_list:bool=False) -> List[str]:
@@ -74,7 +75,7 @@ def variable_path_list_from_py_objs(
                 key_path = f"['{key}']" if pre_path is None else pre_path + f"['{key}']"
                 key_paths.extend(variable_path_list_from_py_objs(val, key_path))
             # check for lists or other iterables that do not contain numeric data
-            elif "__iter__" in dir(val) and not(isinstance(val[0], float) or isinstance(val[0], int)):
+            elif "__iter__" in dir(val) and (len(val) > 0) and not(isinstance(val[0], float) or isinstance(val[0], int)):
                 key_path = f"['{key}']" if pre_path is None else pre_path + f"['{key}']"
                 key_paths.extend(variable_path_list_from_py_objs(val, key_path))
             else:
@@ -88,14 +89,14 @@ def variable_path_list_from_py_objs(
                 key_path = f"[{key}]" if pre_path is None else pre_path + f"[{key}]"
                 key_paths.extend(variable_path_list_from_py_objs(val, key_path))
             # check for lists or other iterables that do not contain numeric data
-            elif "__iter__" in dir(val) and not(isinstance(val[0], float) or isinstance(val[0], int)):
+            elif "__iter__" in dir(val) and (len(val) > 0) and not(isinstance(val[0], float) or isinstance(val[0], int)):
                 key_path = f"[{key}]" if pre_path is None else pre_path + f"[{key}]"
                 key_paths.extend(variable_path_list_from_py_objs(val, key_path))
             else:
                 key_path = f"[{key}]" if pre_path is None else pre_path + f"[{key}]"
                 key_paths.append(key_path)
     if element_as_list:
-        re_for_elems = re.compile("\[('(\w+)'|(\w+))\]")
+        re_for_elems = re.compile("\\[('(\\w+)'|(\\w+))\\]")
         for i, kp in enumerate(key_paths):
             kp: str
             groups = re_for_elems.findall(kp)
@@ -120,8 +121,6 @@ def history_path_list(self, element_as_list:bool=False) -> List[str]:
     ]
     return history_path_list
             
-setattr(Pyo3VecWrapper, "__array__", __array__)  # noqa: F405
-
 def to_pydict(self) -> Dict:
     """
     Returns self converted to pure python dictionary with no nested Rust objects
@@ -151,7 +150,10 @@ def to_dataframe(self, pandas:bool=False) -> [pd.DataFrame, pl.DataFrame, pl.Laz
     for hp in history_paths:
         obj:Union[dict|list] = obj_dict
         for elem in hp:
-            obj = obj[elem]
+            try: 
+                obj = obj[elem]
+            except:
+                obj = obj[int(elem)]
         vals.append(obj)
     if not pandas:
         df = pl.DataFrame({col: val for col, val in zip(cols, vals)})
@@ -162,8 +164,14 @@ def to_dataframe(self, pandas:bool=False) -> [pd.DataFrame, pl.DataFrame, pl.Laz
 # adds variable_path_list() and history_path_list() as methods to all classes in
 # ACCEPTED_RUST_STRUCTS
 for item in ACCEPTED_RUST_STRUCTS:
-    setattr(getattr(altrios, item), "variable_path_list", variable_path_list)
-    setattr(getattr(altrios, item), "history_path_list", history_path_list)
-    setattr(getattr(altrios, item), "to_pydict", to_pydict)
-    setattr(getattr(altrios, item), "from_pydict", from_pydict)
-    setattr(getattr(altrios, item), "to_dataframe", to_dataframe)
+    setattr(getattr(altrios_pyo3, item), "variable_path_list", variable_path_list)
+    setattr(getattr(altrios_pyo3, item), "history_path_list", history_path_list)
+    setattr(getattr(altrios_pyo3, item), "to_pydict", to_pydict)
+    setattr(getattr(altrios_pyo3, item), "from_pydict", from_pydict)
+    setattr(getattr(altrios_pyo3, item), "to_dataframe", to_dataframe)
+
+setattr(ReversibleEnergyStorage, "from_excel", classmethod(_res_from_excel))  # noqa: F405
+setattr(Pyo3VecWrapper, "__array__", __array__)  # noqa: F405
+setattr(Pyo3Vec2Wrapper, "__array__", __array__)
+setattr(Pyo3Vec3Wrapper, "__array__", __array__)
+setattr(Pyo3VecBoolWrapper, "__array__", __array__)

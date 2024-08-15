@@ -3,9 +3,10 @@ Script demonstrating how to use variable_path_list() and history_path_list()
 demos to find the paths to variables within altrios classes.
 """
 import os
-import altrios as alt
 import polars as pl
+import time
 
+import altrios as alt
 SAVE_INTERVAL = 100
 
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
@@ -115,7 +116,7 @@ if ENABLE_ASSERTS:
     with open(ref_dir / "variable_path_list_expected.txt", 'r') as f:
         variable_path_list_expected = [line.strip() for line in f.readlines()]
     assert variable_path_list_expected == train_sim.variable_path_list()
-print("\n")
+    print("\n")
 
 # print out all subpaths for history variables in SimDrive
 print("List of history variable paths for SimDrive:" +  "\n".join(train_sim.history_path_list()))
@@ -126,7 +127,6 @@ print("Results as dataframe:\n", train_sim.to_dataframe(), sep="")
 if ENABLE_REF_OVERRIDE:
     df:pl.DataFrame = train_sim.to_dataframe().lazy().collect()
     df.write_csv(ref_dir / "to_dataframe_expected.csv")
-    print("Success!")
 if ENABLE_ASSERTS:
     print("Checking output of `to_dataframe`")
     to_dataframe_expected = pl.scan_csv(ref_dir / "to_dataframe_expected.csv").collect()

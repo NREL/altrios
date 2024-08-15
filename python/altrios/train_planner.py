@@ -19,6 +19,7 @@ class TrainPlannerConfig:
                  min_cars_per_train: int = 60,
                  target_cars_per_train: int = 180,
                  manifest_empty_return_ratio: float = 0.6,
+                 #TODO single vs double stacked operations on the corridor
                  cars_per_locomotive: int = 70,
                  refuelers_per_incoming_corridor: int = 4,
                  drag_coeff_function: List = None,
@@ -308,6 +309,8 @@ def generate_demand_trains(
     def get_kg(veh):
         return veh.mass_static_base_kilograms + veh.mass_freight_kilograms + veh.axle_count * veh.mass_extra_per_axle_kilograms
     
+    # NOTE: don't need to use this for PS; just need to use target platoon size (# of rail vehicles) then convert to containers 
+    # based on single vs. double stacked. Target # of rail vehicle Other intermodals may need to use weight 
     ton_per_car = (
         pl.DataFrame({"Train_Type": pl.Series([rv.car_type for rv in rail_vehicles]).str.strip_suffix("_Loaded"),
                         "KG_Empty": [get_kg_empty(rv) for rv in rail_vehicles],
@@ -957,6 +960,7 @@ def run_train_planner(
                         selected = loco_pool.select(pl.col("Locomotive_ID").is_not_null().alias("selected")).to_series()
                         dispatched = loco_pool
                     else:
+                        # TODO: can skip the hp_per_ton checks for PS vehicles
                         selected = dispatch(
                             current_time,
                             this_train['Tons_Per_Train'],

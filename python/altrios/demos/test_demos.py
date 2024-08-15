@@ -13,5 +13,11 @@ def demo_paths():
 def test_demo(demo_path: Path):
     os.environ['SHOW_PLOTS'] = "false"
     os.environ['PYTEST'] = "true"
-    exec(open(demo_path).read())
+    rslt = subprocess.run(
+        ["python", demo_path], 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE, 
+        text=True
+    )
 
+    assert rslt.returncode == 0, rslt.stderr

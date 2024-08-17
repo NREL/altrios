@@ -154,6 +154,11 @@ def generate_return_demand(
             pl.concat_str([pl.col("Train_Type"),pl.lit("_Empty")]).alias("Train_Type"),
             pl.when(pl.col("Train_Type") == pl.lit("Manifest"))
                 .then((pl.col("Number_of_Cars") * config.manifest_empty_return_ratio).floor())
+            .when(pl.col("Train_Type") == pl.lit("Intermodal"))
+                .then( 
+                    # TODO Wang: specific number of returning cars for intermodal here (if it is different from the original number of cars)
+                    pl.col("Number_of_Cars")
+                )
                 .otherwise(pl.col("Number_of_Cars"))
                 .alias("Number_of_Cars"))
     )
@@ -925,6 +930,7 @@ def run_train_planner(
     Outputs:
     ----------
     """
+    print("Entering run_train_planner on the feature/train-planner-dev branch.")
     config.loco_info = append_loco_info(config.loco_info)
     demand, node_list = demand_loader(demand_file)
     if refuelers is None: 
@@ -950,6 +956,8 @@ def run_train_planner(
             .drop("index")
         )
     else:
+        # TODO Wang: if you only need to update return demand code for containers, do it inside generate_return_demand.
+        # Otherwise, create new functions and call them from here using the same style of checks as for Manifest trains on line 963.
         demand_returns = generate_return_demand(demand, config)
         demand_rebalancing = pl.DataFrame()
         if demand.filter(pl.col("Train_Type").str.contains("Manifest")).height > 0:

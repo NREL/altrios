@@ -26,7 +26,7 @@ dill==0.3.6
     # via pymoo
 et-xmlfile==1.1.0
     # via openpyxl
-fonttools==4.39.4
+fonttools==4.43.0
     # via matplotlib
 future==0.18.3
     # via autograd

@@ -10,7 +10,7 @@ alive-progress==3.1.2
     # via pymoo
 autograd==1.5
     # via pymoo
-certifi==2023.7.22
+certifi==2024.7.4
     # via requests
 charset-normalizer==3.3.0
     # via requests
@@ -26,13 +26,13 @@ dill==0.3.6
     # via pymoo
 et-xmlfile==1.1.0
     # via openpyxl
-fonttools==4.39.4
+fonttools==4.43.0
     # via matplotlib
 future==0.18.3
     # via autograd
 grapheme==0.6.0
     # via alive-progress
-idna==3.4
+idna==3.7
     # via requests
 kiwisolver==1.4.4
     # via matplotlib
@@ -63,13 +63,13 @@ pandas==2.0.1
     # via
     #   altrios (pyproject.toml)
     #   seaborn
-pillow==10.3.0
+pillow==10.4.0
     # via matplotlib
 plotly==5.14.1
     # via altrios (pyproject.toml)
 polars==0.20.25
     # via altrios (pyproject.toml)
-pyarrow==12.0.0
+pyarrow==14.0.1
     # via altrios (pyproject.toml)
 pymoo==0.6.0
     # via altrios (pyproject.toml)
@@ -83,7 +83,7 @@ pytz==2023.3
     # via pandas
 pyyaml==6.0
     # via altrios (pyproject.toml)
-requests==2.31.0
+requests==2.32.2
     # via altrios (pyproject.toml)
 scipy==1.10.1
     # via pymoo

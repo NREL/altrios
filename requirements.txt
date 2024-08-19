@@ -63,7 +63,7 @@ pandas==2.0.1
     # via
     #   altrios (pyproject.toml)
     #   seaborn
-pillow==10.0.1
+pillow==10.3.0
     # via matplotlib
 plotly==5.14.1
     # via altrios (pyproject.toml)

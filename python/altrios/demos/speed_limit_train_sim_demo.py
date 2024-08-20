@@ -233,9 +233,9 @@ if SHOW_PLOTS:
 # Impact of sweep of battery capacity TODO: make this happen
 
 if PYTEST:
-    # to access these checks, run `SHOW_PLOTS=f PYTEST=true python set_speed_train_sim_demo.py`
+    # to access these checks, run `SHOW_PLOTS=f PYTEST=true python speed_limit_train_sim_demo.py`
     import json
-    json_path = alt.resources_root() / "test_assets/set_speed_ts_demo.json"
+    json_path = alt.resources_root() / "test_assets/speed_limit_ts_demo.json"
     with open(json_path, 'r') as file:
         train_sim_reference = json.load(file)
 

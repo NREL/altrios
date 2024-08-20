@@ -440,6 +440,7 @@ impl TrainSimBuilder {
                         * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
                 },
             ));
+            // TODO: investigate discrepancy w.r.t. `main` branch
             // Sum of mass-averaged rolling resistances across all railcars
             let res_rolling = res_kind::rolling::Basic::new(rvs.iter().fold(
                 0.0 * uc::R,

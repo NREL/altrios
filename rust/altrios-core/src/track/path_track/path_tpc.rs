@@ -5,7 +5,6 @@ use super::speed_point::*;
 use super::train_params::*;
 use crate::imports::*;
 
-// TODO: make PathTpc robust to `Vec<LinkPoint>` that ends with `0`
 /// Vector data used to represent track-dependent train performance parameters along the path the
 /// train will follow.  This contains all the positionally important data for the train resistance
 /// model.

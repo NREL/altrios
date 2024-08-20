@@ -278,7 +278,7 @@ impl Valid for TrainConfig {
         link_path: &PyAny,
         speed_trace: SpeedTrace,
         save_interval: Option<usize>
-    ) -> anyhow::Result<(SetSpeedTrainSim, TrainParams,PathTpc, TrainResWrapper, FricBrake)> {
+    ) -> anyhow::Result<(SetSpeedTrainSim, TrainParams, PathTpc, TrainResWrapper, FricBrake)> {
         let network = match network.extract::<Network>() {
             Ok(n) => n,
             Err(_) => {

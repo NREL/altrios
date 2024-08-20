@@ -422,6 +422,8 @@ impl SpeedLimitTrainSim {
         self.state.speed_limit = speed_limit;
         self.state.speed_target = speed_target;
 
+        // TODO: change `mass_static_base` to represent total static mass and
+        // otherwise make the mass handling more robust
         let f_applied_target = res_net
             + self.state.mass_static_base * (speed_target - self.state.speed) / self.state.dt;
 

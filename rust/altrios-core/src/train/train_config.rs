@@ -41,8 +41,8 @@ use pyo3_polars::PyDataFrame;
 
     #[pyo3(name = "make_train_params")]
     /// - `rail_vehicles` - list of `RailVehicle` objects with 1 element for each _type_ of rail vehicle
-    fn make_train_params_py(&self, rail_vehicles: Vec<RailVehicle>) -> anyhow::Result<TrainParams> {
-        self.make_train_params(&rail_vehicles)
+    fn make_train_params_py(&self) -> anyhow::Result<TrainParams> {
+        self.make_train_params()
     }
 
     #[getter]
@@ -153,10 +153,10 @@ impl TrainConfig {
     /// This method assumes that any calling method has already checked that
     /// all the `car_type` fields in `rail_vehicles` have matching keys in
     /// `self.n_cars_by_type`.
-    pub fn make_train_params(&self, rail_vehicles: &[RailVehicle]) -> anyhow::Result<TrainParams> {
+    pub fn make_train_params(&self) -> anyhow::Result<TrainParams> {
         // total train mass including locomotive consist
         let train_mass_static = self.train_mass.unwrap_or({
-            rail_vehicles
+            self.rail_vehicles
                 .iter()
                 .fold(0. * uc::KG, |acc, rv| -> si::Mass {
                     acc + rv.mass_static_total()
@@ -166,7 +166,8 @@ impl TrainConfig {
 
         let length: si::Length = match self.train_length {
             Some(tl) => tl,
-            None => rail_vehicles
+            None => self
+                .rail_vehicles
                 .iter()
                 .fold(0. * uc::M, |acc, rv| -> si::Length {
                     acc + rv.length * *self.n_cars_by_type.get(&rv.car_type).unwrap() as f64
@@ -175,7 +176,7 @@ impl TrainConfig {
 
         let train_params = TrainParams {
             length,
-            speed_max: rail_vehicles.iter().fold(
+            speed_max: self.rail_vehicles.iter().fold(
                 f64::INFINITY * uc::MPS,
                 |acc, rv| -> si::Velocity {
                     if *self.n_cars_by_type.get(&rv.car_type).unwrap() > 0 {
@@ -188,18 +189,18 @@ impl TrainConfig {
             mass_total: train_mass_static,
             // TODO: ask Tyler if `mass_per_brake` should include rotational mass
             mass_per_brake: train_mass_static
-                / rail_vehicles.iter().fold(0, |acc, rv| -> u32 {
+                / self.rail_vehicles.iter().fold(0, |acc, rv| -> u32 {
                     acc + rv.brake_count as u32 * *self.n_cars_by_type.get(&rv.car_type).unwrap()
                 }) as f64,
-            axle_count: rail_vehicles.iter().fold(0, |acc, rv| -> u32 {
+            axle_count: self.rail_vehicles.iter().fold(0, |acc, rv| -> u32 {
                 acc + rv.axle_count as u32 * *self.n_cars_by_type.get(&rv.car_type).unwrap()
             }),
             train_type: self.train_type,
             // TODO: change it so that curve coefficient is specified at the train level, and replace `unwrap` function calls
             // with proper result handling, and relpace `first().unwrap()` with real code.
-            curve_coeff_0: rail_vehicles.first().unwrap().curve_coeff_0,
-            curve_coeff_1: rail_vehicles.first().unwrap().curve_coeff_1,
-            curve_coeff_2: rail_vehicles.first().unwrap().curve_coeff_2,
+            curve_coeff_0: self.rail_vehicles.first().unwrap().curve_coeff_0,
+            curve_coeff_1: self.rail_vehicles.first().unwrap().curve_coeff_1,
+            curve_coeff_2: self.rail_vehicles.first().unwrap().curve_coeff_2,
         };
         Ok(train_params)
     }
@@ -384,7 +385,7 @@ impl TrainSimBuilder {
         self.check_rv_keys()?;
         let train_params = self
             .train_config
-            .make_train_params(&self.train_config.rail_vehicles)
+            .make_train_params()
             .with_context(|| format_dbg!())?;
 
         let length = train_params.length;

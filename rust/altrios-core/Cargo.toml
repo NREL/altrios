@@ -49,7 +49,6 @@ project-root = "0.2.2"
 eng_fmt = { workspace = true }
 directories = "5.0.1"
 tempfile = "3.10.1"
-document-features = { workspace = true }
 
 [features]
 ## Exposes ALTRIOS structs, methods, and functions to Python.

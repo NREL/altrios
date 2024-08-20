@@ -26,7 +26,7 @@ dill==0.3.6
     # via pymoo
 et-xmlfile==1.1.0
     # via openpyxl
-fonttools==4.39.4
+fonttools==4.43.0
     # via matplotlib
 future==0.18.3
     # via autograd
@@ -63,13 +63,13 @@ pandas==2.0.1
     # via
     #   altrios (pyproject.toml)
     #   seaborn
-pillow==10.0.1
+pillow==10.3.0
     # via matplotlib
 plotly==5.14.1
     # via altrios (pyproject.toml)
 polars==0.20.25
     # via altrios (pyproject.toml)
-pyarrow==12.0.0
+pyarrow==14.0.1
     # via altrios (pyproject.toml)
 pymoo==0.6.0
     # via altrios (pyproject.toml)
@@ -97,7 +97,7 @@ typing-extensions==4.5.0
     # via altrios (pyproject.toml)
 tzdata==2023.3
     # via pandas
-urllib3==2.0.7
+urllib3==2.2.2
     # via requests
 wrapt==1.15.0
     # via deprecated

@@ -13,7 +13,7 @@
 //! handful of standard data formats as strings or file read/write operations using
 //! [traits::SerdeAPI].   
 //!
-//! # Feature flags
+//! # Feature Flags
 #![doc = document_features::document_features!()]
 
 #[macro_use]

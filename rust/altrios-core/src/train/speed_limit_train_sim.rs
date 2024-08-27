@@ -303,7 +303,7 @@ impl SpeedLimitTrainSim {
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
         //solve the required power.  No argument is passed here unlike set_speed_train sim..
-        //I about to figure out why maybe......
+        //I'm about to figure out why maybe......
         self.solve_required_pwr()?;
         log::debug!(
             "{}\ntime step: {}",
@@ -429,8 +429,10 @@ impl SpeedLimitTrainSim {
             )
         );
 
-        
+
         // TODO: Validate that this makes sense considering friction brakes
+        //this figures out when to start braking in advance of a speed limit drop.  Takes into account air brake dynamics.
+        //I have not reviewed this code, but that is my understanding.
         let (speed_limit, speed_target) = self.braking_points.calc_speeds(
             self.state.offset,
             self.state.speed,
@@ -439,9 +441,11 @@ impl SpeedLimitTrainSim {
         self.state.speed_limit = speed_limit;
         self.state.speed_target = speed_target;
 
+        //calculate the required for to make the train hit the speed target.
         let f_applied_target =
             res_net + self.state.mass_static * (speed_target - self.state.speed) / self.state.dt;
 
+        //calculate the max positive tractive effort.  this is the same as set_speed_train_sim
         let pwr_pos_max = self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
             // TODO: the effect of rate may already be accounted for in this snippet
             // from fuel_converter.rs:
@@ -454,16 +458,23 @@ impl SpeedLimitTrainSim {
             // ```
             self.state.pwr_whl_out + self.loco_con.state.pwr_rate_out_max * self.state.dt,
         ));
+
+        //calculate the max braking that a consist can apply.  Same as set speed train sim.
         let pwr_neg_max = self.loco_con.state.pwr_dyn_brake_max.max(si::Power::ZERO);
         ensure!(
             pwr_pos_max >= si::Power::ZERO,
             format_dbg!(pwr_pos_max >= si::Power::ZERO)
         );
+
+        //need for energy calc below.  This is structured differently than set_speed_train_sim.
+        //However, I think the math is the same maybe.
+        //Would it be worth the effort to calculate this once when we initialize and save it as a parameter of the train?  Then we would not have to calculate it every dt.
         let time_per_mass = self.state.dt / self.state.mass_static;
 
         // Concept: calculate the final speed such that the worst case
         // (i.e. maximum) acceleration force does not exceed `power_max`
         // Base equation: m * (v_max - v_curr) / dt = p_max / v_max – f_res
+        //figuring out how fast we can be be going by next timestep.
         let v_max = 0.5
             * (self.state.speed - res_net * time_per_mass
                 + ((self.state.speed - res_net * time_per_mass)
@@ -473,11 +484,14 @@ impl SpeedLimitTrainSim {
 
         // Final v_max value should also be bounded by speed_target
         // maximum achievable positive tractive force
+        //this seems overcomplicated.  We already calculated the wheel out power.  I don't feel like we need v_max understood.  I think following something like set speed
+        //train sim where we calculate the power to hit the target speed and limit the power based on wheel out would do this.  I may be missing something though.  
         let f_pos_max = self
             .loco_con
             .force_max()?
             .min(pwr_pos_max / speed_target.min(v_max));
         // Verify that train has sufficient power to move
+        //error handling with good messages for the next 30 or 40 lines.
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
             log::debug!("{}", format_dbg!(self.path_tpc));
             bail!(
@@ -533,13 +547,16 @@ impl SpeedLimitTrainSim {
             )
         }
 
+        //set the maximum friction braking force that is possible.
         self.fric_brake.set_cur_force_max_out(self.state.dt)?;
 
         // Transition speed between force and power limited negative traction
+        //figure out the velocity where power and force limits coincide.  I don't completely understand why yet.
         let v_neg_trac_lim: si::Velocity =
             self.loco_con.state.pwr_dyn_brake_max / self.loco_con.force_max()?;
 
         // TODO: Make sure that train handling rules consist dynamic braking force limit is respected!
+        //I think this is figuring out how much db the consist can make.  There's a lot to unpack here.
         let f_max_consist_regen_dyn = if self.state.speed > v_neg_trac_lim {
             // If there is enough braking to slow down at v_max
             let f_max_dyn_fast = self.loco_con.state.pwr_dyn_brake_max / v_max;
@@ -553,13 +570,16 @@ impl SpeedLimitTrainSim {
         };
 
         // total impetus force applied to control train speed
+        //calculating the applied drawbar force based on targets and enfrocing limits.
         let f_applied = f_pos_max.min(
             f_applied_target.max(-self.fric_brake.state.force_max_curr - f_max_consist_regen_dyn),
         );
 
+        //physics......
         let vel_change = time_per_mass * (f_applied - res_net);
         let vel_avg = self.state.speed + 0.5 * vel_change;
 
+        //updating states of the train.
         self.state.pwr_res = res_net * vel_avg;
         self.state.pwr_accel = self.state.mass_adj / (2.0 * self.state.dt)
             * ((self.state.speed + vel_change) * (self.state.speed + vel_change)

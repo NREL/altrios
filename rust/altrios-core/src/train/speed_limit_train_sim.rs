@@ -290,23 +290,36 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
+
+        //set catenary power limit.  This was the same as set_speed_train_sim.  I am assuming it is 0 right now.
         self.loco_con
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
+        //set aux power for the consist.  Very similar to set speed train sim.  boolean argument is whether engine is on.  Not a huge fane of this argument.  I think this should be baked into a loco control system in locomotive.rs
         self.loco_con.set_pwr_aux(Some(true))?;
+        //set the maximum power out based on dt.  This is different than set speed train sim because that one calls the speed trace dt.
+        //why are we not passing in aux power here and self.state?  Am I missing something obviouls here?
         self.loco_con.set_cur_pwr_max_out(None, self.state.dt)?;
+        //calculate new resistance. same as set_speed_train_sim.
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
+        //solve the required power.  No argument is passed here unlike set_speed_train sim..
+        //I about to figure out why maybe......
         self.solve_required_pwr()?;
         log::debug!(
             "{}\ntime step: {}",
             format_dbg!(),
             self.state.time.get::<si::second>().format_eng(Some(9))
         );
+
+        //this is similar to set_speed train sim, but speedtrace.dt is passed rather than state.dt
+        //could we get away with passing state.dt instead of speed_trace.dt in set_speed_train_sim?
+        //could this cause a lag of 1 dt in speed which would be a small but consistent offset in the calcs?
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
             self.state.dt,
             Some(true),
         )?;
+        //same as set speed train trim.
         set_link_and_offset(&mut self.state, &self.path_tpc)?;
         Ok(())
     }
@@ -392,11 +405,17 @@ impl SpeedLimitTrainSim {
     /// - inertia
     /// - target acceleration
     pub fn solve_required_pwr(&mut self) -> anyhow::Result<()> {
+        
+        //this is different from set_speed train sim, but I don't think its important.  We are just assigning it to a variable.
         let res_net = self.state.res_net();
 
         // Verify that train can slow down
         // TODO: figure out if dynamic braking needs to be separately accounted for here
 
+        //this is different because we are using air brakes unlike set speed train sim.
+        //check to make sure brakes + resistance is greater than 0.  Not sure why this is that important to
+        //check for.  You may go down a hill and not have enough brakes.  That may not be that safe, but I don't
+        //think it should fail a simulation.
         ensure!(
             self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO,
             format!(
@@ -410,6 +429,7 @@ impl SpeedLimitTrainSim {
             )
         );
 
+        
         // TODO: Validate that this makes sense considering friction brakes
         let (speed_limit, speed_target) = self.braking_points.calc_speeds(
             self.state.offset,

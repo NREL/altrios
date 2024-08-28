@@ -179,11 +179,19 @@ impl Consist {
     }
 
     pub fn force_max(&self) -> anyhow::Result<si::Force> {
-        self.loco_vec
-            .iter()
-            .try_fold(0. * uc::N, |f_sum, loco| -> anyhow::Result<si::Force> {
-                Ok(loco.force_max().with_context(|| format_dbg!())? + f_sum)
-            })
+        self.loco_vec.iter().enumerate().try_fold(
+            0. * uc::N,
+            |f_sum, (i, loco)| -> anyhow::Result<si::Force> {
+                Ok(loco.force_max().with_context(|| {
+                    format!(
+                        "{}\nloco #: {}\nloco type: {}",
+                        format_dbg!(),
+                        i,
+                        loco.loco_type.get_pt_type()
+                    )
+                })? + f_sum)
+            },
+        )
     }
 
     pub fn get_loco_vec(&self) -> Vec<Locomotive> {

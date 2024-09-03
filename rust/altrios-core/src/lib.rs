@@ -13,8 +13,8 @@
 //! handful of standard data formats as strings or file read/write operations using
 //! [traits::SerdeAPI].   
 //!
-//! # Features:
-//! - pyo3: enable this feature to expose ALTRIOS structs, methods, and functions to Python
+//! # Feature Flags
+#![doc = document_features::document_features!()]
 
 #[macro_use]
 pub mod macros;

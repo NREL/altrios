@@ -330,6 +330,7 @@ impl LocomotiveSimulationVec {
                 .par_iter_mut()
                 .enumerate()
                 .try_for_each(|(i, loco_sim)| {
+                    #[cfg(feature = "logging")]
                     log::info!("Solving locomotive #{i}");
                     loco_sim
                         .walk()

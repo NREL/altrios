@@ -297,6 +297,7 @@ impl SpeedLimitTrainSim {
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
         self.solve_required_pwr()?;
+        #[cfg(feature = "logging")]
         log::debug!(
             "{}\ntime step: {}",
             format_dbg!(),
@@ -327,6 +328,7 @@ impl SpeedLimitTrainSim {
             || (self.state.offset < self.path_tpc.offset_end()
                 && self.state.speed != si::Velocity::ZERO)
         {
+            #[cfg(feature = "logging")]
             log::debug!(
                 "{}",
                 format_dbg!(
@@ -364,6 +366,7 @@ impl SpeedLimitTrainSim {
         let mut idx_prev = 0;
         while idx_prev != timed_path.len() - 1 {
             let mut idx_next = idx_prev + 1;
+            #[cfg(feature = "logging")]
             log::debug!("Solving idx: {}", idx_next);
             while idx_next + 1 < timed_path.len() - 1 && timed_path[idx_next].time < self.state.time
             {
@@ -459,6 +462,7 @@ impl SpeedLimitTrainSim {
             .min(pwr_pos_max / speed_target.min(v_max));
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
+            #[cfg(feature = "logging")]
             log::debug!("{}", format_dbg!(self.path_tpc));
             bail!(
                 "{}\nTrain does not have sufficient power to move!\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", // ,\nlink={:?}

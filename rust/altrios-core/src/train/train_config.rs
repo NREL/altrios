@@ -373,6 +373,7 @@ impl TrainSimBuilder {
                 .mass()
                 .with_context(|| format_dbg!())?
                 .unwrap_or_else(|| {
+                    #[cfg(feature = "logging")]
                     log::warn!(
                         "Consist has no mass set so train dynamics don't include consist mass."
                     );
@@ -407,6 +408,7 @@ impl TrainSimBuilder {
             let res_aero =
                 res_kind::aerodynamic::Basic::new(match &self.train_config.drag_coeff_vec {
                     Some(dcv) => {
+                        #[cfg(feature = "logging")]
                         log::info!("Using `drag_coeff_vec` to calculate aero resistance.");
                         dcv.iter()
                             .fold(0. * uc::M2, |acc, dc| *dc * veh.drag_area_loaded + acc)

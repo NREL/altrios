@@ -187,7 +187,7 @@ impl Consist {
                         "{}\nloco #: {}\nloco type: {}",
                         format_dbg!(),
                         i,
-                        loco.loco_type.get_pt_type()
+                        loco.loco_type.to_string()
                     )
                 })? + f_sum)
             },

@@ -341,29 +341,40 @@ impl SetSpeedTrainSim {
 
     /// Solves time step.
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
+
+        //checking on speed trace to ensure it is at least stopped or moving forward (no backwards)
         ensure!(
             self.speed_trace.speed[self.state.i] >= si::Velocity::ZERO,
             format_dbg!(self.speed_trace.speed[self.state.i] >= si::Velocity::ZERO)
         );
+        //set the catenary power limit.  I'm assuming it is 0 at this point.
         self.loco_con
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
-
+        //set aux power loads.  this will be calculated in the locomotive model and be loco type dependent.  
         self.loco_con.set_pwr_aux(Some(true))?;
+        //set the max power out for the consist based on calculation of each loco state
         self.loco_con
             .set_cur_pwr_max_out(None, self.speed_trace.dt(self.state.i))?;
+        //calculate the train resistance for current time steps.  Based on train config and calculated in train model.
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
+        //figure out how much power is need to pull train with current speed trace.
         self.solve_required_pwr(self.speed_trace.dt(self.state.i))?;
+        //solve for how much energy was used from each locomotive.  This is important for BELs as well as diesel locos.
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
             self.speed_trace.dt(self.state.i),
             Some(true),
         )?;
-
+        //advance time
         self.state.time = self.speed_trace.time[self.state.i];
+        //update speed
         self.state.speed = self.speed_trace.speed[self.state.i];
+        //update offset
         self.state.offset += self.speed_trace.mean(self.state.i) * self.state.dt;
+        //I'm not too familiar with this bit, but I am assuming this is related to finding the way through the network and is not a difference between set speed and speed limit train sim.
         set_link_and_offset(&mut self.state, &self.path_tpc)?;
+        //update total distance
         self.state.total_dist += (self.speed_trace.mean(self.state.i) * self.state.dt).abs();
         Ok(())
     }
@@ -394,25 +405,38 @@ impl SetSpeedTrainSim {
     /// - acceleration
     /// (some of these aren't implemented yet)
     pub fn solve_required_pwr(&mut self, dt: si::Time) -> anyhow::Result<()> {
+        //This calculates the maximum power from loco based on current power, ramp rate, and dt of model.  will return 0 if this is negative.
         let pwr_pos_max =
             self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
                 self.state.pwr_whl_out + self.loco_con.state.pwr_rate_out_max * self.state.dt,
             ));
+
+        //find max dynamic braking power. I am liking that we use a positive dyn braking.  This feels like we need a coordinate system where the math works out better rather than ad hoc'ing it.
         let pwr_neg_max = self.loco_con.state.pwr_dyn_brake_max.max(si::Power::ZERO);
+
+        //not sure why we have these checks if the max function worked earlier.
         ensure!(
             pwr_pos_max >= si::Power::ZERO,
             format_dbg!(pwr_pos_max >= si::Power::ZERO)
         );
 
+        //res for resistance is a horrible name.  It collides with reversible energy storage.  This like is calculating train resistance for the time step.
         self.state.pwr_res = self.state.res_net() * self.speed_trace.mean(self.state.i);
+        //find power to accelerate the train mass from an energy perspective.
         self.state.pwr_accel = self.state.mass_adj / (2.0 * self.speed_trace.dt(self.state.i))
             * (self.speed_trace.speed[self.state.i].powi(typenum::P2::new())
                 - self.speed_trace.speed[self.state.i - 1].powi(typenum::P2::new()));
+        //I'm guessing this advances to the next dt
         self.state.dt = self.speed_trace.dt(self.state.i);
 
+        //sum power to accelerate train and resistnace of train to find max power.
         self.state.pwr_whl_out = self.state.pwr_accel + self.state.pwr_res;
+        //limit  power to within the consist capability
         self.state.pwr_whl_out = self.state.pwr_whl_out.max(-pwr_neg_max).min(pwr_pos_max);
+        //add to the total wheel out energy
         self.state.energy_whl_out += self.state.pwr_whl_out * dt;
+
+        //add to positive or negative wheel energy tracking.
         if self.state.pwr_whl_out >= 0. * uc::W {
             self.state.energy_whl_out_pos += self.state.pwr_whl_out * dt;
         } else {

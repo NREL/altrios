@@ -259,7 +259,7 @@ pub struct SpeedTraceElement {
         Ok(())
     }
 )]
-#[derive(Clone, Debug, Serialize, Deserialize, SerdeAPI, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 /// Train simulation in which speed is prescribed.  Note that this is not guaranteed to
 /// produce identical results to [super::SpeedLimitTrainSim] because of differences in braking
 /// controls but should generally be very close (i.e. error in cumulative fuel/battery energy
@@ -341,7 +341,6 @@ impl SetSpeedTrainSim {
 
     /// Solves time step.
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
-
         //checking on speed trace to ensure it is at least stopped or moving forward (no backwards)
         ensure!(
             self.speed_trace.speed[self.state.i] >= si::Velocity::ZERO,
@@ -350,7 +349,7 @@ impl SetSpeedTrainSim {
         //set the catenary power limit.  I'm assuming it is 0 at this point.
         self.loco_con
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
-        //set aux power loads.  this will be calculated in the locomotive model and be loco type dependent.  
+        //set aux power loads.  this will be calculated in the locomotive model and be loco type dependent.
         self.loco_con.set_pwr_aux(Some(true))?;
         //set the max power out for the consist based on calculation of each loco state
         self.loco_con

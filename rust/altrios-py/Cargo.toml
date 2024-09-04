@@ -24,6 +24,7 @@ name = "altrios_pyo3"
 crate-type = ["cdylib"]
 
 [features]
+default = ["logging"]
 ## The `logging` feature enables "altrios-core/logging" and enables it to log
 ## to python.  This feature is disabled by default because enabling it causes a
 ## significant performance hit, even if nothing is actually logged.

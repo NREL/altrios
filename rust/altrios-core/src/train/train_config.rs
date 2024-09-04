@@ -3,7 +3,6 @@ use super::resistance::method as res_method;
 #[cfg(feature = "pyo3")]
 use super::TrainResWrapper;
 use crate::consist::locomotive::locomotive_model::PowertrainType;
-use crate::consist::Mass;
 
 use super::{
     friction_brakes::*, rail_vehicle::RailVehicle, train_imports::*, InitTrainState, LinkIdxTime,
@@ -156,12 +155,21 @@ impl TrainConfig {
     pub fn make_train_params(&self) -> anyhow::Result<TrainParams> {
         // total train mass including locomotive consist
         let train_mass_static = self.train_mass.unwrap_or({
-            self.rail_vehicles
-                .iter()
-                .fold(0. * uc::KG, |acc, rv| -> si::Mass {
-                    acc + rv.mass_static_total()
-                        * *self.n_cars_by_type.get(&rv.car_type).unwrap() as f64
-                })
+            self.rail_vehicles.iter().try_fold(
+                0. * uc::KG,
+                |acc, rv| -> anyhow::Result<si::Mass> {
+                    Ok(acc
+                        + rv.mass()
+                            .with_context(|| format_dbg!())?
+                            .with_context(|| "`make_train_params` failed")?
+                            * *self
+                                .n_cars_by_type
+                                .get(&rv.car_type)
+                                .with_context(|| format_dbg!())?
+                                as f64
+                            * uc::R)
+                },
+            )?
         });
 
         let length: si::Length = match self.train_length {
@@ -442,22 +450,34 @@ impl TrainSimBuilder {
             ));
             // TODO: investigate discrepancy w.r.t. `main` branch
             // Sum of mass-averaged rolling resistances across all railcars
-            let res_rolling = res_kind::rolling::Basic::new(rvs.iter().fold(
+            let res_rolling = res_kind::rolling::Basic::new(rvs.iter().try_fold(
                 0.0 * uc::R,
-                |acc, rv| -> si::Ratio {
-                    acc + rv.rolling_ratio * rv.mass_static_total() / train_mass_static
-                        * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
+                |acc, rv| -> anyhow::Result<si::Ratio> {
+                    Ok(acc
+                        + rv.rolling_ratio
+                            * rv.mass()
+                                .with_context(|| format_dbg!())?
+                                .with_context(|| format!("{}\nExpected `Some`", format_dbg!()))?
+                            / train_mass_static
+                            * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
+                            * uc::R)
                 },
-            ));
+            )?);
             #[cfg(feature = "logging")]
             log::debug!("{}", format_dbg!(&res_rolling));
-            let davis_b = res_kind::davis_b::Basic::new(rvs.iter().fold(
+            let davis_b = res_kind::davis_b::Basic::new(rvs.iter().try_fold(
                 0.0 * uc::S / uc::M,
-                |acc, rv| -> si::InverseVelocity {
-                    acc + rv.davis_b * rv.mass_static_total() / train_mass_static
-                        * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
+                |acc, rv| -> anyhow::Result<si::InverseVelocity> {
+                    Ok(acc
+                        + rv.davis_b
+                            * rv.mass()
+                                .with_context(|| format_dbg!())?
+                                .with_context(|| format!("{}\nExpected `Some`", format_dbg!()))?
+                            / train_mass_static
+                            * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
+                            * uc::R)
                 },
-            ));
+            )?);
             let res_aero =
                 res_kind::aerodynamic::Basic::new(match &self.train_config.cd_area_vec {
                     Some(dave) => {
@@ -1203,6 +1223,7 @@ pub fn run_speed_limit_train_sims(
 
 // This MUST remain a unit struct to trigger correct tolist() behavior
 #[altrios_api(
+    #![allow(non_snake_case)]
     #[pyo3(name = "get_energy_fuel_joules")]
     pub fn get_energy_fuel_py(&self, annualize: bool) -> f64 {
         self.get_energy_fuel(annualize).get::<si::joule>()

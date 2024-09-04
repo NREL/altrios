@@ -266,7 +266,6 @@ impl Consist {
         engine_on: Option<bool>,
     ) -> anyhow::Result<()> {
         // TODO: account for catenary in here
-        // TODO: add in `eng_fmt` in the error messages
         if self.assert_limits {
             ensure!(
                 -pwr_out_req <= self.state.pwr_dyn_brake_max,

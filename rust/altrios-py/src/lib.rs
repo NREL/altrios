@@ -14,8 +14,6 @@ pub use pyo3_polars::PyDataFrame;
 
 #[pymodule]
 fn altrios_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
-    #[cfg(feature = "logging")]
-    pyo3_log::init();
     m.add_class::<FuelConverter>()?;
     m.add_class::<FuelConverterState>()?;
     m.add_class::<FuelConverterStateHistoryVec>()?;
@@ -73,17 +71,24 @@ fn altrios_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<TrainSimBuilder>()?;
     m.add_class::<SpeedLimitTrainSimVec>()?;
     m.add_class::<EstTimeNet>()?;
+    m.add_class::<Pyo3VecWrapper>()?;
+    m.add_class::<Pyo3Vec2Wrapper>()?;
+    m.add_class::<Pyo3Vec3Wrapper>()?;
+    m.add_class::<Pyo3VecBoolWrapper>()?;
     m.add_function(wrap_pyfunction!(import_locations_py, m)?)?;
     m.add_function(wrap_pyfunction!(make_est_times_py, m)?)?;
     m.add_function(wrap_pyfunction!(run_dispatch_py, m)?)?;
     m.add_function(wrap_pyfunction!(check_od_pair_valid, m)?)?;
     m.add_function(wrap_pyfunction!(build_speed_limit_train_sims, m)?)?;
     m.add_function(wrap_pyfunction!(run_speed_limit_train_sims, m)?)?;
-
-    m.add_class::<Pyo3VecWrapper>()?;
-    m.add_class::<Pyo3Vec2Wrapper>()?;
-    m.add_class::<Pyo3Vec3Wrapper>()?;
-    m.add_class::<Pyo3VecBoolWrapper>()?;
+    #[cfg(feature = "logging")]
+    m.add_function(wrap_pyfunction!(pyo3_log_init, m)?)?;
 
     Ok(())
+}
+
+#[cfg(feature = "logging")]
+#[cfg_attr(feature = "logging", pyfunction)]
+fn pyo3_log_init() {
+    pyo3_log::init();
 }

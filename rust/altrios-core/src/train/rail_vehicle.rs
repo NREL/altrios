@@ -58,9 +58,22 @@ pub struct RailVehicle {
     pub curve_coeff_2: si::Ratio,
 }
 
-impl RailVehicle {
-    /// Returns total non-rotational mass, sum of `mass_static_freight` and `mass_static`
-    pub fn mass_static_total(&self) -> si::Mass {
-        self.mass_static_base + self.mass_freight
+impl Mass for RailVehicle {
+    fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        self.derived_mass()
     }
+
+    fn set_mass(
+        &mut self,
+        _new_mass: Option<si::Mass>,
+        _side_effect: MassSideEffect,
+    ) -> anyhow::Result<()> {
+        bail!("`set_mass` is not enabled for `RailVehicle`")
+    }
+
+    fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        Ok(Some(self.mass_static_base + self.mass_freight))
+    }
+
+    fn expunge_mass_fields(&mut self) {}
 }

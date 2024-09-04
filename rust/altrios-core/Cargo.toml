@@ -51,6 +51,7 @@ directories = "5.0.1"
 tempfile = "3.10.1"
 
 [features]
+default = ["logging"]
 ## Exposes ALTRIOS structs, methods, and functions to Python.
 pyo3 = ["dep:pyo3"]
 ## Enables logging messages that can be passed to Python if `pyo3` is also

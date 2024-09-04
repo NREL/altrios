@@ -974,7 +974,6 @@ def run_train_planner(
                         selected = loco_pool.select(pl.col("Locomotive_ID").is_not_null().alias("selected")).to_series()
                         dispatched = loco_pool
                     else:
-                        # TODO: can skip the hp_per_ton checks for PS vehicles
                         selected = dispatch(
                             current_time,
                             this_train['Tons_Per_Train'],

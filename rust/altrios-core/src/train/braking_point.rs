@@ -119,7 +119,7 @@ impl BrakingPoints {
                     );
                     let vel_change = train_state.dt
                         * (fric_brake.force_max + train_state.res_net())
-                        // TODO: maybe add rotating mass in denominator
+                        // TODO: @calbaker add rotating mass in denominator
                         / train_state.mass_static_base;
 
                     // Exit after adding a couple of points if the next braking curve point will exceed the speed limit

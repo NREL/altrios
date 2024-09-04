@@ -448,7 +448,7 @@ impl TrainSimBuilder {
                         * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
                 },
             ));
-            // TODO: investigate discrepancy w.r.t. `main` branch
+            // TODO: @calbaker investigate discrepancy w.r.t. `main` branch
             // Sum of mass-averaged rolling resistances across all railcars
             let res_rolling = res_kind::rolling::Basic::new(rvs.iter().try_fold(
                 0.0 * uc::R,
@@ -505,7 +505,6 @@ impl TrainSimBuilder {
         // brake propagation rate is 800 ft/s (about speed of sound)
         // ramp up duration is ~30 s
         // TODO: make this not hard coded!
-        // TODO: remove save_interval from new function!
         let ramp_up_time = 0.0 * uc::S;
         let ramp_up_coeff = 0.6 * uc::R;
 

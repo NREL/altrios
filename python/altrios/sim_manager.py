@@ -8,8 +8,6 @@ from pathlib import Path
 import time
 from altrios import defaults
 
-
-# from __future__ import annotations # TODO: uncomment and propagate
 import altrios as alt
 from altrios import train_planner as planner
 from altrios import metric_calculator as metrics

@@ -4,7 +4,7 @@ use crate::si;
 #[test]
 fn test_conv_loco() {
     let mut loco = Locomotive::default();
-    loco.assert_limits = false; // todo: make this true and fix test
+    loco.assert_limits = true;
 
     match loco.loco_type {
         PowertrainType::ConventionalLoco(_) => {}

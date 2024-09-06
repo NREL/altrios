@@ -348,7 +348,7 @@ impl SetSpeedTrainSim {
             .set_cur_pwr_max_out(None, self.speed_trace.dt(self.state.i))?;
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
-        self.solve_required_pwr(self.speed_trace.dt(self.state.i));
+        self.solve_required_pwr(self.speed_trace.dt(self.state.i))?;
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
             self.speed_trace.dt(self.state.i),
@@ -387,9 +387,10 @@ impl SetSpeedTrainSim {
     /// - drag
     /// - inertia
     /// - acceleration
-    pub fn solve_required_pwr(&mut self, dt: si::Time) {
+    pub fn solve_required_pwr(&mut self, dt: si::Time) -> anyhow::Result<()> {
         self.state.pwr_res = self.state.res_net() * self.speed_trace.mean(self.state.i);
-        self.state.pwr_accel = self.state.mass_adj / (2.0 * self.speed_trace.dt(self.state.i))
+        self.state.pwr_accel = self.state.mass_compound().with_context(|| format_dbg!())?
+            / (2.0 * self.speed_trace.dt(self.state.i))
             * (self.speed_trace.speed[self.state.i].powi(typenum::P2::new())
                 - self.speed_trace.speed[self.state.i - 1].powi(typenum::P2::new()));
         self.state.dt = self.speed_trace.dt(self.state.i);
@@ -401,6 +402,7 @@ impl SetSpeedTrainSim {
         } else {
             self.state.energy_whl_out_neg -= self.state.pwr_whl_out * dt;
         }
+        Ok(())
     }
 }
 

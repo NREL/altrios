@@ -633,7 +633,7 @@ class TrainState:
     dt_seconds: float
     length_meters: float
     mass_static_kilograms: float
-    mass_adj_kilograms: float
+    mass_rot_kilograms: float
     mass_freight_kilograms: float
     weight_static_newtons: float
     res_rolling_newtons: float
@@ -761,7 +761,7 @@ class CatPowerLimit(SerdeAPI):
 class TrainParams(SerdeAPI):
     length: float
     speed_max: float
-    mass_total: float
+    mass_static: float
     mass_per_brake: float
     axle_count: int
     train_type: TrainType

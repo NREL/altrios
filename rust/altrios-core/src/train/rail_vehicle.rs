@@ -59,6 +59,7 @@ pub struct RailVehicle {
 }
 
 impl Mass for RailVehicle {
+    /// Static mass of rail vehicle, not including effective rotational mass
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
         self.derived_mass()
     }

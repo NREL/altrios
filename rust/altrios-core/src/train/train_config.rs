@@ -153,8 +153,8 @@ impl TrainConfig {
     /// all the `car_type` fields in `rail_vehicles` have matching keys in
     /// `self.n_cars_by_type`.
     pub fn make_train_params(&self) -> anyhow::Result<TrainParams> {
-        // total train mass including locomotive consist
-        let train_mass_static = self.train_mass.unwrap_or({
+        // total towed mass of rail vehicles
+        let towed_mass_static = self.train_mass.unwrap_or({
             self.rail_vehicles.iter().try_fold(
                 0. * uc::KG,
                 |acc, rv| -> anyhow::Result<si::Mass> {
@@ -194,9 +194,9 @@ impl TrainConfig {
                     }
                 },
             ),
-            mass_total: train_mass_static,
-            // TODO: ask Tyler if `mass_per_brake` should include rotational mass
-            mass_per_brake: train_mass_static
+            towed_mass_static,
+            // TODO: @calbaker include rotational mass
+            mass_per_brake: towed_mass_static
                 / self.rail_vehicles.iter().fold(0, |acc, rv| -> u32 {
                     acc + rv.brake_count as u32 * *self.n_cars_by_type.get(&rv.car_type).unwrap()
                 }) as f64,
@@ -397,8 +397,8 @@ impl TrainSimBuilder {
             .with_context(|| format_dbg!())?;
 
         let length = train_params.length;
-        // TODO: figure out the "mass_.*" situation
-        let train_mass_static = train_params.mass_total
+        // total train weight including locomotives, baseline rail vehicle masses, and freight mass
+        let train_mass_static = train_params.towed_mass_static
             + self
                 .loco_con
                 .mass()
@@ -411,18 +411,17 @@ impl TrainSimBuilder {
                     0. * uc::KG
                 });
 
-        let mass_adj = train_mass_static
-            + rvs.iter().fold(0. * uc::KG, |acc, rv| -> si::Mass {
-                acc + rv.mass_extra_per_axle
-                    * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
-                    * rv.axle_count as f64
-            });
+        let mass_rot = rvs.iter().fold(0. * uc::KG, |acc, rv| -> si::Mass {
+            acc + rv.mass_extra_per_axle
+                * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
+                * rv.axle_count as f64
+        });
         let mass_freight = rvs.iter().fold(0. * uc::KG, |acc, rv| -> si::Mass {
             acc + rv.mass_freight
                 * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
         });
         let max_fric_braking = uc::ACC_GRAV
-            * train_params.mass_total
+            * train_params.towed_mass_static
             * rvs.iter().fold(0. * uc::R, |acc, rv| -> si::Ratio {
                 acc + rv.braking_ratio
                     * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
@@ -432,7 +431,7 @@ impl TrainSimBuilder {
         let state = TrainState::new(
             length,
             train_mass_static,
-            mass_adj,
+            mass_rot,
             mass_freight,
             self.init_train_state,
         );
@@ -448,7 +447,6 @@ impl TrainSimBuilder {
                         * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
                 },
             ));
-            // TODO: @calbaker investigate discrepancy w.r.t. `main` branch
             // Sum of mass-averaged rolling resistances across all railcars
             let res_rolling = res_kind::rolling::Basic::new(rvs.iter().try_fold(
                 0.0 * uc::R,
@@ -458,7 +456,7 @@ impl TrainSimBuilder {
                             * rv.mass()
                                 .with_context(|| format_dbg!())?
                                 .with_context(|| format!("{}\nExpected `Some`", format_dbg!()))?
-                            / train_mass_static
+                            / train_params.towed_mass_static // does not include locomotive consist mass -- TODO: fix this, carefully                            
                             * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
                             * uc::R)
                 },
@@ -473,7 +471,7 @@ impl TrainSimBuilder {
                             * rv.mass()
                                 .with_context(|| format_dbg!())?
                                 .with_context(|| format!("{}\nExpected `Some`", format_dbg!()))?
-                            / train_mass_static
+                            / train_params.towed_mass_static // does not include locomotive consist mass -- TODO: fix this, carefully
                             * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
                             * uc::R)
                 },

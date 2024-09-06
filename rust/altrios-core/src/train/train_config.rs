@@ -196,7 +196,7 @@ impl TrainConfig {
             ),
             towed_mass_static,
             // TODO: @calbaker include rotational mass
-            mass_per_brake: towed_mass_static
+            mass_per_brake: (towed_mass_static)
                 / self.rail_vehicles.iter().fold(0, |acc, rv| -> u32 {
                     acc + rv.brake_count as u32 * *self.n_cars_by_type.get(&rv.car_type).unwrap()
                 }) as f64,
@@ -412,7 +412,7 @@ impl TrainSimBuilder {
                 });
 
         let mass_rot = rvs.iter().fold(0. * uc::KG, |acc, rv| -> si::Mass {
-            acc + rv.mass_extra_per_axle
+            acc + rv.mass_rot_per_axle
                 * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64
                 * rv.axle_count as f64
         });

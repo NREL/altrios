@@ -7,7 +7,7 @@ mass_static_base: 28500.0
 mass_freight: 0.0
 speed_max: 20.0
 braking_ratio: 0.25
-mass_extra_per_axle: 750.0
+mass_rot_per_axle: 750.0
 bearing_res_per_axle: 40.26
 rolling_ratio: 0.001546
 davis_b: 0.0

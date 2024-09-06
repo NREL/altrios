@@ -935,7 +935,7 @@ class RailVehicle(SerdeAPI):
     cd_area_empty_square_meters: float
     cd_area_loaded_square_meters: float
     length_meters: float
-    mass_extra_per_axle_kilograms: float
+    mass_rot_per_axle_kilograms: float
     mass_static_empty_kilograms: float
     mass_static_loaded_kilograms: float
     rolling_ratio: float

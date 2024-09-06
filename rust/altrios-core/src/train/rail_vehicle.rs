@@ -33,7 +33,7 @@ pub struct RailVehicle {
 
     /// Additional mass value to adjust for rotating mass in wheels and axles (typically 1,500 lbs or 680 kg)
     #[serde(alias = "Mass Extra per Axle (kg)")]
-    pub mass_extra_per_axle: si::Mass,
+    pub mass_rot_per_axle: si::Mass,
     /// Bearing resistance as force
     #[serde(alias = "Bearing Res per Axle (N)")]
     pub bearing_res_per_axle: si::Force,

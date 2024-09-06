@@ -309,9 +309,9 @@ def generate_demand_trains(
     #MPrepare ton_per_car requirements to merge onto the demand DataFrame
     # TODO: simplify mass API here. Is there a function on the Rust side to get total mass (or should there be)?
     def get_kg_empty(veh):
-        return veh.mass_static_base_kilograms + veh.axle_count * veh.mass_extra_per_axle_kilograms
+        return veh.mass_static_base_kilograms + veh.axle_count * veh.mass_rot_per_axle_kilograms
     def get_kg(veh):
-        return veh.mass_static_base_kilograms + veh.mass_freight_kilograms + veh.axle_count * veh.mass_extra_per_axle_kilograms
+        return veh.mass_static_base_kilograms + veh.mass_freight_kilograms + veh.axle_count * veh.mass_rot_per_axle_kilograms
     
     # NOTE: don't need to use this for PS; just need to use target platoon size (# of rail vehicles) then convert to containers 
     # based on single vs. double stacked. Target # of rail vehicle Other intermodals may need to use weight 

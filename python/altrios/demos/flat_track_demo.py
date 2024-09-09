@@ -44,7 +44,7 @@ def create_drag_vec(
     Arguments:
     ---------
     num_rail_vehicles: int - Number of rail vehicles in the platoon
-    ps_gap_size: float - Gap size between the rail vehicles
+    gap_size: float - Gap size between the rail vehicles
 
     Output:
     ---------
@@ -60,7 +60,7 @@ def create_drag_vec(
     ## From slide 16 of the Aerodynamic model PPT
     periodic_drag_coeff_liang = 0.193
 
-    rel_drag_change = drag_change_pct(ps_gap_size)
+    rel_drag_change = drag_change_pct(gap_size)
     # rel_drag_change = -29.30
     drag_coeff_baseline = 0.108
     periodic_drag_coeff_ps = drag_coeff_baseline*(1+rel_drag_change/100)

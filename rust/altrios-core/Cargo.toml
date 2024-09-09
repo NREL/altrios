@@ -21,7 +21,8 @@ altrios-proc-macros = { workspace = true }
 argmin = "0.5.1"
 rayon = "1.5.3"
 bincode = "1.3.3"
-log = "0.4.17"
+log = { version = "0.4.17", optional = true }
+document-features = { workspace = true }
 anyhow = { workspace = true }
 readonly = "0.2.3"
 duplicate = "0.4.1"
@@ -50,7 +51,12 @@ directories = "5.0.1"
 tempfile = "3.10.1"
 
 [features]
+default = ["logging"]
+## Exposes ALTRIOS structs, methods, and functions to Python.
 pyo3 = ["dep:pyo3"]
+## Enables logging messages that can be passed to Python if `pyo3` is also
+## enabled.
+logging = ["dep:log"]
 
 [lints.rust]
 # `'cfg(debug_advance_rewind)'` is expected for debugging in `advance_rewind.rs`

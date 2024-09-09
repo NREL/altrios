@@ -645,6 +645,7 @@ impl Mass for Locomotive {
             Some(new_mass) => {
                 if let Some(dm) = derived_mass {
                     if dm != new_mass {
+                        #[cfg(feature = "logging")]
                         log::warn!(
                             "Derived mass does not match provided mass, setting `{}` consituent mass fields to `None`",
                             stringify!(Locomotive));
@@ -661,6 +662,7 @@ impl Mass for Locomotive {
                 )
             })?),
         };
+        #[cfg(feature = "logging")]
         log::info!("Updating `force_max` to correspond to new mass.");
         self.force_max = self
             .mu()
@@ -786,7 +788,6 @@ impl Locomotive {
     }
 
     pub fn default_battery_electric_loco() -> Self {
-        // TODO: add `pwr_aux_offset` and `pwr_aux_traction_coeff` based on calibration
         Locomotive::build_battery_electric_loco(
             ReversibleEnergyStorage::default(),
             ElectricDrivetrain::default(),

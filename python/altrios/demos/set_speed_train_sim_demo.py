@@ -4,24 +4,38 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import os
 
 import altrios as alt 
 sns.set_theme()
 
+# Uncomment and run `maturin develop --release --features logging` to enable logging, 
+# which is needed because logging bogs the CPU and is off by default.
+# alt.utils.set_log_level("DEBUG")
+
 SHOW_PLOTS = alt.utils.show_plots()
+PYTEST = os.environ.get("PYTEST", "false").lower() == "true"
 
 SAVE_INTERVAL = 1
 
+# Build the train config
+rail_vehicle_loaded = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Loaded.yaml")
+rail_vehicle_empty = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Empty.yaml")
+
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
-    cars_empty=50,
-    cars_loaded=50,
-    rail_vehicle_type="Manifest",
-    train_type=None,
+    rail_vehicles=[rail_vehicle_loaded, rail_vehicle_empty],
+    n_cars_by_type={
+        "Manifest_Loaded": 50,
+        "Manifest_Empty": 50,
+    },
     train_length_meters=None,
     train_mass_kilograms=None,
 )
 
+# Build the locomotive consist model
 # instantiate battery model
 # https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/reversible_energy_storage/struct.ReversibleEnergyStorage.html#
 res = alt.ReversibleEnergyStorage.from_file(
@@ -54,16 +68,14 @@ loco_con = alt.Consist(
     SAVE_INTERVAL,
 )
 
+# Instantiate the intermediate `TrainSimBuilder`
 tsb = alt.TrainSimBuilder(
     train_id="0",
     train_config=train_config,
     loco_con=loco_con,
 )
 
-rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
-rail_vehicle = alt.RailVehicle.from_file(
-    alt.resources_root() / rail_vehicle_file)
-
+# Load the network and link path through the network.  
 network = alt.Network.from_file(
     alt.resources_root() / "networks/Taconite.yaml")
 network.set_speed_set_for_train_type(alt.TrainType.Freight)
@@ -71,17 +83,19 @@ link_path = alt.LinkPath.from_csv_file(
     alt.resources_root() / "demo_data/link_points_idx.csv"
 )
 
+# load the prescribed speed trace that the train will follow
 speed_trace = alt.SpeedTrace.from_csv_file(
     alt.resources_root() / "demo_data/speed_trace.csv"
 )
 
 train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
-    rail_vehicle=rail_vehicle,
     network=network,
     link_path=link_path,
     speed_trace=speed_trace,
     save_interval=SAVE_INTERVAL,
 )
+
+alt.utils.set_log_level("WARNING")
 
 train_sim.set_save_interval(SAVE_INTERVAL)
 t0 = time.perf_counter()
@@ -139,4 +153,37 @@ if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
 
-# %%
+if PYTEST:
+    # to access these checks, run `SHOW_PLOTS=f PYTEST=true python set_speed_train_sim_demo.py`
+    import json
+    json_path = alt.resources_root() / "test_assets/set_speed_ts_demo.json"
+    with open(json_path, 'r') as file:
+        train_sim_reference = json.load(file)
+
+    dist_msg = f"`train_sim.state.total_dist_meters`: {train_sim.state.total_dist_meters}\n" + \
+        f"`train_sim_reference['state']['total_dist']`: {train_sim_reference['state']['total_dist']}"
+    energy_whl_out_msg = f"`train_sim.state.energy_whl_out_joules`: {train_sim.state.energy_whl_out_joules}\n" + \
+        f"`train_sim_reference['state']['energy_whl_out']`: {train_sim_reference['state']['energy_whl_out']}"
+    train_sim_fuel = train_sim.loco_con.get_energy_fuel_joules()
+    train_sim_reference_fuel = sum(
+        loco['loco_type']['ConventionalLoco']['fc']['state']['energy_fuel'] if 'ConventionalLoco' in loco['loco_type'] else 0 
+        for loco in train_sim_reference['loco_con']['loco_vec']
+    )
+    fuel_msg = f"`train_sim_fuel`: {train_sim_fuel}\n`train_sim_referenc_fuel`: {train_sim_reference_fuel}"
+    train_sim_net_res = train_sim.loco_con.get_net_energy_res_joules()
+    train_sim_reference_net_res = sum(
+        loco['loco_type']['BatteryElectricLoco']['res']['state']['energy_out_chemical'] if 'BatteryElectricLoco' in loco['loco_type'] else 0 
+        for loco in train_sim_reference['loco_con']['loco_vec']
+    )
+    net_res_msg = f"`train_sim_net_res`: {train_sim_net_res}\n`train_sim_referenc_net_res`: {train_sim_reference_net_res}"
+
+    # check total distance
+    assert train_sim.state.total_dist_meters == train_sim_reference["state"]["total_dist"], dist_msg
+
+    # check total tractive energy
+    assert train_sim.state.energy_whl_out_joules == train_sim_reference["state"]["energy_whl_out"], energy_whl_out_msg
+
+    # check consist-level fuel usage
+    assert train_sim_fuel == train_sim_reference_fuel, fuel_msg
+
+    # check consist-level battery usage

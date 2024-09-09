@@ -109,7 +109,6 @@ impl TrainDisp {
                 // following contents:
                 // [build]
                 // rustflags = "--cfg debug_advance_rewind"
-                // TODO:  Might be simpler to make this a feature, if it's still necessary
                 // Verify that free path is in fact free
                 #[cfg(debug_advance_rewind)]
                 {
@@ -270,7 +269,6 @@ impl TrainDisp {
             self.disp_node_idx_free = (self.disp_node_idx_free.idx() + 1).try_from_idx().unwrap();
 
             if self.disp_node_idx_free.idx() == self.disp_path.len() {
-                // TODO:  Don't use unwrap here
                 self.offset_free = self.disp_path.last().unwrap().offset;
                 break;
             }

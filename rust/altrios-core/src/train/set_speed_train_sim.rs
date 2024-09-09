@@ -46,7 +46,7 @@ impl SpeedTrace {
 
     pub fn trim(&mut self, start_idx: Option<usize>, end_idx: Option<usize>) -> anyhow::Result<()> {
         let start_idx = start_idx.unwrap_or(0);
-        let end_idx = end_idx.unwrap_or(self.len());
+        let end_idx = end_idx.unwrap_or_else(|| self.len());
         ensure!(end_idx <= self.len(), format_dbg!(end_idx <= self.len()));
 
         self.time = self.time[start_idx..end_idx].to_vec();
@@ -334,6 +334,8 @@ impl SetSpeedTrainSim {
 
     /// Solves time step.
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
+        #[cfg(feature = "logging")]
+        log::info!("Solving time step #{}", self.state.i);
         ensure!(
             self.speed_trace.speed[self.state.i] >= si::Velocity::ZERO,
             format_dbg!(self.speed_trace.speed[self.state.i] >= si::Velocity::ZERO)
@@ -346,7 +348,7 @@ impl SetSpeedTrainSim {
             .set_cur_pwr_max_out(None, self.speed_trace.dt(self.state.i))?;
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
-        self.solve_required_pwr(self.speed_trace.dt(self.state.i));
+        self.solve_required_pwr(self.speed_trace.dt(self.state.i))?;
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
             self.speed_trace.dt(self.state.i),
@@ -385,9 +387,10 @@ impl SetSpeedTrainSim {
     /// - drag
     /// - inertia
     /// - acceleration
-    pub fn solve_required_pwr(&mut self, dt: si::Time) {
+    pub fn solve_required_pwr(&mut self, dt: si::Time) -> anyhow::Result<()> {
         self.state.pwr_res = self.state.res_net() * self.speed_trace.mean(self.state.i);
-        self.state.pwr_accel = self.state.mass_adj / (2.0 * self.speed_trace.dt(self.state.i))
+        self.state.pwr_accel = self.state.mass_compound().with_context(|| format_dbg!())?
+            / (2.0 * self.speed_trace.dt(self.state.i))
             * (self.speed_trace.speed[self.state.i].powi(typenum::P2::new())
                 - self.speed_trace.speed[self.state.i - 1].powi(typenum::P2::new()));
         self.state.dt = self.speed_trace.dt(self.state.i);
@@ -399,6 +402,7 @@ impl SetSpeedTrainSim {
         } else {
             self.state.energy_whl_out_neg -= self.state.pwr_whl_out * dt;
         }
+        Ok(())
     }
 }
 

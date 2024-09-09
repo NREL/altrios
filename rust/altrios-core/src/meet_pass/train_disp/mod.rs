@@ -111,7 +111,7 @@ impl TrainDisp {
         dist_fixed_max: si::Length,
         acc_startup: si::Acceleration,
         est_time_net: EstTimeNet,
-    ) -> Result<Self, anyhow::Error> {
+    ) -> anyhow::Result<Self> {
         if train_idx.is_none() {
             bail!("Train disp cannot be created with train_idx=None!");
         }

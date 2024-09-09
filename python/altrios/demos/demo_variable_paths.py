@@ -105,10 +105,10 @@ ENABLE_ASSERTS = os.environ.get("ENABLE_ASSERTS", "true").lower() == "true"
 # whether to override reference files used in assertions, disabled by default
 ENABLE_REF_OVERRIDE = os.environ.get("ENABLE_REF_OVERRIDE", "false").lower() == "true"
 # directory for reference files for checking sim results against expected results
-ref_dir = alt.resources_root() / "demos/demo_variable_paths/"
+ref_dir = alt.resources_root() / "demo_data/demo_variable_paths/"
 
-# print out all subpaths for variables in SimDrive
-print("List of variable paths for SimDrive:" + "\n".join(train_sim.variable_path_list()))
+# print out all subpaths for variables in train_sim
+print("List of variable paths for train_sim:" + "\n".join(train_sim.variable_path_list()))
 if ENABLE_REF_OVERRIDE:
     ref_dir.mkdir(exist_ok=True, parents=True)
     with open(ref_dir / "variable_path_list_expected.txt", 'w') as f:
@@ -121,8 +121,8 @@ if ENABLE_ASSERTS:
     assert variable_path_list_expected == train_sim.variable_path_list()
     print("\n")
 
-# print out all subpaths for history variables in SimDrive
-print("List of history variable paths for SimDrive:" +  "\n".join(train_sim.history_path_list()))
+# print out all subpaths for history variables in train_sim
+print("List of history variable paths for train_sim:" +  "\n".join(train_sim.history_path_list()))
 print("\n")
 
 # print results as dataframe

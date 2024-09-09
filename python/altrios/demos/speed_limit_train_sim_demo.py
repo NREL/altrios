@@ -2,6 +2,7 @@
 import time
 import matplotlib.pyplot as plt
 import numpy as np
+import polars as pl
 import pandas as pd
 import seaborn as sns
 import os
@@ -14,7 +15,6 @@ sns.set_theme()
 # alt.utils.set_log_level("DEBUG")
 
 SHOW_PLOTS = alt.utils.show_plots()
-PYTEST = os.environ.get("PYTEST", "false").lower() == "true"
 
 SAVE_INTERVAL = 100
 
@@ -232,37 +232,19 @@ if SHOW_PLOTS:
     plt.show()
 # Impact of sweep of battery capacity TODO: make this happen
 
-if PYTEST:
-    # to access these checks, run `SHOW_PLOTS=f PYTEST=true python speed_limit_train_sim_demo.py`
-    import json
-    json_path = alt.resources_root() / "test_assets/speed_limit_ts_demo.json"
-    with open(json_path, 'r') as file:
-        train_sim_reference = json.load(file)
+# whether to run assertions, enabled by default
+ENABLE_ASSERTS = os.environ.get("ENABLE_ASSERTS", "true").lower() == "true"
+# whether to override reference files used in assertions, disabled by default
+ENABLE_REF_OVERRIDE = os.environ.get("ENABLE_REF_OVERRIDE", "false").lower() == "true"
+# directory for reference files for checking sim results against expected results
+ref_dir = alt.resources_root() / "demo_data/speed_limit_train_sim_demo/"
 
-    dist_msg = f"`train_sim.state.total_dist_meters`: {train_sim.state.total_dist_meters}\n" + \
-        f"`train_sim_reference['state']['total_dist']`: {train_sim_reference['state']['total_dist']}"
-    energy_whl_out_msg = f"`train_sim.state.energy_whl_out_joules`: {train_sim.state.energy_whl_out_joules}\n" + \
-        f"`train_sim_reference['state']['energy_whl_out']`: {train_sim_reference['state']['energy_whl_out']}"
-    train_sim_fuel = train_sim.loco_con.get_energy_fuel_joules()
-    train_sim_reference_fuel = sum(
-        loco['loco_type']['ConventionalLoco']['fc']['state']['energy_fuel'] if 'ConventionalLoco' in loco['loco_type'] else 0 
-        for loco in train_sim_reference['loco_con']['loco_vec']
-    )
-    fuel_msg = f"`train_sim_fuel`: {train_sim_fuel}\n`train_sim_referenc_fuel`: {train_sim_reference_fuel}"
-    train_sim_net_res = train_sim.loco_con.get_net_energy_res_joules()
-    train_sim_reference_net_res = sum(
-        loco['loco_type']['BatteryElectricLoco']['res']['state']['energy_out_chemical'] if 'BatteryElectricLoco' in loco['loco_type'] else 0 
-        for loco in train_sim_reference['loco_con']['loco_vec']
-    )
-    net_res_msg = f"`train_sim_net_res`: {train_sim_net_res}\n`train_sim_referenc_net_res`: {train_sim_reference_net_res}"
-
-    # check total distance
-    assert train_sim.state.total_dist_meters == train_sim_reference["state"]["total_dist"], dist_msg
-
-    # check total tractive energy
-    assert train_sim.state.energy_whl_out_joules == train_sim_reference["state"]["energy_whl_out"], energy_whl_out_msg
-
-    # check consist-level fuel usage
-    assert train_sim_fuel == train_sim_reference_fuel, fuel_msg
-
-    # check consist-level battery usage
+if ENABLE_REF_OVERRIDE:
+    ref_dir.mkdir(exist_ok=True, parents=True)
+    df:pl.DataFrame = train_sim.to_dataframe().lazy().collect()
+    df.write_csv(ref_dir / "to_dataframe_expected.csv")
+if ENABLE_ASSERTS:
+    print("Checking output of `to_dataframe`")
+    to_dataframe_expected = pl.scan_csv(ref_dir / "to_dataframe_expected.csv").collect()
+    assert to_dataframe_expected.equals(train_sim.to_dataframe())
+    print("Success!")

@@ -119,12 +119,7 @@ impl BrakingPoints {
                     );
                     let vel_change = train_state.dt
                         * (fric_brake.force_max + train_state.res_net())
-                        /* TODO: @calbaker change to `mass_compound` */
-                        / train_state
-                            .mass()
-                            .with_context(|| format_dbg!())?
-                            .with_context(|| format!("{}\nexpected `some`", format_dbg!()))?;
-                    // / train_state.mass_compound()?;
+                        / train_state.mass_compound().with_context(|| format_dbg!())?;
 
                     // exit after adding a couple of points if the next braking curve point will exceed the speed limit
                     if speed_limit < bp_curr.speed_limit + vel_change {

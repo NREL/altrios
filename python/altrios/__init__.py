@@ -109,7 +109,7 @@ def history_path_list(self, element_as_list:bool=False) -> List[str]:
     """
     Returns a list of relative paths to all history variables (all variables
     that contain history as a subpath). 
-    See example usage in `altrios/demos/demo_variable_paths.py`.
+    See example usage in `altrios/demo_data/demo_variable_paths.py`.
 
     # Arguments
     - `element_as_list`: if True, each element is itself a list of the path elements

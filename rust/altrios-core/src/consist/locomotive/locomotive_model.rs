@@ -788,7 +788,6 @@ impl Locomotive {
     }
 
     pub fn default_battery_electric_loco() -> Self {
-        // TODO: add `pwr_aux_offset` and `pwr_aux_traction_coeff` based on calibration
         Locomotive::build_battery_electric_loco(
             ReversibleEnergyStorage::default(),
             ElectricDrivetrain::default(),

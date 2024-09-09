@@ -1,6 +1,6 @@
 use super::*;
 
-// TODO: think about how to incorporate life modeling for Fuel Cells and other tech
+// FUTURE: think about how to incorporate life modeling for Fuel Cells and other tech
 
 const TOL: f64 = 1e-3;
 
@@ -30,13 +30,6 @@ const TOL: f64 = 1e-3;
     fn set_eta_range_py(&mut self, eta_range: f64) -> anyhow::Result<()> {
         Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
     }
-
-    // TODO: uncomment and fix
-    // #[setter("__mass_kg")]
-    // fn set_mass_py(&mut self, mass_kg: Option<f64>) -> anyhow::Result<()> {
-    //     self.set_mass(mass_kg.map(|m| m * uc::KG))?;
-    //     Ok(())
-    // }
 
     #[getter("mass_kg")]
     fn get_mass_py(&self) -> anyhow::Result<Option<f64>> {

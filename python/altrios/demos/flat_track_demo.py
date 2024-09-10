@@ -107,7 +107,7 @@ train_speed = 25.0 * MPH_TO_MPS #[m/s]
 total_time = 30*60 #[s] 
 track_length = train_speed*total_time #[m]
 time_vec = np.arange(0,total_time,1)
-vehicle_type = 'Intermodal'
+vehicle_type = 'Manifest_Empty'
 rail_vehicle_file = resources_dir / Path("rolling_stock/%s.yaml"%vehicle_type)
 assert rail_vehicle_file.exists(), f"Rail vehicle file of type {vehicle_type}.yaml does not exists!"
 rail_vehicle = alt.RailVehicle.from_file(resources_dir / rail_vehicle_file)
@@ -165,12 +165,14 @@ speed_trace = alt.SpeedTrace(
 
 # RUN SIMULATION
 train_config = alt.TrainConfig(
-    cars_empty=0,
-    cars_loaded=num_rail_vehicles,
+    # cars_empty=0,
+    rail_vehicles = [rail_vehicle],
+    n_cars_by_type = {vehicle_type: num_rail_vehicles},
+    # cars_loaded=num_rail_vehicles,
     train_type=None,
     train_length_meters=train_length,
     train_mass_kilograms=None,
-    drag_coeff_vec = np.array(
+    cd_area_vec = np.array(
                     create_drag_vec(num_rail_vehicles, 
                     gap_size)
                     ),
@@ -219,7 +221,7 @@ tsb = alt.TrainSimBuilder(
 )
 
 train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
-    rail_vehicle=rail_vehicle,
+    # rail_vehicle=rail_vehicle,
     network=network,
     link_path=[alt.LinkIdx(1)],
     speed_trace=speed_trace,
@@ -351,9 +353,9 @@ if SHOW_PLOTS:
     plt.show()
 
 res_dict = {'Vehicle Type' : vehicle_type,
-            'Vehicle Mass [kg]' : round(rail_vehicle.mass_static_loaded_kilograms*num_rail_vehicles,3),
+            'Vehicle Mass [kg]' : round(rail_vehicle.mass_static_base_kilograms*num_rail_vehicles,3),
             'Vehicle Speed [m/s]': round(train_sim.state.speed_meters_per_second,3),
-            'Vehicle Frontal Area [m2]:': round(rail_vehicle.drag_area_loaded_square_meters,3),
+            'Vehicle Frontal Area [m2]:': round(rail_vehicle.cd_area_square_meters,3),
             'Track Distance [km]' : round(train_sim.state.offset_meters/1E3, 2),
             'Tractive Power [kW]' : round(train_sim.state.pwr_whl_out_watts/1E3, 2),
             'Resistance - Aerodynamic [kN]' : round(train_sim.state.res_aero_newtons/1E3, 2),

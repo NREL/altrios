@@ -107,8 +107,9 @@ train_speed = 25.0 * MPH_TO_MPS #[m/s]
 total_time = 30*60 #[s] 
 track_length = train_speed*total_time #[m]
 time_vec = np.arange(0,total_time,1)
-vehicle_type = 'Manifest'
+vehicle_type = 'Intermodal'
 rail_vehicle_file = resources_dir / Path("rolling_stock/%s.yaml"%vehicle_type)
+assert rail_vehicle_file.exists(), f"Rail vehicle file of type {vehicle_type}.yaml does not exists!"
 rail_vehicle = alt.RailVehicle.from_file(resources_dir / rail_vehicle_file)
 
 length = track_length

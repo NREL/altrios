@@ -18,27 +18,6 @@ https://github.com/NREL/ALTRIOS.git`.
 
 Within the ALTRIOS folder, run `pip install -e ".[dev]"`
 
-### Using Pinned Package Versions
-
-If you want to use pinned package versions to make sure you're environment is the same as the
-developers, you can do:
-
-```shell
-pip install -r requirements-dev.txt
-```
-
-### Updating Pinned Package Versions
-
-If you add a new package as a dependency, you should update the pinned requirements files. To do
-this you can install pip tools: `pip install pip-tools` and then:
-
-```shell
-pip-compile && pip-compile requirements-dev.in
-```
-
-This will generate two files: `requirements.txt` and `requirements-dev.txt` which you can check into
-the repository.
-
 ## Rust Installation
 
 Install Rust: <https://www.rust-lang.org/tools/install>.

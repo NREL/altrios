@@ -1,20 +1,12 @@
-# %%
-import time
-import matplotlib.pyplot as plt
-import numpy as np
-import polars as pl
-import pandas as pd
-import seaborn as sns
+"""
+Script demonstrating how to use variable_path_list() and history_path_list()
+demos to find the paths to variables within altrios classes.
+"""
 import os
+import polars as pl
+import time
 
 import altrios as alt
-sns.set_theme()
-
-# Uncomment and run `maturin develop --release --features logging` to enable logging, 
-# which is needed because logging bogs the CPU and is off by default.
-# alt.utils.set_log_level("DEBUG")
-
-SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 100
 
@@ -108,139 +100,34 @@ t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 assert len(train_sim.history) > 1
 
-loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
-
-fig, ax = plt.subplots(4, 1, sharex=True)
-ax[0].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
-    label="tract pwr",
-)
-ax[0].set_ylabel('Power [MW]')
-ax[0].legend()
-
-ax[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.res_aero_newtons) / 1e3,
-    label='aero',
-)
-ax[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.res_rolling_newtons) / 1e3,
-    label='rolling',
-)
-ax[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.res_curve_newtons) / 1e3,
-    label='curve',
-)
-ax[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.res_bearing_newtons) / 1e3,
-    label='bearing',
-)
-ax[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.res_grade_newtons) / 1e3,
-    label='grade',
-)
-ax[1].set_ylabel('Force [MN]')
-ax[1].legend()
-
-ax[2].plot(
-    np.array(train_sim.history.time_seconds) / 3_600, 
-    np.array(loco0.res.history.soc)
-)
-ax[2].set_ylabel('SOC')
-
-ax[-1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.speed_meters_per_second,
-    label='achieved'
-)
-ax[-1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.speed_limit_meters_per_second,
-    label='limit'
-)
-ax[-1].set_xlabel('Time [hr]')
-ax[-1].set_ylabel('Speed [m/s]')
-ax[-1].legend()
-plt.suptitle("Speed Limit Train Sim Demo")
-
-fig1, ax1 = plt.subplots(3, 1, sharex=True)
-ax1[0].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.offset_in_link_meters) / 1_000,
-    label='current link',
-)
-ax1[0].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.offset_meters) / 1_000,
-    label='overall',
-)
-ax1[0].legend()
-ax1[0].set_ylabel('Net Dist. [km]')
-
-ax1[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.link_idx_front,
-    linestyle='',
-    marker='.',
-)
-ax1[1].set_ylabel('Link Idx Front')
-
-ax1[-1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.speed_meters_per_second,
-)
-ax1[-1].set_xlabel('Time [hr]')
-ax1[-1].set_ylabel('Speed [m/s]')
-
-plt.suptitle("Speed Limit Train Sim Demo")
-plt.tight_layout()
-
-
-fig2, ax2 = plt.subplots(3, 1, sharex=True)
-ax2[0].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
-    label="tract pwr",
-)
-ax2[0].set_ylabel('Power [MW]')
-ax2[0].legend()
-
-ax2[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.grade_front) * 100.,
-)
-ax2[1].set_ylabel('Grade [%] at\nHead End')
-
-ax2[-1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.speed_meters_per_second,
-)
-ax2[-1].set_xlabel('Time [hr]')
-ax2[-1].set_ylabel('Speed [m/s]')
-
-plt.suptitle("Speed Limit Train Sim Demo")
-plt.tight_layout()
-
-
-if SHOW_PLOTS:
-    plt.tight_layout()
-    plt.show()
-# Impact of sweep of battery capacity TODO: make this happen
-
 # whether to run assertions, enabled by default
 ENABLE_ASSERTS = os.environ.get("ENABLE_ASSERTS", "true").lower() == "true"
 # whether to override reference files used in assertions, disabled by default
 ENABLE_REF_OVERRIDE = os.environ.get("ENABLE_REF_OVERRIDE", "false").lower() == "true"
 # directory for reference files for checking sim results against expected results
-ref_dir = alt.resources_root() / "demo_data/speed_limit_train_sim_demo/"
+ref_dir = alt.resources_root() / "demo_data/demo_variable_paths/"
 
+# print out all subpaths for variables in train_sim
+print("List of variable paths for train_sim:" + "\n".join(train_sim.variable_path_list()))
 if ENABLE_REF_OVERRIDE:
     ref_dir.mkdir(exist_ok=True, parents=True)
+    with open(ref_dir / "variable_path_list_expected.txt", 'w') as f:
+        for line in train_sim.variable_path_list():
+            f.write(line + "\n")
+if ENABLE_ASSERTS:
+    print("Checking output of `variable_path_list()`")
+    with open(ref_dir / "variable_path_list_expected.txt", 'r') as f:
+        variable_path_list_expected = [line.strip() for line in f.readlines()]
+    assert variable_path_list_expected == train_sim.variable_path_list()
+    print("\n")
+
+# print out all subpaths for history variables in train_sim
+print("List of history variable paths for train_sim:" +  "\n".join(train_sim.history_path_list()))
+print("\n")
+
+# print results as dataframe
+print("Results as dataframe:\n", train_sim.to_dataframe(), sep="")
+if ENABLE_REF_OVERRIDE:
     df:pl.DataFrame = train_sim.to_dataframe().lazy().collect()
     df.write_csv(ref_dir / "to_dataframe_expected.csv")
 if ENABLE_ASSERTS:

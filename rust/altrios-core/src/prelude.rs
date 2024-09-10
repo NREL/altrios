@@ -31,19 +31,19 @@ pub use crate::meet_pass::{
 #[cfg(feature = "pyo3")]
 pub use crate::track::import_locations_py;
 #[cfg(feature = "pyo3")]
-pub use crate::train::{
-    build_speed_limit_train_sims, import_rail_vehicles_py, run_speed_limit_train_sims,
-};
+pub use crate::train::{build_speed_limit_train_sims, run_speed_limit_train_sims};
 
 pub use crate::meet_pass::est_times::{make_est_times, EstTimeNet};
 
+#[cfg(feature = "pyo3")]
+pub use crate::train::TrainResWrapper;
 pub use crate::train::{
-    InitTrainState, LinkIdxTime, RailVehicle, RailVehicleMap, SetSpeedTrainSim, SpeedLimitTrainSim,
-    SpeedLimitTrainSimVec, SpeedTrace, TimedLinkPath, TrainConfig, TrainSimBuilder, TrainState,
-    TrainStateHistoryVec,
+    InitTrainState, LinkIdxTime, RailVehicle, SetSpeedTrainSim, SpeedLimitTrainSim,
+    SpeedLimitTrainSimVec, SpeedTrace, TimedLinkPath, TrainConfig, TrainRes, TrainSimBuilder,
+    TrainState, TrainStateHistoryVec,
 };
 
 pub use crate::track::{
-    Elev, Heading, Link, LinkIdx, LinkPath, LinkPoint, Location, Network, SpeedSet, TrainParams,
-    TrainType,
+    Elev, Heading, Link, LinkIdx, LinkPath, LinkPoint, Location, Network, PathTpc, SpeedSet,
+    TrainParams, TrainType,
 };

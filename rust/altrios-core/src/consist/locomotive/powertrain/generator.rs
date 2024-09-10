@@ -52,13 +52,6 @@ use crate::pyo3::*;
         Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
     }
 
-    // TODO: uncomment and fix
-    // #[setter("__mass_kg")]
-    // fn set_mass_py(&mut self, side_effect: String, mass_kg: Option<f64>) -> anyhow::Result<()> {
-    //     // self.set_mass(mass_kg.map(|m| m * uc::KG), MassSideEffect::try_from(side_effect)?)?;
-    //     Ok(())
-    // }
-
     #[getter("mass_kg")]
     fn get_mass_py(&mut self) -> anyhow::Result<Option<f64>> {
         Ok(self.mass()?.map(|m| m.get::<si::kilogram>()))
@@ -88,11 +81,13 @@ pub struct Generator {
     #[api(skip_set)]
     pub pwr_out_frac_interp: Vec<f64>,
     // no macro-generated setter because derived parameters would get messed up
-    /// Generator efficiency array correpsonding to [Self::pwr_out_frac_interp] and [Self::pwr_in_frac_interp].
+    /// Generator efficiency array correpsonding to [Self::pwr_out_frac_interp]
+    /// and [Self::pwr_in_frac_interp].
     #[api(skip_set)]
     pub eta_interp: Vec<f64>,
-    /// Mechanical input power fraction array at which efficiencies are evaluated.
-    /// Calculated during runtime if not provided.
+    /// Mechanical input power fraction array at which efficiencies are
+    /// evaluated.  This vec is calculated during initialization. Each element
+    /// represents the current input power divided by peak output power.
     #[serde(skip)]
     #[api(skip_set)]
     pub pwr_in_frac_interp: Vec<f64>,
@@ -137,6 +132,7 @@ impl Mass for Generator {
         let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
         if let (Some(derived_mass), Some(new_mass)) = (derived_mass, new_mass) {
             if derived_mass != new_mass {
+                #[cfg(feature = "logging")]
                 log::info!(
                     "Derived mass from `self.specific_pwr` and `self.pwr_out_max` does not match {}",
                     "provided mass. Updating based on `side_effect`"
@@ -159,6 +155,7 @@ impl Mass for Generator {
                 }
             }
         } else if new_mass.is_none() {
+            #[cfg(feature = "logging")]
             log::debug!("Provided mass is None, setting `self.specific_pwr` to None");
             self.specific_pwr = None;
         }

@@ -1,4 +1,3 @@
-#![cfg(feature = "pyo3")]
 pub use pyo3::exceptions::{
     PyAttributeError, PyFileNotFoundError, PyNotImplementedError, PyValueError,
 };

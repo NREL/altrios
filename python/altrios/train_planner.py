@@ -6,7 +6,7 @@ import pandas as pd
 import polars as pl
 import polars.selectors as cs
 import math
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Callable
 from itertools import repeat
 import altrios as alt
 from altrios import defaults, utilities
@@ -22,7 +22,7 @@ class TrainPlannerConfig:
                  #TODO single vs double stacked operations on the corridor
                  cars_per_locomotive: int = 70,
                  refuelers_per_incoming_corridor: int = 4,
-                 drag_coeff_function: List = None,
+                 drag_coeff_function: Callable = None,
                  hp_required_per_ton: Dict = {
                      "Default": {
                         "Unit": 2.0,
@@ -989,7 +989,8 @@ def run_train_planner(
                             this_train['Train_Type']: this_train['Number_of_Cars']
                         },
                         train_type = train_type,
-                        cd_area_vec = config.drag_coeff_function
+                        cd_area_vec = config.drag_coeff_function(this_train['Number_of_Cars'], 
+                                                                 gap_size = 0.604)
                     )
 
                     loco_start_soc_j = dispatched.get_column("SOC_J")

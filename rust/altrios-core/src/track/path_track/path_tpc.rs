@@ -293,7 +293,7 @@ impl PathTpc {
                 self.link_points.first_mut().unwrap().offset;
         }
 
-        //Return the new base link point to shift indices appropriately
+        // Return the new base link point to shift indices appropriately
         Ok(link_point_del)
     }
 

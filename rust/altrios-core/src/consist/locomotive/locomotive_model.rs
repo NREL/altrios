@@ -1124,8 +1124,8 @@ impl Locomotive {
                     loco.edrv.state.pwr_mech_prop_out - loco.edrv.state.pwr_mech_dyn_brake;
             }
             PowertrainType::BatteryElectricLoco(loco) => {
-                //todo: put something in here for deep sleep that is the
-                //equivalent of engine_on in conventional loco
+                // todo: put something in here for deep sleep that is the
+                // equivalent of engine_on in conventional loco
                 loco.solve_energy_consumption(pwr_out_req, dt, self.state.pwr_aux)?;
                 self.state.pwr_out =
                     loco.edrv.state.pwr_mech_prop_out - loco.edrv.state.pwr_mech_dyn_brake;
@@ -1257,8 +1257,8 @@ pub struct LocomotiveState {
     pub pwr_out: si::Power,
     /// time varying aux load
     pub pwr_aux: si::Power,
-    //todo: add variable for statemachine pwr_out_prev,
-    //time_at_or_below_idle, time_in_engine_state
+    // todo: add variable for statemachine pwr_out_prev,
+    // time_at_or_below_idle, time_in_engine_state
     /// integral of [Self::pwr_out]
     pub energy_out: si::Energy,
     /// integral of [Self::pwr_aux]

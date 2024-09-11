@@ -85,7 +85,7 @@ impl BrakingPoints {
         let speed_points = path_tpc.speed_points();
         let mut idx = path_tpc.speed_points().len();
 
-        //Iterate backwards through all the speed points
+        // Iterate backwards through all the speed points
         while 0 < idx {
             idx -= 1;
             if speed_points[idx].speed_limit.abs() > self.points.last().unwrap().speed_limit {

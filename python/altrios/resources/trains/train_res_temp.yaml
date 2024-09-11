@@ -12,7 +12,7 @@ Strap:
     davis_b: 0.00003355404807951647
   aerodynamic:
   # Equal to 0.5*Cd*A, sum up value over all railcars
-    drag_area: 8.440293051104742
+    cd_area: 8.440293051104742
   grade:
     idx_front: 0
     idx_back: 0

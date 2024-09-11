@@ -51,16 +51,16 @@ pub fn parse_ts_as_fn_defs(
 
     for impl_item in item_impl.items {
         match &impl_item {
-            syn::ImplItem::Method(item_meth) => {
-                let sig_str = &item_meth.sig.ident.to_token_stream().to_string();
-                fn_from_attr.extend(item_meth.clone().to_token_stream());
+            syn::ImplItem::Fn(item_fn) => {
+                let sig_str = &item_fn.sig.ident.to_token_stream().to_string();
+                fn_from_attr.extend(item_fn.clone().to_token_stream());
                 // check signature
                 if expected_exclusive
                     && (forbidden_fn_names.contains(sig_str)
                         || !expected_fn_names.contains(sig_str))
                 {
                     emit_error!(
-                        &item_meth.sig.ident.span(),
+                        &item_fn.sig.ident.span(),
                         format!("Function name `{}` is forbidden", sig_str)
                     )
                 }

@@ -179,11 +179,19 @@ impl Consist {
     }
 
     pub fn force_max(&self) -> anyhow::Result<si::Force> {
-        self.loco_vec
-            .iter()
-            .try_fold(0. * uc::N, |f_sum, loco| -> anyhow::Result<si::Force> {
-                Ok(loco.force_max().with_context(|| format_dbg!())? + f_sum)
-            })
+        self.loco_vec.iter().enumerate().try_fold(
+            0. * uc::N,
+            |f_sum, (i, loco)| -> anyhow::Result<si::Force> {
+                Ok(loco.force_max().with_context(|| {
+                    format!(
+                        "{}\nloco #: {}\nloco type: {}",
+                        format_dbg!(),
+                        i,
+                        loco.loco_type.to_string()
+                    )
+                })? + f_sum)
+            },
+        )
     }
 
     pub fn get_loco_vec(&self) -> Vec<Locomotive> {
@@ -258,7 +266,6 @@ impl Consist {
         engine_on: Option<bool>,
     ) -> anyhow::Result<()> {
         // TODO: account for catenary in here
-        // TODO: add in `eng_fmt` in the error messages
         if self.assert_limits {
             ensure!(
                 -pwr_out_req <= self.state.pwr_dyn_brake_max,
@@ -329,6 +336,7 @@ impl Consist {
         // maybe put logic for toggling `engine_on` here
 
         for (i, (loco, pwr_out)) in self.loco_vec.iter_mut().zip(pwr_out_vec.iter()).enumerate() {
+            #[cfg(feature = "logging")]
             log::info!(
                 "Solving locomotive #{}\n`pwr_out: `{} MW",
                 i,

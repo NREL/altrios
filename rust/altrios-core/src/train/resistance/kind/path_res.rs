@@ -78,6 +78,7 @@ impl Strap {
             })
         }
     }
+
     pub fn calc_res(
         &mut self,
         vals: &[PathResCoeff],
@@ -114,6 +115,7 @@ impl Strap {
 
         Ok(calc_res_val(res_coeff, state))
     }
+
     pub fn res_coeff_front(&self, vals: &[PathResCoeff]) -> si::Ratio {
         vals[self.idx_front].res_coeff
     }

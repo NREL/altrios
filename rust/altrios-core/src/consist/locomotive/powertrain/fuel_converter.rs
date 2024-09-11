@@ -1,6 +1,6 @@
 use super::*;
 
-// TODO: think about how to incorporate life modeling for Fuel Cells and other tech
+// FUTURE: think about how to incorporate life modeling for Fuel Cells and other tech
 
 const TOL: f64 = 1e-3;
 
@@ -30,13 +30,6 @@ const TOL: f64 = 1e-3;
     fn set_eta_range_py(&mut self, eta_range: f64) -> anyhow::Result<()> {
         Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
     }
-
-    // TODO: uncomment and fix
-    // #[setter("__mass_kg")]
-    // fn set_mass_py(&mut self, mass_kg: Option<f64>) -> anyhow::Result<()> {
-    //     self.set_mass(mass_kg.map(|m| m * uc::KG))?;
-    //     Ok(())
-    // }
 
     #[getter("mass_kg")]
     fn get_mass_py(&self) -> anyhow::Result<Option<f64>> {
@@ -125,6 +118,7 @@ impl Mass for FuelConverter {
         let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
         if let (Some(derived_mass), Some(new_mass)) = (derived_mass, new_mass) {
             if derived_mass != new_mass {
+                #[cfg(feature = "logging")]
                 log::info!(
                     "Derived mass from `self.specific_pwr` and `self.pwr_out_max` does not match {}",
                     "provided mass. Updating based on `side_effect`"
@@ -147,6 +141,7 @@ impl Mass for FuelConverter {
                 }
             }
         } else if new_mass.is_none() {
+            #[cfg(feature = "logging")]
             log::debug!("Provided mass is None, setting `self.specific_pwr` to None");
             self.specific_pwr = None;
         }

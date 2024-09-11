@@ -300,8 +300,7 @@ impl SpeedLimitTrainSim {
         // calculate new resistance
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
-        // solve the required power.  No argument is passed here unlike set_speed_train sim..
-        // I'm about to figure out why maybe......
+        // solve the required power
         self.solve_required_pwr()?;
         #[cfg(feature = "logging")]
         log::debug!(
@@ -310,15 +309,11 @@ impl SpeedLimitTrainSim {
             self.state.time.get::<si::second>().format_eng(Some(9))
         );
 
-        // this is similar to set_speed train sim, but speedtrace.dt is passed rather than state.dt
-        // could we get away with passing state.dt instead of speed_trace.dt in set_speed_train_sim?
-        // could this cause a lag of 1 dt in speed which would be a small but consistent offset in the calcs?
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
             self.state.dt,
             Some(true),
         )?;
-        // same as set speed train trim.
         set_link_and_offset(&mut self.state, &self.path_tpc)?;
         Ok(())
     }
@@ -406,16 +401,15 @@ impl SpeedLimitTrainSim {
     /// - inertia
     /// - target acceleration
     pub fn solve_required_pwr(&mut self) -> anyhow::Result<()> {
-        // this is different from set_speed train sim, but I don't think its important.  We are just assigning it to a variable.
         let res_net = self.state.res_net();
 
-        // Verify that train can slow down
-        // TODO: figure out if dynamic braking needs to be separately accounted for here
-
-        // this is different because we are using air brakes unlike set speed train sim.
-        // check to make sure brakes + resistance is greater than 0.  Not sure why this is that important to
-        // check for.  You may go down a hill and not have enough brakes.  That may not be that safe, but I don't
-        // think it should fail a simulation.
+        // Verify that train can slow down -- if `self.state.res_net()`, which
+        // includes grade, is negative (negative `res_net` means the downgrade
+        // is steep enough that the train is overcoming bearing, rolling,
+        // drag, ... all resistive forces to accelerate downhill in the absence
+        // of any braking), and if `self.state.res_net()` is negative and has
+        // a higher magnitude than `self.fric_brake.force_max`, then the train
+        // cannot slow down.
         ensure!(
             self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO,
             format!(
@@ -430,8 +424,9 @@ impl SpeedLimitTrainSim {
         );
 
         // TODO: Validate that this makes sense considering friction brakes
-        // this figures out when to start braking in advance of a speed limit drop.  Takes into account air brake dynamics.
-        // I have not reviewed this code, but that is my understanding.
+        // this figures out when to start braking in advance of a speed limit
+        // drop.  Takes into account air brake dynamics. I have not reviewed
+        // this code, but that is my understanding.
         let (speed_limit, speed_target) = self.braking_points.calc_speeds(
             self.state.offset,
             self.state.speed,
@@ -458,16 +453,14 @@ impl SpeedLimitTrainSim {
             self.state.pwr_whl_out + self.loco_con.state.pwr_rate_out_max * self.state.dt,
         ));
 
-        // calculate the max braking that a consist can apply.  Same as set speed train sim.
+        // calculate the max braking that a consist can apply
         let pwr_neg_max = self.loco_con.state.pwr_dyn_brake_max.max(si::Power::ZERO);
         ensure!(
             pwr_pos_max >= si::Power::ZERO,
             format_dbg!(pwr_pos_max >= si::Power::ZERO)
         );
 
-        // need for energy calc below.  This is structured differently than set_speed_train_sim.
-        // However, I think the math is the same maybe.
-        // Would it be worth the effort to calculate this once when we initialize and save it as a parameter of the train?  Then we would not have to calculate it every dt.
+        // need for energy calc below
         let time_per_mass = self.state.dt / self.state.mass_static;
 
         // Concept: calculate the final speed such that the worst case
@@ -483,14 +476,11 @@ impl SpeedLimitTrainSim {
 
         // Final v_max value should also be bounded by speed_target
         // maximum achievable positive tractive force
-        // this seems overcomplicated.  We already calculated the wheel out power.  I don't feel like we need v_max understood.  I think following something like set speed
-        // train sim where we calculate the power to hit the target speed and limit the power based on wheel out would do this.  I may be missing something though.
         let f_pos_max = self
             .loco_con
             .force_max()?
             .min(pwr_pos_max / speed_target.min(v_max));
         // Verify that train has sufficient power to move
-        // error handling with good messages for the next 30 or 40 lines.
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
             #[cfg(feature = "logging")]
             log::debug!("{}", format_dbg!(self.path_tpc));
@@ -551,17 +541,18 @@ impl SpeedLimitTrainSim {
         self.fric_brake.set_cur_force_max_out(self.state.dt)?;
 
         // Transition speed between force and power limited negative traction
-        // figure out the velocity where power and force limits coincide.  I don't completely understand why yet.
+        // figure out the velocity where power and force limits coincide
         let v_neg_trac_lim: si::Velocity =
             self.loco_con.state.pwr_dyn_brake_max / self.loco_con.force_max()?;
 
-        // TODO: Make sure that train handling rules consist dynamic braking force limit is respected!
-        // I think this is figuring out how much db the consist can make.  There's a lot to unpack here.
+        // TODO: Make sure that train handling rules for consist dynamic braking force limit is respected!
+        // figure out how much dynamic braking can be used as regenerative
+        // braking to recharge the [ReversibleEnergyStorage]
         let f_max_consist_regen_dyn = if self.state.speed > v_neg_trac_lim {
             // If there is enough braking to slow down at v_max
             let f_max_dyn_fast = self.loco_con.state.pwr_dyn_brake_max / v_max;
             if res_net + self.fric_brake.state.force_max_curr + f_max_dyn_fast >= si::Force::ZERO {
-                self.loco_con.state.pwr_dyn_brake_max / v_max //self.state.speed
+                self.loco_con.state.pwr_dyn_brake_max / v_max // self.state.speed
             } else {
                 f_max_dyn_fast
             }
@@ -593,33 +584,6 @@ impl SpeedLimitTrainSim {
             self.state.speed = speed_target;
         }
 
-        // Questions:
-        // - do we need to update the brake points model to account for ramp-up time?
-        // - do we need a brake model?
-        //     - how do we respect ramp up rates of friction brakes?
-        //     - how do we respect ramp down rates of friction brakes?
-        // - how do we control the friction brakes?
-        // - how do we make sure that the consist does not exceed e-drive braking capability?
-        // - does friction braking get sent from both ends of the train?  Yes, per Tyler and
-        //     Nathan, maybe from locomotive and end-of-train (EOT) device.  BNSF says
-        //     their EOTs don't send a signal from the end of the train.  There may or may not
-        //     be locomotives at the end of the train. Sometimes they run 4 at head and none on rear,
-        //     sometimes 2 in front and 2 in rear.  Could base it on tonnage and car count.
-
-        // TODO: figure out some reasonable split of regen and friction braking
-        // and make sure it's applied here
-
-        // Dynamic vs friction brake apportioning controls
-        // These controls need to make sure that adequate braking force is achieved
-        // which means they need to respect the dynamics of the friction braking system.
-        // They also need to ensure that a reasonable amount of energy is available for
-        // regenerative braking.
-
-        // Whenever braking starting happens, do as much as possible with dyn/regen (respecting limitations of track, traction, etc.),
-        // and when braking needs exceed consist capabilities, then add in friction braking.
-        // Retain level of friction braking until braking is no longer needed and won't be
-        // needed for some time.
-
         let f_consist = if f_applied >= si::Force::ZERO {
             self.fric_brake.state.force = si::Force::ZERO;
             f_applied
@@ -629,7 +593,8 @@ impl SpeedLimitTrainSim {
             if f_consist >= si::Force::ZERO {
                 si::Force::ZERO
             }
-            // If the current friction brakes and consist regen + dyn can handle things, don't add friction braking
+            // If the current friction brakes and consist regen + dyn can handle
+            // things, don't add friction braking
             else if f_consist + f_max_consist_regen_dyn >= si::Force::ZERO {
                 f_consist
             }

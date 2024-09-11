@@ -105,13 +105,13 @@ print(f'Time to simulate: {t1 - t0:.5g}')
 assert len(train_sim.history) > 1
 
 # Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `speed_trace`
-speed_trace = alt.SpeedTrace(
-    train_sim.history.time_seconds.tolist(),
-    train_sim.history.speed_meters_per_second.tolist()
-)
-speed_trace.to_csv_file(
-    alt.resources_root() / "demo_data/speed_trace.csv"
-)
+# speed_trace = alt.SpeedTrace(
+#     train_sim.history.time_seconds.tolist(),
+#     train_sim.history.speed_meters_per_second.tolist()
+# )
+# speed_trace.to_csv_file(
+#     alt.resources_root() / "demo_data/speed_trace.csv"
+# )
 
 loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 

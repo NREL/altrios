@@ -507,6 +507,8 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     #[cfg(feature = "logging")]
     log::debug!("{}", format_dbg!("Add origin estimated times."));
     for orig in origs {
+        #[cfg(feature = "logging")]
+        log::debug!("{}", format_dbg!(orig));
         ensure!(
             orig.offset == si::Length::ZERO,
             "Origin offset must be zero!"
@@ -592,7 +594,11 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     // Iterate and process all saved sims
     #[cfg(feature = "logging")]
     log::debug!("{}", format_dbg!("Iterate and process all saved sims"));
+    #[cfg(feature = "logging")]
+    log::debug!("{}", format_dbg!(saved_sims.len()));
     while let Some(mut sim) = saved_sims.pop() {
+        #[cfg(feature = "logging")]
+        log::debug!("{}", format_dbg!(sim.est_alt.time_sched));
         let mut has_split = false;
         ensure!(
             sim.train_sim.link_idx_last().unwrap().is_real(),

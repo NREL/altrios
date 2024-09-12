@@ -2,6 +2,7 @@
 import time
 import matplotlib.pyplot as plt
 import numpy as np
+import polars as pl
 import pandas as pd
 import seaborn as sns
 import os
@@ -16,7 +17,7 @@ sns.set_theme()
 SHOW_PLOTS = alt.utils.show_plots()
 PYTEST = os.environ.get("PYTEST", "false").lower() == "true"
 
-SAVE_INTERVAL = 1
+SAVE_INTERVAL = 100
 
 # Build the train config
 rail_vehicle_loaded = alt.RailVehicle.from_file(
@@ -78,13 +79,10 @@ tsb = alt.TrainSimBuilder(
 # Load the network and link path through the network.  
 network = alt.Network.from_file(
     alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
-network.set_speed_set_for_train_type(alt.TrainType.Freight)
-# file created from ./speed_limit_train_sim_demo.py:L92
 link_path = alt.LinkPath.from_csv_file(
     alt.resources_root() / "demo_data/link_path.csv"
 )
 
-# file created from ./speed_limit_train_sim_demo.py:`link_path.to_csv_file`
 # load the prescribed speed trace that the train will follow
 speed_trace = alt.SpeedTrace.from_csv_file(
     alt.resources_root() / "demo_data/speed_trace.csv"
@@ -105,9 +103,7 @@ train_sim.walk()
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 
-loco0: alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
-
-fig, ax = plt.subplots(4, 1, sharex=True)
+fig, ax = plt.subplots(3, 1, sharex=True)
 ax[0].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
     np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
@@ -144,85 +140,32 @@ ax[1].plot(
 ax[1].set_ylabel('Force [MN]')
 ax[1].legend()
 
-ax[2].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(loco0.res.history.soc)
-)
-ax[2].set_ylabel('SOC')
-
 ax[-1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.speed_meters_per_second,
-    label='achieved'
-)
-ax[-1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.speed_limit_meters_per_second,
-    label='limit'
+    np.array(train_sim.speed_trace.speed_meters_per_second)[::SAVE_INTERVAL][1:],
 )
 ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')
-ax[-1].legend()
-plt.suptitle("Set Speed Train Sim Demo")
-
-fig1, ax1 = plt.subplots(3, 1, sharex=True)
-ax1[0].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.offset_in_link_meters) / 1_000,
-    label='current link',
-)
-ax1[0].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.offset_meters) / 1_000,
-    label='overall',
-)
-ax1[0].legend()
-ax1[0].set_ylabel('Net Dist. [km]')
-
-ax1[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.link_idx_front,
-    linestyle='',
-    marker='.',
-)
-ax1[1].set_ylabel('Link Idx Front')
-
-ax1[-1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.speed_meters_per_second,
-)
-ax1[-1].set_xlabel('Time [hr]')
-ax1[-1].set_ylabel('Speed [m/s]')
 
 plt.suptitle("Set Speed Train Sim Demo")
-plt.tight_layout()
-
-
-
-fig2, ax2 = plt.subplots(3, 1, sharex=True)
-ax2[0].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
-    label="tract pwr",
-)
-ax2[0].set_ylabel('Power [MW]')
-ax2[0].legend()
-
-ax2[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.grade_front) * 100.,
-)
-ax2[1].set_ylabel('Grade [%] at\nHead End')
-
-ax2[-1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    train_sim.history.speed_meters_per_second,
-)
-ax2[-1].set_xlabel('Time [hr]')
-ax2[-1].set_ylabel('Speed [m/s]')
-
-plt.suptitle("Set Speed Train Sim Demo")
-plt.tight_layout()
 
 if SHOW_PLOTS:
+    plt.tight_layout()
     plt.show()
+
+# whether to run assertions, enabled by default
+ENABLE_ASSERTS = os.environ.get("ENABLE_ASSERTS", "true").lower() == "true"
+# whether to override reference files used in assertions, disabled by default
+ENABLE_REF_OVERRIDE = os.environ.get("ENABLE_REF_OVERRIDE", "false").lower() == "true"
+# directory for reference files for checking sim results against expected results
+ref_dir = alt.resources_root() / "demo_data/set_speed_train_sim_demo/"
+
+if ENABLE_REF_OVERRIDE:
+    ref_dir.mkdir(exist_ok=True, parents=True)
+    df:pl.DataFrame = train_sim.to_dataframe().lazy().collect()[-1]
+    df.write_csv(ref_dir / "to_dataframe_expected.csv")
+if ENABLE_ASSERTS:
+    print("Checking output of `to_dataframe`")
+    to_dataframe_expected = pl.scan_csv(ref_dir / "to_dataframe_expected.csv").collect()[-1]
+    assert to_dataframe_expected.equals(train_sim.to_dataframe()[-1])
+    print("Success!")

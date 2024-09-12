@@ -10,13 +10,11 @@ import os
 import altrios as alt
 sns.set_theme()
 
-# Uncomment and run `maturin develop --release --features logging` to enable logging, 
-# which is needed because logging bogs the CPU and is off by default.
 # alt.utils.set_log_level("DEBUG")
 
 SHOW_PLOTS = alt.utils.show_plots()
 
-SAVE_INTERVAL = 1
+SAVE_INTERVAL = 100
 
 # Build the train config
 rail_vehicle_loaded = alt.RailVehicle.from_file(
@@ -82,7 +80,6 @@ network = alt.Network.from_file(
 
 location_map = alt.import_locations(
     alt.resources_root() / "networks/default_locations.csv")
-
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
     location_map=location_map,
     save_interval=SAVE_INTERVAL,
@@ -99,9 +96,12 @@ timed_link_path = alt.run_dispatch(
     False,
 )[0]
 
-# Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `link_path`
-# link_path = alt.LinkPath([x.link_idx for x in timed_link_path.tolist()])
-# link_path.to_csv_file(alt.resources_root() / "demo_data/link_path.csv")
+# whether to override files used by set_speed_train_sim_demo.py
+OVERRIDE_SSTS_INPUTS = os.environ.get("OVERRIDE_SSTS_INPUTS", "false").lower() == "true"
+if OVERRIDE_SSTS_INPUTS:
+    print("Overriding files used by `set_speed_train_sim_demo.py`")
+    link_path = alt.LinkPath([x.link_idx for x in timed_link_path.tolist()])
+    link_path.to_csv_file(alt.resources_root() / "demo_data/link_path.csv")
 
 # uncomment this line to see example of logging functionality
 # alt.utils.set_log_level("DEBUG")
@@ -116,13 +116,14 @@ print(f'Time to simulate: {t1 - t0:.5g}')
 assert len(train_sim.history) > 1
 
 # Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `speed_trace`
-# speed_trace = alt.SpeedTrace(
-#     train_sim.history.time_seconds.tolist(),
-#     train_sim.history.speed_meters_per_second.tolist()
-# )
-# speed_trace.to_csv_file(
-#     alt.resources_root() / "demo_data/speed_trace.csv"
-# )
+if OVERRIDE_SSTS_INPUTS:
+    speed_trace = alt.SpeedTrace(
+        train_sim.history.time_seconds.tolist(),
+        train_sim.history.speed_meters_per_second.tolist()
+    )
+    speed_trace.to_csv_file(
+        alt.resources_root() / "demo_data/speed_trace.csv"
+    )
 
 loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 
@@ -244,6 +245,7 @@ plt.tight_layout()
 
 
 if SHOW_PLOTS:
+    plt.tight_layout()
     plt.show()
 # Impact of sweep of battery capacity TODO: make this happen
 
@@ -256,10 +258,10 @@ ref_dir = alt.resources_root() / "demo_data/speed_limit_train_sim_demo/"
 
 if ENABLE_REF_OVERRIDE:
     ref_dir.mkdir(exist_ok=True, parents=True)
-    df:pl.DataFrame = train_sim.to_dataframe().lazy().collect()
+    df:pl.DataFrame = train_sim.to_dataframe().lazy().collect()[-1]
     df.write_csv(ref_dir / "to_dataframe_expected.csv")
 if ENABLE_ASSERTS:
     print("Checking output of `to_dataframe`")
-    to_dataframe_expected = pl.scan_csv(ref_dir / "to_dataframe_expected.csv").collect()
-    assert to_dataframe_expected.equals(train_sim.to_dataframe())
+    to_dataframe_expected = pl.scan_csv(ref_dir / "to_dataframe_expected.csv").collect()[-1]
+    assert to_dataframe_expected.equals(train_sim.to_dataframe()[-1])
     print("Success!")

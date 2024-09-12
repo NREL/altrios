@@ -309,7 +309,7 @@ impl Default for LocomotiveSimulation {
         self.walk(b_par)
     }
 )]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
 
 impl SerdeAPI for LocomotiveSimulationVec {

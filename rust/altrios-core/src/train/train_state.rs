@@ -67,6 +67,11 @@ impl InitTrainState {
             init_train_state,
         )
     }
+
+    #[getter("res_net")]
+    fn res_net_py(&self) -> PyResult<f64> {
+        Ok(self.res_net().get::<si::newton>())
+    }
 )]
 pub struct TrainState {
     /// time since user-defined datum
@@ -128,8 +133,7 @@ pub struct TrainState {
     pub pwr_res: si::Power,
     /// Power to overcome inertial forces
     pub pwr_accel: si::Power,
-
-    /// Combined power output at wheels across all locomotives
+    /// Total tractive power exerted by locomotive consist
     pub pwr_whl_out: si::Power,
     /// Integral of [Self::pwr_whl_out]
     pub energy_whl_out: si::Energy,

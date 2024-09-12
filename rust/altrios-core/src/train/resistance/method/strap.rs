@@ -43,7 +43,11 @@ impl ResMethod for Strap {
     ) -> anyhow::Result<()> {
         // TODO: think about pulling the next one or two lines out to somewhere else
         state.offset_back = state.offset - state.length;
-        state.weight_static = state.mass_static * uc::ACC_GRAV;
+        state.weight_static = state
+            .mass()
+            .with_context(|| format_dbg!())?
+            .with_context(|| "{}\nExpected `Some`.")?
+            * uc::ACC_GRAV;
         state.res_bearing = self.bearing.calc_res();
         state.res_rolling = self.rolling.calc_res(state);
         state.res_davis_b = self.davis_b.calc_res(state);

@@ -55,14 +55,14 @@ impl InitTrainState {
     fn __new__(
         length_meters: f64,
         mass_static_kilograms: f64,
-        mass_adj_kilograms: f64,
+        mass_rot_kilograms: f64,
         mass_freight_kilograms: f64,
         init_train_state: Option<InitTrainState>,
     ) -> Self {
         Self::new(
             length_meters * uc::M,
             mass_static_kilograms * uc::KG,
-            mass_adj_kilograms * uc::KG,
+            mass_rot_kilograms * uc::KG,
             mass_freight_kilograms * uc::KG,
             init_train_state,
         )
@@ -96,17 +96,29 @@ pub struct TrainState {
     pub speed_limit: si::Velocity,
     /// Speed target from meet-pass planner
     pub speed_target: si::Velocity,
+    /// Time step size
     pub dt: si::Time,
+    /// Train length
     pub length: si::Length,
+    /// Static mass of train, including freight
     pub mass_static: si::Mass,
-    pub mass_adj: si::Mass,
+    /// Effective additional mass of train due to rotational inertia
+    pub mass_rot: si::Mass,
+    /// Mass of freight being hauled by the train (not including railcar empty weight)
     pub mass_freight: si::Mass,
+    /// Static weight of train
     pub weight_static: si::Force,
+    /// Rolling resistance force
     pub res_rolling: si::Force,
+    /// Bearing resistance force
     pub res_bearing: si::Force,
+    /// Davis B term resistance force
     pub res_davis_b: si::Force,
+    /// Aerodynamic resistance force
     pub res_aero: si::Force,
+    /// Grade resistance force
     pub res_grade: si::Force,
+    /// Curvature resistance force
     pub res_curve: si::Force,
 
     /// Grade at front of train
@@ -123,6 +135,7 @@ pub struct TrainState {
     pub pwr_accel: si::Power,
     /// Total tractive power exerted by locomotive consist
     pub pwr_whl_out: si::Power,
+    /// Integral of [Self::pwr_whl_out]
     pub energy_whl_out: si::Energy,
     /// Energy out during positive or zero traction
     pub energy_whl_out_pos: si::Energy,
@@ -145,7 +158,7 @@ impl Default for TrainState {
             dt: uc::S,
             length: Default::default(),
             mass_static: Default::default(),
-            mass_adj: Default::default(),
+            mass_rot: Default::default(),
             mass_freight: Default::default(),
             elev_front: Default::default(),
             energy_whl_out: Default::default(),
@@ -168,12 +181,33 @@ impl Default for TrainState {
     }
 }
 
+impl Mass for TrainState {
+    /// Static mass of train, not including effective rotational mass
+    fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        self.derived_mass()
+    }
+
+    fn set_mass(
+        &mut self,
+        _new_mass: Option<si::Mass>,
+        _side_effect: MassSideEffect,
+    ) -> anyhow::Result<()> {
+        bail!("`set_mass` is not enabled for `TrainState`")
+    }
+
+    fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        Ok(Some(self.mass_static))
+    }
+
+    fn expunge_mass_fields(&mut self) {}
+}
+
 impl TrainState {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         length: si::Length,
         mass_static: si::Mass,
-        mass_adj: si::Mass,
+        mass_rot: si::Mass,
         mass_freight: si::Mass,
         init_train_state: Option<InitTrainState>,
     ) -> Self {
@@ -191,7 +225,7 @@ impl TrainState {
             speed_limit: init_train_state.speed,
             length,
             mass_static,
-            mass_adj,
+            mass_rot,
             mass_freight,
             ..Self::default()
         }
@@ -205,6 +239,15 @@ impl TrainState {
             + self.res_grade
             + self.res_curve
     }
+
+    /// All base, freight, and rotational mass
+    pub fn mass_compound(&self) -> anyhow::Result<si::Mass> {
+        Ok(self
+            .mass()
+            .with_context(|| format_dbg!())?
+            .with_context(|| format!("{}\nExpected `Some`", format_dbg!()))?
+            + self.mass_rot)
+    }
 }
 
 impl Valid for TrainState {
@@ -214,7 +257,7 @@ impl Valid for TrainState {
             offset: 2000.0 * uc::M,
             offset_back: si::Length::ZERO,
             mass_static: 6000.0 * uc::TON,
-            mass_adj: 6200.0 * uc::TON,
+            mass_rot: 200.0 * uc::TON,
 
             dt: uc::S,
             ..Self::default()
@@ -230,7 +273,7 @@ impl ObjState for TrainState {
         si_chk_num_gtz_fin(&mut errors, &self.length, "Length");
         // si_chk_num_gtz_fin(&mut errors, &self.res_bearing, "Resistance bearing");
         // si_chk_num_fin(&mut errors, &self.res_davis_b, "Resistance Davis B");
-        // si_chk_num_gtz_fin(&mut errors, &self.drag_area, "Drag area");
+        // si_chk_num_gtz_fin(&mut errors, &self.cd_area, "cd area");
         errors.make_err()
     }
 }

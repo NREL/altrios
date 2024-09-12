@@ -291,6 +291,8 @@ impl SpeedLimitTrainSim {
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         // set catenary power limit
+        #[cfg(feature = "logging")]
+        log::info!("Solving time step #{}", self.state.i);
         self.loco_con
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
         // set aux power for the consist
@@ -435,9 +437,10 @@ impl SpeedLimitTrainSim {
         self.state.speed_limit = speed_limit;
         self.state.speed_target = speed_target;
 
-        // calculate the required for to make the train hit the speed target.
-        let f_applied_target =
-            res_net + self.state.mass_static * (speed_target - self.state.speed) / self.state.dt;
+        let f_applied_target = res_net
+            + self.state.mass_compound().with_context(|| format_dbg!())?
+                * (speed_target - self.state.speed)
+                / self.state.dt;
 
         // calculate the max positive tractive effort.  this is the same as set_speed_train_sim
         let pwr_pos_max = self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
@@ -459,9 +462,8 @@ impl SpeedLimitTrainSim {
             pwr_pos_max >= si::Power::ZERO,
             format_dbg!(pwr_pos_max >= si::Power::ZERO)
         );
-
-        // need for energy calc below
-        let time_per_mass = self.state.dt / self.state.mass_static;
+        let time_per_mass =
+            self.state.dt / self.state.mass_compound().with_context(|| format_dbg!())?;
 
         // Concept: calculate the final speed such that the worst case
         // (i.e. maximum) acceleration force does not exceed `power_max`
@@ -572,7 +574,8 @@ impl SpeedLimitTrainSim {
 
         // updating states of the train.
         self.state.pwr_res = res_net * vel_avg;
-        self.state.pwr_accel = self.state.mass_adj / (2.0 * self.state.dt)
+        self.state.pwr_accel = self.state.mass_compound().with_context(|| format_dbg!())?
+            / (2.0 * self.state.dt)
             * ((self.state.speed + vel_change) * (self.state.speed + vel_change)
                 - self.state.speed * self.state.speed);
 

@@ -46,7 +46,7 @@ impl SpeedTrace {
 
     pub fn trim(&mut self, start_idx: Option<usize>, end_idx: Option<usize>) -> anyhow::Result<()> {
         let start_idx = start_idx.unwrap_or(0);
-        let end_idx = end_idx.unwrap_or(self.len());
+        let end_idx = end_idx.unwrap_or_else(|| self.len());
         ensure!(end_idx <= self.len(), format_dbg!(end_idx <= self.len()));
 
         self.time = self.time[start_idx..end_idx].to_vec();
@@ -342,6 +342,8 @@ impl SetSpeedTrainSim {
     /// Solves time step.
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         // checking on speed trace to ensure it is at least stopped or moving forward (no backwards)
+        #[cfg(feature = "logging")]
+        log::info!("Solving time step #{}", self.state.i);
         ensure!(
             self.speed_trace.speed[self.state.i] >= si::Velocity::ZERO,
             format_dbg!(self.speed_trace.speed[self.state.i] >= si::Velocity::ZERO)
@@ -357,9 +359,8 @@ impl SetSpeedTrainSim {
         // calculate the train resistance for current time steps.  Based on train config and calculated in train model.
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
-        // figure out how much power is need to pull train with current speed trace.
+        // figure out how much power is needed to pull train with current speed trace.
         self.solve_required_pwr(self.speed_trace.dt(self.state.i))?;
-        // solve for how much energy was used from each locomotive.  This is important for BELs as well as diesel locos.
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
             self.speed_trace.dt(self.state.i),
@@ -422,17 +423,18 @@ impl SetSpeedTrainSim {
         // res for resistance is a horrible name.  It collides with reversible energy storage.  This like is calculating train resistance for the time step.
         self.state.pwr_res = self.state.res_net() * self.speed_trace.mean(self.state.i);
         // find power to accelerate the train mass from an energy perspective.
-        self.state.pwr_accel = self.state.mass_adj / (2.0 * self.speed_trace.dt(self.state.i))
+        self.state.pwr_accel = self.state.mass_compound().with_context(|| format_dbg!())?
+            / (2.0 * self.speed_trace.dt(self.state.i))
             * (self.speed_trace.speed[self.state.i].powi(typenum::P2::new())
                 - self.speed_trace.speed[self.state.i - 1].powi(typenum::P2::new()));
-        // I'm guessing this advances to the next dt
+        // store the used `dt` value in `state`
         self.state.dt = self.speed_trace.dt(self.state.i);
 
-        // sum power to accelerate train and resistnace of train to find max power.
+        // total power exerted by the consist to move the train, without limits applied
         self.state.pwr_whl_out = self.state.pwr_accel + self.state.pwr_res;
-        // limit  power to within the consist capability
+        // limit power to within the consist capability
         self.state.pwr_whl_out = self.state.pwr_whl_out.max(-pwr_neg_max).min(pwr_pos_max);
-        // add to the total wheel out energy
+        // accumulate energy
         self.state.energy_whl_out += self.state.pwr_whl_out * dt;
 
         // add to positive or negative wheel energy tracking.

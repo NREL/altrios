@@ -4,24 +4,38 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import os
 
 import altrios as alt 
 sns.set_theme()
 
+# Uncomment and run `maturin develop --release --features logging` to enable logging, 
+# which is needed because logging bogs the CPU and is off by default.
+# alt.utils.set_log_level("DEBUG")
+
 SHOW_PLOTS = alt.utils.show_plots()
+PYTEST = os.environ.get("PYTEST", "false").lower() == "true"
 
 SAVE_INTERVAL = 1
 
+# Build the train config
+rail_vehicle_loaded = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Loaded.yaml")
+rail_vehicle_empty = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Empty.yaml")
+
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
-    cars_empty=50,
-    cars_loaded=50,
-    rail_vehicle_type="Manifest",
-    train_type=None,
+    rail_vehicles=[rail_vehicle_loaded, rail_vehicle_empty],
+    n_cars_by_type={
+        "Manifest_Loaded": 50,
+        "Manifest_Empty": 50,
+    },
     train_length_meters=None,
     train_mass_kilograms=None,
 )
 
+# Build the locomotive consist model
 # instantiate battery model
 # https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/reversible_energy_storage/struct.ReversibleEnergyStorage.html#
 res = alt.ReversibleEnergyStorage.from_file(
@@ -54,16 +68,14 @@ loco_con = alt.Consist(
     SAVE_INTERVAL,
 )
 
+# Instantiate the intermediate `TrainSimBuilder`
 tsb = alt.TrainSimBuilder(
     train_id="0",
     train_config=train_config,
     loco_con=loco_con,
 )
 
-rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
-rail_vehicle = alt.RailVehicle.from_file(
-    alt.resources_root() / rail_vehicle_file)
-
+# Load the network and link path through the network.  
 network = alt.Network.from_file(
     alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 network.set_speed_set_for_train_type(alt.TrainType.Freight)
@@ -72,18 +84,20 @@ link_path = alt.LinkPath.from_csv_file(
     alt.resources_root() / "demo_data/link_path.csv"
 )
 
-# file created from ./speed_limit_train_sim_demo.py:L105
+# file created from ./speed_limit_train_sim_demo.py:`link_path.to_csv_file`
+# load the prescribed speed trace that the train will follow
 speed_trace = alt.SpeedTrace.from_csv_file(
     alt.resources_root() / "demo_data/speed_trace.csv"
 )
 
 train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
-    rail_vehicle=rail_vehicle,
     network=network,
     link_path=link_path,
     speed_trace=speed_trace,
     save_interval=SAVE_INTERVAL,
 )
+
+alt.utils.set_log_level("WARNING")
 
 train_sim.set_save_interval(SAVE_INTERVAL)
 t0 = time.perf_counter()

@@ -99,7 +99,75 @@ class TrainPlannerConfig:
         self.dispatch_scaling_dict = dispatch_scaling_dict
         self.loco_info = loco_info
         self.refueler_info = refueler_info
-        self.drag_coeff_function = drag_coeff_function
+        self.drag_coeff_function = drag_coeff_function if drag_coeff_function else self.default_drag_coeff_function
+    
+    def default_drag_coeff_function(self, 
+                                    num_rail_vehicles: int = 1,
+                                    gap_size: float = 0.604) -> List[float]:
+        """
+    Returns the default drag coefficient vector as a function of number of rail vehicles in a consist
+    and vehicle gap size
+
+    Arguments:
+    ---------
+    num_rail_vehicles: int - Number of rail vehicles in the platoon
+    ps_gap_size: float - Gap size between the rail vehicles
+
+    Output:
+    ---------
+    List of drag coefficients for each rail car. len(List) = num_rail_vehicles
+
+    """
+
+        ## From slide 16 of the Aerodynamic model PPT
+        drag_vec_10cars_liang = [1.168, 0.292, 0.228,
+                                0.217, 0.238, 0.209,
+                            0.244,0.244,0.244, 0.409] 
+        
+        ## From slide 16 of the Aerodynamic model PPT
+        drag_vec_10cars_liang = [1.168, 0.292, 0.228,
+                                0.217, 0.238, 0.209,
+                                0.244,0.244,0.244, 0.409] 
+
+        ## From slide 16 of the Aerodynamic model PPT
+        periodic_drag_coeff_liang = 0.193
+
+        gap_size_array = [0.508, 0.968, 1.186, 1.407, 
+                1.564, 1.627, 1.851] #gap size in meters from digitized plot
+        drag_change_array = [-32.56, -24.93, -17.85, 
+                         -6.678, 0.009, 1.7, 
+                         7.876] # Change in drag coefficient for periodic boundary in %
+
+        rel_drag_change = np.interp(gap_size, xp=gap_size_array, 
+                                    fp=drag_change_array)
+        # rel_drag_change = -29.30
+        drag_coeff_baseline = 0.108
+        periodic_drag_coeff_ps = drag_coeff_baseline*(1+rel_drag_change/100)
+        drag_ratio = periodic_drag_coeff_ps/periodic_drag_coeff_liang
+        drag_vec = drag_vec_10cars_liang[0:num_rail_vehicles]
+
+        ## For num_rail_vehicles 1, 2, and 3: 
+        ## scaled the value for Liang's car from values in slide 24 
+        if num_rail_vehicles == 1:
+            drag_vec = [0.904/drag_ratio] 
+        elif num_rail_vehicles == 2:
+            drag_vec[0] = 0.504/drag_ratio  
+            drag_vec[-1] = 0.904/drag_ratio - drag_vec[0]
+        elif num_rail_vehicles == 3:
+            drag_vec[0] = 0.504/drag_ratio
+            # drag_vec[1] = 0.115/drag_ratio    
+            drag_vec[-1] = 0.904/drag_ratio - sum(drag_vec[:-1])
+        elif num_rail_vehicles >= 4:
+            drag_vec[0] = 0.504/drag_ratio
+            drag_vec[-1] = drag_vec_10cars_liang[-1]
+            if num_rail_vehicles > 10:
+                drag_vec = drag_vec_10cars_liang[:-1] + \
+                    [0.105]*(num_rail_vehicles-9)
+                drag_vec[-1] = drag_vec_10cars_liang[-1]
+
+        drag_vec_ps = [round(drag_ratio*x, 3)
+                                for x in drag_vec]
+        return drag_vec_ps
 
 def demand_loader(
     demand_table: Union[pl.DataFrame, Path, str]

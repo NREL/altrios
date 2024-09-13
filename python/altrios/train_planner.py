@@ -311,6 +311,8 @@ def generate_demand_trains(
         demand_returns.drop("Number_of_Containers"),
         demand_rebalancing],
         how="diagonal_relaxed")
+    demand = demand.group_by("Origin","Destination","Train_Type").agg(pl.col("Number_of_Cars").sum())
+    demand = demand.filter(pl.col("Number_of_Cars") != 0)
     # if rowx[first three columns] == rowy[first three columns]:
     #     rowx[fourth column] + rowy[fourth column]
     #     delete rowy
@@ -360,8 +362,29 @@ def generate_demand_trains(
         # Replace nulls with zero
     demand = demand.with_columns(cs.float().fill_null(0.0), cs.by_dtype(pl.UInt32).fill_null(pl.lit(0).cast(pl.UInt32)))
         # Convert total number of cars to total number of trains
+
     demand = demand.with_columns(
-        (pl.col("Number_of_Cars") * pl.col("Tons_Per_Car")).alias("Tons_Aggregate"),
+        (pl.when(pl.col("Train_Type").str.ends_with("_Empty"))
+            .then(pl.col("Number_of_Cars"))
+            .otherwise(0))
+            .cast(pl.UInt32)
+            .alias("Cars_Empty"),
+        (pl.when(pl.col("Train_Type").str.ends_with("_Empty"))
+            .then(0)
+            .otherwise(pl.col("Number_of_Cars")))
+            .cast(pl.UInt32)
+            .alias("Cars_Loaded"),
+        (pl.concat_str(pl.col("Train_Type").str.strip_suffix("_Empty"))),
+    )
+    demand = demand.with_columns((pl.col("Number_of_Cars") * pl.col("Tons_Per_Car")).alias("Tons_Aggregate"))
+    demand = demand.group_by("Origin","Destination","Train_Type").agg(pl.col("Number_of_Cars").sum(),
+    pl.col("Tons_Aggregate").sum(),
+    pl.col("Cars_Loaded").sum(),
+    pl.col("Cars_Empty").sum(),
+    pl.col("KG").sum(),
+    pl.col("HP_Required_Per_Ton").mean()
+    )    
+    demand = demand.with_columns(
         pl.when(config.single_train_mode)
             .then(1)
             .when(pl.col("Number_of_Cars") == 0)
@@ -374,18 +397,7 @@ def generate_demand_trains(
         # Calculate per-train car counts and tonnage
     demand = demand.with_columns(
         pl.col("Tons_Aggregate").truediv(pl.col("Number_of_Trains")).alias("Tons_Per_Train"))
-    demand = demand.with_columns(
-        (pl.when(pl.col("Train_Type").str.ends_with("_Empty"))
-            .then(pl.col("Number_of_Cars"))
-            .otherwise(0))
-            .cast(pl.UInt32)
-            .alias("Cars_Empty"),
-        (pl.when(pl.col("Train_Type").str.ends_with("_Empty"))
-            .then(0)
-            .otherwise(pl.col("Number_of_Cars")))
-            .cast(pl.UInt32)
-            .alias("Cars_Loaded")
-    )
+
     return demand
 
 

@@ -148,24 +148,34 @@ def generate_return_demand(
     """
     intermodal = demand.filter(pl.col("Train_Type").str.starts_with("Intermodal"))
     intermodal = intermodal.with_columns(pl.col("Number_of_Cars").cast(pl.Int64))
-    intermodal_return = intermodal.rename({"Origin": "Destination", "Destination": "Origin", "Number_of_Cars": "Cars_Empty"})
-    intermodal = intermodal.with_columns(Cars_Empty = pl.lit(0))
+    intermodal_return = intermodal.clone()
     intermodal_dummy = intermodal.with_columns(pl.col("Number_of_Cars").cast(pl.Int64).neg())
+    intermodal_dummy = intermodal_dummy.rename({"Origin": "Destination", "Destination": "Origin"})
+    intermodal_return = intermodal_return.with_columns((pl.concat_str(pl.col("Train_Type"),pl.lit("_Empty"))).alias("Train_Type"))
     for i in range(len(intermodal)):
-        temp = intermodal_return.filter(pl.col("Origin") == intermodal[i]["Origin"])
-        reverse = temp.filter(pl.col("Destination") == intermodal[i]["Destination"])
-        intermodal[i, 'Cars_Empty'] = max(reverse[0]["Cars_Empty"].item()+intermodal_dummy[i]["Number_of_Cars"].item(),0)
+        temp = intermodal.filter(pl.col("Origin") == intermodal_dummy[i]["Origin"])
+        reverse = temp.filter(pl.col("Destination") == intermodal_dummy[i]["Destination"])
+        intermodal_return[i, 'Number_of_Cars'] = max(reverse[0]["Number_of_Cars"].item()+intermodal_dummy[i]["Number_of_Cars"].item(),0)
+        intermodal_return[i, 'Number_of_Containers'] = intermodal_return[i, 'Number_of_Cars']
+    intermodal_return = intermodal_return.with_columns(pl.col("Number_of_Cars").cast(pl.UInt32))
     #calculate empty manifest
     manifest = demand.filter(pl.col("Train_Type").str.starts_with("Manifest"))
-   
-    demand = demand.rename({"Origin": "Destination","Destination": "Origin"}).drop("Number_Of_Containers")
-    demand = demand.with_columns(pl.concat_str([pl.col("Train_Type").str.strip_suffix("_Empty").str.strip_suffix("_Loaded")
-                                                ,pl.lit("_Empty")]).alias("Train_Type"),
-                                                pl.when(pl.col("Train_Type") == pl.lit("Manifest"))
-                                                .then((pl.col("Number_of_Cars") * config.manifest_empty_return_ratio).floor().cast(pl.UInt32))
-                                                .otherwise(pl.col("Number_of_Cars")).alias("Number_of_Cars"),)
-   
-    return demand
+    manifest = manifest.with_columns(pl.col("Number_of_Cars").cast(pl.Int64))
+    manifest_return = manifest.clone()
+    manifest_return = manifest_return.rename({"Origin": "Destination", "Destination": "Origin"})
+    manifest_return = manifest_return.with_columns((pl.concat_str(pl.col("Train_Type"),pl.lit("_Empty"))).alias("Train_Type"))
+    manifest_return = manifest_return.with_columns((pl.col("Number_of_Cars") * config.manifest_empty_return_ratio).floor().cast(pl.UInt32))
+
+
+    #calculate empty unit cars
+    unit = demand.filter(pl.col("Train_Type").str.starts_with("Unit"))
+    unit_return = unit.clone()
+    unit_return = unit_return.rename({"Origin": "Destination", "Destination": "Origin"})
+    unit_return = unit_return.with_columns((pl.concat_str(pl.col("Train_Type"),pl.lit("_Empty"))).alias("Train_Type"))
+
+
+    demand_return = pl.concat([unit_return,manifest_return,intermodal_return], how = "diagonal")
+    return demand_return
 
 def generate_origin_manifest_demand(
     demand: pl.DataFrame,

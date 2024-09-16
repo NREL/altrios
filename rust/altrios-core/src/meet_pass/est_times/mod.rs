@@ -507,6 +507,8 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     #[cfg(feature = "logging")]
     log::debug!("{}", format_dbg!("Add origin estimated times."));
     for orig in origs {
+        #[cfg(feature = "logging")]
+        log::debug!("{}", format_dbg!(orig));
         ensure!(
             orig.offset == si::Length::ZERO,
             "Origin offset must be zero!"
@@ -592,7 +594,11 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     // Iterate and process all saved sims
     #[cfg(feature = "logging")]
     log::debug!("{}", format_dbg!("Iterate and process all saved sims"));
-    while let Some(mut sim) = saved_sims.pop() {
+    #[cfg(feature = "logging")]
+    log::debug!("{}", format_dbg!(saved_sims.len()));
+    saved_sims.clone().iter_mut().try_for_each(|sim| {
+        #[cfg(feature = "logging")]
+        log::debug!("{}", format_dbg!(sim.est_alt.time_sched));
         let mut has_split = false;
         ensure!(
             sim.train_sim.link_idx_last().unwrap().is_real(),
@@ -626,7 +632,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                     if perform_speed_join(&est_join_paths_save, &mut est_times, est_time_add) {
                         est_join_paths_save.clear();
                         sim.join_paths.clear();
-                        break 'path;
+                        break 'path Ok(());
                     }
 
                     add_new_join_paths(
@@ -650,11 +656,13 @@ pub fn make_est_times<N: AsRef<[Link]>>(
 
             // If finished, add destination node to final processing (all links should be clear)
             if sim.train_sim.is_finished() {
+                #[cfg(feature = "logging")]
+                log::debug!("{}", format_dbg!(sim.train_sim.is_finished()));
                 est_idxs_end.push((est_times.len() - 1).try_into().unwrap());
                 if consist_out.is_none() {
-                    consist_out = Some(sim.train_sim.loco_con);
+                    consist_out = Some(sim.train_sim.loco_con.clone());
                 }
-                break;
+                break Ok(());
             }
             // Otherwise, append the next link options and continue simulating
             else {
@@ -691,7 +699,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                 sim.check_dests(dests);
             }
         }
-    }
+    })?;
 
     // Finish the estimated time network
     ensure!(est_times.len() < (EstIdx::MAX as usize) - est_idxs_end.len());

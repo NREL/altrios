@@ -996,10 +996,10 @@ def run_train_planner(
 
     #TODO eliminate the naming convention that rail vehicles (train types from demand file) must end in `_Loaded` or `_Empty`
     dispatch_times = (dispatch_times.with_columns(
-        pl.when(pl.col("Train_Type").str.ends_with("_Empty"))
+        pl.when(pl.col("Train_Type").str.to_lowercase().str.ends_with("_empty"))
             .then(pl.col("Train_Type"))
-            .otherwise(pl.concat_str(pl.col("Train_Type").str.strip_suffix("_Loaded"),
-                                     pl.lit("_Loaded")))
+            .otherwise(pl.concat_str(pl.col("Train_Type").str.strip_suffix("_loaded"),
+                                     pl.lit("_loaded")))
             .alias("Train_Type")
         )
     )
@@ -1058,7 +1058,7 @@ def run_train_planner(
                         },
                         train_type = train_type,
                         cd_area_vec = config.drag_coeff_function(this_train['Number_of_Cars'], 
-                                                                 gap_size = 0.604)
+                                                                 gap_size = defaults.DEFAULT_GAP_SIZE)
                     )
 
                     loco_start_soc_j = dispatched.get_column("SOC_J")

@@ -995,11 +995,12 @@ def run_train_planner(
         dispatch_times = calculate_dispatch_times(demand, simulation_days * 24)
 
     #TODO eliminate the naming convention that rail vehicles (train types from demand file) must end in `_Loaded` or `_Empty`
+    #TODO: Make 'Loaded' and 'Empty' suffix manipulation case independent
     dispatch_times = (dispatch_times.with_columns(
         pl.when(pl.col("Train_Type").str.to_lowercase().str.ends_with("_empty"))
             .then(pl.col("Train_Type"))
             .otherwise(pl.concat_str(pl.col("Train_Type").str.strip_suffix("_loaded"),
-                                     pl.lit("_loaded")))
+                                     pl.lit("_Loaded")))
             .alias("Train_Type")
         )
     )

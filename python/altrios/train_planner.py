@@ -6,168 +6,88 @@ import pandas as pd
 import polars as pl
 import polars.selectors as cs
 import math
-from typing import Tuple, List, Dict, Callable
+from typing import Tuple, List, Dict, Callable, Optional
 from itertools import repeat
+from dataclasses import dataclass
 import altrios as alt
 from altrios import defaults, utilities
 
 pl.enable_string_cache()
 
+@dataclass
 class TrainPlannerConfig:
-    def __init__(self, 
-                 single_train_mode: bool = False,
-                 min_cars_per_train: int = 60,
-                 target_cars_per_train: int = 180,
-                 manifest_empty_return_ratio: float = 0.6,
-                 #TODO single vs double stacked operations on the corridor
-                 cars_per_locomotive: int = 70,
-                 refuelers_per_incoming_corridor: int = 4,
-                 drag_coeff_function: Callable = None,
-                 hp_required_per_ton: Dict = {
-                     "Default": {
-                        "Unit": 2.0,
-                        "Manifest": 1.5,
-                        "Intermodal": 2.0 + 2.0,
-                        "Unit_Empty": 2.0,
-                        "Manifest_Empty": 1.5,
-                        "Intermodal_Empty": 2.0 + 2.0,
-                        }                         
-                     }, 
-                 dispatch_scaling_dict: Dict = {
-                     "time_mult_factor": 1.4,
-                     "hours_add": 2,
-                     "energy_mult_factor": 1.25
-                     },
-                 loco_info = pd.DataFrame({
-                    "Diesel_Large": {
-                        "Capacity_Cars": 20,
-                        "Fuel_Type": "Diesel",
-                        "Min_Servicing_Time_Hr": 3.0,
-                        "Rust_Loco": alt.Locomotive.default(),
-                        "Cost_USD": defaults.DIESEL_LOCO_COST_USD,
-                        "Lifespan_Years": defaults.LOCO_LIFESPAN
-                        },
-                    "BEL": {
-                        "Capacity_Cars": 20,
-                        "Fuel_Type": "Electricity",
-                        "Min_Servicing_Time_Hr": 3.0,
-                        "Rust_Loco": alt.Locomotive.default_battery_electric_loco(),
-                        "Cost_USD": defaults.BEL_MINUS_BATTERY_COST_USD,
-                        "Lifespan_Years": defaults.LOCO_LIFESPAN
-                        }
-                    }).transpose().reset_index(names='Locomotive_Type'),
-                 refueler_info = pd.DataFrame({
-                    "Diesel_Fueler": {
-                        "Locomotive_Type": "Diesel_Large",
-                        "Fuel_Type": "Diesel",
-                        "Refueler_J_Per_Hr": defaults.DIESEL_REFUEL_RATE_J_PER_HR,
-                        "Refueler_Efficiency": defaults.DIESEL_REFUELER_EFFICIENCY,
-                        "Cost_USD": defaults.DIESEL_REFUELER_COST_USD,
-                        "Lifespan_Years": defaults.LOCO_LIFESPAN
-                    },
-                    "BEL_Charger": {
-                        "Locomotive_Type": "BEL",
-                        "Fuel_Type": "Electricity",
-                        "Refueler_J_Per_Hr": defaults.BEL_CHARGE_RATE_J_PER_HR,
-                        "Refueler_Efficiency": defaults.BEL_CHARGER_EFFICIENCY,
-                        "Cost_USD": defaults.BEL_CHARGER_COST_USD,
-                        "Lifespan_Years": defaults.LOCO_LIFESPAN
-                    }
-                }).transpose().reset_index(names='Refueler_Type')
-    ):
-        """
-        Constructor for train planner configuration objects
-        Arguments:
-        ----------
-        min_cars_per_train: the minimum length in number of cars to form a train
-        target_cars_per_train: the standard train length in number of cars
-        manifest_empty_return_ratio: Desired railcar reuse ratio to calculate the empty manifest car demand, (E_ij+E_ji)/(L_ij+L_ji)
-        cars_per_locomotive: Heuristic scaling factor used to size number of locomotives needed based on demand.
-        refuelers_per_incoming_corridor: 
-        hp_required_per_ton:
-        dispatch_scaling_dict:
-        loco_info:
-        refueler_info:
-        """
-        self.single_train_mode = single_train_mode
-        self.min_cars_per_train = min_cars_per_train
-        self.target_cars_per_train = target_cars_per_train
-        self.manifest_empty_return_ratio = manifest_empty_return_ratio
-        self.cars_per_locomotive = cars_per_locomotive
-        self.refuelers_per_incoming_corridor = refuelers_per_incoming_corridor
-        self.hp_required_per_ton = hp_required_per_ton
-        self.dispatch_scaling_dict = dispatch_scaling_dict
-        self.loco_info = loco_info
-        self.refueler_info = refueler_info
-        self.drag_coeff_function = drag_coeff_function if drag_coeff_function else self.default_drag_coeff_function
-    
-    def default_drag_coeff_function(self, 
-                                    num_rail_vehicles: int = 1,
-                                    gap_size: float = 0.604) -> List[float]:
-        """
-    Returns the default drag coefficient vector as a function of number of rail vehicles in a consist
-    and vehicle gap size
-
-    Arguments:
-    ---------
-    num_rail_vehicles: int - Number of rail vehicles in the platoon
-    ps_gap_size: float - Gap size between the rail vehicles
-
-    Output:
-    ---------
-    List of drag coefficients for each rail car. len(List) = num_rail_vehicles
-
     """
-
-        ## From slide 16 of the Aerodynamic model PPT
-        drag_vec_10cars_liang = [1.168, 0.292, 0.228,
-                                0.217, 0.238, 0.209,
-                            0.244,0.244,0.244, 0.409] 
-        
-        ## From slide 16 of the Aerodynamic model PPT
-        drag_vec_10cars_liang = [1.168, 0.292, 0.228,
-                                0.217, 0.238, 0.209,
-                                0.244,0.244,0.244, 0.409] 
-
-        ## From slide 16 of the Aerodynamic model PPT
-        periodic_drag_coeff_liang = 0.193
-
-        gap_size_array = [0.508, 0.968, 1.186, 1.407, 
-                1.564, 1.627, 1.851] #gap size in meters from digitized plot
-        drag_change_array = [-32.56, -24.93, -17.85, 
-                         -6.678, 0.009, 1.7, 
-                         7.876] # Change in drag coefficient for periodic boundary in %
-
-        rel_drag_change = np.interp(gap_size, xp=gap_size_array, 
-                                    fp=drag_change_array)
-        # rel_drag_change = -29.30
-        drag_coeff_baseline = 0.108
-        periodic_drag_coeff_ps = drag_coeff_baseline*(1+rel_drag_change/100)
-        drag_ratio = periodic_drag_coeff_ps/periodic_drag_coeff_liang
-        drag_vec = drag_vec_10cars_liang[0:num_rail_vehicles]
-
-        ## For num_rail_vehicles 1, 2, and 3: 
-        ## scaled the value for Liang's car from values in slide 24 
-        if num_rail_vehicles == 1:
-            drag_vec = [0.904/drag_ratio] 
-        elif num_rail_vehicles == 2:
-            drag_vec[0] = 0.504/drag_ratio  
-            drag_vec[-1] = 0.904/drag_ratio - drag_vec[0]
-        elif num_rail_vehicles == 3:
-            drag_vec[0] = 0.504/drag_ratio
-            # drag_vec[1] = 0.115/drag_ratio    
-            drag_vec[-1] = 0.904/drag_ratio - sum(drag_vec[:-1])
-        elif num_rail_vehicles >= 4:
-            drag_vec[0] = 0.504/drag_ratio
-            drag_vec[-1] = drag_vec_10cars_liang[-1]
-            if num_rail_vehicles > 10:
-                drag_vec = drag_vec_10cars_liang[:-1] + \
-                    [0.105]*(num_rail_vehicles-9)
-                drag_vec[-1] = drag_vec_10cars_liang[-1]
-
-        drag_vec_ps = [round(drag_ratio*x, 3)
-                                for x in drag_vec]
-        return drag_vec_ps
+    Attributes:
+    ----------
+    min_cars_per_train: the minimum length in number of cars to form a train
+    target_cars_per_train: the standard train length in number of cars
+    manifest_empty_return_ratio: Desired railcar reuse ratio to calculate the empty manifest car demand, (E_ij+E_ji)/(L_ij+L_ji)
+    cars_per_locomotive: Heuristic scaling factor used to size number of locomotives needed based on demand.
+    refuelers_per_incoming_corridor: 
+    hp_required_per_ton:
+    dispatch_scaling_dict:
+    loco_info:
+    refueler_info:
+    """
+    single_train_mode: bool = False,
+    min_cars_per_train: int = 60,
+    target_cars_per_train: int = 180,
+    manifest_empty_return_ratio: float = 0.6,
+    #TODO single vs double stacked operations on the corridor
+    cars_per_locomotive: int = 70,
+    refuelers_per_incoming_corridor: int = 4,
+    drag_coeff_function: Optional[Callable]= None,
+    hp_required_per_ton: Dict = {
+        "Default": {
+            "Unit": 2.0,
+            "Manifest": 1.5,
+            "Intermodal": 2.0 + 2.0,
+            "Unit_Empty": 2.0,
+            "Manifest_Empty": 1.5,
+            "Intermodal_Empty": 2.0 + 2.0,
+        }                         
+     }, 
+    dispatch_scaling_dict: Dict = {
+         "time_mult_factor": 1.4,
+         "hours_add": 2,
+         "energy_mult_factor": 1.25
+     },
+    loco_info = pd.DataFrame({
+        "Diesel_Large": {
+            "Capacity_Cars": 20,
+            "Fuel_Type": "Diesel",
+            "Min_Servicing_Time_Hr": 3.0,
+            "Rust_Loco": alt.Locomotive.default(),
+            "Cost_USD": defaults.DIESEL_LOCO_COST_USD,
+            "Lifespan_Years": defaults.LOCO_LIFESPAN
+            },
+        "BEL": {
+            "Capacity_Cars": 20,
+            "Fuel_Type": "Electricity",
+            "Min_Servicing_Time_Hr": 3.0,
+            "Rust_Loco": alt.Locomotive.default_battery_electric_loco(),
+            "Cost_USD": defaults.BEL_MINUS_BATTERY_COST_USD,
+            "Lifespan_Years": defaults.LOCO_LIFESPAN
+            }
+    }).transpose().reset_index(names='Locomotive_Type')
+    refueler_info = pd.DataFrame({
+        "Diesel_Fueler": {
+            "Locomotive_Type": "Diesel_Large",
+            "Fuel_Type": "Diesel",
+            "Refueler_J_Per_Hr": defaults.DIESEL_REFUEL_RATE_J_PER_HR,
+            "Refueler_Efficiency": defaults.DIESEL_REFUELER_EFFICIENCY,
+            "Cost_USD": defaults.DIESEL_REFUELER_COST_USD,
+            "Lifespan_Years": defaults.LOCO_LIFESPAN
+        },
+        "BEL_Charger": {
+            "Locomotive_Type": "BEL",
+            "Fuel_Type": "Electricity",
+            "Refueler_J_Per_Hr": defaults.BEL_CHARGE_RATE_J_PER_HR,
+            "Refueler_Efficiency": defaults.BEL_CHARGER_EFFICIENCY,
+            "Cost_USD": defaults.BEL_CHARGER_COST_USD,
+            "Lifespan_Years": defaults.LOCO_LIFESPAN
+        }
+    }).transpose().reset_index(names='Refueler_Type')
 
 def demand_loader(
     demand_table: Union[pl.DataFrame, Path, str]

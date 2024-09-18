@@ -972,14 +972,20 @@ def run_train_planner(
                         )
                         dispatched = loco_pool.filter(selected)
 
+                    if config.drag_coeff_function is not None:
+                        cd_area_vec = config.drag_coeff_function(
+                             this_train['Number_of_Cars'], 
+                             gap_size = defaults.DEFAULT_GAP_SIZE
+                         )
+                    else:
+                        cd_area_vec = None
                     train_config = alt.TrainConfig(
                         rail_vehicles = [vehicle for vehicle in rail_vehicles if vehicle.car_type==this_train['Train_Type']],
                         n_cars_by_type = {
                             this_train['Train_Type']: this_train['Number_of_Cars']
                         },
                         train_type = train_type,
-                        cd_area_vec = config.drag_coeff_function(this_train['Number_of_Cars'], 
-                                                                 gap_size = defaults.DEFAULT_GAP_SIZE)
+                        cd_area_vec = cd_area_vec,
                     )
 
                     loco_start_soc_j = dispatched.get_column("SOC_J")

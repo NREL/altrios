@@ -50,7 +50,7 @@ class TrainPlannerConfig:
     refuelers_per_incoming_corridor: int = 4
     require_diesel: bool = False
     manifest_empty_return_ratio: float = 0.6
-    drag_coeff_function: List = field(default_factory = lambda: None)
+    drag_coeff_function: Callable = None
     hp_required_per_ton: Dict = field(default_factory = lambda: {
         "Default": {
         "Unit": 2.0,

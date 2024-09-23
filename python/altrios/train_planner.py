@@ -488,7 +488,7 @@ def generate_demand_trains(
                     pl.max_horizontal([
                         1,
                         pl.min_horizontal([
-                            pl.col("Number_of_Cars").truediv("Cars_Per_Train_Target").round(),
+                            pl.col("Number_of_Cars").floordiv("Cars_Per_Train_Target") + 1,
                             pl.col("Number_of_Cars").floordiv("Cars_Per_Train_Min")
                         ])
                     ])

@@ -104,7 +104,8 @@ pub struct TrainConfig {
     /// Optional vector of drag areas (i.e. drag coeff. times frontal area)
     /// for each car.  If provided, the total drag area (drag coefficient
     /// times frontal area) calculated from this vector is the sum of these
-    /// coefficients.
+    /// coefficients. Otherwise, each rail car's drag contribution based on its
+    /// drag coefficient and frontal area will be summed across the train.
     pub cd_area_vec: Option<Vec<si::Area>>,
 }
 

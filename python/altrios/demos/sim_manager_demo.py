@@ -35,8 +35,8 @@ print(
 )
 
 train_planner_config = train_planner.TrainPlannerConfig(
-            cars_per_locomotive=50,
-            target_cars_per_train=90)
+            cars_per_locomotive={"Default": 50},
+            target_cars_per_train={"Default": 90})
 
 t0_main = time.perf_counter()
 

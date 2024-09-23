@@ -5,6 +5,7 @@ import re
 import numpy as np
 from typing import Tuple, Union, Optional, Dict, Any, TYPE_CHECKING
 import pandas as pd
+import polars as pl
 import datetime
 import numpy.typing as npt
 import logging
@@ -43,6 +44,9 @@ from altrios.altrios_pyo3 import (
     ElectricDrivetrain,
     PowerTrace,
 )
+
+pl.Config.set_tbl_cols(15)
+pl.Config(tbl_width_chars=150)
 
 MPS_PER_MPH = 1.0 / 2.237
 N_PER_LB = 4.448
@@ -177,6 +181,10 @@ def set_param_from_path(
 
     return model
 
+def range_minmax(self) -> pl.Expr:
+     return self.max() - self.min()
+pl.Expr.range_minmax=range_minmax
+del range_minmax
 
 def resample(
     df: pd.DataFrame,

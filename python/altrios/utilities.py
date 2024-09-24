@@ -45,9 +45,6 @@ from altrios.altrios_pyo3 import (
     PowerTrace,
 )
 
-pl.Config.set_tbl_cols(15)
-pl.Config(tbl_width_chars=150)
-
 MPS_PER_MPH = 1.0 / 2.237
 N_PER_LB = 4.448
 KG_PER_LB = 1.0 / 2.20462

@@ -116,11 +116,6 @@ pub struct TrainState {
     /// Curvature resistance force
     pub res_curve: si::Force,
 
-    /// Number of empty cars included on the train
-    pub cars_empty: u32,
-    /// Number of loaded cars included on the train
-    pub cars_loaded: u32,
-
     /// Grade at front of train
     pub grade_front: si::Ratio,
     /// Grade at back of train of train if strap method is used
@@ -161,8 +156,6 @@ impl Default for TrainState {
             mass_static: Default::default(),
             mass_rot: Default::default(),
             mass_freight: Default::default(),
-            cars_empty: Default::default(),
-            cars_loaded: Default::default(),
             elev_front: Default::default(),
             energy_whl_out: Default::default(),
             grade_front: Default::default(),

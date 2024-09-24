@@ -120,6 +120,7 @@ def main(
             ('Freight_Moved', 'million tonne-mi'),
             ('Freight_Moved', 'car-miles'),
             ('Freight_Moved', 'cars'),
+            ('Freight_Moved', 'detailed'),
             ('GHG', 'tonne CO2-eq'),
             ('Count_Locomotives', 'assets'),
             ('Count_Refuelers', 'assets'),
@@ -447,13 +448,44 @@ def calculate_freight_moved(
         conversion_from_km = utilities.MI_PER_KM
     else:
         conversion_from_km = 1.0
-    
+
     if units in ["million tonne-km", "million tonne-mi"]:
-        return metric("Freight_Moved", units, info.sims.get_megagram_kilometers(annualize=info.annualize) * conversion_from_km /1.0e6)
+        return metric("Freight_Moved", units, info.sims.get_megagram_kilometers(annualize=info.annualize) * conversion_from_km /1.0e6, year=info.scenario_year)
     elif units in ["car-km", "car-miles"]:
-        return metric("Freight_Moved", units, info.sims.get_car_kilometers(include_empty=True, include_loaded=True, annualize=info.annualize) * conversion_from_km)
+        return metric("Freight_Moved", units, info.sims.get_car_kilometers(annualize=info.annualize) * conversion_from_km, year=info.scenario_year)
     elif units == "cars":
-        return metric("Freight_Moved", units, info.sims.get_cars_moved(include_empty=True, include_loaded=True, annualize=info.annualize))
+        return metric("Freight_Moved", units, info.sims.get_cars_moved(annualize=info.annualize), year=info.scenario_year)
+    elif units == "detailed":
+        kilometers = (pl.DataFrame(data = {"car-km": [sim.get_kilometers(annualize=info.annualize) for sim in info.sims.tolist()]})
+            .with_row_index("idx")
+            .with_columns(
+                pl.col("car-km").mul(utilities.MI_PER_KM).alias("car-miles")
+            )
+        )
+        all_n_cars_by_type = [sim.n_cars_by_type for sim in info.sims.tolist()]
+        car_counts = (
+            pl.concat([pl.from_dict(item)for item in all_n_cars_by_type], how="diagonal_relaxed")
+            .with_row_index("idx")
+            .melt(id_vars = "idx", value_name = "cars", variable_name = "Subset")
+            .filter(pl.col("cars").is_not_null())
+            .join(kilometers, how="left", on="idx")
+            .drop("idx")
+            .group_by("Subset")
+                .agg(pl.col("*").sum())
+            .sort("Subset")
+            .melt(id_vars = "Subset", variable_name = "Units", value_name = "Value")
+            .with_columns(
+                pl.lit(info.scenario_year).alias("Year"),
+                pl.lit("Freight_Moved").alias("Metric"),
+                pl.when(
+                    info.annualize, 
+                    pl.col("Units") == pl.lit("cars"))
+                    .then(pl.col("Value").mul(365.25 / info.simulation_days))
+                    .otherwise(pl.col("Value"))
+                    .alias("Value")
+            )
+        )
+        return car_counts
     else:
         print(f"Units of {units} not supported for freight movement calculation.")
         return metric("Freight_Moved", units, None)

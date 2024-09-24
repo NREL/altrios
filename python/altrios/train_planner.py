@@ -102,7 +102,6 @@ class TrainPlannerConfig:
     - `target_cars_per_train`: `Dict` of the standard train length in number of cars for each train type
     - `manifest_empty_return_ratio`: Desired railcar reuse ratio to calculate the empty manifest car demand, (E_ij+E_ji)/(L_ij+L_ji)
     - `cars_per_locomotive`: Heuristic scaling factor used to size number of locomotives needed based on demand.
-    - `cars_per_locomotive_fixed`: If `True`, `cars_per_locomotive` overrides `hp_per_ton` calculations used for dispatching decisions.
     - `refuelers_per_incoming_corridor`: Heuristic scaling factor used to scale number of refuelers needed at each node based on number of incoming corridors.
     - `stack_type`: Type of stacking (applicable only for intermodal containers)
     - `require_diesel`: `True` to require each consist to have at least one diesel locomotive.
@@ -121,13 +120,14 @@ class TrainPlannerConfig:
     target_cars_per_train: Dict = field(default_factory = lambda: {
         "Default": 180
     })
-    cars_per_locomotive: int = 70
-    cars_per_locomotive_fixed: bool = False
+    cars_per_locomotive: Dict = field(default_factory = lambda: {
+        "Default": 70
+    })
     refuelers_per_incoming_corridor: int = 4
     stack_type: str = "single"
     require_diesel: bool = False
     manifest_empty_return_ratio: float = 0.6
-    drag_coeff_function: List = field(default_factory = lambda: None)
+    drag_coeff_function: Optional[Callable]= None
     hp_required_per_ton: Dict = field(default_factory = lambda: {
         "Default": {
         "Unit": 2.0,
@@ -554,7 +554,7 @@ def generate_dispatch_details(
         .with_columns(
             (pl.col("Tons_Per_Car_Loaded").mul("Number_of_Cars_Loaded") + pl.col("Tons_Per_Car_Empty").mul("Number_of_Cars_Empty")).alias("Tons_Per_Train"),
             (pl.col("HP_Required_Per_Ton_Loaded").mul("Tons_Per_Car_Loaded").mul("Number_of_Cars_Loaded") + 
-                pl.col("HP_Required_Per_Ton_Empty").mul("Tons_Per_Car_Loaded").mul("Number_of_Cars_Loaded")
+                pl.col("HP_Required_Per_Ton_Empty").mul("Tons_Per_Car_Empty").mul("Number_of_Cars_Empty")
                 ).alias("HP_Required")
         )
         .sort("Origin", "Destination", "Percent_Within_Group", "Train_Type")
@@ -601,7 +601,7 @@ def build_locopool(
     num_ods = demand.height
     cars_per_od = demand.get_column("Number_of_Cars").mean()
     if config.single_train_mode:
-        initial_size = math.ceil(cars_per_od / config.cars_per_locomotive) 
+        initial_size = math.ceil(cars_per_od / config.cars_per_locomotive["Default"]) 
         rows = initial_size
     else:
         num_destinations_per_node = num_ods*1.0 / num_nodes*1.0
@@ -797,6 +797,7 @@ def dispatch(
     dispatch_time: int,
     origin: str,
     loco_pool: pl.DataFrame,
+    train_tonnage: float,
     hp_required: float,
 ) -> pl.Series:
     """
@@ -812,6 +813,7 @@ def dispatch(
     ----------
     selected: Indices of selected locomotives
     """
+    hp_per_ton = hp_required / train_tonnage
     # Candidate locomotives at the right place that are ready
     candidates = loco_pool.select((pl.col("Node") == origin) &
                                 (pl.col("Status") == "Ready")).to_series()
@@ -881,10 +883,14 @@ def dispatch(
             is more than the available horsepower ({available_hp}).
             Count of locomotives servicing, refueling, or queueing at {origin} are:"""
         # Hold the train until enough diesels are present (future development)
-        waiting_counts = loco_pool.filter(
-            pl.col("Node") == origin,
-            pl.col("Status").is_in(["Servicing","Refuel_Queue"])
-        ).select("Locomotive_Type").group_by(['Locomotive_Type']).len()
+        waiting_counts = (loco_pool
+            .filter(
+                pl.col("Node") == origin,
+                pl.col("Status").is_in(["Servicing","Refuel_Queue"])
+            )
+            .group_by(['Locomotive_Type'])
+                .agg(pl.count().alias("count"))
+        )
         for row in waiting_counts.iter_rows(named = True):
             message = message + f"""
             {row['Locomotive_Type']}: {row['count']}"""
@@ -1132,17 +1138,35 @@ def run_train_planner(
                             current_time,
                             this_train['Origin'],
                             loco_pool,
+                            this_train['Tons_Per_Train'],
                             this_train['HP_Required']
                         )
                         dispatched = loco_pool.filter(selected)
 
+                    if config.drag_coeff_function is not None:
+                        cd_area_vec = config.drag_coeff_function(
+                             this_train['Number_of_Cars'], 
+                             gap_size = defaults.DEFAULT_GAP_SIZE
+                         )
+                    else:
+                        cd_area_vec = None
+
+                    train_types = []
+                    n_cars_by_type = {}
+                    this_train_type = this_train['Train_Type']
+                    if this_train['Cars_Loaded'] > 0:
+                        train_types.append(f'{this_train_type}_Loaded')
+                        n_cars_by_type[f'{this_train_type}_Loaded'] = int(this_train['Cars_Loaded'])
+                    if this_train['Cars_Empty'] > 0:
+                        train_types.append(f'{this_train_type}_Empty')
+                        n_cars_by_type[f'{this_train_type}_Empty'] = int(this_train['Cars_Empty'])
+
+
                     train_config = alt.TrainConfig(
-                        rail_vehicles = [vehicle for vehicle in rail_vehicles if vehicle.car_type==this_train['Train_Type']],
-                        n_cars_by_type = {
-                            this_train['Train_Type']: this_train['Number_of_Cars']
-                        },
+                        rail_vehicles = [vehicle for vehicle in rail_vehicles if vehicle.car_type in train_types],
+                        n_cars_by_type = n_cars_by_type,
                         train_type = train_type,
-                        cd_area_vec = config.drag_coeff_function
+                        cd_area_vec = cd_area_vec
                     )
 
                     loco_start_soc_j = dispatched.get_column("SOC_J")
@@ -1251,7 +1275,7 @@ def run_train_planner(
             loco_pool, event_tracker = update_refuel_queue(loco_pool, refuelers, current_time, event_tracker)
             done = True
         else:
-            current_time = dispatch_times.filter(pl.col("Hour").gt(current_time)).get_column("Hour").min()
+            current_time = dispatches.filter(pl.col("Hour").gt(current_time)).get_column("Hour").min()
 
     train_consist_plan = (train_consist_plan
         .with_columns(

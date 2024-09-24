@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pathlib import Path
 from typing import Union
 import numpy as np
@@ -11,8 +12,83 @@ from itertools import repeat
 from dataclasses import dataclass, field
 import altrios as alt
 from altrios import defaults, utilities
+from dataclasses import dataclass, field
 
 pl.enable_string_cache()
+
+def initialize_reverse_empties(demand: Union[pl.LazyFrame, pl.DataFrame]) -> Union[pl.LazyFrame, pl.DataFrame]:
+    """
+    Swap `Origin` and `Destination` and append `_Empty` to `Train_Type`.
+    Arguments:
+    ----------
+    demand: `DataFrame` or `LazyFrame` representing origin-destination demand.
+
+    Outputs:
+    ----------
+    Updated demand `DataFrame` or `LazyFrame`.
+    """
+    return (demand
+        .rename({"Origin": "Destination", "Destination": "Origin"})
+        .with_columns((pl.concat_str(pl.col("Train_Type"),pl.lit("_Empty"))).alias("Train_Type"))
+    )    
+
+def generate_return_demand_unit(demand_subset: Union[pl.LazyFrame, pl.DataFrame], config: TrainPlannerConfig) -> Union[pl.LazyFrame, pl.DataFrame]:
+    """
+    Given a set of Unit train demand for one or more origin-destination pairs, generate demand in the reverse direction(s).
+    Arguments:
+    ----------
+    demand: `DataFrame` or `LazyFrame` representing origin-destination demand for Unit trains.
+
+    Outputs:
+    ----------
+    Updated demand `DataFrame` or `LazyFrame` representing demand in the reverse direction(s) for each origin-destination pair.
+    """
+    return (demand_subset
+        .pipe(initialize_reverse_empties)
+    )
+
+def generate_return_demand_manifest(demand_subset: Union[pl.LazyFrame, pl.DataFrame], config: TrainPlannerConfig) -> Union[pl.LazyFrame, pl.DataFrame]:
+    """
+    Given a set of Manifest train demand for one or more origin-destination pairs, generate demand in the reverse direction(s).
+    Arguments:
+    ----------
+    demand: `DataFrame` or `LazyFrame` representing origin-destination demand for Unit trains.
+
+    Outputs:
+    ----------
+    Updated demand `DataFrame` or `LazyFrame` representing demand in the reverse direction(s) for each origin-destination pair.
+    """
+    return(demand_subset
+        .pipe(initialize_reverse_empties)
+        .with_columns((pl.col("Number_of_Cars") * config.manifest_empty_return_ratio).floor().cast(pl.UInt32))
+    )
+
+def generate_return_demand_intermodal(demand_subset: Union[pl.LazyFrame, pl.DataFrame], config: TrainPlannerConfig) -> Union[pl.LazyFrame, pl.DataFrame]:
+    """
+    Given a set of Intermodal train demand for one or more origin-destination pairs, generate demand in the reverse direction(s).
+    Arguments:
+    ----------
+    demand: `DataFrame` or `LazyFrame` representing origin-destination demand for Unit trains.
+
+    Outputs:
+    ----------
+    Updated demand `DataFrame` or `LazyFrame` representing demand in the reverse direction(s) for each origin-destination pair.
+    """
+    return (demand_subset
+        .pipe(initialize_reverse_empties)
+        .with_columns(
+            pl.concat_str(pl.min_horizontal("Origin", "Destination"), pl.lit("_"), pl.max_horizontal("Origin", "Destination")).alias("OD")
+        )
+        .with_columns(
+            pl.col("Number_of_Cars", "Number_of_Containers").range_minmax().over("OD").name.suffix("_Return")
+        )
+        .filter(
+            pl.col("Number_of_Containers") == pl.col("Number_of_Containers").max().over("OD")
+        )
+        .drop("OD", "Number_of_Containers", "Number_of_Cars")
+        .rename({"Number_of_Containers_Return": "Number_of_Containers",
+                 "Number_of_Cars_Return": "Number_of_Cars"})
+    )
 
 @dataclass
 class TrainPlannerConfig:
@@ -45,12 +121,13 @@ class TrainPlannerConfig:
         "Default": 180
     })
     cars_per_locomotive: Dict = field(default_factory = lambda: {
-        "Default": 50
+        "Default": 70
     })
     refuelers_per_incoming_corridor: int = 4
+    stack_type: str = "single"
     require_diesel: bool = False
     manifest_empty_return_ratio: float = 0.6
-    drag_coeff_function: Callable = None
+    drag_coeff_function: Optional[Callable]= None
     hp_required_per_ton: Dict = field(default_factory = lambda: {
         "Default": {
         "Unit": 2.0,
@@ -102,6 +179,12 @@ class TrainPlannerConfig:
             "Lifespan_Years": defaults.LOCO_LIFESPAN
         }
     }).transpose().reset_index(names='Refueler_Type'))
+    
+    return_demand_generators: Dict = field(default_factory = lambda: {
+        'Unit': generate_return_demand_unit,
+        'Manifest': generate_return_demand_manifest,
+        'Intermodal': generate_return_demand_intermodal
+    })
 
 def demand_loader(
     demand_table: Union[pl.DataFrame, Path, str]
@@ -131,7 +214,6 @@ def demand_loader(
         demand_table.get_column("Destination")]).unique().sort()
     return demand_table, nodes
 
-
 def generate_return_demand(
     demand: pl.DataFrame,
     config: TrainPlannerConfig
@@ -141,25 +223,26 @@ def generate_return_demand(
     Arguments:
     ----------
     df_annual_demand: The user_input file loaded by previous functions
-    that contains laoded demand for each demand pair.
+    that contains loaded demand for each demand pair.
     config: Object storing train planner configuration paramaters
     Outputs:
     ----------
     df_return_demand: The demand generated by the need
     of returning the empty cars to their original nodes
     """
-    return (demand
-        .rename({"Origin": "Destination",
-                 "Destination": "Origin"})
-        .drop("Number_Of_Containers")
-        .with_columns(
-            pl.concat_str([pl.col("Train_Type").str.strip_suffix("_Empty").str.strip_suffix("_Loaded")
-                           ,pl.lit("_Empty")]).alias("Train_Type"),
-            pl.when(pl.col("Train_Type") == pl.lit("Manifest"))
-                .then((pl.col("Number_of_Cars") * config.manifest_empty_return_ratio).floor().cast(pl.UInt32))
-                .otherwise(pl.col("Number_of_Cars"))
-                .alias("Number_of_Cars"))
+    demand_subsets = demand.partition_by("Train_Type", as_dict = True)
+    return_demand = []
+    for train_type, demand_subset in demand_subsets.items():
+        if train_type in config.return_demand_generators:
+            return_demand_generator = config.return_demand_generators[train_type]
+            return_demand.append(return_demand_generator(demand_subset, config))
+        else:
+            print(f'Return demand generator not implemented for train type: {train_type}')
+
+    demand_return = (pl.concat(return_demand, how="diagonal_relaxed")
+        .filter(pl.col("Number_of_Cars") + pl.col("Number_of_Containers") > 0)
     )
+    return demand_return
 
 def generate_origin_manifest_demand(
     demand: pl.DataFrame,
@@ -303,33 +386,23 @@ def generate_demand_trains(
         .filter(pl.col("Train_Type") == pl.lit("Default"))
         .select("Cars_Per_Train_Target").item()
     )
-    demand = pl.concat([
-        demand.drop("Number_of_Containers"),
-        demand_returns.drop("Number_of_Containers"),
-        demand_rebalancing],
-        how="diagonal_relaxed")
-    # if rowx[first three columns] == rowy[first three columns]:
-    #     rowx[fourth column] + rowy[fourth column]
-    #     delete rowy
-    # combined_row = demand.slice(10,12).select
-    # demand = demand.group_by()
     #Prepare hp_per_ton requirements to merge onto the demand DataFrame
-    hp_per_ton = (
-        pl.DataFrame(pd.DataFrame(config.hp_required_per_ton).reset_index(names="Train_Type"))
-        .melt(id_vars="Train_Type",variable_name="O_D",value_name="HP_Required_Per_Ton")
-        .with_columns(pl.col("O_D").str.split("_").list.first().alias("Origin"),
-                      pl.col("O_D").str.split("_").list.last().alias("Destination"))
-    )
+    hp_per_ton = pl.concat([
+        (pl.DataFrame(this_dict)
+            .melt(variable_name="Train_Type", value_name="HP_Required_Per_Ton") 
+            .with_columns(pl.lit(this_item).alias("O_D"))
+            .with_columns(pl.col("O_D").str.split("_").list.first().alias("Origin"),
+                        pl.col("O_D").str.split("_").list.last().alias("Destination"))
+        )
+        for this_item, this_dict in config.hp_required_per_ton.items()
+    ], how="horizontal_relaxed")
     
-    #MPrepare ton_per_car requirements to merge onto the demand DataFrame
-    # TODO: simplify mass API here. Is there a function on the Rust side to get total mass (or should there be)?
+    #Prepare ton_per_car requirements to merge onto the demand DataFrame
     def get_kg_empty(veh):
         return veh.mass_static_base_kilograms + veh.axle_count * veh.mass_rot_per_axle_kilograms
     def get_kg(veh):
         return veh.mass_static_base_kilograms + veh.mass_freight_kilograms + veh.axle_count * veh.mass_rot_per_axle_kilograms
     
-    # NOTE: don't need to use this for PS; just need to use target platoon size (# of rail vehicles) then convert to containers 
-    # based on single vs. double stacked. Target # of rail vehicle Other intermodals may need to use weight 
     ton_per_car = (
         pl.DataFrame({"Train_Type": pl.Series([rv.car_type for rv in rail_vehicles]).str.strip_suffix("_Loaded"),
                         "KG_Empty": [get_kg_empty(rv) for rv in rail_vehicles],
@@ -341,52 +414,91 @@ def generate_demand_trains(
             .drop(["KG_Empty","KG_Loaded"])
     )
 
-    demand = demand.join(ton_per_car, on="Train_Type", how="left")
+    demand = (pl.concat([demand, demand_returns, demand_rebalancing], how="diagonal_relaxed")
+        .group_by("Origin","Destination", "Train_Type")
+            .agg(pl.col("Number_of_Cars").sum())
+        .filter(pl.col("Number_of_Cars") > 0)
+        .join(ton_per_car, on="Train_Type", how="left")
         # Merge on OD-specific hp_per_ton if the user specified any
-    demand = demand.join(hp_per_ton.drop("O_D"), 
-        on=["Origin","Destination","Train_Type"], 
-        how="left")
+        .join(hp_per_ton.drop("O_D"), on=["Origin","Destination","Train_Type"], how="left")
         # Second, merge on defaults per train type
-    demand = demand.join(hp_per_ton.filter((pl.col("O_D") =="Default")).drop(["O_D","Origin","Destination"]),
-        on=["Train_Type"],
-        how="left",
-        suffix="_Default")
+        .join(hp_per_ton.filter((pl.col("O_D") =="Default")).drop(["O_D","Origin","Destination"]),
+            on=["Train_Type"],
+            how="left",
+            suffix="_Default")
+        # Merge on cars_per_train_min if the user specified any
+        .join(cars_per_train_min, on=["Train_Type"], how="left")
+        # Merge on cars_per_train_target if the user specified any
+        .join(cars_per_train_target, on=["Train_Type"], how="left")
         # Fill in defaults per train type wherever the user didn't specify OD-specific hp_per_ton
-    demand = demand.with_columns(pl.coalesce("HP_Required_Per_Ton", "HP_Required_Per_Ton_Default").alias("HP_Required_Per_Ton"))
-    demand = demand.drop("HP_Required_Per_Ton_Default")
+        .with_columns(
+            pl.coalesce("HP_Required_Per_Ton", "HP_Required_Per_Ton_Default").alias("HP_Required_Per_Ton"),
+            pl.col("Cars_Per_Train_Min").fill_null(cars_per_train_min_default),
+            pl.col("Cars_Per_Train_Target").fill_null(cars_per_train_target_default),
+        )
+    )
+    loaded = (demand
+        .filter(~pl.col("Train_Type").str.contains("_Empty"))
+        .with_columns(
+            pl.col("Number_of_Cars", "Tons_Per_Car", "HP_Required_Per_Ton", "Cars_Per_Train_Min", "Cars_Per_Train_Target").name.suffix("_Loaded")
+        )
+    )
+    empty = (demand
+        .filter(pl.col("Train_Type").str.contains("_Empty"))
+        .with_columns(
+            pl.col("Number_of_Cars", "Tons_Per_Car", "HP_Required_Per_Ton", "Cars_Per_Train_Min", "Cars_Per_Train_Target").name.suffix("_Empty"),
+            pl.col("Train_Type").str.strip_suffix("_Empty")
+        )
+    )
+    demand = (demand
+        .select(pl.col("Origin", "Destination"), pl.col("Train_Type").str.strip_suffix("_Empty"))
+        .unique()
+        .join(loaded.select(cs.by_name("Origin", "Destination", "Train_Type") | cs.ends_with("_Loaded")), on=["Origin", "Destination", "Train_Type"], how="left")
+        .join(empty.select(cs.by_name("Origin", "Destination", "Train_Type") | cs.ends_with("_Empty")), on=["Origin", "Destination", "Train_Type"], how="left")
         # Replace nulls with zero
-    demand = demand.with_columns(cs.float().fill_null(0.0), cs.by_dtype(pl.UInt32).fill_null(pl.lit(0).cast(pl.UInt32)))
-        # Convert total number of cars to total number of trains
-    demand = demand.with_columns(
-        (pl.col("Number_of_Cars") * pl.col("Tons_Per_Car")).alias("Tons_Aggregate"),
-        pl.when(config.single_train_mode)
-            .then(1)
-            .when(pl.col("Number_of_Cars") == 0)
-            .then(0)
-            .otherwise(
-                pl.max_horizontal([1,
-                    ((pl.col("Number_of_Cars").floordiv(pl.lit(cars_per_train_target_default)) + 1))
+        .with_columns(cs.float().fill_null(0.0), 
+                      cs.by_dtype(pl.UInt32).fill_null(pl.lit(0).cast(pl.UInt32)),
+                      cs.by_dtype(pl.Int64).fill_null(pl.lit(0).cast(pl.Int64)),
+                      )
+        .group_by("Origin", "Destination", "Train_Type")
+            .agg(
+                pl.col("Number_of_Cars_Loaded", "Number_of_Cars_Empty").sum(),
+                pl.col("Tons_Per_Car_Loaded", "Tons_Per_Car_Empty", 
+                       "HP_Required_Per_Ton_Loaded", "HP_Required_Per_Ton_Empty",
+                       "Cars_Per_Train_Min_Loaded", "Cars_Per_Train_Min_Empty",
+                       "Cars_Per_Train_Target_Loaded", "Cars_Per_Train_Target_Empty").mean(),
+                pl.sum_horizontal("Number_of_Cars_Loaded", "Number_of_Cars_Empty").sum().alias("Number_of_Cars")
+            )
+        .with_columns(
+            # If Cars_Per_Train_Min and Cars_Per_Train_Target "disagree" for empty vs. loaded, take the average weighted by number of cars
+            ((pl.col("Cars_Per_Train_Min_Loaded").mul("Number_of_Cars_Loaded") + pl.col("Cars_Per_Train_Min_Empty").mul("Number_of_Cars_Empty")) / pl.col("Number_of_Cars")).alias("Cars_Per_Train_Min"),
+            ((pl.col("Cars_Per_Train_Target_Loaded").mul("Number_of_Cars_Loaded") + pl.col("Cars_Per_Train_Target_Empty").mul("Number_of_Cars_Empty")) / pl.col("Number_of_Cars")).alias("Cars_Per_Train_Target")
+        )
+        .with_columns(
+            pl.when(config.single_train_mode)
+                .then(1)
+                .when(pl.col("Number_of_Cars") == 0)
+                .then(0)
+                .when(pl.col("Cars_Per_Train_Target") == pl.col("Number_of_Cars"))
+                .then(1)
+                .when(pl.col("Cars_Per_Train_Target") <= 1.0)
+                .then(pl.col("Number_of_Cars"))
+                .otherwise(
+                    pl.max_horizontal([
+                        1,
+                        pl.min_horizontal([
+                            pl.col("Number_of_Cars").floordiv("Cars_Per_Train_Target") + 1,
+                            pl.col("Number_of_Cars").floordiv("Cars_Per_Train_Min")
+                        ])
                     ])
-            ).cast(pl.UInt32).alias("Number_of_Trains"))
-        # Calculate per-train car counts and tonnage
-    demand = demand.with_columns(
-        pl.col("Tons_Aggregate").truediv(pl.col("Number_of_Trains")).alias("Tons_Per_Train"))
-    demand = demand.with_columns(
-        (pl.when(pl.col("Train_Type").str.ends_with("_Empty"))
-            .then(pl.col("Number_of_Cars"))
-            .otherwise(0))
-            .cast(pl.UInt32)
-            .alias("Cars_Empty"),
-        (pl.when(pl.col("Train_Type").str.ends_with("_Empty"))
-            .then(0)
-            .otherwise(pl.col("Number_of_Cars")))
-            .cast(pl.UInt32)
-            .alias("Cars_Loaded")
+                ).cast(pl.UInt32).alias("Number_of_Trains")
+        )
+        .drop("Cars_Per_Train_Target_Loaded", "Cars_Per_Train_Target_Empty", "Cars_Per_Train_Min_Empty", "Cars_Per_Train_Min_Loaded")
     )
     return demand
 
 
-def calculate_dispatch_times(
+def generate_dispatch_details(
     demand: pl.DataFrame,
     hours: int
 ) -> pl.DataFrame:
@@ -403,25 +515,66 @@ def calculate_dispatch_times(
     dispatch_times: Tabulated dispatching time for each demand pair for each train type
     in hours
     """
-    demand = demand \
-        .filter(pl.col("Number_of_Trains") > 0) \
-        .select(["Origin","Destination","Train_Type","Number_of_Trains",
-            "Number_of_Cars",
-            "Tons_Per_Train","HP_Required_Per_Ton", "Cars_Loaded", "Cars_Empty"]) \
+    def pctWithinGroup(df: pl.DataFrame, grouping_vars: List[str]) -> pl.DataFrame:
+        return (df
+            .with_columns(
+                (pl.cum_count().over(grouping_vars) / 
+                pl.count().over(grouping_vars))
+                .alias("Percent_Within_Group")
+            )
+        )
+
+    def allocateItems(df: pl.DataFrame, target: str, grouping_vars: List[str]) -> pl.DataFrame:
+        return (df
+        .sort(grouping_vars)
+        .pipe(pctWithinGroup, grouping_vars = grouping_vars)
         .with_columns(
-            (hours / pl.col("Number_of_Trains")).alias("Interval"),
-            pl.col("Number_of_Trains").cast(pl.Int32).alias("Number_of_Trains"),
-            pl.col("Number_of_Cars").floordiv(pl.col("Number_of_Trains")).alias("Number_of_Cars"),
-            pl.col("Cars_Empty").floordiv(pl.col("Number_of_Trains")).alias("Cars_Empty"),
-            pl.col("Cars_Loaded").floordiv(pl.col("Number_of_Trains")).alias("Cars_Loaded"),
-        ).select(pl.exclude("Number_of_Trains").repeat_by("Number_of_Trains").explode()) \
+            pl.col(target).mul("Percent_Within_Group").round().alias(f'{target}_Group_Cumulative')
+        )
         .with_columns(
-            ((pl.col("Interval").cumcount().over(["Origin","Destination","Train_Type"])) \
+            (pl.col(f'{target}_Group_Cumulative') - pl.col(f'{target}_Group_Cumulative').shift(1).over(grouping_vars))
+                .fill_null(pl.col(f'{target}_Group_Cumulative'))
+                .alias(f'{target}')
+        )
+        .drop(f'{target}_Group_Cumulative')
+    )
+
+    grouping_vars = ["Origin", "Destination", "Train_Type"]
+    demand = (demand
+        .select(pl.exclude("Number_of_Trains").repeat_by("Number_of_Trains").explode())
+        .pipe(allocateItems, target = "Number_of_Cars_Loaded", grouping_vars = grouping_vars)
+        .drop("Percent_Within_Group")
+        .pipe(allocateItems, target = "Number_of_Cars_Empty", grouping_vars = grouping_vars)
+        .group_by(pl.exclude("Number_of_Cars_Empty", "Number_of_Cars_Loaded"))
+            .agg(pl.col("Number_of_Cars_Empty", "Number_of_Cars_Loaded"))
+        .with_columns(pl.col("Number_of_Cars_Loaded").list.sort(descending=True),
+                      pl.col("Number_of_Cars_Empty").list.sort(descending=False))
+        .explode("Number_of_Cars_Empty", "Number_of_Cars_Loaded")
+        .with_columns(
+            (pl.col("Tons_Per_Car_Loaded").mul("Number_of_Cars_Loaded") + pl.col("Tons_Per_Car_Empty").mul("Number_of_Cars_Empty")).alias("Tons_Per_Train"),
+            (pl.col("HP_Required_Per_Ton_Loaded").mul("Tons_Per_Car_Loaded").mul("Number_of_Cars_Loaded") + 
+                pl.col("HP_Required_Per_Ton_Empty").mul("Tons_Per_Car_Empty").mul("Number_of_Cars_Empty")
+                ).alias("HP_Required")
+        )
+        .sort("Origin", "Destination", "Percent_Within_Group", "Train_Type")
+        .with_columns(
+            (hours * 1.0 / pl.len().over("Origin", "Destination")).alias("Interval")
+        )
+        .with_columns(
+            ((pl.col("Interval").cumcount().over(["Origin","Destination"])) \
              * pl.col("Interval")).alias("Hour")
-        ).drop("Interval") \
+        )
+        .select("Hour", "Origin", "Destination", "Train_Type", 
+                "Number_of_Cars", "Number_of_Cars_Loaded", "Number_of_Cars_Empty",
+                "Tons_Per_Train", "HP_Required"
+        )
+        .rename({"Number_of_Cars_Loaded": "Cars_Loaded", 
+                "Number_of_Cars_Empty": "Cars_Empty"})
         .sort(["Hour","Origin","Destination","Train_Type"])
+    )
     
     return demand
+
 def build_locopool(
     config: TrainPlannerConfig,
     demand_file: Union[pl.DataFrame, Path, str],
@@ -641,10 +794,10 @@ def append_loco_info(loco_info: pd.DataFrame) -> pd.DataFrame:
 
 def dispatch(
     dispatch_time: int,
-    ton: float,
     origin: str,
     loco_pool: pl.DataFrame,
-    hp_per_ton: float,
+    train_tonnage: float,
+    hp_required: float,
 ) -> pl.Series:
     """
     Update the locomotive pool by identifying the desired locomotive to dispatch and assign to the
@@ -652,18 +805,15 @@ def dispatch(
     Arguments:
     ----------
     dispatch_time: time that a train is due
-    ton: required tonnage in the train
     origin: origin node name of the train
     loco_pool: locomotive pool dataframe containing all locomotives in the network
-    hp_per_ton: Horsepower per ton required for this train type on this origin-destination corridor
+    hp_required: Horsepower required for this train type on this origin-destination corridor
     Outputs:
     ----------
     selected: Indices of selected locomotives
     """
-    hp_required = ton * hp_per_ton
-
+    hp_per_ton = hp_required / train_tonnage
     # Candidate locomotives at the right place that are ready
-
     candidates = loco_pool.select((pl.col("Node") == origin) &
                                 (pl.col("Status") == "Ready")).to_series()
     if not candidates.any():
@@ -732,10 +882,14 @@ def dispatch(
             is more than the available horsepower ({available_hp}).
             Count of locomotives servicing, refueling, or queueing at {origin} are:"""
         # Hold the train until enough diesels are present (future development)
-        waiting_counts = loco_pool.filter(
-            pl.col("Node") == origin,
-            pl.col("Status").is_in(["Servicing","Refuel_Queue"])
-        ).select("Locomotive_Type").group_by(['Locomotive_Type']).len()
+        waiting_counts = (loco_pool
+            .filter(
+                pl.col("Node") == origin,
+                pl.col("Status").is_in(["Servicing","Refuel_Queue"])
+            )
+            .group_by(['Locomotive_Type'])
+                .agg(pl.count().alias("count"))
+        )
         for row in waiting_counts.iter_rows(named = True):
             message = message + f"""
             {row['Locomotive_Type']}: {row['count']}"""
@@ -939,20 +1093,9 @@ def run_train_planner(
             demand_origin_manifest = generate_origin_manifest_demand(demand, node_list, config)
             demand_rebalancing = balance_trains(demand_origin_manifest)
         demand = generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicles, config)
-        dispatch_times = calculate_dispatch_times(demand, simulation_days * 24)
+        dispatches = generate_dispatch_details(demand, simulation_days * 24)
 
-    #TODO eliminate the naming convention that rail vehicles (train types from demand file) must end in `_Loaded` or `_Empty`
-    #TODO: Make 'Loaded' and 'Empty' suffix manipulation case independent
-    dispatch_times = (dispatch_times.with_columns(
-        pl.when(pl.col("Train_Type").str.to_lowercase().str.ends_with("_empty"))
-            .then(pl.col("Train_Type"))
-            .otherwise(pl.concat_str(pl.col("Train_Type").str.strip_suffix("_loaded"),
-                                     pl.lit("_Loaded")))
-            .alias("Train_Type")
-        )
-    )
-
-    final_departure = dispatch_times.get_column("Hour").max()
+    final_departure = dispatches.get_column("Hour").max()
     train_consist_plan = pl.DataFrame(schema=
         {'Train_ID': pl.Int64, 
          'Train_Type': pl.Utf8, 
@@ -976,10 +1119,10 @@ def run_train_planner(
 
     done = False
     # start at first departure time
-    current_time = dispatch_times.get_column("Hour").min()
+    current_time = dispatches.get_column("Hour").min()
     while not done:
         # Dispatch new train consists
-        current_dispatches = dispatch_times.filter(pl.col("Hour") == current_time)
+        current_dispatches = dispatches.filter(pl.col("Hour") == current_time)
         if(current_dispatches.height > 0):
             loco_pool, event_tracker = update_refuel_queue(loco_pool, refuelers, current_time, event_tracker)
 
@@ -992,10 +1135,10 @@ def run_train_planner(
                     else:
                         selected = dispatch(
                             current_time,
-                            this_train['Tons_Per_Train'],
                             this_train['Origin'],
                             loco_pool,
-                            this_train['HP_Required_Per_Ton']
+                            this_train['Tons_Per_Train'],
+                            this_train['HP_Required']
                         )
                         dispatched = loco_pool.filter(selected)
 
@@ -1006,13 +1149,22 @@ def run_train_planner(
                          )
                     else:
                         cd_area_vec = None
+
+                    train_types = []
+                    n_cars_by_type = {}
+                    this_train_type = this_train['Train_Type']
+                    if this_train['Cars_Loaded'] > 0:
+                        train_types.append(f'{this_train_type}_Loaded')
+                        n_cars_by_type[f'{this_train_type}_Loaded'] = int(this_train['Cars_Loaded'])
+                    if this_train['Cars_Empty'] > 0:
+                        train_types.append(f'{this_train_type}_Empty')
+                        n_cars_by_type[f'{this_train_type}_Empty'] = int(this_train['Cars_Empty'])
+
                     train_config = alt.TrainConfig(
-                        rail_vehicles = [vehicle for vehicle in rail_vehicles if vehicle.car_type==this_train['Train_Type']],
-                        n_cars_by_type = {
-                            this_train['Train_Type']: this_train['Number_of_Cars']
-                        },
+                        rail_vehicles = [vehicle for vehicle in rail_vehicles if vehicle.car_type in train_types],
+                        n_cars_by_type = n_cars_by_type,
                         train_type = train_type,
-                        cd_area_vec = cd_area_vec,
+                        cd_area_vec = cd_area_vec
                     )
 
                     loco_start_soc_j = dispatched.get_column("SOC_J")
@@ -1121,7 +1273,7 @@ def run_train_planner(
             loco_pool, event_tracker = update_refuel_queue(loco_pool, refuelers, current_time, event_tracker)
             done = True
         else:
-            current_time = dispatch_times.filter(pl.col("Hour").gt(current_time)).get_column("Hour").min()
+            current_time = dispatches.filter(pl.col("Hour").gt(current_time)).get_column("Hour").min()
 
     train_consist_plan = (train_consist_plan
         .with_columns(

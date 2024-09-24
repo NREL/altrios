@@ -6,100 +6,102 @@ import pandas as pd
 import polars as pl
 import polars.selectors as cs
 import math
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Callable, Optional
 from itertools import repeat
+from dataclasses import dataclass, field
 import altrios as alt
 from altrios import defaults, utilities
 
 pl.enable_string_cache()
 
+@dataclass
 class TrainPlannerConfig:
-    def __init__(self, 
-                 single_train_mode: bool = False,
-                 min_cars_per_train: int = 60,
-                 target_cars_per_train: int = 180,
-                 manifest_empty_return_ratio: float = 0.6,
-                 #TODO single vs double stacked operations on the corridor
-                 cars_per_locomotive: int = 70,
-                 refuelers_per_incoming_corridor: int = 4,
-                 drag_coeff_function: List = None,
-                 hp_required_per_ton: Dict = {
-                     "Default": {
-                        "Unit": 2.0,
-                        "Manifest": 1.5,
-                        "Intermodal": 2.0 + 2.0,
-                        "Unit_Empty": 2.0,
-                        "Manifest_Empty": 1.5,
-                        "Intermodal_Empty": 2.0 + 2.0,
-                        }                         
-                     }, 
-                 dispatch_scaling_dict: Dict = {
-                     "time_mult_factor": 1.4,
-                     "hours_add": 2,
-                     "energy_mult_factor": 1.25
-                     },
-                 loco_info = pd.DataFrame({
-                    "Diesel_Large": {
-                        "Capacity_Cars": 20,
-                        "Fuel_Type": "Diesel",
-                        "Min_Servicing_Time_Hr": 3.0,
-                        "Rust_Loco": alt.Locomotive.default(),
-                        "Cost_USD": defaults.DIESEL_LOCO_COST_USD,
-                        "Lifespan_Years": defaults.LOCO_LIFESPAN
-                        },
-                    "BEL": {
-                        "Capacity_Cars": 20,
-                        "Fuel_Type": "Electricity",
-                        "Min_Servicing_Time_Hr": 3.0,
-                        "Rust_Loco": alt.Locomotive.default_battery_electric_loco(),
-                        "Cost_USD": defaults.BEL_MINUS_BATTERY_COST_USD,
-                        "Lifespan_Years": defaults.LOCO_LIFESPAN
-                        }
-                    }).transpose().reset_index(names='Locomotive_Type'),
-                 refueler_info = pd.DataFrame({
-                    "Diesel_Fueler": {
-                        "Locomotive_Type": "Diesel_Large",
-                        "Fuel_Type": "Diesel",
-                        "Refueler_J_Per_Hr": defaults.DIESEL_REFUEL_RATE_J_PER_HR,
-                        "Refueler_Efficiency": defaults.DIESEL_REFUELER_EFFICIENCY,
-                        "Cost_USD": defaults.DIESEL_REFUELER_COST_USD,
-                        "Lifespan_Years": defaults.LOCO_LIFESPAN
-                    },
-                    "BEL_Charger": {
-                        "Locomotive_Type": "BEL",
-                        "Fuel_Type": "Electricity",
-                        "Refueler_J_Per_Hr": defaults.BEL_CHARGE_RATE_J_PER_HR,
-                        "Refueler_Efficiency": defaults.BEL_CHARGER_EFFICIENCY,
-                        "Cost_USD": defaults.BEL_CHARGER_COST_USD,
-                        "Lifespan_Years": defaults.LOCO_LIFESPAN
-                    }
-                }).transpose().reset_index(names='Refueler_Type')
-    ):
-        """
-        Constructor for train planner configuration objects
-        Arguments:
-        ----------
-        min_cars_per_train: the minimum length in number of cars to form a train
-        target_cars_per_train: the standard train length in number of cars
-        manifest_empty_return_ratio: Desired railcar reuse ratio to calculate the empty manifest car demand, (E_ij+E_ji)/(L_ij+L_ji)
-        cars_per_locomotive: Heuristic scaling factor used to size number of locomotives needed based on demand.
-        refuelers_per_incoming_corridor: 
-        hp_required_per_ton:
-        dispatch_scaling_dict:
-        loco_info:
-        refueler_info:
-        """
-        self.single_train_mode = single_train_mode
-        self.min_cars_per_train = min_cars_per_train
-        self.target_cars_per_train = target_cars_per_train
-        self.manifest_empty_return_ratio = manifest_empty_return_ratio
-        self.cars_per_locomotive = cars_per_locomotive
-        self.refuelers_per_incoming_corridor = refuelers_per_incoming_corridor
-        self.hp_required_per_ton = hp_required_per_ton
-        self.dispatch_scaling_dict = dispatch_scaling_dict
-        self.loco_info = loco_info
-        self.refueler_info = refueler_info
-        self.drag_coeff_function = drag_coeff_function
+    """
+    Dataclass class for train planner configuration parameters.
+
+    Attributes:
+    ----------
+    - `single_train_mode`: `True` to only run one round-trip train and schedule its charging; `False` to plan train consists
+    - `min_cars_per_train`: `Dict` of the minimum length in number of cars to form a train for each train type
+    - `target_cars_per_train`: `Dict` of the standard train length in number of cars for each train type
+    - `manifest_empty_return_ratio`: Desired railcar reuse ratio to calculate the empty manifest car demand, (E_ij+E_ji)/(L_ij+L_ji)
+    - `cars_per_locomotive`: Heuristic scaling factor used to size number of locomotives needed based on demand.
+    - `refuelers_per_incoming_corridor`: Heuristic scaling factor used to scale number of refuelers needed at each node based on number of incoming corridors.
+    - `stack_type`: Type of stacking (applicable only for intermodal containers)
+    - `require_diesel`: `True` to require each consist to have at least one diesel locomotive.
+    - `manifest_empty_return_ratio`: `Dict`
+    - `drag_coeff_function`: `Dict`
+    - `hp_required_per_ton`: `Dict`
+    - `dispatch_scaling_dict`: `Dict`
+    - `loco_info`: `Dict`
+    - `refueler_info`: `Dict`
+    - `return_demand_generators`: `Dict`
+    """
+    single_train_mode: bool = False
+    min_cars_per_train: Dict = field(default_factory = lambda: {
+        "Default": 60
+    })
+    target_cars_per_train: Dict = field(default_factory = lambda: {
+        "Default": 180
+    })
+    cars_per_locomotive: Dict = field(default_factory = lambda: {
+        "Default": 50
+    })
+    refuelers_per_incoming_corridor: int = 4
+    require_diesel: bool = False
+    manifest_empty_return_ratio: float = 0.6
+    drag_coeff_function: Callable = None
+    hp_required_per_ton: Dict = field(default_factory = lambda: {
+        "Default": {
+        "Unit": 2.0,
+        "Manifest": 1.5,
+        "Intermodal": 2.0 + 2.0,
+        "Unit_Empty": 2.0,
+        "Manifest_Empty": 1.5,
+        "Intermodal_Empty": 2.0 + 2.0,
+        }                         
+    })
+    dispatch_scaling_dict: Dict = field(default_factory = lambda: {
+        "time_mult_factor": 1.4,
+        "hours_add": 2,
+        "energy_mult_factor": 1.25
+    })
+    loco_info: pd.DataFrame = field(default_factory = lambda: pd.DataFrame({
+        "Diesel_Large": {
+            "Capacity_Cars": 20,
+            "Fuel_Type": "Diesel",
+            "Min_Servicing_Time_Hr": 3.0,
+            "Rust_Loco": alt.Locomotive.default(),
+            "Cost_USD": defaults.DIESEL_LOCO_COST_USD,
+            "Lifespan_Years": defaults.LOCO_LIFESPAN
+            },
+        "BEL": {
+            "Capacity_Cars": 20,
+            "Fuel_Type": "Electricity",
+            "Min_Servicing_Time_Hr": 3.0,
+            "Rust_Loco": alt.Locomotive.default_battery_electric_loco(),
+            "Cost_USD": defaults.BEL_MINUS_BATTERY_COST_USD,
+            "Lifespan_Years": defaults.LOCO_LIFESPAN
+            }
+        }).transpose().reset_index(names='Locomotive_Type'))
+    refueler_info: pd.DataFrame = field(default_factory = lambda: pd.DataFrame({
+        "Diesel_Fueler": {
+            "Locomotive_Type": "Diesel_Large",
+            "Fuel_Type": "Diesel",
+            "Refueler_J_Per_Hr": defaults.DIESEL_REFUEL_RATE_J_PER_HR,
+            "Refueler_Efficiency": defaults.DIESEL_REFUELER_EFFICIENCY,
+            "Cost_USD": defaults.DIESEL_REFUELER_COST_USD,
+            "Lifespan_Years": defaults.LOCO_LIFESPAN
+        },
+        "BEL_Charger": {
+            "Locomotive_Type": "BEL",
+            "Fuel_Type": "Electricity",
+            "Refueler_J_Per_Hr": defaults.BEL_CHARGE_RATE_J_PER_HR,
+            "Refueler_Efficiency": defaults.BEL_CHARGER_EFFICIENCY,
+            "Cost_USD": defaults.BEL_CHARGER_COST_USD,
+            "Lifespan_Years": defaults.LOCO_LIFESPAN
+        }
+    }).transpose().reset_index(names='Refueler_Type'))
 
 def demand_loader(
     demand_table: Union[pl.DataFrame, Path, str]
@@ -287,7 +289,20 @@ def generate_demand_trains(
     ----------
     demand: Tabulated demand for each demand pair in terms of number of cars and number of trains
     """
-    
+    cars_per_train_min = (pl.from_dict(config.min_cars_per_train)
+        .melt(variable_name="Train_Type", value_name="Cars_Per_Train_Min")
+    )
+    cars_per_train_min_default = (cars_per_train_min
+        .filter(pl.col("Train_Type") == pl.lit("Default"))
+        .select("Cars_Per_Train_Min").item()
+    )
+    cars_per_train_target = (pl.from_dict(config.target_cars_per_train)
+        .melt(variable_name="Train_Type", value_name="Cars_Per_Train_Target")
+    )
+    cars_per_train_target_default = (cars_per_train_target
+        .filter(pl.col("Train_Type") == pl.lit("Default"))
+        .select("Cars_Per_Train_Target").item()
+    )
     demand = pl.concat([
         demand.drop("Number_of_Containers"),
         demand_returns.drop("Number_of_Containers"),
@@ -350,7 +365,7 @@ def generate_demand_trains(
             .then(0)
             .otherwise(
                 pl.max_horizontal([1,
-                    ((pl.col("Number_of_Cars").floordiv(pl.lit(config.target_cars_per_train)) + 1))
+                    ((pl.col("Number_of_Cars").floordiv(pl.lit(cars_per_train_target_default)) + 1))
                     ])
             ).cast(pl.UInt32).alias("Number_of_Trains"))
         # Calculate per-train car counts and tonnage
@@ -432,11 +447,11 @@ def build_locopool(
     num_ods = demand.height
     cars_per_od = demand.get_column("Number_of_Cars").mean()
     if config.single_train_mode:
-        initial_size = math.ceil(cars_per_od / config.cars_per_locomotive) 
+        initial_size = math.ceil(cars_per_od / config.cars_per_locomotive["Default"]) 
         rows = initial_size
     else:
         num_destinations_per_node = num_ods*1.0 / num_nodes*1.0
-        initial_size = math.ceil((cars_per_od / config.cars_per_locomotive) *
+        initial_size = math.ceil((cars_per_od / config.cars_per_locomotive["Default"]) *
                                 num_destinations_per_node)  # number of locomotives per node
         rows = initial_size * num_nodes  # number of locomotives in total
 
@@ -927,10 +942,11 @@ def run_train_planner(
         dispatch_times = calculate_dispatch_times(demand, simulation_days * 24)
 
     #TODO eliminate the naming convention that rail vehicles (train types from demand file) must end in `_Loaded` or `_Empty`
+    #TODO: Make 'Loaded' and 'Empty' suffix manipulation case independent
     dispatch_times = (dispatch_times.with_columns(
-        pl.when(pl.col("Train_Type").str.ends_with("_Empty"))
+        pl.when(pl.col("Train_Type").str.to_lowercase().str.ends_with("_empty"))
             .then(pl.col("Train_Type"))
-            .otherwise(pl.concat_str(pl.col("Train_Type").str.strip_suffix("_Loaded"),
+            .otherwise(pl.concat_str(pl.col("Train_Type").str.strip_suffix("_loaded"),
                                      pl.lit("_Loaded")))
             .alias("Train_Type")
         )
@@ -983,13 +999,20 @@ def run_train_planner(
                         )
                         dispatched = loco_pool.filter(selected)
 
+                    if config.drag_coeff_function is not None:
+                        cd_area_vec = config.drag_coeff_function(
+                             this_train['Number_of_Cars'], 
+                             gap_size = defaults.DEFAULT_GAP_SIZE
+                         )
+                    else:
+                        cd_area_vec = None
                     train_config = alt.TrainConfig(
                         rail_vehicles = [vehicle for vehicle in rail_vehicles if vehicle.car_type==this_train['Train_Type']],
                         n_cars_by_type = {
                             this_train['Train_Type']: this_train['Number_of_Cars']
                         },
                         train_type = train_type,
-                        cd_area_vec = config.drag_coeff_function
+                        cd_area_vec = cd_area_vec,
                     )
 
                     loco_start_soc_j = dispatched.get_column("SOC_J")

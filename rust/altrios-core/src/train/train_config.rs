@@ -104,7 +104,8 @@ pub struct TrainConfig {
     /// Optional vector of drag areas (i.e. drag coeff. times frontal area)
     /// for each car.  If provided, the total drag area (drag coefficient
     /// times frontal area) calculated from this vector is the sum of these
-    /// coefficients.
+    /// coefficients. Otherwise, each rail car's drag contribution based on its
+    /// drag coefficient and frontal area will be summed across the train.
     pub cd_area_vec: Option<Vec<si::Area>>,
 }
 
@@ -575,6 +576,7 @@ impl TrainSimBuilder {
         path_tpc.extend(network, link_path)?;
         Ok(SetSpeedTrainSim::new(
             self.loco_con.clone(),
+            self.train_config.n_cars_by_type.clone(),
             state,
             speed_trace,
             train_res,
@@ -604,6 +606,7 @@ impl TrainSimBuilder {
         Ok((
             SetSpeedTrainSim::new(
                 self.loco_con.clone(),
+                self.train_config.n_cars_by_type.clone(),
                 state,
                 speed_trace,
                 train_res.clone(),
@@ -660,6 +663,7 @@ impl TrainSimBuilder {
                     ))
                 })?,
             self.loco_con.clone(),
+            self.train_config.n_cars_by_type.clone(),
             state,
             train_res,
             path_tpc,
@@ -713,6 +717,7 @@ impl TrainSimBuilder {
                     ))
                 })?,
             self.loco_con.clone(),
+            self.train_config.n_cars_by_type.clone(),
             state,
             train_res.clone(),
             path_tpc.clone(),
@@ -1239,14 +1244,24 @@ pub fn run_speed_limit_train_sims(
         self.get_net_energy_res(annualize).get::<si::joule>()
     }
 
+    #[pyo3(name = "get_kilometers")]
+    pub fn get_kilometers_py(&self, annualize: bool) -> f64 {
+        self.get_kilometers(annualize)
+    }
+
     #[pyo3(name = "get_megagram_kilometers")]
     pub fn get_megagram_kilometers_py(&self, annualize: bool) -> f64 {
         self.get_megagram_kilometers(annualize)
     }
 
-    #[pyo3(name = "get_kilometers")]
-    pub fn get_kilometers_py(&self, annualize: bool) -> f64 {
-        self.get_kilometers(annualize)
+    #[pyo3(name = "get_car_kilometers")]
+    pub fn get_car_kilometers_py(&self, annualize: bool) -> f64 {
+        self.get_car_kilometers(annualize)
+    }
+
+    #[pyo3(name = "get_cars_moved")]
+    pub fn get_cars_moved_py(&self, annualize: bool) -> f64 {
+        self.get_cars_moved(annualize)
     }
 
     #[pyo3(name = "get_res_kilometers")]
@@ -1282,6 +1297,10 @@ impl SpeedLimitTrainSimVec {
             .sum()
     }
 
+    pub fn get_kilometers(&self, annualize: bool) -> f64 {
+        self.0.iter().map(|sim| sim.get_kilometers(annualize)).sum()
+    }
+
     pub fn get_megagram_kilometers(&self, annualize: bool) -> f64 {
         self.0
             .iter()
@@ -1289,8 +1308,18 @@ impl SpeedLimitTrainSimVec {
             .sum()
     }
 
-    pub fn get_kilometers(&self, annualize: bool) -> f64 {
-        self.0.iter().map(|sim| sim.get_kilometers(annualize)).sum()
+    pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
+        self.0
+            .iter()
+            .map(|sim| sim.get_car_kilometers(annualize))
+            .sum()
+    }
+
+    pub fn get_cars_moved(&self, annualize: bool) -> f64 {
+        self.0
+            .iter()
+            .map(|sim| sim.get_cars_moved(annualize))
+            .sum()
     }
 
     pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {

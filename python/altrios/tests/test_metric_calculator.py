@@ -24,5 +24,5 @@ class TestMetricCalculator(unittest.TestCase):
             
         for info in scenario_infos:
             tkm = metric_calculator.calculate_freight_moved(info,'million tonne-mi')
-            self.assertEqual(tkm.filter(pl.col("Metric") == 'Mt-km').get_column("Units").len(), 1)
+            self.assertEqual(tkm.filter(pl.col("Metric") == pl.lit("Freight_Moved")).get_column("Units").len(), 1)
 

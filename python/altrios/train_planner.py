@@ -448,20 +448,38 @@ def generate_demand_trains(
         .filter(pl.col("Train_Type").str.contains("_Empty"))
         .with_columns(
             pl.col("Number_of_Cars", "Tons_Per_Car", "HP_Required_Per_Ton", "Cars_Per_Train_Min", "Cars_Per_Train_Target").name.suffix("_Empty"),
-            pl.col("Train_Type").str.strip_suffix("_Empty")
+            pl.when(pl.col("Train_Type").str.strip_suffix("_Empty") == pl.lit("Unit"))
+                .then(pl.col("Train_Type"))
+                .otherwise(pl.col("Train_Type").str.strip_suffix("_Empty"))
+                .alias("Train_Type")
         )
     )
     demand = (demand
-        .select(pl.col("Origin", "Destination"), pl.col("Train_Type").str.strip_suffix("_Empty"))
+        .select(
+            pl.col("Origin", "Destination"), 
+            pl.when(pl.col("Train_Type").str.strip_suffix("_Empty") == pl.lit("Unit"))
+                .then(pl.col("Train_Type"))
+                .otherwise(pl.col("Train_Type").str.strip_suffix("_Empty"))
+                .alias("Train_Type")
+        )
         .unique()
         .join(loaded.select(cs.by_name("Origin", "Destination", "Train_Type") | cs.ends_with("_Loaded")), on=["Origin", "Destination", "Train_Type"], how="left")
         .join(empty.select(cs.by_name("Origin", "Destination", "Train_Type") | cs.ends_with("_Empty")), on=["Origin", "Destination", "Train_Type"], how="left")
         # Replace nulls with zero
-        .with_columns(cs.float().fill_null(0.0), 
-                      cs.by_dtype(pl.UInt32).fill_null(pl.lit(0).cast(pl.UInt32)),
-                      cs.by_dtype(pl.Int64).fill_null(pl.lit(0).cast(pl.Int64)),
-                      )
-        .group_by("Origin", "Destination", "Train_Type")
+        .with_columns(
+            cs.float().fill_null(0.0), 
+            cs.by_dtype(pl.UInt32).fill_null(pl.lit(0).cast(pl.UInt32)),
+            cs.by_dtype(pl.Int64).fill_null(pl.lit(0).cast(pl.Int64)),
+            pl.when(pl.col("Train_Type").str.contains(pl.lit("Unit")))
+                .then(
+                    pl.when(pl.col("Number_of_Cars_Loaded").is_null())
+                        .then(pl.lit("Empty"))
+                        .otherwise(pl.lit("Loaded"))
+                )
+                .otherwise(pl.lit("Mixed"))
+                .alias("Allowed_Loading")
+        )
+        .group_by("Origin", "Destination", "Train_Type", "Allowed_Loading")
             .agg(
                 pl.col("Number_of_Cars_Loaded", "Number_of_Cars_Empty").sum(),
                 pl.col("Tons_Per_Car_Loaded", "Tons_Per_Car_Empty", 
@@ -492,7 +510,8 @@ def generate_demand_trains(
                             pl.col("Number_of_Cars").floordiv("Cars_Per_Train_Min")
                         ])
                     ])
-                ).cast(pl.UInt32).alias("Number_of_Trains")
+                ).cast(pl.UInt32).alias("Number_of_Trains"),
+            pl.col("Train_Type").str.strip_suffix("_Empty")
         )
         .drop("Cars_Per_Train_Target_Loaded", "Cars_Per_Train_Target_Empty", "Cars_Per_Train_Min_Empty", "Cars_Per_Train_Min_Loaded")
     )
@@ -540,17 +559,16 @@ def generate_dispatch_details(
         .drop(f'{target}_Group_Cumulative')
     )
 
-    grouping_vars = ["Origin", "Destination", "Train_Type"]
+    grouping_vars = ["Origin", "Destination", "Train_Type", "Allowed_Loading"]
     demand = (demand
         .select(pl.exclude("Number_of_Trains").repeat_by("Number_of_Trains").explode())
         .pipe(allocateItems, target = "Number_of_Cars_Loaded", grouping_vars = grouping_vars)
-        .drop("Percent_Within_Group")
         .pipe(allocateItems, target = "Number_of_Cars_Empty", grouping_vars = grouping_vars)
-        .group_by(pl.exclude("Number_of_Cars_Empty", "Number_of_Cars_Loaded"))
-            .agg(pl.col("Number_of_Cars_Empty", "Number_of_Cars_Loaded"))
+        .group_by(pl.exclude("Number_of_Cars_Empty", "Number_of_Cars_Loaded", "Percent_Within_Group"))
+            .agg(pl.col("Number_of_Cars_Empty", "Number_of_Cars_Loaded", "Percent_Within_Group"))
         .with_columns(pl.col("Number_of_Cars_Loaded").list.sort(descending=True),
                       pl.col("Number_of_Cars_Empty").list.sort(descending=False))
-        .explode("Number_of_Cars_Empty", "Number_of_Cars_Loaded")
+        .explode("Number_of_Cars_Empty", "Number_of_Cars_Loaded", "Percent_Within_Group")
         .with_columns(
             (pl.col("Tons_Per_Car_Loaded").mul("Number_of_Cars_Loaded") + pl.col("Tons_Per_Car_Empty").mul("Number_of_Cars_Empty")).alias("Tons_Per_Train"),
             (pl.col("HP_Required_Per_Ton_Loaded").mul("Tons_Per_Car_Loaded").mul("Number_of_Cars_Loaded") + 
@@ -559,7 +577,7 @@ def generate_dispatch_details(
         )
         .sort("Origin", "Destination", "Percent_Within_Group", "Train_Type")
         .with_columns(
-            (hours * 1.0 / pl.len().over("Origin", "Destination")).alias("Interval")
+            pl.lit(hours).truediv(pl.len().over("Origin", "Destination")).alias("Interval")
         )
         .with_columns(
             ((pl.col("Interval").cumcount().over(["Origin","Destination"])) \

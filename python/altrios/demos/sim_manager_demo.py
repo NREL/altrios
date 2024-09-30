@@ -6,10 +6,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import seaborn as sns
+import polars as pl
 from pathlib import Path
 
 sns.set_theme()
-
+pl.Config().set_tbl_width_chars(150)
+pl.Config().set_tbl_rows(30)
 SHOW_PLOTS = alt.utils.show_plots()
 # %
 

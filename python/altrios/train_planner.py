@@ -1333,3 +1333,4 @@ if __name__ == "__main__":
         simulation_days=defaults.SIMULATION_DAYS + 2 * defaults.WARM_START_DAYS,
         scenario_year=defaults.BASE_ANALYSIS_YEAR,
         config=config)
+print("Done")

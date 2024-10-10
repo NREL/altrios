@@ -20,17 +20,17 @@ class TrainPlannerConfig:
                  target_cars_per_train: int = 180,
                  manifest_empty_return_ratio: float = 0.6,
                  #TODO single vs double stacked operations on the corridor
-                 cars_per_locomotive: int = 70,
+                 cars_per_locomotive: int = 30,
                  refuelers_per_incoming_corridor: int = 4,
                  drag_coeff_function: List = None,
                  hp_required_per_ton: Dict = {
                      "Default": {
-                        "Unit": 2.0,
+                        "Unit": 1.5,
                         "Manifest": 1.5,
-                        "Intermodal": 2.0 + 2.0,
-                        "Unit_Empty": 2.0,
+                        "Intermodal": 2.0,
+                        "Unit_Empty": 1.5,
                         "Manifest_Empty": 1.5,
-                        "Intermodal_Empty": 2.0 + 2.0,
+                        "Intermodal_Empty": 2.0,
                         }                         
                      }, 
                  dispatch_scaling_dict: Dict = {

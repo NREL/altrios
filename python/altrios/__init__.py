@@ -125,16 +125,21 @@ def to_pydict(self) -> Dict:
     """
     Returns self converted to pure python dictionary with no nested Rust objects
     """
-    import json
-    return json.loads(self.to_json())
+    from yaml import load
+    try:
+        from yaml import CLoader as Loader
+    except ImportError:
+        from yaml import Loader
+    pydict = load(self.to_yaml(), Loader = Loader)
+    return pydict
 
 @classmethod
 def from_pydict(cls, pydict: Dict) -> Self:
     """
     Instantiates Self from pure python dictionary 
     """
-    import json
-    return cls.from_json(json.dumps(pydict))
+    import yaml
+    return cls.from_yaml(yaml.dump(pydict),skip_init=False)
 
 def to_dataframe(self, pandas:bool=False) -> [pd.DataFrame, pl.DataFrame, pl.LazyFrame]:
     """

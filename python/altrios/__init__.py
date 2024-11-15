@@ -138,7 +138,6 @@ def to_pydict(self, flatten: bool=True) -> Dict:
     else:
         return next(iter(pd.json_normalize(pydict, sep=".").to_dict(orient='records')))
 
-
 @classmethod
 def from_pydict(cls, pydict: Dict) -> Self:
     """

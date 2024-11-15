@@ -22,11 +22,6 @@ SAVE_INTERVAL = 1
 
 
 pt = alt.PowerTrace.default()
-pt_df = pd.read_json(pt.to_json())
-pt_df.time_seconds = pt_df.time_seconds * 100
-pt_df.engine_on = pt_df.engine_on.astype(str).str.lower()
-pt_df.loc[:, ['time_seconds', 'engine_on', 'pwr_watts']].to_csv('pwr_trace.csv', index=False)
-pt = pt.from_csv_file('pwr_trace.csv')
 
 res = alt.ReversibleEnergyStorage.from_file(
     alt.resources_root() / 
@@ -51,7 +46,7 @@ bel = alt.Locomotive.build_battery_electric_loco(
 
 # instantiate battery model
 t0 = time.perf_counter()
-sim = alt.LocomotiveSimulation(bel, pt, True, SAVE_INTERVAL)
+sim = alt.LocomotiveSimulation(bel, pt, False, SAVE_INTERVAL)
 t1 = time.perf_counter()
 print(f"Time to load: {t1-t0:.3g}")
 

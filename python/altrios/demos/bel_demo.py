@@ -1,3 +1,4 @@
+# %% Copied from ALTRIOS version 'v0.2.3'. Guaranteed compatibility with this version only.
 # %%
 # Script for running the Wabtech BEL consist for sample data from Barstow to Stockton
 # Consist comprises [2X Tier 4](https://www.wabteccorp.com/media/3641/download?inline)
@@ -10,6 +11,7 @@ import matplotlib.pyplot as plt
 import time
 import os
 import seaborn as sns
+import pandas as pd
 
 sns.set_theme()
 
@@ -20,6 +22,11 @@ SAVE_INTERVAL = 1
 
 
 pt = alt.PowerTrace.default()
+pt_df = pd.read_json(pt.to_json())
+pt_df.time_seconds = pt_df.time_seconds * 100
+pt_df.engine_on = pt_df.engine_on.astype(str).str.lower()
+pt_df.loc[:, ['time_seconds', 'engine_on', 'pwr_watts']].to_csv('pwr_trace.csv', index=False)
+pt = pt.from_csv_file('pwr_trace.csv')
 
 res = alt.ReversibleEnergyStorage.from_file(
     alt.resources_root() / 
@@ -44,7 +51,7 @@ bel = alt.Locomotive.build_battery_electric_loco(
 
 # instantiate battery model
 t0 = time.perf_counter()
-sim = alt.LocomotiveSimulation(bel, pt, SAVE_INTERVAL)
+sim = alt.LocomotiveSimulation(bel, pt, True, SAVE_INTERVAL)
 t1 = time.perf_counter()
 print(f"Time to load: {t1-t0:.3g}")
 
@@ -54,7 +61,7 @@ sim.walk()
 t1 = time.perf_counter()
 print(f"Time to simulate: {t1-t0:.5g}")
 
-
+#%%
 bel_rslt = sim.loco_unit
 t_s = np.array(sim.power_trace.time_seconds)
 
@@ -102,3 +109,5 @@ ax[i].tick_params(labelsize=fontsize)
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
+
+# %%

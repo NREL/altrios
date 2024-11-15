@@ -139,9 +139,10 @@ pub struct PowerTraceElement {
     fn __new__(
         loco_unit: Locomotive,
         power_trace: PowerTrace,
+        allow_trace_miss: Option<bool>,
         save_interval: Option<usize>,
     ) -> Self {
-        Self::new(loco_unit, power_trace, save_interval)
+        Self::new(loco_unit, power_trace, allow_trace_miss.unwrap_or_default(), save_interval)
     }
 
     #[pyo3(name = "walk")]
@@ -178,6 +179,9 @@ pub struct PowerTraceElement {
 pub struct LocomotiveSimulation {
     pub loco_unit: Locomotive,
     pub power_trace: PowerTrace,
+    /// Whether to allow the Locomotive to miss the power trace.  If true, the
+    /// locomotive will produce whatever power it can.
+    pub allow_trace_miss: bool,
     pub i: usize,
 }
 
@@ -185,11 +189,13 @@ impl LocomotiveSimulation {
     pub fn new(
         loco_unit: Locomotive,
         power_trace: PowerTrace,
+        allow_trace_miss: bool,
         save_interval: Option<usize>,
     ) -> Self {
         let mut loco_sim = Self {
             loco_unit,
             power_trace,
+            allow_trace_miss,
             i: 1,
         };
         loco_sim.loco_unit.set_save_interval(save_interval);
@@ -216,7 +222,7 @@ impl LocomotiveSimulation {
 
     pub fn step(&mut self) -> anyhow::Result<()> {
         self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.i)))?;
+            .with_context(|| format!("time step: {}", self.i))?;
         self.save_state();
         self.i += 1;
         self.loco_unit.step();
@@ -232,24 +238,32 @@ impl LocomotiveSimulation {
         self.loco_unit
             .set_cur_pwr_max_out(None, self.power_trace.dt(self.i))?;
         self.solve_energy_consumption(
-            self.power_trace.pwr[self.i],
+            if self.allow_trace_miss {
+                self.power_trace.pwr[self.i]
+                    .min(self.loco_unit.state.pwr_out_max)
+                    .max(-self.loco_unit.state.pwr_regen_max)
+            } else {
+                self.power_trace.pwr[self.i]
+            },
             self.power_trace.dt(self.i),
             engine_on,
         )?;
-        ensure!(
-            utils::almost_eq_uom(
-                &self.power_trace.pwr[self.i],
-                &self.loco_unit.state.pwr_out,
-                None
-            ),
-            format_dbg!(
-                (utils::almost_eq_uom(
+        if !self.allow_trace_miss {
+            ensure!(
+                utils::almost_eq_uom(
                     &self.power_trace.pwr[self.i],
                     &self.loco_unit.state.pwr_out,
                     None
-                ))
-            )
-        );
+                ),
+                format_dbg!(
+                    (utils::almost_eq_uom(
+                        &self.power_trace.pwr[self.i],
+                        &self.loco_unit.state.pwr_out,
+                        None
+                    ))
+                )
+            );
+        }
         Ok(())
     }
 
@@ -297,7 +311,7 @@ impl Default for LocomotiveSimulation {
     fn default() -> Self {
         let power_trace = PowerTrace::default();
         let loco_unit = Locomotive::default();
-        Self::new(loco_unit, power_trace, None)
+        Self::new(loco_unit, power_trace, false, None)
     }
 }
 
@@ -390,7 +404,7 @@ mod tests {
     fn test_conventional_locomotive_sim() {
         let cl = Locomotive::default();
         let pt = PowerTrace::default();
-        let mut loco_sim = LocomotiveSimulation::new(cl, pt, None);
+        let mut loco_sim = LocomotiveSimulation::new(cl, pt, false, None);
         loco_sim.walk().unwrap();
     }
 
@@ -410,7 +424,7 @@ mod tests {
     fn test_battery_locomotive_sim() {
         let bel = Locomotive::default_battery_electric_loco();
         let pt = PowerTrace::default();
-        let mut loco_sim = LocomotiveSimulation::new(bel, pt, None);
+        let mut loco_sim = LocomotiveSimulation::new(bel, pt, false, None);
         loco_sim.walk().unwrap();
     }
 

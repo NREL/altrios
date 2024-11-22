@@ -474,9 +474,10 @@ fn add_new_join_paths(
 }
 
 pub fn make_est_times<N: AsRef<[Link]>>(
-    speed_limit_train_sim: &SpeedLimitTrainSim,
+    mut speed_limit_train_sim: SpeedLimitTrainSim,  
     network: N,
 ) -> anyhow::Result<(EstTimeNet, Consist)> {
+    speed_limit_train_sim.set_save_interval(None);
     let network = network.as_ref();
     let dests = &speed_limit_train_sim.dests;
     let (link_idx_options, origs) =
@@ -485,7 +486,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
 
     let mut est_times = Vec::with_capacity(network.len() * 10);
     let mut consist_out = None;
-    let mut saved_sims = Vec::<SavedSim>::with_capacity(16.max(network.len() / 10));
+    let mut saved_sims: Vec<SavedSim> = vec![];
     let mut link_event_map =
         LinkEventMap::with_capacity_and_hasher(est_times.capacity(), Default::default());
     let time_depart = speed_limit_train_sim.state.time;
@@ -778,5 +779,5 @@ pub fn make_est_times_py(
         }
     };
 
-    make_est_times(&speed_limit_train_sim, network)
+    make_est_times(speed_limit_train_sim, network)
 }

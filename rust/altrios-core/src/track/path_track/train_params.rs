@@ -7,7 +7,9 @@ use crate::imports::*;
 pub struct TrainParams {
     pub length: si::Length,
     pub speed_max: si::Velocity,
-    pub mass_total: si::Mass,
+    /// Total train mass including base rail vehicle mass and freight mass
+    /// but not locomotive consist mass
+    pub towed_mass_static: si::Mass,
     pub mass_per_brake: si::Mass,
     pub axle_count: u32,
     pub train_type: TrainType,
@@ -23,7 +25,7 @@ impl TrainParams {
                 match speed_param.limit_type {
                     LimitType::MassTotal => speed_param
                         .compare_type
-                        .applies(self.mass_total, speed_param.limit_val * uc::KG),
+                        .applies(self.towed_mass_static, speed_param.limit_val * uc::KG),
                     LimitType::MassPerBrake => speed_param
                         .compare_type
                         .applies(self.mass_per_brake, speed_param.limit_val * uc::KG),
@@ -44,7 +46,7 @@ impl Valid for TrainParams {
         Self {
             length: uc::M * 2000.0,
             speed_max: uc::MPS * 25.0,
-            mass_total: uc::TON * 143.0 * 100.0,
+            towed_mass_static: uc::TON * 143.0 * 100.0,
             mass_per_brake: uc::TON * 143.0,
             axle_count: 100 * 4,
             train_type: TrainType::Freight,
@@ -64,7 +66,7 @@ impl ObjState for TrainParams {
         if self.is_fake() {
             si_chk_num_eqz(&mut errors, &self.length, "Length");
             si_chk_num_eqz(&mut errors, &self.speed_max, "Speed max");
-            si_chk_num_eqz(&mut errors, &self.mass_total, "Mass total");
+            si_chk_num_eqz(&mut errors, &self.towed_mass_static, "Mass total");
             si_chk_num_eqz(&mut errors, &self.mass_per_brake, "Mass per brake");
             if self.axle_count != 0 {
                 errors.push(anyhow!(
@@ -79,7 +81,7 @@ impl ObjState for TrainParams {
         } else {
             si_chk_num_gtz_fin(&mut errors, &self.length, "Length");
             si_chk_num_gtz_fin(&mut errors, &self.speed_max, "Speed max");
-            si_chk_num_gtz_fin(&mut errors, &self.mass_total, "Mass total");
+            si_chk_num_gtz_fin(&mut errors, &self.towed_mass_static, "Mass total");
             si_chk_num_gtz_fin(&mut errors, &self.mass_per_brake, "Mass per brake");
             if self.axle_count == 0 {
                 errors.push(anyhow!(

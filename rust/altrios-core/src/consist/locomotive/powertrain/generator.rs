@@ -52,13 +52,6 @@ use crate::pyo3::*;
         Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
     }
 
-    // TODO: uncomment and fix
-    // #[setter("__mass_kg")]
-    // fn set_mass_py(&mut self, side_effect: String, mass_kg: Option<f64>) -> anyhow::Result<()> {
-    //     // self.set_mass(mass_kg.map(|m| m * uc::KG), MassSideEffect::try_from(side_effect)?)?;
-    //     Ok(())
-    // }
-
     #[getter("mass_kg")]
     fn get_mass_py(&mut self) -> anyhow::Result<Option<f64>> {
         Ok(self.mass()?.map(|m| m.get::<si::kilogram>()))

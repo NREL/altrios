@@ -27,8 +27,8 @@ train_optimal_params = cval.min_error_selection(
 )
 
 # %% 
-    # ("drag_area_loaded_square_meters", (1, 6)),
-    # ("drag_area_empty_square_meters", (1, 8)),
+    # ("cd_area_loaded_square_meters", (1, 6)),
+    # ("cd_area_empty_square_meters", (1, 8)),
     # # ("davis_b_seconds_per_meter", (0, 0.1)),
     # ("rolling_ratio", (0.0003, 0.003)),
     # ("bearing_res_per_axle_newtons", (40, 320)),

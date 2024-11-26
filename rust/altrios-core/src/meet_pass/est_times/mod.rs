@@ -14,7 +14,7 @@ use update_times::*;
 
 /// Estimated time node for dispatching
 /// Specifies the expected time of arrival when taking the shortest path with no delays
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, SerdeAPI)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, SerdeAPI, PartialEq)]
 pub struct EstTime {
     /// Scheduled time of arrival at the node
     pub time_sched: si::Time,
@@ -27,7 +27,7 @@ pub struct EstTime {
 
     /// Index of link leaving the next node in the network when traveling along the shortest path from this node
     pub idx_next: EstIdx,
-    /// Index of alternative link leaving next node (if it exists)  
+    /// Index of alternative link leaving next node (if it exists)
     /// Used if the shortest path is blocked up ahead
     pub idx_next_alt: EstIdx,
     /// Index of link leaving the previous node if the shortest path was taken to reach this node
@@ -61,7 +61,7 @@ impl Default for EstTime {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, SerdeAPI)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, SerdeAPI, PartialEq)]
 #[altrios_api(
     pub fn get_running_time_hours(&self) -> f64 {
         (self.val.last().unwrap().time_sched - self.val.first().unwrap().time_sched).get::<si::hour>()

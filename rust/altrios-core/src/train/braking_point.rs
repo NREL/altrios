@@ -85,7 +85,7 @@ impl BrakingPoints {
         let speed_points = path_tpc.speed_points();
         let mut idx = path_tpc.speed_points().len();
 
-        //Iterate backwards through all the speed points
+        // Iterate backwards through all the speed points
         while 0 < idx {
             idx -= 1;
             if speed_points[idx].speed_limit.abs() > self.points.last().unwrap().speed_limit {
@@ -119,10 +119,9 @@ impl BrakingPoints {
                     );
                     let vel_change = train_state.dt
                         * (fric_brake.force_max + train_state.res_net())
-                        // TODO: maybe add rotating mass in denominator
-                        / train_state.mass_static;
+                        / train_state.mass_compound().with_context(|| format_dbg!())?;
 
-                    // Exit after adding a couple of points if the next braking curve point will exceed the speed limit
+                    // exit after adding a couple of points if the next braking curve point will exceed the speed limit
                     if speed_limit < bp_curr.speed_limit + vel_change {
                         self.points.push(BrakingPoint {
                             offset: bp_curr.offset - train_state.dt * speed_limit,

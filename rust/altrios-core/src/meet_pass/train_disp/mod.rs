@@ -226,7 +226,7 @@ mod test_train_disp {
         let network = Network::from_file(network_file_path).unwrap();
 
         let speed_limit_train_sim = crate::train::speed_limit_train_sim_fwd();
-        let est_times = make_est_times(&speed_limit_train_sim, network).unwrap().0;
+        let est_times = make_est_times(speed_limit_train_sim.clone(), network).unwrap().0;
         TrainDisp::new(
             speed_limit_train_sim.train_id.clone(),
             NonZeroU16::new(1),
@@ -249,7 +249,7 @@ mod test_train_disp {
         let network = Network::from_file(network_file_path).unwrap();
 
         let speed_limit_train_sim = crate::train::speed_limit_train_sim_rev();
-        let est_times = make_est_times(&speed_limit_train_sim, network).unwrap().0;
+        let est_times = make_est_times(speed_limit_train_sim.clone(), network).unwrap().0;
         TrainDisp::new(
             speed_limit_train_sim.train_id.clone(),
             NonZeroU16::new(1),

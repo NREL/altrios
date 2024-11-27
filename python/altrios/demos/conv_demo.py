@@ -46,7 +46,7 @@ conv = alt.Locomotive.build_conventional_loco(
 
 pt = alt.PowerTrace.default()
 
-sim = alt.LocomotiveSimulation(conv, pt, SAVE_INTERVAL)
+sim = alt.LocomotiveSimulation(conv, pt, save_interval=SAVE_INTERVAL)
 t1 = time.perf_counter()
 
 print(f"Time to load: {t1-t0:.3g}")

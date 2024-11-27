@@ -404,6 +404,7 @@ class LocomotiveSimulation(SerdeAPI):
     i: int
     loco_unit: Locomotive
     power_trace: PowerTrace
+    allow_trace_miss: Optional[bool]
     @classmethod
     def __init__(cls) -> None: ...
     def clone(self) -> Self: ...

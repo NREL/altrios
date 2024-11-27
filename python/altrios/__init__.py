@@ -1,6 +1,5 @@
-from pkg_resources import get_distribution
-__version__ = get_distribution("altrios").version
-
+from importlib.metadata import version
+__version__ = version("altrios")
 from pathlib import Path
 import re
 import numpy as np
@@ -48,7 +47,7 @@ def variable_path_list(self, element_as_list:bool=False) -> List[str]:
     # Arguments:  
     - `element_as_list`: if True, each element is itself a list of the path elements
     """
-    return variable_path_list_from_py_objs(self.to_pydict(), element_as_list=element_as_list)
+    return variable_path_list_from_py_objs(self.to_pydict(flatten=False), element_as_list=element_as_list)
                                         
 def variable_path_list_from_py_objs(
     obj: Union[Dict, List], 
@@ -121,17 +120,23 @@ def history_path_list(self, element_as_list:bool=False) -> List[str]:
     ]
     return history_path_list
             
-def to_pydict(self) -> Dict:
+def to_pydict(self, flatten: bool=True) -> Dict:
     """
     Returns self converted to pure python dictionary with no nested Rust objects
+    # Arguments
+    - `flatten`: if True, returns dict without any hierarchy
     """
     from yaml import load
     try:
         from yaml import CLoader as Loader
     except ImportError:
         from yaml import Loader
-    pydict = load(self.to_yaml(), Loader = Loader)
-    return pydict
+
+    pydict = load(self.to_yaml(), Loader=Loader)
+    if not flatten:
+        return pydict
+    else:
+        return next(iter(pd.json_normalize(pydict, sep=".").to_dict(orient='records')))
 
 @classmethod
 def from_pydict(cls, pydict: Dict) -> Self:
@@ -139,7 +144,8 @@ def from_pydict(cls, pydict: Dict) -> Self:
     Instantiates Self from pure python dictionary 
     """
     import yaml
-    return cls.from_yaml(yaml.dump(pydict),skip_init=False)
+    return cls.from_yaml(yaml.dump(pydict))
+
 
 def to_dataframe(self, pandas:bool=False) -> [pd.DataFrame, pl.DataFrame, pl.LazyFrame]:
     """
@@ -148,7 +154,7 @@ def to_dataframe(self, pandas:bool=False) -> [pd.DataFrame, pl.DataFrame, pl.Laz
     # Arguments
     - `pandas`: returns pandas dataframe if True; otherwise, returns polars dataframe by default
     """
-    obj_dict = self.to_pydict()
+    obj_dict = self.to_pydict(flatten=False)
     history_paths = self.history_path_list(element_as_list=True)   
     cols = [".".join(hp) for hp in history_paths]
     vals = []

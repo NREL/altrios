@@ -143,9 +143,9 @@ def mock_locomotive_simulation(
     pt: alt.PowerTrace = mock_power_trace(),
     save_interval: Optional[int] = 1,
 ) -> alt.LocomotiveSimulation:
-    if not loco:
+    if loco is None:
         loco = mock_conventional_loco(save_interval=save_interval)
-    sim = alt.LocomotiveSimulation(loco, pt, save_interval)
+    sim = alt.LocomotiveSimulation(loco, pt, False, save_interval)
     return sim
 
 

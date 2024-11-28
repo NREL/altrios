@@ -57,14 +57,24 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
         Ok(self.get_save_interval())
     }
 
+    #[pyo3(name = "get_kilometers")]
+    pub fn get_kilometers_py(&self, annualize: bool)  -> f64 {
+        self.get_kilometers(annualize)
+    }
+
     #[pyo3(name = "get_megagram_kilometers")]
     pub fn get_megagram_kilometers_py(&self, annualize: bool)  -> f64 {
         self.get_megagram_kilometers(annualize)
     }
 
-    #[pyo3(name = "get_kilometers")]
-    pub fn get_kilometers_py(&self, annualize: bool)  -> f64 {
-        self.get_kilometers(annualize)
+    #[pyo3(name = "get_car_kilometers")]
+    pub fn get_car_kilometers_py(&self, annualize: bool)  -> f64 {
+        self.get_car_kilometers(annualize)
+    }
+
+    #[pyo3(name = "get_cars_moved")]
+    pub fn get_cars_moved_py(&self, annualize: bool)  -> f64 {
+        self.get_cars_moved(annualize)
     }
 
     #[pyo3(name = "get_res_kilometers")]
@@ -141,6 +151,8 @@ pub struct SpeedLimitTrainSim {
     pub origs: Vec<Location>,
     pub dests: Vec<Location>,
     pub loco_con: Consist,
+    /// Number of railcars by type on the train
+    pub n_cars_by_type: HashMap<String, u32>,
     #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: TrainState,
@@ -167,6 +179,7 @@ impl SpeedLimitTrainSim {
         origs: &[Location],
         dests: &[Location],
         loco_con: Consist,
+        n_cars_by_type: HashMap<String, u32>,
         state: TrainState,
         train_res: TrainRes,
         path_tpc: PathTpc,
@@ -180,6 +193,7 @@ impl SpeedLimitTrainSim {
             origs: origs.to_vec(),
             dests: dests.to_vec(),
             loco_con,
+            n_cars_by_type,
             state,
             train_res,
             path_tpc,
@@ -208,14 +222,25 @@ impl SpeedLimitTrainSim {
         }
     }
 
+    pub fn get_kilometers(&self, annualize: bool) -> f64 {
+        self.state.total_dist.get::<si::kilometer>() * self.get_scaling_factor(annualize)
+    }
+
     pub fn get_megagram_kilometers(&self, annualize: bool) -> f64 {
         self.state.mass_freight.get::<si::megagram>()
             * self.state.total_dist.get::<si::kilometer>()
             * self.get_scaling_factor(annualize)
     }
 
-    pub fn get_kilometers(&self, annualize: bool) -> f64 {
-        self.state.total_dist.get::<si::kilometer>() * self.get_scaling_factor(annualize)
+    pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
+        let n_cars = self.get_cars_moved(annualize) as f64;
+        // Note: n_cars already includes an annualization scaling factor; no need to multiply twice.
+        self.state.total_dist.get::<si::kilometer>() * n_cars
+    }
+
+    pub fn get_cars_moved(&self, annualize: bool) -> f64 {
+        let n_cars: f64 = self.n_cars_by_type.values().fold(0, |acc, n| *n + acc) as f64;
+        n_cars * self.get_scaling_factor(annualize)
     }
 
     pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {
@@ -684,6 +709,7 @@ impl Default for SpeedLimitTrainSim {
             origs: Default::default(),
             dests: Default::default(),
             loco_con: Default::default(),
+            n_cars_by_type: Default::default(),
             state: TrainState::valid(),
             train_res: TrainRes::valid(),
             path_tpc: PathTpc::default(),

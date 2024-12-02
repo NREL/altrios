@@ -445,7 +445,7 @@ def run_simulation():
     env.process(train_arrival(env, train_timetable, train_processing, cranes, hostlers, chassis, in_gate_resource,
                   outbound_containers_store, truck_store, out_gate_resource))
 
-    env.run(until=SIM_TIME)
+    env.run(until=state.sim_time)
 
     print(f"Average train processing time: {sum(time_per_train) / len(time_per_train) if time_per_train else 0:.2f}")
     print("Simulation completed. ")

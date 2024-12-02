@@ -1,31 +1,46 @@
 import pandas as pd
+import polars as pl
+import lifts.utilities
+import lifts.dictionary
 
-def find_duplicate_numbers(series):
-    duplicates = series[series.duplicated(keep=False)]
-    if not duplicates.empty:
-        return ''.join(map(str, duplicates.unique()))
+def build_train_timetable(train_consist_plan, terminal, swap_arrive_depart, as_dicts):
+    df = (train_consist_plan
+        .filter(
+            pl.col("Destination_ID") == pl.lit(terminal), 
+            pl.col("Train_Type").str.starts_with(pl.lit("Intermodal"))
+        )
+        .rename({
+            "Train_ID": "train_id",
+            "Departure_Time_Actual_Hr": "departure_time",
+            "Arrival_Time_Actual_Hr": "arrival_time",
+            "Cars_Empty": "empty_cars",
+            "Cars_Loaded": "full_cars"
+        })
+    ) 
+
+    if swap_arrive_depart:
+        df = df.rename({"departure_time": "arrival_time", "arrival_time": "departure_time"})
+
+    df = (df
+        .group_by("train_id")
+            .agg(pl.col("full_cars", "empty_cars", "arrival_time", "departure_time").first())
+        .sort("arrival_time", descending=False)
+    )
+
+    if as_dicts:
+        return (df
+            .with_columns(
+                pl.lit(lifts.dictionary.calculate_oc_number()).alias("oc_number"),
+            )
+            .pipe(lifts.dictionary.calculate_truck_number)
+            .to_dicts()
+        )
     else:
-        return series.iloc[0]
-
-
-def train_timetable(terminal):
-    df = pd.read_csv('C:/Users/Irena Tong/PycharmProjects/simulation_test/data/train_consist_plan.csv')
-    df_terminal = df[(df['Destination_ID'] == terminal) & (df['Train_Type'] == 'Intermodal')]  # Filter by the selected terminal and intermodal type railcar
-
-    df_grouped = df_terminal.groupby('Train_ID').agg({
-        'Cars_Loaded': find_duplicate_numbers,
-        'Cars_Empty': find_duplicate_numbers,
-        'Arrival_Time_Actual_Hr': 'min',
-        'Departure_Time_Actual_Hr': 'min'
-    }).reset_index()
-
-    df_grouped_sorted = df_grouped.sort_values(by='Arrival_Time_Actual_Hr', ascending=True)
-
-    return df_grouped_sorted
+        return df.to_pandas()
 
 
 def next_train_timetable(train_id, terminal):
-    df_terminal = train_timetable(terminal)
+    df_terminal = build_train_timetable(terminal, swap_arrive_depart = False, as_dicts = False)
     df_next_train = df_terminal.iloc[train_id]
     return df_next_train
 

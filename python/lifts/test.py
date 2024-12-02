@@ -1,9 +1,10 @@
 import simpy
 import random
-from parameters import *
-from distances import *
-from dictionary import *
-from vehicle_performance import record_vehicle_event, save_average_times, save_vehicle_logs
+from lifts.parameters import *
+from lifts.distances import *
+#from dictionary import *
+from lifts.schedule import *
+from lifts.vehicle_performance import record_vehicle_event, save_average_times, save_vehicle_logs
 
 
 # Test input
@@ -545,14 +546,14 @@ def run_simulation():
     # ]
 
     # REAL TEST
-    train_timetable = timetable(terminal)
-    TRAIN_NUMBERS = len(timetable(terminal))
+    train_timetable = build_train_timetable(pl.read_csv(utilities.package_root() / 'demos' / 'starter_demo' / 'train_consist_plan.csv'), terminal, swap_arrive_depart = True, as_dicts = True)
+    TRAIN_NUMBERS = len(train_timetable)
 
     # env.process(train_arrival(env, train_processing, cranes, in_gate_resource, outbound_containers_store, truck_store, train_timetable))
     env.process(train_arrival(env, train_timetable, train_processing, cranes, hostlers, chassis, in_gate_resource,
                   outbound_containers_store, truck_store, out_gate_resource))
 
-    env.run(until=SIM_TIME)
+    env.run(until=state.sim_time)
 
     # Performance Matrix: train processing time
     avg_time_per_train = sum(time_per_train) / len(time_per_train)

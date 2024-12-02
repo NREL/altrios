@@ -1030,7 +1030,7 @@ pub fn run_speed_limit_train_sims(
                     "Node",
                     "Locomotive_Type",
                     "Fuel_Type",
-                ])) + (col("Status").eq(lit("Queued")).cumsum(false).over([
+                ])) + (col("Status").eq(lit("Queued")).cum_sum(false).over([
                     "Node",
                     "Locomotive_Type",
                     "Fuel_Type",

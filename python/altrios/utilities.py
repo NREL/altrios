@@ -206,7 +206,7 @@ def resample(
     for col in df.columns:
         if col in rate_vars:
             # calculate average value over time step
-            cumu_vals = (df[time_col].diff().fillna(0) * df[col]).cumsum()
+            cumu_vals = (df[time_col].diff().fillna(0) * df[col]).cum_sum()
             new_dict[col] = (
                 np.diff(
                     np.interp(

@@ -2,7 +2,7 @@
 from altrios import sim_manager
 from altrios import utilities, defaults, train_planner
 import altrios as alt
-from lifts import lifts_simulator
+from altrios.lifts import lifts_simulator
 import numpy as np
 import matplotlib.pyplot as plt
 import time

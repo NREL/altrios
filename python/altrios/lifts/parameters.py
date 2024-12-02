@@ -1,7 +1,7 @@
 import polars
 import simpy
 from dataclasses import dataclass, field
-from lifts.schedule import *
+from altrios.lifts.schedule import *
 
 def train_arrival_parameters(train_consist_plan, terminal, train_id_counter):
     timetable = build_train_timetable(train_consist_plan, terminal, swap_arrive_depart = False, as_dicts = False)

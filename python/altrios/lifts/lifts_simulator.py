@@ -1,12 +1,12 @@
 import simpy
 import random
 import polars as pl
-from lifts import utilities
-from lifts.parameters import *
-from lifts.distances import *
-from lifts.dictionary import *
-from lifts.schedule import *
-from lifts.vehicle_performance import record_vehicle_event, save_average_times, save_vehicle_logs
+from altrios.lifts import utilities
+from altrios.lifts.parameters import *
+from altrios.lifts.distances import *
+from altrios.lifts.dictionary import *
+from altrios.lifts.schedule import *
+from altrios.lifts.vehicle_performance import record_vehicle_event, save_average_times, save_vehicle_logs
 
 
 # Test input
@@ -579,7 +579,7 @@ def run_simulation(
         f.write(str(avg_time_per_train))
 
     # Create DataFrame for container events
-    events_list = [(container_id, events) for container_id, events in sorted(state.container_events.items())]
+    events_list = [(container_id, events) for container_id, events in state.container_events.items()]
     container_data = (
         pl.concat([
             pl.DataFrame(data = None, schema = {

@@ -1,7 +1,6 @@
 import pandas as pd
 import polars as pl
-import lifts.utilities
-import lifts.dictionary
+import altrios.lifts as lifts
 
 def build_train_timetable(train_consist_plan, terminal, swap_arrive_depart, as_dicts):
     df = (train_consist_plan

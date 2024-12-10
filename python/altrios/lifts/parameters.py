@@ -54,13 +54,13 @@ class LiftsState:
     container_events: dict = field(default_factory = lambda: {})   # Dictionary to store container event data
     # Cranes
     # CRANE_NUMBER = int(input("Enter the number of crane: "))
-    CRANE_NUMBER: int = 10
+    CRANE_NUMBER: int = 1
     CONTAINERS_PER_CRANE_MOVE_MEAN: float = 600   # 10ft/min = 600 ft/hr, crane speed
     CRANE_MOVE_DEV_TIME: float = 5/60 # hr
     outbound_containers_mapping: dict = field(default_factory = lambda: {})  # To keep track of outbound containers ID mapped to chassis
     # Hostlers
     # HOSTLER_NUMBER = int(input("Enter the number of hostler: "))
-    HOSTLER_NUMBER: int = 50
+    HOSTLER_NUMBER: int = 1
     CONTAINERS_PER_HOSTLER: int = 1  # hostler capacity
     HOSTLER_SPEED_LIMIT: float = 20*5280   # ft/hr
     HOSTLER_TRANSPORT_CONTAINER_TIME: float = 0    # hr, triangular distribution

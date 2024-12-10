@@ -8,12 +8,6 @@ from altrios.lifts.dictionary import *
 from altrios.lifts.schedule import *
 from altrios.lifts.vehicle_performance import record_vehicle_event, save_average_times, save_vehicle_logs
 
-
-# Test input
-CRANE_NUMBER = 1
-HOSTLER_NUMBER = 1
-
-
 # import sys
 #
 # if len(sys.argv) < 3:
@@ -21,25 +15,25 @@ HOSTLER_NUMBER = 1
 #
 # HOSTLER_NUMBER = int(sys.argv[1])
 # CRANE_NUMBER = int(sys.argv[2])
-TRUCK_NUMBERS = 1000
 
 def record_event(container_id, event_type, timestamp):
     global state
+    if container_id is None:
+        x = 5
     if container_id not in state.container_events:
         state.container_events[container_id] = {}
     state.container_events[container_id][event_type] = timestamp
 
 
-def handle_truck_arrivals(env, in_gate_resource, truck_numbers):
+def handle_truck_arrivals(env, in_gate_resource):
     global state
     truck_id = 1
-    truck_processed = 0
     state.TRUCK_ARRIVAL_MEAN = abs(state.TRAIN_ARRIVAL_HR - state.previous_train_departure) / max(state.INBOUND_CONTAINER_NUMBER, state.OUTBOUND_CONTAINER_NUMBER)
     print(f"current time is {env.now}")
     print(f"next TRAIN_ARRIVAL_HR:{state.TRAIN_ARRIVAL_HR}")
     print(f"TRUCK_ARRIVAL_MEAN IS {state.TRUCK_ARRIVAL_MEAN}")
 
-    while truck_id <= TRUCK_NUMBERS:
+    while truck_id <= state.TRUCK_NUMBERS:
         inter_arrival_time = random.expovariate(1 / state.TRUCK_ARRIVAL_MEAN)
         yield env.timeout(inter_arrival_time)
         state.truck_arrival_time.append(env.now)
@@ -47,7 +41,7 @@ def handle_truck_arrivals(env, in_gate_resource, truck_numbers):
         env.process(truck_through_gate(env, in_gate_resource, truck_id))
         truck_id += 1
 
-    if truck_id > TRUCK_NUMBERS:
+    if truck_id > state.TRUCK_NUMBERS:
         # print(f"truck_id = {truck_id} vs TRUCK_NUM = {TRUCK_NUMBERS}")
         if not state.all_trucks_ready_event.triggered:
             state.all_trucks_ready_event.succeed()
@@ -85,6 +79,8 @@ def handle_container(env, truck_id):
     global state
 
     container_id = state.outbound_container_id_counter
+    if container_id is None:
+        x = 5
     state.outbound_container_id_counter += 1
     record_event(container_id, 'truck_arrival', env.now)
 
@@ -93,7 +89,7 @@ def handle_container(env, truck_id):
 
     record_event(container_id, 'truck_drop_off', env.now)
     # print(f"{env.now}: Truck {truck_id} drops outbound container {container_id}.")
-    last_leave_time = env.now
+    state.last_leave_time = env.now
 
 
 def empty_truck(env, truck_id):
@@ -103,7 +99,7 @@ def empty_truck(env, truck_id):
     yield env.timeout(d_t_dist / (2 * state.TRUCK_SPEED_LIMIT))
 
     # print(f"{env.now}: Empty truck {truck_id} arrives.")
-    last_leave_time = env.now
+    state.last_leave_time = env.now
 
 
 def train_arrival(env, train_timetable, train_processing, cranes, hostlers, chassis, in_gate_resource, outbound_containers_store, truck_store, out_gate_resource):
@@ -133,7 +129,7 @@ def train_arrival(env, train_timetable, train_processing, cranes, hostlers, chas
         # Trucks enter until the precious train departs, if not the first truck
         state.previous_train_departure = train_timetable[i-1]['departure_time'] if i > 0 else 0
         print(f"Schedule {state.TRUCK_NUMBERS} Trucks arriving between previous train departure at {state.previous_train_departure} and current train arrival at {state.TRAIN_ARRIVAL_HR}")
-        env.process(handle_truck_arrivals(env, in_gate_resource, outbound_containers_store))
+        env.process(handle_truck_arrivals(env, in_gate_resource))
 
         # Trains arrive according to the timetable, fix negative delay bug
         delay = state.TRAIN_ARRIVAL_HR - env.now
@@ -153,7 +149,7 @@ def train_arrival(env, train_timetable, train_processing, cranes, hostlers, chas
         with train_processing.request() as request:
             yield request
             state.oc_chassis_filled_event = env.event()
-            yield env.process(process_train(env, train_id, cranes, hostlers, chassis, in_gate_resource, outbound_containers_store, truck_store, train_processing, out_gate_resource))
+            yield env.process(process_train(env, train_id, cranes, hostlers, chassis, in_gate_resource, outbound_containers_store, truck_store, train_processing, state.oc_chassis_filled_event, out_gate_resource))
             state.train_id_counter += 1
 
         state.record_oc_label += state.OUTBOUND_CONTAINER_NUMBER
@@ -161,7 +157,7 @@ def train_arrival(env, train_timetable, train_processing, cranes, hostlers, chas
         # print("oc_variance in train_process:", oc_variance)
 
 
-def process_train(env, train_id, cranes, hostlers, chassis, in_gate_resource, outbound_containers_store, truck_store, train_processing, out_gate_resource):
+def process_train(env, train_id, cranes, hostlers, chassis, in_gate_resource, outbound_containers_store, truck_store, train_processing, oc_chassis_filled_event, out_gate_resource):
     global state
 
     start_time = env.now
@@ -172,7 +168,7 @@ def process_train(env, train_id, cranes, hostlers, chassis, in_gate_resource, ou
 
     # if train_id < TRAIN_NUMBERS:
     for chassis_id in range(1, int(state.INBOUND_CONTAINER_NUMBER) + 1):
-        unload_process = env.process(crane_and_chassis(env, train_id, 'unload', cranes, hostlers, chassis, truck_store, train_processing, outbound_containers_store, in_gate_resource, out_gate_resource))
+        unload_process = env.process(crane_and_chassis(env, train_id, 'unload', cranes, hostlers, chassis, truck_store, train_processing, outbound_containers_store, in_gate_resource, out_gate_resource, oc_chassis_filled_event))
         unload_processes.append(unload_process)
 
     # All IC are processed
@@ -185,7 +181,7 @@ def process_train(env, train_id, cranes, hostlers, chassis, in_gate_resource, ou
         chassis_id, current_inbound_id = result
         chassis_inbound_ids.append((chassis_id, current_inbound_id))
         env.process(hostler_transfer(env, hostlers, 'inbound', chassis, chassis_id, current_inbound_id, truck_store, cranes,
-                             train_processing, outbound_containers_store, in_gate_resource,
+                             train_processing, outbound_containers_store, in_gate_resource, oc_chassis_filled_event,
                              out_gate_resource))
 
     # # Once all OC are dropped by hostlers, crane start working
@@ -198,7 +194,7 @@ def process_train(env, train_id, cranes, hostlers, chassis, in_gate_resource, ou
     # Cranes move all OC to chassis
     load_processes = []
     for chassis_id in range(1, state.OUTBOUND_CONTAINER_NUMBER + 1):
-        load_process = env.process(crane_and_chassis(env, train_id, 'load', cranes, hostlers, chassis, truck_store, train_processing, outbound_containers_store, in_gate_resource, out_gate_resource, chassis_id=chassis_id))
+        load_process = env.process(crane_and_chassis(env, train_id, 'load', cranes, hostlers, chassis, truck_store, train_processing, outbound_containers_store, in_gate_resource, oc_chassis_filled_event, out_gate_resource, chassis_id=chassis_id))
         load_processes.append(load_process)
     yield simpy.events.AllOf(env, load_processes)
 
@@ -216,7 +212,7 @@ def process_train(env, train_id, cranes, hostlers, chassis, in_gate_resource, ou
     state.oc_variance += state.OUTBOUND_CONTAINER_NUMBER
 
 
-def crane_and_chassis(env, train_id, action, cranes, hostlers, chassis, truck_store, train_processing, outbound_containers_store, in_gate_resource, out_gate_resource, chassis_id=None):
+def crane_and_chassis(env, train_id, action, cranes, hostlers, chassis, truck_store, train_processing, outbound_containers_store, in_gate_resource, out_gate_resource, oc_chassis_filled_event, chassis_id=None):
     global state
 
     # # Print before requesting crane resource
@@ -263,7 +259,7 @@ def crane_and_chassis(env, train_id, action, cranes, hostlers, chassis, truck_st
             record_vehicle_event('crane', state.crane_id_counter, 'end', end_time)     # performance record: ending
 
             # hostler picks up IC
-            env.process(hostler_transfer(env, hostlers, 'inbound', chassis, chassis_id, current_inbound_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource, out_gate_resource))
+            env.process(hostler_transfer(env, hostlers, 'inbound', chassis, chassis_id, current_inbound_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource, oc_chassis_filled_event, out_gate_resource))
 
             return chassis_id, current_inbound_id
 
@@ -298,20 +294,24 @@ def crane_and_chassis(env, train_id, action, cranes, hostlers, chassis, truck_st
         # print(f"[{env.now}] Crane {crane_id_counter} has released crane resource. Available cranes: {cranes.count}/{cranes.capacity}")
 
 
-def hostler_transfer(env, hostlers, container_type, chassis, chassis_id, container_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource, out_gate_resource):
+def hostler_transfer(env, hostlers, container_type, chassis, chassis_id, container_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource, oc_chassis_filled_event, out_gate_resource):
     global state
 
     with hostlers.request() as request:
         yield request
-
+        if container_id is None:
+            x =5
         start_time = env.now
         record_vehicle_event('hostler', state.hostler_id_counter, 'start', start_time)  # performance record
 
         hostler_id = state.hostler_id_counter
-        state.hostler_id_counter = (state.hostler_id_counter % HOSTLER_NUMBER) + 1
+        state.hostler_id_counter = (state.hostler_id_counter % state.HOSTLER_NUMBER) + 1
 
         with chassis.request() as chassis_request:
             yield chassis_request
+
+            if container_type == "inbound":
+                x = 5
 
             if container_type == 'inbound' and state.chassis_status[chassis_id - 1] == 1:
                 d_h_dist = create_triang_distribution(d_h_min, d_h_avg, d_h_max).rvs()
@@ -328,6 +328,8 @@ def hostler_transfer(env, hostlers, container_type, chassis, chassis_id, contain
                 state.HOSTLER_TRANSPORT_CONTAINER_TIME = d_h_dist / (2 * state.HOSTLER_SPEED_LIMIT)
                 print(f"Hostler drop-off time is:{state.HOSTLER_TRANSPORT_CONTAINER_TIME}")
                 yield env.timeout(state.HOSTLER_TRANSPORT_CONTAINER_TIME)
+                if container_id is None:
+                    x =5
                 record_event(container_id, 'hostler_dropoff', env.now)
                 print(f"Hostler {hostler_id} drops off inbound container {container_id} from chassis {chassis_id} and moves toward the assigned outbound container at {env.now}")
 
@@ -341,30 +343,30 @@ def hostler_transfer(env, hostlers, container_type, chassis, chassis_id, contain
                 chassis_id, state.outbound_container_id = yield env.process(outbound_container_decision_making(
                     env, hostlers, chassis, container_id, truck_store, cranes, train_processing,
                     outbound_containers_store,
-                    in_gate_resource, out_gate_resource))
+                    in_gate_resource, oc_chassis_filled_event, out_gate_resource))
 
                 # Process outbound containers
                 if chassis_id is not None and state.outbound_container_id is not None:
-                    env.process(handle_outbound_container(env, hostler_id, chassis_id, truck_store,
-                                                  cranes, train_processing, outbound_containers_store, in_gate_resource,))
+                    env.process(handle_outbound_container(env, hostler_id, chassis_id, state.outbound_container_id, truck_store,
+                                                  cranes, train_processing, outbound_containers_store, in_gate_resource))
 
 
 # When OC are fully processed, but IC are not
-def hostler_transfer_IC_single_loop(env, hostlers, container_type, chassis, chassis_id, container_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource, out_gate_resource):
+def hostler_transfer_IC_single_loop(env, hostlers, container_type, chassis, chassis_id, container_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource, oc_chassis_filled_event, out_gate_resource):
     print(f"Starting single hostler transfer IC loop for chassis {chassis_id} at {env.now}")
     global state
 
     print(f"Requesting hostler for IC at chassis {chassis_id} at {env.now}")
 
     with hostlers.request() as request:
-        print(f"Request available hostlers: {hostlers.count} vs total hostlers {HOSTLER_NUMBER}, Hostlers capacity: {hostlers.capacity} at {env.now}")
+        print(f"Request available hostlers: {hostlers.count} vs total hostlers {state.HOSTLER_NUMBER}, Hostlers capacity: {hostlers.capacity} at {env.now}")
         yield request
 
         start_time = env.now
         record_vehicle_event('hostler', state.hostler_id_counter, 'start', start_time)  # performance record
 
         hostler_id = state.hostler_id_counter
-        state.hostler_id_counter = (state.hostler_id_counter % HOSTLER_NUMBER) + 1
+        state.hostler_id_counter = (state.hostler_id_counter % state.HOSTLER_NUMBER) + 1
 
         with chassis.request() as chassis_request:
             yield chassis_request
@@ -393,12 +395,12 @@ def hostler_transfer_IC_single_loop(env, hostlers, container_type, chassis, chas
 
                 # Check if all chassis filled
                 if state.chassis_status.count(0) == state.OUTBOUND_CONTAINER_NUMBER and state.chassis_status.count(
-                        -1) == state.TRAIN_UNITS - state.OUTBOUND_CONTAINER_NUMBER and not state.oc_chassis_filled_event.triggered:
+                        -1) == state.TRAIN_UNITS - state.OUTBOUND_CONTAINER_NUMBER and not oc_chassis_filled_event.triggered:
                     print(f"Chassis is fully filled with OC, and cranes start moving: {state.chassis_status}")
                     print(f"where there are {state.chassis_status.count(0)} chassis filled with OC (0)")
                     print(f"where there are {state.chassis_status.count(-1)} chassis filled with empty (-1)")
                     print(f"where there are {state.chassis_status.count(1)} chassis filled with IC (1)")
-                    state.oc_chassis_filled_event.succeed()
+                    oc_chassis_filled_event.succeed()
                     return
                 else:
                     print(f"Chassis is not fully filled: {state.chassis_status}")
@@ -413,7 +415,7 @@ def hostler_transfer_IC_single_loop(env, hostlers, container_type, chassis, chas
                 yield env.process(notify_truck(env, truck_store, container_id, out_gate_resource))
 
 
-def outbound_container_decision_making(env, hostlers, chassis, current_inbound_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource, out_gate_resource):
+def outbound_container_decision_making(env, hostlers, chassis, current_inbound_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource, oc_chassis_filled_event, out_gate_resource):
     global state
     # Check if outbound_containers_store has outbound container
     if len(outbound_containers_store.items) > 0:
@@ -445,14 +447,16 @@ def outbound_container_decision_making(env, hostlers, chassis, current_inbound_i
             # single loop takes rest inbound container
             yield env.process(hostler_transfer_IC_single_loop(env, hostlers, 'inbound', chassis, chassis_id, current_inbound_id,
                                                 truck_store, cranes, train_processing,
-                                                outbound_containers_store, in_gate_resource, out_gate_resource))
+                                                outbound_containers_store, in_gate_resource, oc_chassis_filled_event, out_gate_resource))
         else:
             print("All inbound containers have been processed.")
 
+    if outbound_container_id is None:
+        x = 5
     return chassis_id, outbound_container_id
 
 
-def handle_outbound_container(env, hostler_id, chassis_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource):
+def handle_outbound_container(env, hostler_id, chassis_id, outbound_container_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource):
     global state
 
     d_h_dist = create_triang_distribution(d_h_min, d_h_avg, d_h_max).rvs()
@@ -462,13 +466,13 @@ def handle_outbound_container(env, hostler_id, chassis_id, truck_store, cranes, 
     state.HOSTLER_FIND_CONTAINER_TIME = d_r_dist / (2 * state.TRUCK_SPEED_LIMIT)
     yield env.timeout(state.HOSTLER_FIND_CONTAINER_TIME)
 
-    record_event(state.outbound_container_id, 'hostler_pickup', env.now)
-    print(f"Hostler {hostler_id} picks up outbound container {state.outbound_container_id} from parking area to chassis {chassis_id} at {env.now}")
+    record_event(outbound_container_id, 'hostler_pickup', env.now)
+    print(f"Hostler {hostler_id} picks up outbound container {outbound_container_id} from parking area to chassis {chassis_id} at {env.now}")
 
     yield env.timeout(state.HOSTLER_TRANSPORT_CONTAINER_TIME)
 
-    record_event(state.outbound_container_id, 'hostler_dropoff', env.now)
-    print(f"Hostler {hostler_id} drops off outbound container {state.outbound_container_id} to chassis {chassis_id} at {env.now}")
+    record_event(outbound_container_id, 'hostler_dropoff', env.now)
+    print(f"Hostler {hostler_id} drops off outbound container {outbound_container_id} to chassis {chassis_id} at {env.now}")
 
 
 # truck pick up IC
@@ -546,7 +550,7 @@ def run_simulation(
     # Initialize trucks
     truck_store.items.clear()
     # print("TRUCK_NUMBERS:",  TRUCK_NUMBERS)
-    for truck_id in range(1, TRUCK_NUMBERS + 1):
+    for truck_id in range(1, 100 + 1):
         truck_store.put(truck_id)
     # print("TRUCK_STORE:", truck_store.items)
 
@@ -579,31 +583,13 @@ def run_simulation(
         f.write(str(avg_time_per_train))
 
     # Create DataFrame for container events
-    events_list = [(container_id, events) for container_id, events in state.container_events.items()]
     container_data = (
-        pl.concat([
-            pl.DataFrame(data = None, schema = {
-                    'container_id': pl.UInt32,
-                    'container_type': pl.Utf8,
-                    'train_arrival': pl.Float64,
-                    'truck_arrival': pl.Float64,
-                    'crane_unload': pl.Float64,
-                    'hostler_pickup': pl.Float64,
-                    'hostler_dropoff': pl.Float64,
-                    'truck_drop_off': pl.Float64,
-                    'truck_pickup': pl.Float64,
-                    'truck_exit': pl.Float64,
-                    'crane_load': pl.Float64,
-                    'train_depart': pl.Float64}),
-            pl.concat(
-                [
-                    pl.DataFrame({"container_id": [container_id for container_id, event in events_list]})
-                        .with_columns(
-                            pl.when(pl.col("container_id") < 10001).then(pl.lit("inbound")).otherwise(pl.lit("outbound")).alias("container_type")
-                        ),
-                    pl.from_dicts([event for container_id, event in events_list])
-                ], how="horizontal")
-        ], how="diagonal_relaxed")
+        pl.from_dicts(
+            [dict(event, **{'container_id': container_id}) for container_id, event in state.container_events.items()]
+        )
+        .with_columns(
+            pl.when(pl.col("container_id") < 10001).then(pl.lit("inbound")).otherwise(pl.lit("outbound")).alias("container_type")
+        )
         .with_columns(
             pl.when(
                 pl.col("container_type") == pl.lit("inbound"),
@@ -624,9 +610,11 @@ def run_simulation(
             .otherwise(None)
             .alias("container_processing_time")
         )
+        .sort("container_id")
+        .select(pl.col("container_id", "container_type"), pl.all().exclude("container_id", "container_type"))
     )
     if out_path is not None:
-        container_data.write_excel(out_path / f"simulation_crane_{CRANE_NUMBER}_hostler_{HOSTLER_NUMBER}.xlsx")
+        container_data.write_excel(out_path / f"simulation_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx")
 
     # Use save_average_times and save_vehicle_logs for vehicle related logs
     save_average_times()

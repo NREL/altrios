@@ -607,8 +607,8 @@ mod tests {
             vec![vec![], Self::valid()[..1].to_vec()]
         }
     }
-    //check_cases!(Vec<Link>);
-    //check_vec_elems!(Link);
+    // check_cases!(Vec<Link>);
+    // check_vec_elems!(Link);
 
     #[test]
     fn test_to_and_from_file_for_links() {

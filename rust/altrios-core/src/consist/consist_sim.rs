@@ -82,6 +82,8 @@ impl ConsistSimulation {
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
+        #[cfg(feature = "logging")]
+        log::info!("Solving time step #{}", self.i);
         self.loco_con.set_pwr_aux(Some(true))?;
         self.loco_con
             .set_cur_pwr_max_out(None, self.power_trace.dt(self.i))?;

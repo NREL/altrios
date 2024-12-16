@@ -103,7 +103,6 @@ impl LocoTrait for BatteryElectricLoco {
         pwr_aux: Option<si::Power>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
-        // TODO: proposed interface location to feed in the catenary
         self.res.set_cur_pwr_out_max(
             pwr_aux.with_context(|| anyhow!(format_dbg!("`pwr_aux` not provided")))?,
             None,

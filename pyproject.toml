@@ -46,6 +46,7 @@ dependencies = [
     "polars==0.20.25",
     "pyarrow",
     "requests",
+    "PyYAML==6.0.2",
 ]
 
 [project.urls]

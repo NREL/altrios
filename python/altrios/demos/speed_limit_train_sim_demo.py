@@ -2,26 +2,38 @@
 import time
 import matplotlib.pyplot as plt
 import numpy as np
+import polars as pl
 import pandas as pd
 import seaborn as sns
+import os
 
 import altrios as alt
 sns.set_theme()
+
+# alt.utils.set_log_level("DEBUG")
 
 SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 100
 
+# Build the train config
+rail_vehicle_loaded = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Loaded.yaml")
+rail_vehicle_empty = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Empty.yaml")
+
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
-    cars_empty=50,
-    cars_loaded=50,
-    rail_vehicle_type="Manifest",
-    train_type=alt.TrainType.Freight,
+    rail_vehicles=[rail_vehicle_loaded, rail_vehicle_empty],
+    n_cars_by_type={
+        "Manifest_Loaded": 50,
+        "Manifest_Empty": 50,
+    },
     train_length_meters=None,
     train_mass_kilograms=None,
 )
 
+# Build the locomotive consist model
 # instantiate battery model
 # https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/reversible_energy_storage/struct.ReversibleEnergyStorage.html#
 res = alt.ReversibleEnergyStorage.from_file(
@@ -53,6 +65,7 @@ loco_con = alt.Consist(
     SAVE_INTERVAL,
 )
 
+# Instantiate the intermediate `TrainSimBuilder`
 tsb = alt.TrainSimBuilder(
     train_id="0",
     origin_id="Minneapolis",
@@ -61,20 +74,15 @@ tsb = alt.TrainSimBuilder(
     loco_con=loco_con,
 )
 
-rail_vehicle_file = "rolling_stock/" + train_config.rail_vehicle_type + ".yaml"
-rail_vehicle = alt.RailVehicle.from_file(
-    alt.resources_root() / rail_vehicle_file)
-
+# Load the network and construct the timed link path through the network.  
 network = alt.Network.from_file(
     alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 
 location_map = alt.import_locations(
     alt.resources_root() / "networks/default_locations.csv")
-
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
-    rail_vehicle=rail_vehicle,
     location_map=location_map,
-    save_interval=1,
+    save_interval=SAVE_INTERVAL,
 )
 train_sim.set_save_interval(SAVE_INTERVAL)
 
@@ -88,6 +96,13 @@ timed_link_path = alt.run_dispatch(
     False,
 )[0]
 
+# whether to override files used by set_speed_train_sim_demo.py
+OVERRIDE_SSTS_INPUTS = os.environ.get("OVERRIDE_SSTS_INPUTS", "false").lower() == "true"
+if OVERRIDE_SSTS_INPUTS:
+    print("Overriding files used by `set_speed_train_sim_demo.py`")
+    link_path = alt.LinkPath([x.link_idx for x in timed_link_path.tolist()])
+    link_path.to_csv_file(alt.resources_root() / "demo_data/link_path.csv")
+
 # uncomment this line to see example of logging functionality
 # alt.utils.set_log_level("DEBUG")
 
@@ -99,6 +114,16 @@ train_sim.walk_timed_path(
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 assert len(train_sim.history) > 1
+
+# Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `speed_trace`
+if OVERRIDE_SSTS_INPUTS:
+    speed_trace = alt.SpeedTrace(
+        train_sim.history.time_seconds.tolist(),
+        train_sim.history.speed_meters_per_second.tolist()
+    )
+    speed_trace.to_csv_file(
+        alt.resources_root() / "demo_data/speed_trace.csv"
+    )
 
 loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 
@@ -223,3 +248,20 @@ if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
 # Impact of sweep of battery capacity TODO: make this happen
+
+# whether to run assertions, enabled by default
+ENABLE_ASSERTS = os.environ.get("ENABLE_ASSERTS", "true").lower() == "true"
+# whether to override reference files used in assertions, disabled by default
+ENABLE_REF_OVERRIDE = os.environ.get("ENABLE_REF_OVERRIDE", "false").lower() == "true"
+# directory for reference files for checking sim results against expected results
+ref_dir = alt.resources_root() / "demo_data/speed_limit_train_sim_demo/"
+
+if ENABLE_REF_OVERRIDE:
+    ref_dir.mkdir(exist_ok=True, parents=True)
+    df:pl.DataFrame = train_sim.to_dataframe().lazy().collect()[-1]
+    df.write_csv(ref_dir / "to_dataframe_expected.csv")
+if ENABLE_ASSERTS:
+    print("Checking output of `to_dataframe`")
+    to_dataframe_expected = pl.scan_csv(ref_dir / "to_dataframe_expected.csv").collect()[-1]
+    assert to_dataframe_expected.equals(train_sim.to_dataframe()[-1])
+    print("Success!")

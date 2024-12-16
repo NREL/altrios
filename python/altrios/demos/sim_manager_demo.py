@@ -23,7 +23,9 @@ plot_dir.mkdir(exist_ok=True)
 t0_import = time.perf_counter()
 t0_total = time.perf_counter()
 
-rail_vehicle_map = alt.import_rail_vehicles(alt.resources_root() / "rolling_stock/rail_vehicles.csv")
+rail_vehicles=[alt.RailVehicle.from_file(vehicle_file) 
+               for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob('*.yaml')]
+
 location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")
 network = alt.Network.from_file(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 
@@ -48,7 +50,7 @@ t0_main = time.perf_counter()
     timed_paths
 ) = sim_manager.main(
     network=network,
-    rail_vehicle_map=rail_vehicle_map,
+    rail_vehicles=rail_vehicles,
     location_map=location_map,
     train_planner_config=train_planner_config,
     debug=True,

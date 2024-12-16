@@ -230,11 +230,11 @@ class ModelError(cval.ModelError):
                     x
                 )
 
-            # set `drag_area_empty_square_meters` to be same as `drag_area_loaded_square_meters`
+            # set `cd_area_empty_square_meters` to be same as `cd_area_loaded_square_meters`
             alt.set_param_from_path(
                 rail_vehicle_map[train_type],
-                "drag_area_empty_square_meters",
-                rail_vehicle_map[train_type].drag_area_loaded_square_meters
+                "cd_area_empty_square_meters",
+                rail_vehicle_map[train_type].cd_area_loaded_square_meters
             )
 
             train_sim = tsb.make_set_speed_train_sim(
@@ -280,10 +280,10 @@ def get_mod_err(
 
 
 params_and_bounds = (
-    ("drag_area_loaded_square_meters", (1, 8)),
-    # `drag_area_empty_square_meters` gets manually set equal to 
-    # `drag_area_loaded_square_meters`
-    # ("drag_area_empty_square_meters", (1, 8)),
+    ("cd_area_loaded_square_meters", (1, 8)),
+    # `cd_area_empty_square_meters` gets manually set equal to 
+    # `cd_area_loaded_square_meters`
+    # ("cd_area_empty_square_meters", (1, 8)),
     # ("davis_b_seconds_per_meter", (0, 0.1)),
     ("rolling_ratio", (0.0003, 0.003)),
     ("bearing_res_per_axle_newtons", (40, 320)),

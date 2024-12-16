@@ -4,8 +4,6 @@ use crate::si;
 #[test]
 fn test_conv_loco() {
     let mut loco = Locomotive::default();
-    loco.assert_limits = false; // todo: make this true and fix test
-
     match loco.loco_type {
         PowertrainType::ConventionalLoco(_) => {}
         _ => panic!("Invalid loco type for conventional loco test!"),
@@ -20,13 +18,13 @@ fn test_conv_loco() {
     assert!(loco.state.pwr_regen_max == si::Power::ZERO);
 
     assert_eq!(loco.state.energy_out, si::Energy::ZERO);
-    loco.solve_energy_consumption(uc::W * 900e3, uc::S * 1.0, Some(true))
+    loco.solve_energy_consumption(uc::W * 200e3, uc::S * 1.0, Some(true))
         .unwrap();
     assert!(loco.state.energy_out > si::Energy::ZERO);
     if let PowertrainType::ConventionalLoco(lt) = &loco.loco_type {
         assert!(lt.edrv.state.energy_elec_dyn_brake == si::Energy::ZERO);
     }
-    loco.solve_energy_consumption(uc::W * -900e3, uc::S * 1.0, Some(true))
+    loco.solve_energy_consumption(uc::W * -200e3, uc::S * 1.0, Some(true))
         .unwrap();
     if let PowertrainType::ConventionalLoco(lt) = loco.loco_type {
         assert!(lt.edrv.state.energy_elec_dyn_brake > si::Energy::ZERO);

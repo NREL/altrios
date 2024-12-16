@@ -302,7 +302,7 @@ impl HybridLoco {
             self.gen.set_pwr_in_req(
                 // fc can only handle positive power
                 pwr_from_gen,
-                50e3 * uc::W, // todo: fix this
+                50e3 * uc::W, // TODO: fix this
                 dt,
             )?;
             self.fc.solve_energy_consumption(

@@ -14,7 +14,7 @@ use update_times::*;
 
 /// Estimated time node for dispatching
 /// Specifies the expected time of arrival when taking the shortest path with no delays
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, SerdeAPI)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, SerdeAPI, PartialEq)]
 pub struct EstTime {
     /// Scheduled time of arrival at the node
     pub time_sched: si::Time,
@@ -27,7 +27,7 @@ pub struct EstTime {
 
     /// Index of link leaving the next node in the network when traveling along the shortest path from this node
     pub idx_next: EstIdx,
-    /// Index of alternative link leaving next node (if it exists)  
+    /// Index of alternative link leaving next node (if it exists)
     /// Used if the shortest path is blocked up ahead
     pub idx_next_alt: EstIdx,
     /// Index of link leaving the previous node if the shortest path was taken to reach this node
@@ -61,7 +61,7 @@ impl Default for EstTime {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, SerdeAPI)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, SerdeAPI, PartialEq)]
 #[altrios_api(
     pub fn get_running_time_hours(&self) -> f64 {
         (self.val.last().unwrap().time_sched - self.val.first().unwrap().time_sched).get::<si::hour>()
@@ -474,9 +474,10 @@ fn add_new_join_paths(
 }
 
 pub fn make_est_times<N: AsRef<[Link]>>(
-    speed_limit_train_sim: &SpeedLimitTrainSim,
+    mut speed_limit_train_sim: SpeedLimitTrainSim,  
     network: N,
 ) -> anyhow::Result<(EstTimeNet, Consist)> {
+    speed_limit_train_sim.set_save_interval(None);
     let network = network.as_ref();
     let dests = &speed_limit_train_sim.dests;
     let (link_idx_options, origs) =
@@ -485,12 +486,13 @@ pub fn make_est_times<N: AsRef<[Link]>>(
 
     let mut est_times = Vec::with_capacity(network.len() * 10);
     let mut consist_out = None;
-    let mut saved_sims = Vec::<SavedSim>::with_capacity(16.max(network.len() / 10));
+    let mut saved_sims: Vec<SavedSim> = vec![];
     let mut link_event_map =
         LinkEventMap::with_capacity_and_hasher(est_times.capacity(), Default::default());
     let time_depart = speed_limit_train_sim.state.time;
 
     // Push initial fake nodes
+    #[cfg(feature = "logging")]
     log::debug!("{}", format_dbg!("Push initial fake nodes."));
     est_times.push(EstTime {
         idx_next: 1,
@@ -503,6 +505,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     });
 
     // Add origin estimated times
+    #[cfg(feature = "logging")]
     log::debug!("{}", format_dbg!("Add origin estimated times."));
     for orig in origs {
         ensure!(
@@ -522,6 +525,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
             ..Default::default()
         };
 
+        #[cfg(feature = "logging")]
         log::debug!("{}", format_dbg!());
         insert_est_time(
             &mut est_times,
@@ -538,6 +542,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                 ..Default::default()
             },
         );
+        #[cfg(feature = "logging")]
         log::debug!("{}", format_dbg!());
         insert_est_time(
             &mut est_times,
@@ -569,6 +574,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     }
 
     // Fix distances for different origins
+    #[cfg(feature = "logging")]
     log::debug!("{}", format_dbg!("Fix distances for different origins"));
     {
         let mut est_idx_fix = 1;
@@ -585,6 +591,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     let mut est_idxs_end = Vec::<EstIdx>::with_capacity(8);
 
     // Iterate and process all saved sims
+    #[cfg(feature = "logging")]
     log::debug!("{}", format_dbg!("Iterate and process all saved sims"));
     while let Some(mut sim) = saved_sims.pop() {
         let mut has_split = false;
@@ -772,5 +779,5 @@ pub fn make_est_times_py(
         }
     };
 
-    make_est_times(&speed_limit_train_sim, network)
+    make_est_times(speed_limit_train_sim, network)
 }

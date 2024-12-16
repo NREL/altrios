@@ -65,10 +65,12 @@ class ModelError(object):
     """
     Dataclass class for calculating model error of various ALTRIOS objects w.r.t. test data.
 
-    Fields:
+    Attributes:
     - `ser_model_dict`:  `dict` variable in which:
-        - key: a `str` representing trip keyword string
-        - value: a `str` converted from Rust locomotive models' serialization method
+
+    - key: a `str` representing trip keyword string
+
+    - value: a `str` converted from Rust locomotive models' serialization method
 
     - `model_type`: `str` that can only be `'ConsistSimulation'`, `'SetSpeedTrainSim'` or `'LocomotiveSimulation'`;
       indicates which model to instantiate during optimization process
@@ -85,7 +87,11 @@ class ModelError(object):
     - `params`: a tuple whose individual element is a `str` containing hierarchical paths to parameters
       to manipulate starting from one of the 3 possible Rust model structs
 
-    - `verbose`: `bool`; if `True`, the verbose of error calculation will be printed 
+    - `verbose`: `bool`: if `True`, the verbose of error calculation will be printed 
+
+    - `debug`: `bool`: if `True`, prints more stuff
+
+    - `allow_partial`: whether to allow partial runs, if True, errors out whenever a run can't be completed
     """
     # `ser_model_dict` and `dfs` should have the same keys
     ser_model_dict: Dict[str, str]

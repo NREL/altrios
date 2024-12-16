@@ -1,6 +1,7 @@
 use crate::imports::*;
 use serde::{de::Visitor, Deserializer, Serializer};
 use std::fmt;
+use std::io::prelude::*;
 
 #[altrios_api(
     #[new]
@@ -148,14 +149,21 @@ impl LinkPath {
         }
     }
 
-    /// Load from csv file
+    /// Save to csv file
     pub fn to_csv_file<P: AsRef<Path>>(&self, filepath: P) -> anyhow::Result<()> {
-        let file = std::fs::OpenOptions::new().write(true).open(filepath)?;
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(filepath)?;
+        let mut file = std::io::LineWriter::new(file);
+        // write header
+        file.write_all(b"link_idx\n")?;
         let mut wrtr = csv::WriterBuilder::new()
-            .has_headers(true)
+            // .has_headers(true) -- this line has no effect because of the custom `impl Deserialize`
             .from_writer(file);
-        for elem in &self.0 {
-            wrtr.serialize(elem)?;
+        for link_idx in &self.0 {
+            wrtr.serialize(link_idx)?;
         }
         wrtr.flush()?;
         Ok(())

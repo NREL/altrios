@@ -8,14 +8,12 @@ from pathlib import Path
 import time
 from altrios import defaults
 
-
-# from __future__ import annotations # TODO: uncomment and propagate
 import altrios as alt
 from altrios import train_planner as planner
 from altrios import metric_calculator as metrics
 
 def main(
-    rail_vehicle_map: Dict[str, alt.RailVehicle],
+    rail_vehicles: List[alt.RailVehicle],
     location_map: Dict[str, List[alt.Location]],
     network: List[alt.Link],
     simulation_days: int = defaults.SIMULATION_DAYS,
@@ -82,7 +80,7 @@ def main(
         speed_limit_train_sims, 
         est_time_nets
     ) = planner.run_train_planner(
-        rail_vehicle_map = rail_vehicle_map,
+        rail_vehicles = rail_vehicles,
         location_map = location_map,
         network = network,
         loco_pool= loco_pool,

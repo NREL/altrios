@@ -34,6 +34,7 @@ opt-level = 0
 opt-level = 3
 
 [workspace.dependencies]
+document-features = "0.2.10"
 anyhow = "1.0.71"
 pyo3 = "0.19"
 pyo3-log = "*"

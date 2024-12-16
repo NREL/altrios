@@ -9,7 +9,7 @@ pub struct PathResCoeff {
     /// Distance from start of `PathTpc`
     pub offset: si::Length,
     #[api(skip_set)]
-    /// Non-dimensional grade/curve resistance.  
+    /// Represents non-dimensional grade resistance (aka grade) or curvature resistance.
     pub res_coeff: si::Ratio,
     #[api(skip_set)]
     /// Cumulative sum of `res_coeff` times length up to this `PathResCoeff` along `PathTpc`

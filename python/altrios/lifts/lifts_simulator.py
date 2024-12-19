@@ -17,6 +17,12 @@ from altrios.lifts.vehicle_performance import record_vehicle_event, save_average
 # CRANE_NUMBER = int(sys.argv[2])
 
 def record_event(container_id, event_type, timestamp):
+    '''
+    The simulation record logs for each container, including timestamps for arrival, loading, unloading, and departure.
+    This data is used to calculate average processing times for inbound and outbound containers.
+    When the function is called, it will record container_id and corresponding handling time.
+    It is saved as an Excel file.
+    '''
     global state
     if container_id is None:
         x = 5
@@ -26,11 +32,15 @@ def record_event(container_id, event_type, timestamp):
 
 
 def handle_truck_arrivals(env, in_gate_resource):
+    '''
+    Trucks arrive according to the poisson distribution between the timetable schedule.
+    If all trucks are prepared, trigger all_trucks_ready_event.
+    '''
     global state
     truck_id = 1
     state.TRUCK_ARRIVAL_MEAN = abs(state.TRAIN_ARRIVAL_HR - state.previous_train_departure) / max(state.INBOUND_CONTAINER_NUMBER, state.OUTBOUND_CONTAINER_NUMBER)
-    print(f"current time is {env.now}")
-    print(f"next TRAIN_ARRIVAL_HR:{state.TRAIN_ARRIVAL_HR}")
+    print(f"Current time is {env.now}")
+    print(f"Next TRAIN_ARRIVAL_HR:{state.TRAIN_ARRIVAL_HR}")
     print(f"TRUCK_ARRIVAL_MEAN IS {state.TRUCK_ARRIVAL_MEAN}")
 
     while truck_id <= state.TRUCK_NUMBERS:
@@ -49,6 +59,17 @@ def handle_truck_arrivals(env, in_gate_resource):
 
 
 def truck_through_gate(env, in_gate_resource, truck_id):
+    '''
+    Objective: Trucks pass through the gate to enter and exit the terminal. The simulation tracks the time taken for each truck to pass through the gate.
+    Steps:
+    - Record truck arrival time
+    - Check availability of the ingate resource
+        - If there is a empty gate, enter the gate and finish procedures
+        - If not, join the queuing module to record queuing time
+    - After passing through the gate, put the container in the outbound queuehandle_container
+    - Trucks drop outbound container before trains arrive, where the # of outbound containers equals to the # of inbound containers using bring_all_outbound_containers
+    - Outbound container mapping creation: truck ID --> outbound container ID
+    '''
     global state
 
     with in_gate_resource.request() as request:
@@ -76,6 +97,10 @@ def truck_through_gate(env, in_gate_resource, truck_id):
 
 
 def handle_container(env, truck_id):
+    '''
+    The process of track dropping off OCs before train arrives records time which follows triangle distribution.
+    It considers individual differences in container processing, considering (min, avg, max)
+    '''
     global state
 
     container_id = state.outbound_container_id_counter
@@ -93,6 +118,9 @@ def handle_container(env, truck_id):
 
 
 def empty_truck(env, truck_id):
+    '''
+    Trucks without OCs enter the gate. These trucks are assigned to balance the IC and OC gap.
+    '''
     global state
 
     d_t_dist = create_triang_distribution(d_t_min, d_t_avg, d_t_max).rvs()
@@ -103,6 +131,9 @@ def empty_truck(env, truck_id):
 
 
 def train_arrival(env, train_timetable, train_processing, cranes, hostlers, chassis, in_gate_resource, outbound_containers_store, truck_store, out_gate_resource):
+    '''
+    Trains arrive according to the timetable schedule.
+    '''
     global state
 
     for i, train in enumerate(train_timetable):
@@ -158,6 +189,14 @@ def train_arrival(env, train_timetable, train_processing, cranes, hostlers, chas
 
 
 def process_train(env, train_id, cranes, hostlers, chassis, in_gate_resource, outbound_containers_store, truck_store, train_processing, oc_chassis_filled_event, out_gate_resource):
+    '''
+    This function is used to take charge of all processing from train side to inland side.
+    STEP 1: A train arrives and calls this function process_train
+    STEP 2: Cranes start moving and drop off IC to chassis
+    STEP 3: Hostlers pick up IC and drop off OC to chassis
+    STEP 4: Trucks pick up IC and leave gates
+    STEP 5: Once all OC are prepared, chassis uploads OC, and train departs
+    '''
     global state
 
     start_time = env.now
@@ -213,6 +252,13 @@ def process_train(env, train_id, cranes, hostlers, chassis, in_gate_resource, ou
 
 
 def crane_and_chassis(env, train_id, action, cranes, hostlers, chassis, truck_store, train_processing, outbound_containers_store, in_gate_resource, out_gate_resource, oc_chassis_filled_event, chassis_id=None):
+    '''
+    This function is used to provide loading and uploading processes of cranes and chassis.
+    Unload process happens when a train arrives and ICs on the train is moved to the chassis.
+    Load process happens when a train arrives and OCs on the chassis are moved to the train.
+    The simplified function could refer to the demo.py.
+    '''
+
     global state
 
     # # Print before requesting crane resource
@@ -295,6 +341,9 @@ def crane_and_chassis(env, train_id, action, cranes, hostlers, chassis, truck_st
 
 
 def hostler_transfer(env, hostlers, container_type, chassis, chassis_id, container_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource, oc_chassis_filled_event, out_gate_resource):
+    '''
+    Once IC is put on the chassis, a hostler from hostler source is assigned to pick up the IC.
+    '''
     global state
 
     with hostlers.request() as request:
@@ -353,6 +402,9 @@ def hostler_transfer(env, hostlers, container_type, chassis, chassis_id, contain
 
 # When OC are fully processed, but IC are not
 def hostler_transfer_IC_single_loop(env, hostlers, container_type, chassis, chassis_id, container_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource, oc_chassis_filled_event, out_gate_resource):
+    '''
+    This function is designed for a case that when OCs are fully processed, but ICs on the chassis are waiting to be transported.
+    '''
     print(f"Starting single hostler transfer IC loop for chassis {chassis_id} at {env.now}")
     global state
 
@@ -416,6 +468,9 @@ def hostler_transfer_IC_single_loop(env, hostlers, container_type, chassis, chas
 
 
 def outbound_container_decision_making(env, hostlers, chassis, current_inbound_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource, oc_chassis_filled_event, out_gate_resource):
+    '''
+    This function is designed to assign hostlers for a given OC, and which chassis will be dropped off.
+    '''
     global state
     # Check if outbound_containers_store has outbound container
     if len(outbound_containers_store.items) > 0:
@@ -457,6 +512,10 @@ def outbound_container_decision_making(env, hostlers, chassis, current_inbound_i
 
 
 def handle_outbound_container(env, hostler_id, chassis_id, outbound_container_id, truck_store, cranes, train_processing, outbound_containers_store, in_gate_resource):
+    '''
+    This function is designed to record container processing time for the outbound container assignment.
+    '''
+
     global state
 
     d_h_dist = create_triang_distribution(d_h_min, d_h_avg, d_h_max).rvs()
@@ -477,6 +536,9 @@ def handle_outbound_container(env, hostler_id, chassis_id, outbound_container_id
 
 # truck pick up IC
 def notify_truck(env, truck_store, container_id, out_gate_resource):
+    '''
+    notify trucks when ICs are dropped off at the parking spot.
+    '''
     global state
     truck_id = yield truck_store.get()
     yield env.timeout(state.TRUCK_INGATE_TIME)
@@ -485,6 +547,10 @@ def notify_truck(env, truck_store, container_id, out_gate_resource):
 
 
 def truck_transfer(env, truck_id, container_id, out_gate_resource):
+    '''
+    Truck transfer function for IC transfer.
+    Record processing time and consider gate queues.
+    '''
     global state
 
     start_time = env.now
@@ -515,6 +581,9 @@ def truck_transfer(env, truck_id, container_id, out_gate_resource):
 
 
 def train_departure(env, train_id):
+    '''
+    Train departs according to the timetable. Delay otherwise.
+    '''
     global state
 
     if env.now < state.TRAIN_DEPARTURE_HR:
@@ -530,6 +599,9 @@ def run_simulation(
         train_consist_plan: pl.DataFrame,
         terminal: str,
         out_path = None):
+    '''
+    This function is to run the simulation for
+    '''
     global state
     state.terminal = terminal
     state.initialize_from_consist_plan(train_consist_plan)

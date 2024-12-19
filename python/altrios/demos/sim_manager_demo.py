@@ -58,7 +58,7 @@ t0_main = time.perf_counter()
     debug=True,
 )
 
-train_consist_plan_csv = pl.read_csv('C:/Users/mbruchon/Downloads/simulation_operation/lifts/results/train_consist_plan.csv')
+train_consist_plan_csv = pl.read_csv('/Users/qianqiantong/PycharmProjects/altrios-private/altrios/python/altrios/lifts/train_consist_plan.csv')
 container_data = lifts_simulator.run_simulation(
     train_consist_plan = train_consist_plan_csv, 
     terminal = "Allouez")

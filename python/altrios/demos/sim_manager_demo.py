@@ -180,3 +180,5 @@ if SHOW_PLOTS:
         plt.tight_layout()
         plt.savefig(plot_dir / f"sim num {idx}.png")
         plt.savefig(plot_dir / f"sim num {idx}.svg")
+
+# %%

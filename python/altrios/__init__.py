@@ -1,5 +1,5 @@
 from importlib.metadata import version
-__version__ = version("fastsim")
+__version__ = version("altrios")
 
 from pathlib import Path
 import re

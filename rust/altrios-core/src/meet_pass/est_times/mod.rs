@@ -689,10 +689,10 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                     }
                     _ => {
                         bail!(
-                            "{}
-Unexpected end of path reached! prev={link_idx_prev:?}, next={link_idx_next:?}, next_alt={link_idx_next_alt:?}",
-                            format_dbg!()
-                        );
+                                            "{}
+                Unexpected end of path reached! prev={link_idx_prev:?}, next={link_idx_next:?}, next_alt={link_idx_next_alt:?}",
+                                            format_dbg!()
+                                        );
                     }
                 };
                 sim.train_sim
@@ -742,16 +742,16 @@ Unexpected end of path reached! prev={link_idx_prev:?}, next={link_idx_next:?}, 
         let est_time_next = est_times[est_time.idx_next.idx()];
         let est_idx = idx as EstIdx;
         // Verify that prev est time is linked to current est time
-        assert!(est_time_prev.idx_next == est_idx || est_time_prev.idx_next_alt == est_idx);
+        ensure!(est_time_prev.idx_next == est_idx || est_time_prev.idx_next_alt == est_idx);
         // Verify that next est time is linked to current est time
-        assert!(
+        ensure!(
             est_time_next.idx_prev == est_idx
                 || est_time_next.idx_prev_alt == est_idx
                 || idx == est_times.len() - 1
         );
 
         // Verify that current est time is not the alternate of both the previous and next est times
-        assert!(
+        ensure!(
             est_time_prev.idx_next_alt != est_idx
                 || est_time_next.idx_prev_alt != est_idx
                 || idx == 0

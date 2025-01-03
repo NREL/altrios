@@ -49,13 +49,12 @@ impl SavedSim {
     /// Step the train sim forward and save appropriate state data in the movement
     pub fn update_movement(&mut self, movement: &mut Vec<SimpleState>) -> anyhow::Result<()> {
         let condition = |train_sim: &mut SpeedLimitTrainSim| -> bool {
-            train_sim.state.offset < train_sim.offset_end() - uc::MI * 5.0
-            // let (_, speed_target) = train_sim.braking_points.calc_speeds(
-            //     train_sim.state.offset,
-            //     train_sim.state.speed,
-            //     train_sim.fric_brake.ramp_up_time * train_sim.fric_brake.ramp_up_coeff,
-            // );
-            // speed_target == si::Velocity::ZERO
+            let (_, speed_target) = train_sim.braking_points.calc_speeds(
+                train_sim.state.offset,
+                train_sim.state.speed,
+                train_sim.fric_brake.ramp_up_time * train_sim.fric_brake.ramp_up_coeff,
+            );
+            speed_target > si::Velocity::ZERO
                 || (
                     train_sim.is_finished()
                     // this needs to be reconsidered.  The issue is determining when SpeedLimitTrainSim is finished.

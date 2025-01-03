@@ -6,7 +6,7 @@ import pandas as pd
 import polars as pl
 import polars.selectors as cs
 import math
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Optional
 from itertools import repeat
 import altrios as alt
 from altrios import defaults, utilities
@@ -871,6 +871,8 @@ def run_train_planner(
     config: TrainPlannerConfig = TrainPlannerConfig(),
     demand_file: Union[pl.DataFrame, Path, str] = defaults.DEMAND_FILE,
     network_charging_guidelines: pl.DataFrame = None,
+    est_time_net: Optional[alt.EstTimeNet]=None, 
+    loco_con_out: Optional[alt.Consist]=None,
 ) -> Tuple[
     pl.DataFrame, 
     pl.DataFrame, 
@@ -880,18 +882,21 @@ def run_train_planner(
 ]:
     """
     Run the train planner
-    Arguments:
-    ----------
-    rail_vehicles:
-    location_map:
-    network:
-    loco_pool:
-    refuelers:
-    simulation_days:
-    config: Object storing train planner configuration paramaters
-    demand_file: 
-    Outputs:
-    ----------
+    # Arguments:
+    - `rail_vehicles`:
+    - `location_map`:
+    - `network`:
+    - `loco_pool`:
+    - `refuelers`:
+    - `simulation_days`:
+    - `config`: Object storing train planner configuration paramaters
+    - `demand_file`: 
+    - `est_time_net`: first output of `make_est_times`.  If provided along with
+        `loco_con_out`, `run_train_planner` skips `make_est_times`
+    - `loco_con_out`: second output of `make_est_times`.  If provided along with
+        `est_time_net`, `run_train_planner` skips `make_est_times`
+
+    # Outputs:
     """
     config.loco_info = append_loco_info(config.loco_info)
     demand, node_list = demand_loader(demand_file)
@@ -1033,7 +1038,13 @@ def run_train_planner(
                         scenario_year=scenario_year
                     )
 
-                    (est_time_net, loco_con_out) = alt.make_est_times(slts, network)
+                    if est_time_net is None and loco_con_out is None:
+                        (est_time_net, loco_con_out) = alt.make_est_times(slts, network)
+                    elif est_time_net is not None and loco_con_out is not None:
+                        pass
+                    else:
+                        raise ValueError("Both `est_time_net` and `loco_con_out` must both be either provided or None")
+
                     travel_time = (
                         est_time_net.get_running_time_hours()
                         * config.dispatch_scaling_dict["time_mult_factor"] 

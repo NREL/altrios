@@ -474,8 +474,9 @@ fn add_new_join_paths(
 }
 
 pub fn make_est_times<N: AsRef<[Link]>>(
-    mut speed_limit_train_sim: SpeedLimitTrainSim,  
+    mut speed_limit_train_sim: SpeedLimitTrainSim,
     network: N,
+    distance_threshold: Option<f64>, // Add the distance_threshold parameter
 ) -> anyhow::Result<(EstTimeNet, Consist)> {
     speed_limit_train_sim.set_save_interval(None);
     let network = network.as_ref();
@@ -602,7 +603,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
         );
 
         'path: loop {
-            sim.update_movement(&mut movement)
+            sim.update_movement(&mut movement, distance_threshold)
                 .with_context(|| format_dbg!())?;
             update_est_times_add(
                 &mut est_times_add,
@@ -768,6 +769,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
 pub fn make_est_times_py(
     speed_limit_train_sim: SpeedLimitTrainSim,
     network: &PyAny,
+    distance_threshold: Option<f64>, // Add distance_threshold as an optional parameter
 ) -> anyhow::Result<(EstTimeNet, Consist)> {
     let network = match network.extract::<Network>() {
         Ok(n) => n,
@@ -779,5 +781,6 @@ pub fn make_est_times_py(
         }
     };
 
-    make_est_times(speed_limit_train_sim, network)
+    let distance_threshold = distance_threshold.unwrap_or(5.0);
+    make_est_times(speed_limit_train_sim, network, Some(distance_threshold))
 }

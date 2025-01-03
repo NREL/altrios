@@ -1021,6 +1021,7 @@ def run_dispatch(
 def make_est_times(
     speed_limit_train_sim: SpeedLimitTrainSim,
     network: List[Link],
+    distance_threshold: float,
 ) -> Tuple[EstTimeNet, Consist]:
     ...
 

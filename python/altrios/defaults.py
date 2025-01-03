@@ -40,3 +40,5 @@ GRID_EMISSIONS_FILE = alt.resources_root() / "metrics_inputs" / "Cambium23_allSc
 ELECTRICITY_PRICE_FILE = alt.resources_root() / "metrics_inputs" / "EIA_Electricity_Prices.csv"
 LIQUID_FUEL_PRICE_FILE = alt.resources_root() / "metrics_inputs" / "EIA_Liquid_Fuel_Prices.csv"
 BATTERY_PRICE_FILE = alt.resources_root() / "metrics_inputs" / "NREL_ATB_Battery_Cost_Forecasts.csv"
+
+DIST_THRSHLD_MI = 5.0

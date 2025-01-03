@@ -47,9 +47,14 @@ pub(super) struct SavedSim {
 
 impl SavedSim {
     /// Step the train sim forward and save appropriate state data in the movement
-    pub fn update_movement(&mut self, movement: &mut Vec<SimpleState>) -> anyhow::Result<()> {
+    pub fn update_movement(
+        &mut self, 
+        movement: &mut Vec<SimpleState>,
+        distance_threshold: Option<f64>,
+    ) -> anyhow::Result<()> {
+        let distance_threshold = distance_threshold.unwrap_or(5.0); //default value for the distance threshold
         let condition = |train_sim: &SpeedLimitTrainSim| -> bool {
-            train_sim.state.offset < train_sim.offset_end() - uc::MI * 5.0
+            train_sim.state.offset < train_sim.offset_end() - uc::MI * distance_threshold
                 || (
                     train_sim.is_finished()
                     // this needs to be reconsidered.  The issue is determining when SpeedLimitTrainSim is finished.

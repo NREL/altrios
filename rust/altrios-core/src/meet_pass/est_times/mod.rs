@@ -479,7 +479,7 @@ fn add_new_join_paths(
 ///
 /// 1. **Initialize** a train simulation for each origin node and add it to the `saved_sims` stack.
 /// 2. **Pop** a train from `saved_sims`, then:
-///    a) Run the simulation (`update_movement`) until `condition()` in `saved_sim.update_movement()`
+///    a) Run the simulation (`update_movement`) until a condition in `saved_sim.update_movement()`
 ///       in `saved_sims.update_movement()` is met.
 ///    b) Convert the results into `EstTime` nodes.
 ///       - If the path diverges from the existing network, insert new `EstTime` events and
@@ -498,10 +498,12 @@ fn add_new_join_paths(
 ///
 /// # Arguments
 ///
-/// * `speed_limit_train_sim` - `SpeedLimitTrainSim` is an instance of train simulation in which speed is allowed to 
-///    vary according to train capabilities and speed limit.
-/// * `network` - Network comprises of an ensemble of links (path between junctions along the rail with heading, grade, and location) 
-///    this simulation operates on.
+/// * `speed_limit_train_sim` - `SpeedLimitTrainSim` is an instance of
+///    train simulation in which speed is allowed to vary according to train
+///    capabilities and speed limit.
+/// * `network` - Network comprises an ensemble of links (path between junctions
+///    along the rail with heading, grade, and location) this simulation
+///    operates on.
 ///
 /// # Returns
 ///
@@ -515,7 +517,6 @@ fn add_new_join_paths(
 /// * The provided origins or next link options are invalid.
 /// * The path is unexpectedly truncated.
 /// * The simulation fails internally while updating movements or extending paths.
-
 pub fn make_est_times<N: AsRef<[Link]>>(
     mut speed_limit_train_sim: SpeedLimitTrainSim,
     network: N,

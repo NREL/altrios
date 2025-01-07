@@ -331,6 +331,12 @@ impl LocoTrait for DummyLoco {
     }
 
     #[staticmethod]
+    #[pyo3(name = "default_hybrid_electric_loco")]
+    fn default_hybrid_electric_loco_py () -> anyhow::Result<Self> {
+        Ok(Self::default_hybrid_electric_loco())
+    }
+
+    #[staticmethod]
     #[pyo3(name = "build_battery_electric_loco")]
     fn build_battery_electric_loco_py (
         reversible_energy_storage: ReversibleEnergyStorage,

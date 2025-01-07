@@ -478,23 +478,23 @@ fn add_new_join_paths(
 /// major steps in a loop, until all trains (in `saved_sims`) are processed:
 ///
 /// 1. **Initialize** a train simulation for each origin node and add it to the `saved_sims` stack.
-/// 2. **Pop** a train from `saved_sims`, then:
-///    a) Run the simulation (`update_movement`) until a condition in `saved_sim.update_movement()`
-///       in `saved_sims.update_movement()` is met.
-///    b) Convert the results into `EstTime` nodes.
-///       - If the path diverges from the existing network, insert new `EstTime` events and
-///         set `has_split = true`.
-///       - If `has_split` is set, attempt to **join** back to an existing sequence in the
-///         `EstTime` network (the “space and speed match” check). If successful, **break**
-///         out of this train's processing loop.
-///    c) If the simulation reaches the final destination, add the last node to `est_idxs_end` and **break**.
-///    d) Otherwise, add the next link(s) that continues the path toward the destination. If
-///       multiple branches exist, clone the train sim for the alternate path and push it to
-///       `saved_sims`. (Processing continues until we reach a break.)
+/// 1. **Pop** a train from `saved_sims`, then:
+///     1. Run the simulation (`update_movement`) until a condition in `saved_sim.update_movement()`
+///        in `saved_sims.update_movement()` is met.
+///     1. Convert the results into `EstTime` nodes.
+///         - If the path diverges from the existing network, insert new `EstTime` events and
+///           set `has_split = true`.
+///         - If `has_split` is set, attempt to **join** back to an existing sequence in the
+///           `EstTime` network (the “space and speed match” check). If successful, **break**
+///           out of this train's processing loop.
+///     1. If the simulation reaches the final destination, add the last node to `est_idxs_end` and **break**.
+///     1. Otherwise, add the next link(s) that continues the path toward the destination. If
+///        multiple branches exist, clone the train sim for the alternate path and push it to
+///        `saved_sims`. (Processing continues until we reach a break.)
 ///
-/// 3. **Post-process** the resulting `EstTimeNet` by fixing references, linking final nodes,
+/// 1. **Post-process** the resulting `EstTimeNet` by fixing references, linking final nodes,
 ///    and updating times forward and backward.
-/// 4. **Return** the completed `EstTimeNet` and the `Consist`.
+/// 1. **Return** the completed `EstTimeNet` and the `Consist`.
 ///
 /// # Arguments
 ///

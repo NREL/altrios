@@ -403,7 +403,6 @@ impl SetSpeedTrainSim {
     /// - drag
     /// - inertia
     /// - acceleration
-    /// (some of these aren't implemented yet)
     pub fn solve_required_pwr(&mut self, dt: si::Time) -> anyhow::Result<()> {
         // This calculates the maximum power from loco based on current power, ramp rate, and dt of model.  will return 0 if this is negative.
         let pwr_pos_max =

@@ -59,7 +59,7 @@ impl<'de> Deserialize<'de> for LinkIdx {
         D: Deserializer<'de>,
     {
         struct LinkIdxVisitor;
-        impl<'de> Visitor<'de> for LinkIdxVisitor {
+        impl Visitor<'_> for LinkIdxVisitor {
             type Value = LinkIdx;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

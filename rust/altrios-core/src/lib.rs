@@ -1,5 +1,6 @@
 // #![warn(missing_docs)]
 // #![warn(missing_docs_in_private_items)]
+#![allow(non_local_definitions)] // see https://github.com/PyO3/pyo3/discussions/4083 as this is a `pyo3` problem
 
 //! Crate containing models for second-by-second fuel and energy consumption of simulation
 //! of locomotive consists comprising collections of individual locomotives, which comprise

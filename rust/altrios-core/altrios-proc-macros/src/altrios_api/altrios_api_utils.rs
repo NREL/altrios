@@ -28,6 +28,40 @@ fn vec_layer_type(vec_layers: u8) -> TokenStream2 {
 
 /// Generates pyo3 getter and setter methods for si fields and vector elements
 ///
+/// - field: struct field name as ident
+/// - unit_name: plural name of units being used (generate using extract_units)
+fn impl_serde_for_si(field: &mut syn::Field, unit_name: &str) {
+    let ident = field.ident.clone().unwrap();
+    match unit_name {
+        "" => {}
+        _ => {
+            if !field_has_serde_rename(field) {
+                // add the rename attribute for any fields that don't already have it
+                let field_name_lit_str = format!("{ident}_{unit_name}");
+                field.attrs.push(syn::parse_quote! {
+                    #[serde(rename = #field_name_lit_str)]
+                })
+            }
+        }
+    }
+}
+
+fn field_has_serde_rename(field: &syn::Field) -> bool {
+    field.attrs.iter().any(|attr| {
+        if let Meta::List(ml) = &attr.meta {
+            // catch the `serde` in `#[serde(rename = "...")]`
+            ml.path.is_ident("serde")
+                &&
+            // catch the `rename` in `#[serde(rename = "...")]`
+            ml.tokens.to_string().contains("rename")
+        } else {
+            false
+        }
+    })
+}
+
+/// Generates pyo3 getter and setter methods for si fields and vector elements
+///
 /// - impl_block: output TokenStream2
 /// - field: struct field name as ident
 /// - field_type: token stream of field type (e.g. `si::Power` as a token stream)
@@ -235,10 +269,12 @@ fn extract_si_quantity(path: &syn::Path) -> Option<String> {
 
 pub(crate) fn impl_getters_and_setters(
     impl_block: &mut TokenStream2,
-    field: &proc_macro2::Ident,
+    field: &mut syn::Field,
     opts: &FieldOptions,
     ftype: &syn::Type,
 ) -> Option<()> {
+    let field_ident = field.ident.clone();
+    let field_ident = field_ident.as_ref().unwrap();
     let mut vec_layers: u8 = 0;
     let mut inner_type = ftype;
     while let Some(vec_inner_type) = extract_type_from_vec(inner_type) {
@@ -280,21 +316,22 @@ pub(crate) fn impl_getters_and_setters(
         for (field_units, unit_name) in &unit_impls {
             impl_get_set_si(
                 impl_block,
-                field,
+                field_ident,
                 inner_type,
                 field_units,
                 unit_name,
                 opts,
                 vec_layers,
             );
+            impl_serde_for_si(field, unit_name);
         }
     } else if inner_type.to_string().as_str() == "f64" {
-        impl_get_body(impl_block, field, inner_type, opts, vec_layers);
-        impl_set_body(impl_block, field, &field_type, opts);
+        impl_get_body(impl_block, field_ident, inner_type, opts, vec_layers);
+        impl_set_body(impl_block, field_ident, &field_type, opts);
     } else {
-        impl_get_body(impl_block, field, &field_type, opts, 0);
-        if field != "history" {
-            impl_set_body(impl_block, field, &field_type, opts);
+        impl_get_body(impl_block, field_ident, &field_type, opts, 0);
+        if field_ident != "history" {
+            impl_set_body(impl_block, field_ident, &field_type, opts);
         }
     }
 

@@ -92,7 +92,6 @@ pub struct Generator {
     #[api(skip_set)]
     pub pwr_in_frac_interp: Vec<f64>,
     /// Generator max power out
-    #[serde(rename = "pwr_out_max_watts")]
     pub pwr_out_max: si::Power,
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
@@ -308,7 +307,7 @@ impl Generator {
 impl Default for Generator {
     fn default() -> Self {
         let file_contents = include_str!("generator.default.yaml");
-        serde_yaml::from_str::<Generator>(file_contents).unwrap()
+        Self::from_yaml(file_contents).unwrap()
     }
 }
 

@@ -55,14 +55,12 @@ pub struct FuelConverter {
     /// FuelConverter specific power
     #[api(skip_get, skip_set)]
     specific_pwr: Option<si::SpecificPower>,
-    #[serde(rename = "pwr_out_max_watts")]
     /// max rated brake output power
     pub pwr_out_max: si::Power,
     /// starting/baseline transient power limit
     #[serde(default)]
     pub pwr_out_max_init: si::Power,
     // TODO: consider a ramp down rate, which may be needed for fuel cells
-    #[serde(rename = "pwr_ramp_lag_seconds")]
     /// lag time for ramp up
     pub pwr_ramp_lag: si::Time,
     /// Fuel converter brake power fraction array at which efficiencies are evaluated.
@@ -72,7 +70,6 @@ pub struct FuelConverter {
     /// fuel converter efficiency array
     pub eta_interp: Vec<f64>,
     /// idle fuel power to overcome internal friction (not including aux load)
-    #[serde(rename = "pwr_idle_fuel_watts")]
     pub pwr_idle_fuel: si::Power,
     /// time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
@@ -84,7 +81,7 @@ pub struct FuelConverter {
 impl Default for FuelConverter {
     fn default() -> Self {
         let file_contents = include_str!("fuel_converter.default.yaml");
-        serde_yaml::from_str::<FuelConverter>(file_contents).unwrap()
+        Self::from_yaml(file_contents).unwrap()
     }
 }
 

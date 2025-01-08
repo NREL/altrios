@@ -30,10 +30,8 @@ use crate::imports::*;
 /// Container
 pub struct PowerTrace {
     /// simulation time
-    #[serde(rename = "time_seconds")]
     pub time: Vec<si::Time>,
     /// simulation power
-    #[serde(rename = "pwr_watts")]
     pub pwr: Vec<si::Power>,
     /// Whether engine is on
     pub engine_on: Vec<Option<bool>>,
@@ -125,10 +123,8 @@ impl Default for PowerTrace {
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
 pub struct PowerTraceElement {
     /// simulation time
-    #[serde(rename = "time_seconds")]
     time: si::Time,
     /// simulation power
-    #[serde(rename = "pwr_watts")]
     pwr: si::Power,
     /// Whether engine is on
     engine_on: Option<bool>,

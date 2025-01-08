@@ -159,7 +159,6 @@ fn process_named_field_structs(
 ) {
     // struct with named fields
     for field in named.iter_mut() {
-        let ident = field.ident.as_ref().unwrap();
         let ftype = field.ty.clone();
 
         // if attr.tokens.to_string().contains("skip_get"){
@@ -230,7 +229,7 @@ fn process_named_field_structs(
             .unzip();
         field.attrs = new_attrs.0.iter().cloned().cloned().collect();
 
-        impl_getters_and_setters(py_impl_block, ident, &opts, &ftype);
+        impl_getters_and_setters(py_impl_block, field, &opts, &ftype);
     }
 }
 

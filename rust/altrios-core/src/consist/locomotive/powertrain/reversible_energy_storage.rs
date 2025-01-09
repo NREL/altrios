@@ -139,7 +139,7 @@ pub struct ReversibleEnergyStorage {
     volume: Option<si::Volume>,
     /// ReversibleEnergyStorage specific energy
     #[api(skip_get, skip_set)]
-    specific_energy: Option<si::AvailableEnergy>,
+    specific_energy: Option<si::SpecificEnergy>,
     /// ReversibleEnergyStorage energy density (note that pressure has the same units as energy density)
     #[api(skip_get, skip_set)]
     pub energy_density: Option<si::Pressure>,

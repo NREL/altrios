@@ -48,7 +48,8 @@ pub struct HybridLoco {
     pub edrv: ElectricDrivetrain,
     /// if 1.0, then all power comes from fuel via generator
     /// if 0.0, then all power comes from res
-    /// If fuel_res_ratio is some, then fuel_res_split is initial and then dynamically updated
+    /// If [Self::fuel_res_ratio] is some, then [Self::fuel_res_split] is used
+    /// as an initial condition and then dynamically updated
     pub fuel_res_split: f64,
     /// Relative cost of fuel energy to RES energy.   If large, fuel is more expensive
     /// relative to RES energy and controls will work to minimize fuel usage.

@@ -73,14 +73,14 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         /// See [SerdeAPI::to_bincode]
         #[pyo3(name = "to_bincode")]
-        fn to_bincode_py<'py>(&self, py: Python<'py>) -> anyhow::Result<&'py PyBytes> {
-            Ok(PyBytes::new(py, &self.to_bincode()?))
+        fn to_bincode_py<'py>(&self, py: Python<'py>) -> anyhow::Result<Vec<u8>> {
+            Ok(self.to_bincode()?)
         }
 
         /// See [SerdeAPI::from_bincode]
         #[staticmethod]
         #[pyo3(name = "from_bincode")]
-        fn from_bincode_py(encoded: &PyBytes) -> anyhow::Result<Self> {
+        fn from_bincode_py(encoded: &Bound<PyBytes>) -> anyhow::Result<Self> {
             Self::from_bincode(encoded.as_bytes())
         }
 
@@ -123,8 +123,8 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             /// * `filepath`: `str | pathlib.Path` - The filepath at which to write the object
             ///
             #[pyo3(name = "to_file")]
-            pub fn to_file_py(&self, filepath: &PyAny) -> anyhow::Result<()> {
-                self.to_file(PathBuf::extract(filepath)?)
+            pub fn to_file_py(&self, filepath: &Bound<PyAny>) -> anyhow::Result<()> {
+                self.to_file(PathBuf::extract_bound(filepath)?)
             }
 
             /// Read (deserialize) an object from a file.
@@ -136,8 +136,8 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             ///
             #[staticmethod]
             #[pyo3(name = "from_file")]
-            pub fn from_file_py(filepath: &PyAny) -> anyhow::Result<Self> {
-                Self::from_file(PathBuf::extract(filepath)?)
+            pub fn from_file_py(filepath: &Bound<PyAny>) -> anyhow::Result<Self> {
+                Self::from_file(PathBuf::extract_bound(filepath)?)
             }
         }
     };

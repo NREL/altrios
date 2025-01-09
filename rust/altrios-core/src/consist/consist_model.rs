@@ -2,6 +2,7 @@ use super::*;
 
 #[altrios_api(
     #[new]
+    #[pyo3(signature = (loco_vec, save_interval=None))]
     fn __new__(
         loco_vec: Vec<Locomotive>,
         save_interval: Option<usize>
@@ -26,6 +27,7 @@ use super::*;
     }
 
     #[pyo3(name = "set_save_interval")]
+    #[pyo3(signature = (save_interval=None))]
     /// Set save interval and cascade to nested components.
     fn set_save_interval_py(&mut self, save_interval: Option<usize>) -> anyhow::Result<()> {
         self.set_save_interval(save_interval);

@@ -132,6 +132,7 @@ pub struct PowerTraceElement {
 
 #[altrios_api(
     #[new]
+    #[pyo3(signature = (loco_unit, power_trace, save_interval=None))]
     fn __new__(
         loco_unit: Locomotive,
         power_trace: PowerTrace,
@@ -152,6 +153,7 @@ pub struct PowerTraceElement {
     }
 
     #[pyo3(name = "set_save_interval")]
+    #[pyo3(signature = (save_interval=None))]
     /// Set save interval and cascade to nested components.
     fn set_save_interval_py(&mut self, save_interval: Option<usize>) -> anyhow::Result<()> {
         self.set_save_interval(save_interval);
@@ -297,6 +299,7 @@ impl Default for LocomotiveSimulation {
 
 #[altrios_api(
     #[pyo3(name="walk")]
+    #[pyo3(signature = (b_parallelize=None))]
     /// Exposes `walk` to Python.
     fn walk_py(&mut self, b_parallelize: Option<bool>) -> anyhow::Result<()> {
         let b_par = b_parallelize.unwrap_or(false);

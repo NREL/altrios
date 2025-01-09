@@ -856,7 +856,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
 #[pyfunction(name = "make_est_times")]
 pub fn make_est_times_py(
     speed_limit_train_sim: SpeedLimitTrainSim,
-    network: &PyAny,
+    network: &Bound<PyAny>,
 ) -> anyhow::Result<(EstTimeNet, Consist)> {
     let network = match network.extract::<Network>() {
         Ok(n) => n,

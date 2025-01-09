@@ -4,6 +4,11 @@ use crate::track::PathTpc;
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, HistoryVec)]
 #[altrios_api(
     #[new]
+    #[pyo3(signature = (
+        time_seconds=None,
+        offset_meters=None,
+        speed_meters_per_second=None,
+    ))]
     fn __new__(
         time_seconds: Option<f64>,
         offset_meters: Option<f64>,
@@ -52,6 +57,13 @@ impl InitTrainState {
 #[altrios_api(
     #[new]
     #[allow(clippy::too_many_arguments)]
+    #[pyo3(signature = (
+        length_meters,
+        mass_static_kilograms,
+        mass_rot_kilograms,
+        mass_freight_kilograms,
+        init_train_state=None,
+    ))]
     fn __new__(
         length_meters: f64,
         mass_static_kilograms: f64,

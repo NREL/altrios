@@ -47,6 +47,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 
 #[altrios_api(
     #[pyo3(name = "set_save_interval")]
+    #[pyo3(signature = (save_interval=None))]
     /// Set save interval and cascade to nested components.
     fn set_save_interval_py(&mut self, save_interval: Option<usize>) {
         self.set_save_interval(save_interval);
@@ -109,8 +110,8 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     #[pyo3(name = "walk_timed_path")]
     pub fn walk_timed_path_py(
         &mut self,
-        network: &PyAny,
-        timed_path: &PyAny,
+        network: &Bound<PyAny>,
+        timed_path: &Bound<PyAny>,
     ) -> anyhow::Result<()> {
         let network = match network.extract::<Network>() {
             Ok(n) => n,

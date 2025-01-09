@@ -7,6 +7,12 @@ use crate::pyo3::*;
 #[altrios_api(
     /// Initialize a fuel converter object
     #[new]
+    #[pyo3(signature = (
+        pwr_out_frac_interp,
+        eta_interp,
+        pwr_out_max_watts,
+        save_interval=None,
+    ))]
     fn __new__(
         pwr_out_frac_interp: Vec<f64>,
         eta_interp: Vec<f64>,

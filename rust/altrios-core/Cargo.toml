@@ -32,6 +32,7 @@ polars = { workspace = true, features = [
     "dtype-categorical",
     "rank",
     "strings",
+    "is_in",
 ] }
 polars-lazy = { workspace = true, features = [
     "dtype-categorical",

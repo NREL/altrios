@@ -12,28 +12,28 @@ use uom::ConstZero; // this should be covered in `crate::imports` but is needed
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, HistoryMethods)]
 #[altrios_api(
-    #[new]
-    pub fn __new__(
-        fuel_converter: FuelConverter,
-        generator: Generator,
-        reversible_energy_storage: ReversibleEnergyStorage,
-        electric_drivetrain: ElectricDrivetrain,
-        fuel_res_split: Option<f64>,
-        fuel_res_ratio: Option<f64>,
-        gss_interval: Option<usize>,
-    ) -> Self {
-        Self {
-            fc: fuel_converter,
-            gen: generator,
-            res: reversible_energy_storage,
-            edrv: electric_drivetrain,
-            fuel_res_split: fuel_res_split.unwrap_or(0.5),
-            fuel_res_ratio,
-            gss_interval,
-            dt: si::Time::ZERO,
-            i: 1,
-        }
-    }
+    // #[new]
+    // pub fn __new__(
+    //     fuel_converter: FuelConverter,
+    //     generator: Generator,
+    //     reversible_energy_storage: ReversibleEnergyStorage,
+    //     electric_drivetrain: ElectricDrivetrain,
+    //     fuel_res_split: Option<f64>,
+    //     fuel_res_ratio: Option<f64>,
+    //     gss_interval: Option<usize>,
+    // ) -> Self {
+    //     Self {
+    //         fc: fuel_converter,
+    //         gen: generator,
+    //         res: reversible_energy_storage,
+    //         edrv: electric_drivetrain,
+    //         fuel_res_split: fuel_res_split.unwrap_or(0.5),
+    //         fuel_res_ratio,
+    //         gss_interval,
+    //         dt: si::Time::ZERO,
+    //         i: 1,
+    //     }
+    // }
 )]
 /// Hybrid locomotive with both engine and reversible energy storage (aka battery)  
 /// This type of locomotive is not likely to be widely prevalent due to modularity of consists.  

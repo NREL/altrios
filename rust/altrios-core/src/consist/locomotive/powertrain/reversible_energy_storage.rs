@@ -8,6 +8,21 @@ const TOL: f64 = 1e-3;
 #[altrios_api(
    #[allow(clippy::too_many_arguments)]
     #[new]
+    #[pyo3(signature = (
+        temperature_interp_grid,
+        soc_interp_grid,
+        c_rate_interp_grid,
+        eta_interp_values,
+        pwr_out_max_watts,
+        energy_capacity_joules,
+        min_soc,
+        max_soc,
+        initial_soc,
+        initial_temperature_celcius,
+        soc_hi_ramp_start=None,
+        soc_lo_ramp_start=None,
+        save_interval=None,
+    ))]
     fn __new__(
         temperature_interp_grid: Vec<f64>,
         soc_interp_grid: Vec<f64>,

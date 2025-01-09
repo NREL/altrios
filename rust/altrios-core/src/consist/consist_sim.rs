@@ -9,6 +9,7 @@ use crate::imports::*;
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[altrios_api(
     #[new]
+    #[pyo3(signature = (consist, power_trace, save_interval=None))]
     fn __new__(consist: Consist, power_trace: PowerTrace, save_interval: Option<usize>) -> Self {
         Self::new(consist, power_trace, save_interval)
     }
@@ -25,6 +26,7 @@ use crate::imports::*;
     }
 
     #[pyo3(name = "set_save_interval")]
+    #[pyo3(signature = (save_interval=None))]
     /// Set save interval and cascade to nested components.
     fn set_save_interval_py(&mut self, save_interval: Option<usize>) {
         self.set_save_interval(save_interval);

@@ -2,6 +2,11 @@ use super::train_imports::*;
 
 #[altrios_api(
     #[new]
+    #[pyo3(signature = (
+        time_seconds,
+        speed_meters_per_second,
+        engine_on=None
+    ))]
     fn __new__(
         time_seconds: Vec<f64>,
         speed_meters_per_second: Vec<f64>,
@@ -12,8 +17,8 @@ use super::train_imports::*;
 
     #[staticmethod]
     #[pyo3(name = "from_csv_file")]
-    fn from_csv_file_py(filepath: &PyAny) -> anyhow::Result<Self> {
-        Self::from_csv_file(PathBuf::extract(filepath)?)
+    fn from_csv_file_py(filepath: &Bound<PyAny>) -> anyhow::Result<Self> {
+        Self::from_csv_file(PathBuf::extract_bound(filepath)?)
     }
 
     fn __len__(&self) -> usize {
@@ -21,8 +26,8 @@ use super::train_imports::*;
     }
 
     #[pyo3(name = "to_csv_file")]
-    fn to_csv_file_py(&self, filepath: &PyAny) -> anyhow::Result<()> {
-        self.to_csv_file(PathBuf::extract(filepath)?)
+    fn to_csv_file_py(&self, filepath: &Bound<PyAny>) -> anyhow::Result<()> {
+        self.to_csv_file(PathBuf::extract_bound(filepath)?)
     }
 )]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerdeAPI)]
@@ -183,6 +188,14 @@ pub struct SpeedTraceElement {
     // TODO: consider whether this method should exist after verifying that it is not used anywhere
     // and should be superseded by `make_set_speed_train_sim`
     #[new]
+    #[pyo3(signature = (
+        loco_con,
+        state,
+        speed_trace,
+        train_res_file=None,
+        path_tpc_file=None,
+        save_interval=None,
+    ))]
     fn __new__(
         loco_con: Consist,
         state: TrainState,
@@ -243,6 +256,7 @@ pub struct SpeedTraceElement {
     }
 
     #[pyo3(name = "set_save_interval")]
+    #[pyo3(signature = (save_interval=None))]
     /// Set save interval and cascade to nested components.
     fn set_save_interval_py(&mut self, save_interval: Option<usize>) {
         self.set_save_interval(save_interval);

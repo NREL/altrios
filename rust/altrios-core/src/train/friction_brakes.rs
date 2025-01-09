@@ -2,19 +2,24 @@ use crate::imports::*;
 
 #[altrios_api(
     #[new]
+    #[pyo3(signature = (
+        force_max_newtons,
+        ramp_up_time_seconds,
+        ramp_up_coeff,
+        state=None,
+        save_interval=None,
+    ))]
     fn __new__(
-    force_max_newtons: f64,
-    ramp_up_time_seconds: f64,
-    ramp_up_coeff: f64,
-    // recharge_rate_pa_per_sec: f64,
-    state: Option<FricBrakeState>,
-    save_interval: Option<usize>,
+        force_max_newtons: f64,
+        ramp_up_time_seconds: f64,
+        ramp_up_coeff: f64,
+        state: Option<FricBrakeState>,
+        save_interval: Option<usize>,
     ) -> Self {
         Self::new(
             force_max_newtons * uc::N,
             ramp_up_time_seconds * uc::S,
             ramp_up_coeff * uc::R,
-            // recharge_rate_pa_per_sec,
             state,
             save_interval,
         )

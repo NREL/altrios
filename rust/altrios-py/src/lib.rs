@@ -81,14 +81,6 @@ fn altrios_pyo3(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(check_od_pair_valid, m)?)?;
     m.add_function(wrap_pyfunction!(build_speed_limit_train_sims, m)?)?;
     m.add_function(wrap_pyfunction!(run_speed_limit_train_sims, m)?)?;
-    #[cfg(feature = "logging")]
-    m.add_function(wrap_pyfunction!(pyo3_log_init, m)?)?;
 
     Ok(())
-}
-
-#[cfg(feature = "logging")]
-#[cfg_attr(feature = "logging", pyfunction)]
-fn pyo3_log_init() {
-    pyo3_log::init();
 }

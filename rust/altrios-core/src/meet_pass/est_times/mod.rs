@@ -541,8 +541,6 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     // Push initial "fake" nodes.
     // These help define the start of our `EstTime` sequence.
     // -----------------------------------------------------------------------
-    #[cfg(feature = "logging")]
-    log::debug!("{}", format_dbg!("Push initial fake nodes."));
     est_times.push(EstTime {
         idx_next: 1,
         ..Default::default()
@@ -558,8 +556,6 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     // For each origin, we ensure offset=0, is_front_end=false, and a real link_idx.
     // Then create two `EstTime` events: (Arrive + Clear) for the train's tail and head.
     // -----------------------------------------------------------------------
-    #[cfg(feature = "logging")]
-    log::debug!("{}", format_dbg!("Add origin estimated times."));
     for orig in origs {
         ensure!(
             orig.offset == si::Length::ZERO,
@@ -578,9 +574,6 @@ pub fn make_est_times<N: AsRef<[Link]>>(
             ..Default::default()
         };
 
-        #[cfg(feature = "logging")]
-        log::debug!("{}", format_dbg!());
-
         // Arrive event
         insert_est_time(
             &mut est_times,
@@ -597,8 +590,6 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                 ..Default::default()
             },
         );
-        #[cfg(feature = "logging")]
-        log::debug!("{}", format_dbg!());
 
         // Clear event
         insert_est_time(
@@ -635,8 +626,6 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     // Reset distance to zero for any alternate "fake" nodes.
     // This helps unify distance offsets for subsequent processing.
     // -----------------------------------------------------------------------
-    #[cfg(feature = "logging")]
-    log::debug!("{}", format_dbg!("Fix distances for different origins"));
     {
         let mut est_idx_fix = 1;
         while est_idx_fix != EST_IDX_NA {
@@ -654,8 +643,6 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     // -----------------------------------------------------------------------
     // Main loop: process each saved simulation until `saved_sims` is empty.
     // -----------------------------------------------------------------------
-    #[cfg(feature = "logging")]
-    log::debug!("{}", format_dbg!("Iterate and process all saved sims"));
     while let Some(mut sim) = saved_sims.pop() {
         let mut has_split = false;
         ensure!(

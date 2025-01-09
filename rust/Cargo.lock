@@ -98,7 +98,6 @@ dependencies = [
  "polars",
  "polars-lazy",
  "pyo3",
- "pyo3-log",
  "pyo3-polars",
 ]
 

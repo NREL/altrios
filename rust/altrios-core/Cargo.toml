@@ -50,14 +50,12 @@ project-root = "0.2.2"
 eng_fmt = { workspace = true }
 directories = "5.0.1"
 tempfile = "3.10.1"
+derive_more = { version = "1.0.0", features = ["from_str", "from", "is_variant", "try_into"] }
 
 [features]
-default = ["logging"]
+default = []
 ## Exposes ALTRIOS structs, methods, and functions to Python.
 pyo3 = ["dep:pyo3"]
-## Enables logging messages that can be passed to Python if `pyo3` is also
-## enabled.
-logging = ["dep:log"]
 
 [lints.rust]
 # `'cfg(debug_advance_rewind)'` is expected for debugging in `advance_rewind.rs`

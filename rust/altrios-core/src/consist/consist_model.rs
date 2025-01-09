@@ -336,12 +336,6 @@ impl Consist {
         // maybe put logic for toggling `engine_on` here
 
         for (i, (loco, pwr_out)) in self.loco_vec.iter_mut().zip(pwr_out_vec.iter()).enumerate() {
-            #[cfg(feature = "logging")]
-            log::info!(
-                "Solving locomotive #{}\n`pwr_out: `{} MW",
-                i,
-                pwr_out.get::<si::megawatt>().format_eng(None)
-            );
             loco.solve_energy_consumption(*pwr_out, dt, engine_on)
                 .map_err(|err| {
                     err.context(format!(

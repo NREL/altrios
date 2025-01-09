@@ -466,8 +466,6 @@ impl TrainSimBuilder {
                             * uc::R)
                 },
             )?);
-            #[cfg(feature = "logging")]
-            log::debug!("{}", format_dbg!(&res_rolling));
             let davis_b = res_kind::davis_b::Basic::new(rvs.iter().try_fold(
                 0.0 * uc::S / uc::M,
                 |acc, rv| -> anyhow::Result<si::InverseVelocity> {
@@ -483,11 +481,7 @@ impl TrainSimBuilder {
             )?);
             let res_aero =
                 res_kind::aerodynamic::Basic::new(match &self.train_config.cd_area_vec {
-                    Some(dave) => {
-                        #[cfg(feature = "logging")]
-                        log::info!("Using `cd_area_vec` to calculate aero resistance.");
-                        dave.iter().fold(0. * uc::M2, |acc, dc| *dc + acc)
-                    }
+                    Some(dave) => dave.iter().fold(0. * uc::M2, |acc, dc| *dc + acc),
                     None => rvs.iter().fold(0.0 * uc::M2, |acc, rv| -> si::Area {
                         acc + rv.cd_area
                             * *self.train_config.n_cars_by_type.get(&rv.car_type).unwrap() as f64

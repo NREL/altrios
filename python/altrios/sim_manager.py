@@ -129,7 +129,7 @@ def main(
         )
 
     train_times = pl.DataFrame(
-        {'Train_ID': pl.Series([sim.train_id for sim in speed_limit_train_sims], dtype=pl.Int32).cast(pl.UInt32),
+        {'Train_ID': pl.Series([int(sim.train_id) for sim in speed_limit_train_sims], dtype=pl.Int32).cast(pl.UInt32),
          'Origin_ID': pl.Series([sim.origs[0].location_id for sim in speed_limit_train_sims], dtype=str),
          'Destination_ID': pl.Series([sim.dests[0].location_id for sim in speed_limit_train_sims], dtype=str),
          'Departure_Time_Actual_Hr': pl.Series([this[0].time_hours for this in timed_paths], dtype=pl.Float64),

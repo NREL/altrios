@@ -2,7 +2,9 @@
 from altrios import sim_manager
 from altrios import utilities, defaults, train_planner
 import altrios as alt
+from altrios.lifts import lifts_simulator
 import numpy as np
+import polars as pl
 import matplotlib.pyplot as plt
 import time
 import seaborn as sns
@@ -55,6 +57,11 @@ t0_main = time.perf_counter()
     train_planner_config=train_planner_config,
     debug=True,
 )
+
+train_consist_plan_csv = pl.read_csv('C:/Users/mbruchon/Downloads/simulation_operation/lifts/results/train_consist_plan.csv')
+container_data = lifts_simulator.run_simulation(
+    train_consist_plan = train_consist_plan_csv, 
+    terminal = "Allouez")
 
 t1_main = time.perf_counter()
 print(f"Elapsed time to run `sim_manager.main()`: {t1_main-t0_main:.3g} s")

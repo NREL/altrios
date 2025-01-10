@@ -801,7 +801,7 @@ def calculate_rollout_investments(values: MetricType) -> MetricType:
                             .alias("Count"))
             .drop("Change")
             .join(early_retirements, on=item_id_cols, how="left")
-            .with_columns(pl.col("Count").cumsum().over(item_id_cols).alias("Retirements_Early_Cumsum"))
+            .with_columns(pl.col("Count").cum_sum().over(item_id_cols).alias("Retirements_Early_Cumsum"))
             .with_columns(pl.when(pl.col("Change") > 0)
                             .then(pl.when(pl.col("Retirements_Early_Cumsum") <= pl.col("Change"))
                                     .then(pl.col("Count"))

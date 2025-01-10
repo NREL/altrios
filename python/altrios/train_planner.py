@@ -411,7 +411,7 @@ def generate_demand_trains(
                                 .then(pl.col("KG_Empty") / utilities.KG_PER_TON)
                                 .otherwise(pl.col("KG") / utilities.KG_PER_TON)
                                 .alias("Tons_Per_Car"))
-            .drop(["KG_Empty","KG_Loaded"])
+            .drop(["KG_Empty","KG"])
     )
 
     demand = (pl.concat([demand, demand_returns, demand_rebalancing], how="diagonal_relaxed")
@@ -864,7 +864,7 @@ def dispatch(
             message += "."
         raise ValueError(message)
 
-    diesel_to_require = diesel_candidates.eq(True).cumsum().eq(1).arg_max()
+    diesel_to_require = diesel_candidates.eq(True).cum_sum().eq(1).arg_max()
     diesel_to_require_hp = loco_pool.filter(diesel_filter).select(pl.first("HP"))
     # Need to mask this so it's not double-counted on next step
     candidates[diesel_to_require] = False
@@ -872,12 +872,12 @@ def dispatch(
     enough_hp = loco_pool.select((
         (
             (pl.col("HP") - (pl.col("Loco_Mass_Tons") * pl.lit(hp_per_ton))) * pl.lit(candidates)
-        ).cumsum() + pl.lit(diesel_to_require_hp)) >= hp_required).to_series()
+        ).cum_sum() + pl.lit(diesel_to_require_hp)) >= hp_required).to_series()
     if not enough_hp.any():
         available_hp = loco_pool.select(
             (
                 (pl.col("HP") - (pl.col("Loco_Mass_Tons") * pl.lit(hp_per_ton))) * pl.lit(candidates)
-            ).cumsum().max())[0, 0]
+            ).cum_sum().max())[0, 0]
         message = f"""Outbound horsepower needed ({hp_required}) at {origin} at hour {dispatch_time}
             is more than the available horsepower ({available_hp}).
             Count of locomotives servicing, refueling, or queueing at {origin} are:"""
@@ -896,7 +896,7 @@ def dispatch(
         # Hold the train until enough locomotives are present (future development)
         raise ValueError(message)
 
-    last_row_to_use = enough_hp.eq(True).cumsum().eq(1).arg_max()
+    last_row_to_use = enough_hp.eq(True).cum_sum().eq(1).arg_max()
     # Set false all the locomotives that would add unnecessary hp
     selected[np.arange(last_row_to_use+1, len(selected))] = False
     # Add first diesel (which could come after last_row_to_use) to selection list

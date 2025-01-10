@@ -43,10 +43,11 @@ dependencies = [
     "plotly",
     "typing_extensions",
     "pyyaml",
-    "polars==0.20.25",
+    "polars >= 1.14",
     "pyarrow",
     "requests",
     "PyYAML==6.0.2",
+    "simpy"
 ]
 
 [project.urls]

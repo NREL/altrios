@@ -22,17 +22,16 @@ impl ObjState for BrakingPoint {
 #[altrios_api]
 pub struct BrakingPoints {
     points: Vec<BrakingPoint>,
+    /// index within [Self::points]
     idx_curr: usize,
 }
 
 impl BrakingPoints {
-    /// TODO: complete this doc string
     /// Arguments:
-    /// - offset: si::Length -- ???
-    /// - speed: si::Velocity -- ???
-    /// - adj_ramp_up_time: si::Time -- corrected ramp up time to account
-    ///     for approximately linear brake build up
-
+    /// - offset: location along the current TPC path since train started moving
+    /// - speed: current train speed
+    /// - adj_ramp_up_time: corrected ramp up time to account for approximately
+    ///     linear brake build up
     pub fn calc_speeds(
         &mut self,
         offset: si::Length,
@@ -64,6 +63,8 @@ impl BrakingPoints {
 
         (self.points[self.idx_curr].speed_limit, speed_target)
     }
+
+    /// Any time [PathTpc] is updated, everything is recalculated
     pub fn recalc(
         &mut self,
         train_state: &TrainState,
@@ -85,7 +86,7 @@ impl BrakingPoints {
         let speed_points = path_tpc.speed_points();
         let mut idx = path_tpc.speed_points().len();
 
-        //Iterate backwards through all the speed points
+        // Iterate backwards through all the speed points
         while 0 < idx {
             idx -= 1;
             if speed_points[idx].speed_limit.abs() > self.points.last().unwrap().speed_limit {

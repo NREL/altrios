@@ -379,15 +379,16 @@ impl ReversibleEnergyStorage {
     }
 
     fn check_vol_consistent(&self) -> anyhow::Result<()> {
-        match &self.volume {
-            Some(vol) => match &self.energy_density {
-                Some(e) => {
-                    ensure!(self.energy_capacity / *e == *vol,
-                    format!("{}\n{}", format_dbg!(), "ReversibleEnergyStorage `energy_capacity`, `energy_density` and `volume` are not consistent"))
-                }
-                None => {}
-            },
-            None => {}
+        if let Some(vol) = &self.volume {
+            if let Some(e) = &self.energy_density {
+                ensure!(
+                    self.energy_capacity / *e == *vol,
+                    format!(
+                        "{}\n{}",
+                        format_dbg!(),
+                        "ReversibleEnergyStorage `energy_capacity`, `energy_density` and `volume` are not consistent")
+                )
+            }
         }
         Ok(())
     }

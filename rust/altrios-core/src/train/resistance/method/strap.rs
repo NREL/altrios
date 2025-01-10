@@ -41,6 +41,7 @@ impl ResMethod for Strap {
         path_tpc: &PathTpc,
         dir: &Dir,
     ) -> anyhow::Result<()> {
+        // TODO: think about pulling the next one or two lines out to somewhere else
         state.offset_back = state.offset - state.length;
         state.weight_static = state
             .mass()

@@ -800,7 +800,7 @@ impl TrainDisp {
             }
         }
 
-        //TODO: fix the occupancy problem.
+        // TODO: fix the occupancy problem.
         // Check for occupancy conflicts
         for disp_node_curr in &self.disp_path[self.disp_node_idx_free.idx()..] {
             if disp_node_curr.link_event.est_type == EstType::Arrive

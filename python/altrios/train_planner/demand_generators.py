@@ -71,7 +71,7 @@ def generate_return_demand_intermodal(demand_subset: Union[pl.LazyFrame, pl.Data
             pl.concat_str(pl.min_horizontal("Origin", "Destination"), pl.lit("_"), pl.max_horizontal("Origin", "Destination")).alias("OD")
         )
         .with_columns(
-            pl.col("Number_of_Cars", "Number_of_Containers").range_minmax().over("OD").name.suffix("_Return")
+            pl.col("Number_of_Cars", "Number_of_Containers").range().over("OD").name.suffix("_Return")
         )
         .filter(
             pl.col("Number_of_Containers") == pl.col("Number_of_Containers").max().over("OD")
@@ -114,7 +114,7 @@ def generate_return_demand(
     )
     return demand_return
 
-def generate_origin_manifest_demand(
+def generate_manifest_rebalancing_demand(
     demand: pl.DataFrame,
     node_list: List[str],
     config: planner_config.TrainPlannerConfig
@@ -136,6 +136,63 @@ def generate_origin_manifest_demand(
     with additional columns for checking the unbalance quantity and serve as check columns
     for the manifest empty car rebalancing function
     """
+    def balance_trains(
+    demand_origin_manifest: pl.DataFrame
+    ) -> pl.DataFrame:
+        """
+        Update the manifest demand, especially the empty car demand to maintain equilibrium of number of
+        cars dispatched and received at each node for manifest
+        Arguments:
+        ----------
+        demand_origin_manifest: Dataframe that summarizes empty and loaded 
+        manifest demand dispatched and received for each node by number cars
+        Outputs:
+        ----------
+        demand_origin_manifest: Updated demand_origin_manifest with additional
+        manifest empty car demand added to each node
+        df_balance_storage: Documented additional manifest demand pairs and corresponding quantity for
+        rebalancing process
+        """
+        df_balance_storage = pd.DataFrame(np.zeros(shape=(0, 4)))
+        df_balance_storage = df_balance_storage.rename(
+            columns={0: "Origin", 
+                    1: "Destination", 
+                    2: "Train_Type", 
+                    3: "Number_of_Cars"})
+        
+        train_type = "Manifest_Empty"
+        demand = demand_origin_manifest.to_pandas()[
+            ["Origin","Manifest_Received","Manifest_Dispatched","Manifest_Empty"]]
+        demand = demand.rename(columns={"Manifest_Received": "Received", 
+                                "Manifest_Dispatched": "Dispatched",
+                                "Manifest_Empty": "Empty"})
+
+        step = 0
+        # Calculate the number of iterations needed
+        max_iter = len(demand) * (len(demand)-1) / 2
+        while (~np.isclose(demand["Received"], demand["Dispatched"])).any() and (step <= max_iter):
+            rows_def = demand[demand["Received"] < demand["Dispatched"]]
+            rows_sur = demand[demand["Received"] > demand["Dispatched"]]
+            if((len(rows_def) == 0) | (len(rows_sur) == 0)): 
+                break
+            # Find the first node that is in deficit of cars because of the empty return
+            row_def = rows_def.index[0]
+            # Find the first node that is in surplus of cars
+            row_sur = rows_sur.index[0]
+            surplus = demand.loc[row_sur, "Received"] - demand.loc[row_sur, "Dispatched"]
+            df_balance_storage.loc[len(df_balance_storage.index)] = \
+                [demand.loc[row_sur, "Origin"],
+                demand.loc[row_def, "Origin"],
+                train_type,
+                surplus]
+            demand.loc[row_def, "Received"] += surplus
+            demand.loc[row_sur, "Dispatched"] = demand.loc[row_sur, "Received"]
+            step += 1
+            
+        if (~np.isclose(demand["Received"], demand["Dispatched"])).any():
+            raise Exception("While loop didn't converge")
+        return pl.from_pandas(df_balance_storage)
+
     manifest_demand = (demand
         .filter(pl.col("Train_Type").str.strip_suffix("_Loaded") == "Manifest")
         .select(["Origin", "Destination","Number_of_Cars"])
@@ -156,64 +213,9 @@ def generate_origin_manifest_demand(
         .filter((pl.col("Manifest").is_not_null()) | (pl.col("Manifest_Empty").is_not_null()))
     )
 
-    return origin_manifest_demand
+    return balance_trains(origin_manifest_demand)
 
-def balance_trains(
-    demand_origin_manifest: pl.DataFrame
-) -> pl.DataFrame:
-    """
-    Update the manifest demand, especially the empty car demand to maintain equilibrium of number of
-    cars dispatched and received at each node for manifest
-    Arguments:
-    ----------
-    demand_origin_manifest: Dataframe that summarizes empty and loaded 
-    manifest demand dispatched and received for each node by number cars
-    Outputs:
-    ----------
-    demand_origin_manifest: Updated demand_origin_manifest with additional
-    manifest empty car demand added to each node
-    df_balance_storage: Documented additional manifest demand pairs and corresponding quantity for
-    rebalancing process
-    """
-    df_balance_storage = pd.DataFrame(np.zeros(shape=(0, 4)))
-    df_balance_storage = df_balance_storage.rename(
-        columns={0: "Origin", 
-                 1: "Destination", 
-                 2: "Train_Type", 
-                 3: "Number_of_Cars"})
-    
-    train_type = "Manifest_Empty"
-    demand = demand_origin_manifest.to_pandas()[
-        ["Origin","Manifest_Received","Manifest_Dispatched","Manifest_Empty"]]
-    demand = demand.rename(columns={"Manifest_Received": "Received", 
-                            "Manifest_Dispatched": "Dispatched",
-                            "Manifest_Empty": "Empty"})
 
-    step = 0
-    # Calculate the number of iterations needed
-    max_iter = len(demand) * (len(demand)-1) / 2
-    while (~np.isclose(demand["Received"], demand["Dispatched"])).any() and (step <= max_iter):
-        rows_def = demand[demand["Received"] < demand["Dispatched"]]
-        rows_sur = demand[demand["Received"] > demand["Dispatched"]]
-        if((len(rows_def) == 0) | (len(rows_sur) == 0)): 
-            break
-        # Find the first node that is in deficit of cars because of the empty return
-        row_def = rows_def.index[0]
-        # Find the first node that is in surplus of cars
-        row_sur = rows_sur.index[0]
-        surplus = demand.loc[row_sur, "Received"] - demand.loc[row_sur, "Dispatched"]
-        df_balance_storage.loc[len(df_balance_storage.index)] = \
-            [demand.loc[row_sur, "Origin"],
-            demand.loc[row_def, "Origin"],
-            train_type,
-            surplus]
-        demand.loc[row_def, "Received"] += surplus
-        demand.loc[row_sur, "Dispatched"] = demand.loc[row_sur, "Received"]
-        step += 1
-        
-    if (~np.isclose(demand["Received"], demand["Dispatched"])).any():
-        raise Exception("While loop didn't converge")
-    return pl.from_pandas(df_balance_storage)
 
 def generate_demand_trains(
     demand: pl.DataFrame,

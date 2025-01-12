@@ -581,8 +581,7 @@ def run_train_planner(
         demand_returns = demand_generators.generate_return_demand(demand, config)
         demand_rebalancing = pl.DataFrame()
         if demand.filter(pl.col("Train_Type").str.contains("Manifest")).height > 0:
-            demand_origin_manifest = demand_generators.generate_origin_manifest_demand(demand, node_list, config)
-            demand_rebalancing = demand_generators.balance_trains(demand_origin_manifest)
+            demand_rebalancing = demand_generators.generate_manifest_rebalancing_demand(demand, node_list, config)
         demand = demand_generators.generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicles, config)
         if config.dispatch_scheduler is None:
             config.dispatch_scheduler = schedulers.generate_dispatch_details

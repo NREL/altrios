@@ -180,10 +180,10 @@ def set_param_from_path(
 
 def range_minmax(self) -> pl.Expr:
      return self.max() - self.min()
-pl.Expr.range_minmax=range_minmax
+pl.Expr.range=range_minmax
 del range_minmax
 
-def pctWithinGroup(
+def cumPctWithinGroup(
     df: Union[pl.DataFrame, pl.LazyFrame], 
     grouping_vars: List[str]
 ) -> Union[pl.DataFrame, pl.LazyFrame]:
@@ -191,7 +191,7 @@ def pctWithinGroup(
         .with_columns(
             ((pl.int_range(pl.len(), dtype=pl.UInt32).over(grouping_vars).add(1)) / 
             pl.count().over(grouping_vars))
-            .alias("Percent_Within_Group")
+            .alias("Percent_Within_Group_Cumulative")
         )
     )
 
@@ -202,9 +202,9 @@ def allocateItems(
 ) -> Union[pl.DataFrame, pl.LazyFrame]:
     return (df
     .sort(grouping_vars)
-    .pipe(pctWithinGroup, grouping_vars = grouping_vars)
+    .pipe(cumPctWithinGroup, grouping_vars = grouping_vars)
     .with_columns(
-        pl.col(target).mul("Percent_Within_Group").round().alias(f'{target}_Group_Cumulative')
+        pl.col(target).mul("Percent_Within_Group_Cumulative").round().alias(f'{target}_Group_Cumulative')
     )
     .with_columns(
         (pl.col(f'{target}_Group_Cumulative') - pl.col(f'{target}_Group_Cumulative').shift(1).over(grouping_vars))

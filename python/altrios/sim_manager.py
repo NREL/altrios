@@ -9,7 +9,7 @@ import time
 from altrios import defaults
 
 import altrios as alt
-from altrios import train_planner as planner
+from altrios.train_planner import planner, planner_config
 from altrios import metric_calculator as metrics
 
 def main(
@@ -25,7 +25,7 @@ def main(
     refuelers: pl.DataFrame = None,
     grid_emissions_factors: pl.DataFrame = None,
     nodal_energy_prices: pl.DataFrame = None,
-    train_planner_config: planner.TrainPlannerConfig = planner.TrainPlannerConfig(),
+    train_planner_config: planner_config.TrainPlannerConfig = planner_config.TrainPlannerConfig(),
     train_type: alt.TrainType = alt.TrainType.Freight, 
     demand_file: Union[pl.DataFrame, Path, str] = str(defaults.DEMAND_FILE),
     network_charging_guidelines: pl.DataFrame = None

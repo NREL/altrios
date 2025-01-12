@@ -1,8 +1,9 @@
 # %%
 from altrios import sim_manager
-from altrios import utilities, defaults, train_planner
+from altrios import utilities, defaults
 import altrios as alt
 from altrios.lifts import lifts_simulator
+from altrios.train_planner import planner_config
 import numpy as np
 import polars as pl
 import matplotlib.pyplot as plt
@@ -36,7 +37,7 @@ print(
     f"Elapsed time to import rail vehicles, locations, and network: {t1_import - t0_import:.3g} s"
 )
 
-train_planner_config = train_planner.TrainPlannerConfig(
+train_planner_config = planner_config.TrainPlannerConfig(
             cars_per_locomotive={"Default": 50},
             target_cars_per_train={"Default": 90})
 

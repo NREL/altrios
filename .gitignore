@@ -1219,4 +1219,3 @@ altrios/dispatch/*.json
 activate.sh
 *.xlsx
 *.txt
-*.txt

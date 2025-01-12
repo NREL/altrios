@@ -98,19 +98,35 @@ class TrainPlannerConfig:
     Attributes:
     ----------
     - `single_train_mode`: `True` to only run one round-trip train and schedule its charging; `False` to plan train consists
+
     - `min_cars_per_train`: `Dict` of the minimum length in number of cars to form a train for each train type
+
     - `target_cars_per_train`: `Dict` of the standard train length in number of cars for each train type
+    
     - `manifest_empty_return_ratio`: Desired railcar reuse ratio to calculate the empty manifest car demand, (E_ij+E_ji)/(L_ij+L_ji)
+    
     - `cars_per_locomotive`: Heuristic scaling factor used to size number of locomotives needed based on demand.
+
+    - `cars_per_locomotive_fixed`: If `True`, `cars_per_locomotive` overrides `hp_per_ton` calculations used for dispatching decisions.
+    
     - `refuelers_per_incoming_corridor`: Heuristic scaling factor used to scale number of refuelers needed at each node based on number of incoming corridors.
+    
     - `stack_type`: Type of stacking (applicable only for intermodal containers)
+
     - `require_diesel`: `True` to require each consist to have at least one diesel locomotive.
+    
     - `manifest_empty_return_ratio`: `Dict`
+    
     - `drag_coeff_function`: `Dict`
+    
     - `hp_required_per_ton`: `Dict`
+    
     - `dispatch_scaling_dict`: `Dict`
+    
     - `loco_info`: `Dict`
+    
     - `refueler_info`: `Dict`
+
     - `return_demand_generators`: `Dict`
     """
     single_train_mode: bool = False
@@ -123,6 +139,7 @@ class TrainPlannerConfig:
     cars_per_locomotive: Dict = field(default_factory = lambda: {
         "Default": 70
     })
+    cars_per_locomotive_fixed: bool = False
     refuelers_per_incoming_corridor: int = 4
     stack_type: str = "single"
     require_diesel: bool = False
@@ -179,7 +196,6 @@ class TrainPlannerConfig:
             "Lifespan_Years": defaults.LOCO_LIFESPAN
         }
     }).transpose().reset_index(names='Refueler_Type'))
-    
     return_demand_generators: Dict = field(default_factory = lambda: {
         'Unit': generate_return_demand_unit,
         'Manifest': generate_return_demand_manifest,
@@ -233,11 +249,14 @@ def generate_return_demand(
     demand_subsets = demand.partition_by("Train_Type", as_dict = True)
     return_demand = []
     for train_type, demand_subset in demand_subsets.items():
-        if train_type in config.return_demand_generators:
-            return_demand_generator = config.return_demand_generators[train_type]
-            return_demand.append(return_demand_generator(demand_subset, config))
+        train_type_label = train_type[0]
+        if train_type_label in config.return_demand_generators:
+            return_demand_generator = config.return_demand_generators[train_type_label]
+            temp = return_demand_generator(demand_subset, config)
+            print(temp)
+            return_demand.append(temp)
         else:
-            print(f'Return demand generator not implemented for train type: {train_type}')
+            print(f'Return demand generator not implemented for train type: {train_type_label}')
 
     demand_return = (pl.concat(return_demand, how="diagonal_relaxed")
         .filter(pl.col("Number_of_Cars") + pl.col("Number_of_Containers") > 0)
@@ -518,7 +537,7 @@ def generate_dispatch_details(
     def pctWithinGroup(df: pl.DataFrame, grouping_vars: List[str]) -> pl.DataFrame:
         return (df
             .with_columns(
-                (pl.cum_count().over(grouping_vars) / 
+                (pl.cum_count('Origin').over(grouping_vars) / 
                 pl.count().over(grouping_vars))
                 .alias("Percent_Within_Group")
             )
@@ -561,7 +580,7 @@ def generate_dispatch_details(
             (hours * 1.0 / pl.len().over("Origin", "Destination")).alias("Interval")
         )
         .with_columns(
-            ((pl.col("Interval").cumcount().over(["Origin","Destination"])) \
+            ((pl.col("Interval").cum_count().over(["Origin","Destination"])) \
              * pl.col("Interval")).alias("Hour")
         )
         .select("Hour", "Origin", "Destination", "Train_Type", 
@@ -580,6 +599,7 @@ def build_locopool(
     demand_file: Union[pl.DataFrame, Path, str],
     method: str = "tile",
     shares: List[float] = [],
+    locomotives_per_node: int = None
 ) -> pl.DataFrame:
     """
     Generate default locomotive pool
@@ -597,17 +617,20 @@ def build_locopool(
     demand, node_list = demand_loader(demand_file)
     
     num_nodes = len(node_list)
-    num_ods = demand.height
-    cars_per_od = demand.get_column("Number_of_Cars").mean()
-    if config.single_train_mode:
-        initial_size = math.ceil(cars_per_od / config.cars_per_locomotive["Default"]) 
-        rows = initial_size
+    if locomotives_per_node is None:
+        num_ods = demand.height
+        cars_per_od = demand.get_column("Number_of_Cars").mean()
+        if config.single_train_mode:
+            initial_size = math.ceil(cars_per_od / config.cars_per_locomotive["Default"]) 
+            rows = initial_size
+        else:
+            num_destinations_per_node = num_ods*1.0 / num_nodes*1.0
+            initial_size = math.ceil((cars_per_od / config.cars_per_locomotive["Default"]) *
+                                    num_destinations_per_node)  # number of locomotives per node
+            rows = initial_size * num_nodes  # number of locomotives in total
     else:
-        num_destinations_per_node = num_ods*1.0 / num_nodes*1.0
-        initial_size = math.ceil((cars_per_od / config.cars_per_locomotive["Default"]) *
-                                num_destinations_per_node)  # number of locomotives per node
-        rows = initial_size * num_nodes  # number of locomotives in total
-
+        initial_size = locomotives_per_node
+        rows = locomotives_per_node * num_nodes
 
     if config.single_train_mode:
         sorted_nodes = np.tile([demand.select(pl.col("Origin").first()).item()],rows).tolist()
@@ -798,6 +821,8 @@ def dispatch(
     loco_pool: pl.DataFrame,
     train_tonnage: float,
     hp_required: float,
+    total_cars: float,
+    config: TrainPlannerConfig, 
 ) -> pl.Series:
     """
     Update the locomotive pool by identifying the desired locomotive to dispatch and assign to the
@@ -808,6 +833,8 @@ def dispatch(
     origin: origin node name of the train
     loco_pool: locomotive pool dataframe containing all locomotives in the network
     hp_required: Horsepower required for this train type on this origin-destination corridor
+    total_cars: Total number of cars (loaded, empty, or otherwise) included on the train
+    config: TrainPlannerConfig object
     Outputs:
     ----------
     selected: Indices of selected locomotives
@@ -840,47 +867,62 @@ def dispatch(
 
     # Running list of downselected candidates
     selected = candidates
-    # First available diesel (in order of loco_pool) will be moved from candidates to selected
-    # TODO gracefully handle cases when there is no diesel locomotive to be dispatched
-    # (ex: hold the train until enough diesels are present)
-    diesel_filter = pl.col("Fuel_Type").cast(pl.Utf8).str.contains("(?i)diesel")
-    diesel_candidates = loco_pool.select(pl.lit(candidates) & diesel_filter).to_series()
-    if not diesel_candidates.any():
-        refueling_diesel_count = loco_pool.filter(
-            pl.col("Node") == origin,
-            pl.col("Status").is_in(["Servicing","Refuel_Queue"]),
-            diesel_filter
-        ).select(pl.len())[0, 0]
-        message = f"""No available diesel locomotives at node {origin} at hour {dispatch_time}, so
-                the one-diesel-per-consist rule cannot be satisfied. {refueling_diesel_count} diesel locomotives at
-                {origin} are servicing, refueling, or queueing."""
-        if refueling_diesel_count > 0:
-            diesel_port_count = loco_pool.filter(
+    diesel_to_require_hp = 0
+    if config.require_diesel:
+        # First available diesel (in order of loco_pool) will be moved from candidates to selected
+        # TODO gracefully handle cases when there is no diesel locomotive to be dispatched
+        # (ex: hold the train until enough diesels are present)
+        diesel_filter = pl.col("Fuel_Type").cast(pl.Utf8).str.contains("(?i)diesel")
+        diesel_candidates = loco_pool.select(pl.lit(candidates) & diesel_filter).to_series()
+        if not diesel_candidates.any():
+            refueling_diesel_count = loco_pool.filter(
                 pl.col("Node") == origin,
+                pl.col("Status").is_in(["Servicing","Refuel_Queue"]),
                 diesel_filter
-            ).select(pl.col("Port_Count").min()).item()
-            message += f""" (queue capacity {diesel_port_count})."""
-        else:
-            message += "."
-        raise ValueError(message)
+            ).select(pl.len())[0, 0]
+            message = f"""No available diesel locomotives at node {origin} at hour {dispatch_time}, so
+                    the one-diesel-per-consist rule cannot be satisfied. {refueling_diesel_count} diesel locomotives at
+                    {origin} are servicing, refueling, or queueing."""
+            if refueling_diesel_count > 0:
+                diesel_port_count = loco_pool.filter(
+                    pl.col("Node") == origin,
+                    diesel_filter
+                ).select(pl.col("Port_Count").min()).item()
+                message += f""" (queue capacity {diesel_port_count})."""
+            else:
+                message += "."
+            raise ValueError(message)
 
-    diesel_to_require = diesel_candidates.eq(True).cum_sum().eq(1).arg_max()
-    diesel_to_require_hp = loco_pool.filter(diesel_filter).select(pl.first("HP"))
-    # Need to mask this so it's not double-counted on next step
-    candidates[diesel_to_require] = False
-    # Get running sum, including first diesel, of hp of the candidates (in order of loco_pool)
-    enough_hp = loco_pool.select((
-        (
-            (pl.col("HP") - (pl.col("Loco_Mass_Tons") * pl.lit(hp_per_ton))) * pl.lit(candidates)
-        ).cum_sum() + pl.lit(diesel_to_require_hp)) >= hp_required).to_series()
-    if not enough_hp.any():
-        available_hp = loco_pool.select(
+        diesel_to_require = diesel_candidates.eq(True).cum_sum().eq(1).arg_max()
+        diesel_to_require_hp = loco_pool.filter(diesel_filter).select(pl.first("HP"))
+        # Need to mask this so it's not double-counted on next step
+        candidates[diesel_to_require] = False
+
+    message = ""
+    if config.cars_per_locomotive_fixed:
+        # Get as many available locomotives as are needed (in order of loco_pool)
+        enough_locomotives = loco_pool.select(
+            (pl.lit(1.0) * pl.lit(candidates)).cumsum() >= total_cars).to_series()
+        if not enough_locomotives.any():
+            message = f"""Locomotives needed ({total_cars}) at {origin} at hour {dispatch_time}
+                is more than the available locomotives ({candidates.sum()}).
+                Count of locomotives servicing, refueling, or queueing at {origin} are:"""
+    else:
+        # Get running sum, including first diesel, of hp of the candidates (in order of loco_pool)
+        enough_hp = loco_pool.select((
             (
                 (pl.col("HP") - (pl.col("Loco_Mass_Tons") * pl.lit(hp_per_ton))) * pl.lit(candidates)
-            ).cum_sum().max())[0, 0]
-        message = f"""Outbound horsepower needed ({hp_required}) at {origin} at hour {dispatch_time}
-            is more than the available horsepower ({available_hp}).
-            Count of locomotives servicing, refueling, or queueing at {origin} are:"""
+            ).cum_sum() + pl.lit(diesel_to_require_hp)) >= hp_required).to_series()
+        if not enough_hp.any():
+            available_hp = loco_pool.select(
+                (
+                    (pl.col("HP") - (pl.col("Loco_Mass_Tons") * pl.lit(hp_per_ton))) * pl.lit(candidates)
+                ).cum_sum().max())[0, 0]
+            message = f"""Outbound horsepower needed ({hp_required}) at {origin} at hour {dispatch_time}
+                is more than the available horsepower ({available_hp}).
+                Count of locomotives servicing, refueling, or queueing at {origin} are:"""
+
+    if not enough_hp.any():
         # Hold the train until enough diesels are present (future development)
         waiting_counts = (loco_pool
             .filter(
@@ -899,8 +941,10 @@ def dispatch(
     last_row_to_use = enough_hp.eq(True).cum_sum().eq(1).arg_max()
     # Set false all the locomotives that would add unnecessary hp
     selected[np.arange(last_row_to_use+1, len(selected))] = False
-    # Add first diesel (which could come after last_row_to_use) to selection list
-    selected[diesel_to_require] = True
+
+    if config.require_diesel:
+        # Add first diesel (which could come after last_row_to_use) to selection list
+        selected[diesel_to_require] = True
     return selected
 
 def update_refuel_queue(
@@ -1138,7 +1182,9 @@ def run_train_planner(
                             this_train['Origin'],
                             loco_pool,
                             this_train['Tons_Per_Train'],
-                            this_train['HP_Required']
+                            this_train['HP_Required'],
+                            this_train['Cars_Loaded'] + this_train['Cars_Empty'],
+                            config
                         )
                         dispatched = loco_pool.filter(selected)
 
@@ -1259,7 +1305,6 @@ def run_train_planner(
                         pl.Series(repeat(this_train['Destination'], new_row_count)),
                         pl.Series(repeat(this_train['Cars_Loaded'], new_row_count)),
                         pl.Series(repeat(this_train['Cars_Empty'], new_row_count)),
-                        # pl.Series(repeat(this_train['Number_of_Cars'], new_row_count)),
                         loco_start_soc_j,
                         pl.Series(repeat(current_time, new_row_count)),
                         pl.Series(repeat(current_time + travel_time, new_row_count))],

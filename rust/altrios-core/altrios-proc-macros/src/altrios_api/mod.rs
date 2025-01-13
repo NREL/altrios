@@ -73,7 +73,7 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         /// See [SerdeAPI::to_bincode]
         #[pyo3(name = "to_bincode")]
-        fn to_bincode_py<'py>(&self, py: Python<'py>) -> anyhow::Result<Vec<u8>> {
+        fn to_bincode_py<'py>(&self, py: Python<'py>) -> PyResult<Vec<u8>> {
             Ok(self.to_bincode()?)
         }
 

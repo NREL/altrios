@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, derive_more::From, IsVariant)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, From, IsVariant)]
 pub enum PowertrainType {
     ConventionalLoco(ConventionalLoco),
     HybridLoco(Box<HybridLoco>),
@@ -244,47 +244,46 @@ impl LocoTrait for DummyLoco {
 }
 
 #[altrios_api(
-    // #[new]
-    // #[pyo3(signature = (loco_type, loco_params, save_interval))]
-    // fn __new__(
-    //     // needs to be variant in PowertrainType
-    //     loco_type: &Bound<PyAny>,
-    //     loco_params: LocoParams,
-    //     save_interval: Option<usize>
-    // ) -> anyhow::Result<Self> {
-    //     let loco_type = loco_type
-    //         .extract::<ConventionalLoco>()
-    //         .map(PowertrainType::from)
-    //         .or_else(|_| {
-    //             value
-    //                 .extract::<HybridLoco>()
-    //                 .map(PowertrainType::from)
-    //                 .or_else(|_| {
-    //                     value
-    //                         .extract::<BatteryElectricLoco>()
-    //                         .map(PowertrainType::from)
-    //                         .or_else(|_| value.extract::<DummyLoco>().map(PowertrainType::from))
-    //                 })
-    //         })
-    //         .map_err(|_| {
-    //             pyo3::PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-    //                 "{}\nMust provide ConventionalLoco, HybridLoco, BatteryElectricLoco, or DummyLoco",
-    //                 format_dbg!()
-    //             ))
-    //         })
-    //     };
+    #[new]
+    #[pyo3(signature = (loco_type, loco_params, save_interval=None))]
+    fn __new__(
+        // needs to be variant in PowertrainType
+        loco_type: &Bound<PyAny>,
+        loco_params: LocoParams,
+        save_interval: Option<usize>
+    ) -> anyhow::Result<Self> {
+        let loco_type = loco_type
+            .extract::<ConventionalLoco>()
+            .map(PowertrainType::from)
+            .or_else(|_| {
+                loco_type
+                    .extract::<HybridLoco>()
+                    .map(PowertrainType::from)
+                    .or_else(|_| {
+                        loco_type
+                            .extract::<BatteryElectricLoco>()
+                            .map(PowertrainType::from)
+                            .or_else(|_| loco_type.extract::<DummyLoco>().map(PowertrainType::from))
+                    })
+            })
+            .map_err(|_| {
+                pyo3::PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                    "{}\nMust provide ConventionalLoco, HybridLoco, BatteryElectricLoco, or DummyLoco",
+                    format_dbg!()
+                ))
+            })?;
 
-    //     Ok(Self {
-    //         loco_type: loco_type,
-    //         state: Default::default(),
-    //         save_interval,
-    //         assert_limits: true,
-    //         pwr_aux_offset: loco_params.pwr_aux_offset,
-    //         pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
-    //         force_max: loco_params.force_max,
-    //         ..Default::default()
-    //     })
-    // }
+        Ok(Self {
+            loco_type,
+            state: Default::default(),
+            save_interval,
+            assert_limits: true,
+            pwr_aux_offset: loco_params.pwr_aux_offset,
+            pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
+            force_max: loco_params.force_max,
+            ..Default::default()
+        })
+    }
 
     #[allow(clippy::too_many_arguments)]
     #[pyo3(signature = (fuel_converter, generator, drivetrain, loco_params, save_interval=None))]

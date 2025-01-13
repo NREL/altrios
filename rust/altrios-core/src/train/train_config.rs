@@ -787,6 +787,15 @@ pub fn build_speed_limit_train_sims(
     Ok(SpeedLimitTrainSimVec(speed_limit_train_sims))
 }
 
+/// Converts either `Column::Series` or `Column::Scalar` to `Series`
+fn to_series(col: Column) -> anyhow::Result<Series> {
+    match col.clone() {
+        Column::Series(s) => Ok(s.take()),
+        Column::Scalar(s) => Ok(s.to_series()),
+        Column::Partitioned(_) => bail!("{}\nPartitioned column!", format_dbg!()),
+    }
+}
+
 #[allow(unused_variables)]
 #[cfg(feature = "pyo3")]
 #[pyfunction]
@@ -872,51 +881,47 @@ pub fn run_speed_limit_train_sims(
 
     let mut done = false;
     while !done {
-        let arrivals_mask = arrival_times.column("Arrival_Time_Actual_Hr")?.equal(
-            // TODO: Matt, check if there's a better way to do this
-            &Column::new(
-                "current_time_const".into(),
-                vec![current_time; arrival_times.shape().0],
-            ),
-        )?;
-        let arrivals = arrival_times.clone().filter(&arrivals_mask)?;
-        let arrivals_merged =
-            loco_pool
-                .clone()
-                .left_join(&arrivals, ["Locomotive_ID"], ["Locomotive_ID"])?;
+        let arrivals_mask = arrival_times
+            .column("Arrival_Time_Actual_Hr")?
+            .equal(
+                // TODO: Matt, check if there's a better way to do this
+                &Column::new(
+                    "current_time_const".into(),
+                    vec![current_time; arrival_times.height()],
+                ),
+            )
+            .with_context(|| format_dbg!())?;
+        let arrivals = arrival_times
+            .clone()
+            .filter(&arrivals_mask)
+            .with_context(|| format_dbg!())?;
+        let arrivals_merged = loco_pool
+            .clone()
+            .left_join(&arrivals, ["Locomotive_ID"], ["Locomotive_ID"])
+            .with_context(|| format_dbg!())?;
         let arrival_locations = arrivals_merged.column("Destination_ID")?;
         if arrivals.height() > 0 {
-            let arrival_ids = arrivals.column("Locomotive_ID")?;
+            let arrival_ids = arrivals
+                .column("Locomotive_ID")
+                .with_context(|| format_dbg!())?;
             loco_pool = loco_pool
                 .lazy()
                 .with_columns(vec![
-                    when(
-                        col("Locomotive_ID").is_in(lit(arrival_ids
-                            .clone()
-                            .as_series()
-                            .with_context(|| format_dbg!())?
-                            .clone())),
-                    )
+                    when(col("Locomotive_ID").is_in(lit(
+                        to_series(arrival_ids.clone()).with_context(|| format_dbg!())?,
+                    )))
                     .then(lit("Queued"))
                     .otherwise(col("Status"))
                     .alias("Status"),
-                    when(
-                        col("Locomotive_ID").is_in(lit(arrival_ids
-                            .clone()
-                            .as_series()
-                            .with_context(|| format_dbg!())?
-                            .clone())),
-                    )
+                    when(col("Locomotive_ID").is_in(lit(
+                        to_series(arrival_ids.clone()).with_context(|| format_dbg!())?,
+                    )))
                     .then(lit(current_time))
                     .otherwise(col("Ready_Time_Est"))
                     .alias("Ready_Time_Est"),
-                    when(
-                        col("Locomotive_ID").is_in(lit(arrival_ids
-                            .clone()
-                            .as_series()
-                            .with_context(|| format_dbg!())?
-                            .clone())),
-                    )
+                    when(col("Locomotive_ID").is_in(lit(
+                        to_series(arrival_ids.clone()).with_context(|| format_dbg!())?,
+                    )))
                     .then(lit(arrival_locations
                         .clone()
                         .as_series()
@@ -949,13 +954,20 @@ pub fn run_speed_limit_train_sims(
                 .with_columns(vec![max_horizontal([
                     col("SOC_Max_J") - col("Battery_Headroom_J"),
                     col("SOC_Min_J"),
-                ])?
+                ])
+                .with_context(|| format_dbg!())?
                 .alias("SOC_Target_J")])
                 .sort(["Locomotive_ID"], SortMultipleOptions::default())
                 .collect()
                 .with_context(|| format_dbg!())?;
 
-            let indices = arrivals.column("TrainSimVec_Index")?.u32()?.unique()?;
+            let indices = arrivals
+                .column("TrainSimVec_Index")
+                .with_context(|| format_dbg!())?
+                .u32()
+                .with_context(|| format_dbg!())?
+                .unique()
+                .with_context(|| format_dbg!())?;
             for index in indices.into_iter() {
                 let idx = index.unwrap() as usize;
                 let departing_soc_pct_iter = train_consist_plan
@@ -975,15 +987,22 @@ pub fn run_speed_limit_train_sims(
                     )
                     .sort(["Locomotive_ID"], SortMultipleOptions::default())
                     .with_columns(vec![(col("SOC_J") / col("Capacity_J")).alias("SOC_Pct")])
-                    .collect()?;
-
-                let departing_soc_pct = departing_soc_pct_iter
-                    .column("SOC_Pct")?
-                    .as_series()
+                    .collect()
                     .with_context(|| format_dbg!())?;
 
-                let departing_soc_pct_vec: Vec<f64> =
-                    departing_soc_pct.f64()?.into_no_null_iter().collect();
+                let departing_soc_pct = to_series(
+                    departing_soc_pct_iter
+                        .column("SOC_Pct")
+                        .with_context(|| format_dbg!())?
+                        .clone(),
+                )
+                .with_context(|| format_dbg!())?;
+
+                let departing_soc_pct_vec: Vec<f64> = departing_soc_pct
+                    .f64()
+                    .with_context(|| format_dbg!())?
+                    .into_no_null_iter()
+                    .collect();
                 let sim = &mut speed_limit_train_sims.0[idx];
                 sim.loco_con
                     .loco_vec
@@ -1026,25 +1045,39 @@ pub fn run_speed_limit_train_sims(
                     })
                     .collect();
                 let mut all_current_socs: Vec<f64> = loco_pool
-                    .column("SOC_J")?
+                    .column("SOC_J")
+                    .with_context(|| format_dbg!())?
+                    .f64()
+                    .with_context(|| format_dbg!())?
+                    .into_no_null_iter()
+                    .collect();
+                let mut all_energy_j: Vec<f64> = (loco_pool
+                    .column("SOC_J")
+                    .with_context(|| format_dbg!())?
                     .f64()?
+                    * 0.0)
                     .into_no_null_iter()
                     .collect();
-                let mut all_energy_j: Vec<f64> = (loco_pool.column("SOC_J")?.f64()? * 0.0)
-                    .into_no_null_iter()
-                    .collect();
-                let idx_mask = arrival_times.column("TrainSimVec_Index")?.equal(
-                    // TODO: Matt, check if there's a better way to do this
-                    &Column::new(
-                        "idx_const".into(),
-                        vec![idx as u32; arrival_times.shape().0],
-                    ),
-                )?;
-                let arrival_locos = arrival_times.filter(&idx_mask)?;
-                let arrival_loco_ids = arrival_locos.column("Locomotive_ID")?.u32()?;
+                let idx_mask = arrival_times
+                    .column("TrainSimVec_Index")
+                    .with_context(|| format_dbg!())?
+                    .equal(
+                        // TODO: Matt, check if there's a better way to do this
+                        &Column::new("idx_const".into(), vec![idx as u32; arrival_times.height()]),
+                    )
+                    .with_context(|| format_dbg!())?;
+                let arrival_locos = arrival_times
+                    .filter(&idx_mask)
+                    .with_context(|| format_dbg!())?;
+                let arrival_loco_ids = arrival_locos
+                    .column("Locomotive_ID")
+                    .with_context(|| format_dbg!())?
+                    .u32()
+                    .with_context(|| format_dbg!())?;
                 let arrival_loco_mask: ChunkedArray<BooleanType> = is_in(
                     loco_pool
-                        .column("Locomotive_ID")?
+                        .column("Locomotive_ID")
+                        .with_context(|| format_dbg!())?
                         .as_series()
                         .with_context(|| format_dbg!())?,
                     &Series::from(arrival_loco_ids.clone()),
@@ -1090,17 +1123,29 @@ pub fn run_speed_limit_train_sims(
         }
 
         let refueling_mask = (loco_pool)
-            .column("Status")?
-            .equal(loco_pool.column("Refueling")?)?;
+            .column("Status")
+            .with_context(|| format_dbg!())?
+            .equal(&Column::new(
+                "refueling_const".into(),
+                vec!["Refueling"; loco_pool.height()],
+            ))
+            .with_context(|| format_dbg!())?;
         let refueling_finished_mask = refueling_mask.clone()
-            & (loco_pool).column("Ready_Time_Est")?.equal(
-                // TODO: Matt, remove this `Column::new` if you find a better way
-                &Column::new(
-                    "current_time_const".into(),
-                    vec![current_time; refueling_mask.len()],
-                ),
-            )?;
-        let refueling_finished = loco_pool.clone().filter(&refueling_finished_mask)?;
+            & (loco_pool)
+                .column("Ready_Time_Est")
+                .with_context(|| format_dbg!())?
+                .equal(
+                    // TODO: Matt, remove this `Column::new` if you find a better way
+                    &Column::new(
+                        "current_time_const".into(),
+                        vec![current_time; refueling_mask.len()],
+                    ),
+                )
+                .with_context(|| format_dbg!())?;
+        let refueling_finished = loco_pool
+            .clone()
+            .filter(&refueling_finished_mask)
+            .with_context(|| format_dbg!())?;
         if refueling_finished_mask.sum().unwrap_or_default() > 0 {
             loco_pool = loco_pool
                 .lazy()
@@ -1223,23 +1268,36 @@ pub fn run_speed_limit_train_sims(
                 .collect()
                 .with_context(|| format_dbg!())?;
 
-            let these_refuel_sessions = df![
-                PlSmallStr::from_str("Node") => refuel_starting.column("Node").with_context(|| format_dbg!())?.as_series().with_context(|| format_dbg!())?,
-                PlSmallStr::from_str("Locomotive_Type") => refuel_starting.column("Locomotive_Type").with_context(|| format_dbg!())?.as_series().with_context(|| format_dbg!())?,
-                PlSmallStr::from_str("Fuel_Type") => refuel_starting.column("Fuel_Type").with_context(|| format_dbg!())?.as_series().with_context(|| format_dbg!())?,
-                PlSmallStr::from_str("Locomotive_ID") => refuel_starting.column("Locomotive_ID").with_context(|| format_dbg!())?.as_series().with_context(|| format_dbg!())?,
-                PlSmallStr::from_str("Refueler_J_Per_Hr") => refuel_starting.column("Refueler_J_Per_Hr").with_context(|| format_dbg!())?.as_series().with_context(|| format_dbg!())?,
-                PlSmallStr::from_str("Refueler_Efficiency") => refuel_starting.column("Refueler_Efficiency").with_context(|| format_dbg!())?.as_series().with_context(|| format_dbg!())?,
-                PlSmallStr::from_str("Trip_Energy_J") => refuel_starting.column("Trip_Energy_J").with_context(|| format_dbg!())?.as_series().with_context(|| format_dbg!())?,
-                PlSmallStr::from_str("SOC_J") => refuel_starting.column("SOC_J").with_context(|| format_dbg!())?.as_series().with_context(|| format_dbg!())?,
-                PlSmallStr::from_str("Refuel_Energy_J") => refuel_starting.clone().lazy().select(&[
-                    (col("Refueler_J_Per_Hr") * col("refuel_duration") / col("Refueler_Efficiency")).alias("Refuel_Energy_J")
-                    ]).collect()?.column("Refuel_Energy_J")?.clone().as_series().with_context(|| format_dbg!())?,
-                PlSmallStr::from_str("Refuel_Duration_Hr") => refuel_starting.column("refuel_duration").with_context(|| format_dbg!())?.as_series().with_context(|| format_dbg!())?,
-                PlSmallStr::from_str("Refuel_Start_Time_Hr") => (refuel_starting.column("refuel_end_time").with_context(|| format_dbg!())? -
-                    refuel_starting.column("refuel_duration").with_context(|| format_dbg!())?).with_context(|| format_dbg!())?.as_series().with_context(|| format_dbg!())?,
-                PlSmallStr::from_str("Refuel_End_Time_Hr") => refuel_starting.column("refuel_end_time").with_context(|| format_dbg!())?.as_series().with_context(|| format_dbg!())?
-            ].with_context(|| format_dbg!())?;
+            let these_refuel_sessions = refuel_starting
+                .clone()
+                .lazy()
+                .with_columns(vec![
+                    (col("Refueler_J_Per_Hr") * col("refuel_duration")
+                        / col("Refueler_Efficiency"))
+                    .alias("Refuel_Energy_J"),
+                    (col("refuel_end_time") - col("refuel_duration")).alias("Refuel_Start_Time_Hr"),
+                ])
+                .rename(
+                    ["refuel_end_time", "refuel_duration"],
+                    ["Refuel_End_Time_Hr", "Refuel_Duration_Hr"],
+                    true,
+                )
+                .select(vec![
+                    col("Node"),
+                    col("Locomotive_Type"),
+                    col("Fuel_Type"),
+                    col("Locomotive_ID"),
+                    col("Refueler_J_Per_Hr"),
+                    col("Refueler_Efficiency"),
+                    col("Trip_Energy_J"),
+                    col("SOC_J"),
+                    col("Refuel_Energy_J"),
+                    col("Refuel_Duration_Hr"),
+                    col("Refuel_Start_Time_Hr"),
+                    col("Refuel_End_Time_Hr"),
+                ])
+                .collect()
+                .with_context(|| format_dbg!())?;
             refuel_sessions.vstack_mut(&these_refuel_sessions)?;
             // set finishedCharging times to min(max soc OR departure time)
             loco_pool = loco_pool
@@ -1286,9 +1344,8 @@ pub fn run_speed_limit_train_sims(
             .select(vec![col("Ready_Time_Est")])
             .collect()?;
         let active_loco_ready_times = active_loco_ready_times_iter
-            .column("Ready_Time_Est")?
-            .as_series()
-            .with_context(|| format_dbg!())?;
+            .column("Ready_Time_Est")
+            .with_context(|| format_dbg!(active_loco_ready_times_iter))?;
         arrival_times = arrival_times
             .lazy()
             .filter(col("Arrival_Time_Actual_Hr").gt(current_time))
@@ -1301,11 +1358,10 @@ pub fn run_speed_limit_train_sims(
             ])
             .collect()?;
         let arrival_times_remaining = arrival_times_remaining_iter
-            .column("Arrival_Time_Actual_Hr")?
-            .as_series()
+            .column("Arrival_Time_Actual_Hr")
             .with_context(|| format_dbg!())?;
 
-        if (arrival_times_remaining.len() == 0) & (active_loco_ready_times.len() == 0) {
+        if (arrival_times_remaining.is_empty()) & (active_loco_ready_times.is_empty()) {
             done = true;
         } else {
             let min1 = active_loco_ready_times
@@ -1320,7 +1376,7 @@ pub fn run_speed_limit_train_sims(
         }
     }
 
-    Ok((speed_limit_train_sims, PyDataFrame(refuel_sessions.into())))
+    Ok((speed_limit_train_sims, PyDataFrame(refuel_sessions)))
 }
 
 // This MUST remain a unit struct to trigger correct tolist() behavior

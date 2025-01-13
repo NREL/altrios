@@ -68,7 +68,7 @@ impl From<HybridLoco> for PowertrainType {
     }
 }
 
-#[cfg(feature = "pyo3")]
+// #[cfg(feature = "pyo3")]
 // impl TryFrom<Bound<PyAny>> for PowertrainType {
 //     type Error = PyErr;
 //     /// This allows us to construct PowertrainType from any struct that can be converted into PowertrainType
@@ -196,11 +196,7 @@ impl LocoParams {
             param_hm.insert(key_extracted, value_extracted);
         }
         // type conversion on keys to satisfy function arg below
-        let param_hm = HashMap::from_iter(
-            param_hm
-                .iter()
-                .map(|item| (item.0.as_str(), item.1.clone())),
-        );
+        let param_hm = HashMap::from_iter(param_hm.iter().map(|item| (item.0.as_str(), *item.1)));
 
         Self::from_hash(param_hm)
     }

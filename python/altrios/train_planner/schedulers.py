@@ -501,7 +501,7 @@ def generate_dispatch_details(
     schedule = (demand
         .select(pl.exclude("Number_of_Trains").repeat_by("Number_of_Trains").explode())
         .pipe(utilities.allocateItems, target = "Number_of_Cars_Loaded", grouping_vars = grouping_vars)
-        .drop("Percent_Within_Group")
+        .drop("Percent_Within_Group_Cumulative")
         .pipe(utilities.allocateItems, target = "Number_of_Cars_Empty", grouping_vars = grouping_vars)
         .group_by(pl.exclude("Number_of_Cars_Empty", "Number_of_Cars_Loaded"))
             .agg(pl.col("Number_of_Cars_Empty", "Number_of_Cars_Loaded"))
@@ -514,7 +514,7 @@ def generate_dispatch_details(
                 pl.col("HP_Required_Per_Ton_Empty").mul("Tons_Per_Car_Empty").mul("Number_of_Cars_Empty")
                 ).alias("HP_Required")
         )
-        .sort("Origin", "Destination", "Percent_Within_Group", "Train_Type")
+        .sort("Origin", "Destination", "Percent_Within_Group_Cumulative", "Train_Type")
         .with_columns(
             (hours * 1.0 / pl.len().over("Origin", "Destination")).alias("Interval")
         )

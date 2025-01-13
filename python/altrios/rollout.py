@@ -3,7 +3,7 @@ from altrios import metric_calculator, defaults
 from altrios.metric_calculator import ScenarioInfo
 
 import altrios as alt
-from altrios.train_planner import planner
+from altrios.train_planner import planner, planner_config
 import numpy as np
 import time
 import pandas as pd
@@ -24,7 +24,7 @@ def simulate_prescribed_rollout(
     save_interval: Optional[int] = None,
     freight_demand_percent_growth:float = 0.0,
     demand_file: Union[pl.DataFrame, Path, str] = defaults.DEMAND_FILE,
-    train_planner_config: planner.TrainPlannerConfig = planner.TrainPlannerConfig(),
+    train_planner_config: planner_config.TrainPlannerConfig = planner_config.TrainPlannerConfig(),
     count_unused_locomotives = False,
     write_complete_results: Optional[bool] = False,
     write_metrics: Optional[bool] = False,

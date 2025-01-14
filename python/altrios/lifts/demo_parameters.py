@@ -64,6 +64,7 @@ class LiftsState:
     time_per_train: dict[str, int] = field(default_factory=lambda: {})  # total processing time for a train
     train_delay_time: dict[str, int] = field(default_factory=lambda: {})  # delay time for a train
     ## Notice: Hostler, truck and crane performance are reflected on the excel output
+    container_events: dict = field(default_factory=lambda: {})  # Dictionary to store container event data
 
 
     def initialize_from_consist_plan(self, train_consist_plan):

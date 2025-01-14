@@ -10,15 +10,15 @@ from altrios.lifts.vehicle_performance import record_vehicle_event, save_average
 
 
 class Terminal:
-    def __init__(self, env, truck_capacity):
+    def __init__(self, env, truck_capacity, chassis_count):
         self.env = env
         self.cranes = simpy.Resource(env, state.CRANE_NUMBER)  # Crane source: numbers
-        self.chassis = simpy.Store(env, capacity = state.CHASSIS_NUMBER)  # Chassis source: numbers
         self.hostlers = simpy.Resource(env, state.HOSTLER_NUMBER)  # Hostler source: numbers
         self.in_gates = simpy.Resource(env, state.IN_GATE_NUMBERS)  # In-gate source: numbers
         self.out_gates = simpy.Resource(env, state.OUT_GATE_NUMBERS)  # Out-gate source: numbers
         self.truck_store = simpy.Store(env, capacity=truck_capacity)  # Truck source: numbers
         self.oc_store = simpy.Store(env)  # Outbound container source: numbers
+        self.chassis = simpy.Store(env, capacity=chassis_count)  # Chassis source: numbers
 
 
 def record_event(container_id, event_type, timestamp):
@@ -75,7 +75,7 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
     all_trucks_arrived_event.succeed()  # if all_trucks_arrived_event is triggered, train is allowed to enter
 
 
-def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_needed, total_ic, all_ic_picked, all_ic_unload_event):
+def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_needed, total_ic, all_ic_picked, all_ic_unload_event, chassis_count):
     global state
     ic_unloaded_count = 0
 
@@ -208,7 +208,7 @@ def truck_exit(env, terminal, truck_id, ic_id):
     yield terminal.truck_store.put(truck_id)
 
 
-def crane_load_process(env, terminal, load_time, start_load_event, end_load_event):
+def crane_load_process(env, terminal, chassis_count, load_time, start_load_event, end_load_event):
     global state
     yield start_load_event
     print(f"Time {env.now}: Starting loading process onto the train.")
@@ -228,7 +228,7 @@ def crane_load_process(env, terminal, load_time, start_load_event, end_load_even
     end_load_event.succeed()
 
 
-def process_train_arrival(env, terminal, train_departed_event, train_schedule, next_departed_event):
+def process_train_arrival(env, terminal, train_departed_event, train_schedule, next_departed_event, chassis_count):
     global state
     # yield train_departed_event
     if train_departed_event is not None:
@@ -273,7 +273,7 @@ def process_train_arrival(env, terminal, train_departed_event, train_schedule, n
         record_event(ic_id, 'train_arrival',env.now)  # loop: assign container_id range(current_ic, current_ic + train_schedule['full_cars'])
 
     # crane unloading IC
-    env.process(crane_unload_process(env, terminal, all_oc_prepared, oc_needed, total_ic, all_ic_picked, all_ic_unload_event))
+    env.process(crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_needed, total_ic, all_ic_picked, all_ic_unload_event, chassis_count))
 
     # prepare all OC and pick up all IC before crane loading
     yield all_ic_picked & all_oc_prepared
@@ -281,7 +281,7 @@ def process_train_arrival(env, terminal, train_departed_event, train_schedule, n
     start_load_event.succeed()  # condition of chassis loading
 
     # crane loading process
-    env.process(crane_load_process(env, terminal, load_time=2, start_load_event=start_load_event, end_load_event=end_load_event))
+    env.process(crane_load_process(env, terminal, chassis_count, load_time=2, start_load_event=start_load_event, end_load_event=end_load_event))
 
     yield end_load_event
 
@@ -348,8 +348,9 @@ def run_simulation(train_consist_plan: pl.DataFrame,
     for i, train_schedule in enumerate(train_timetable):
         print(train_schedule)
         next_departed_event = env.event()  # Create a new departure event for the next train
-        terminal = Terminal(env, truck_capacity = train_schedule["truck_number"])
-        env.process(process_train_arrival(env, terminal, train_departed_event, train_schedule, next_departed_event))
+        chassis_count = train_schedule['empty_cars'] + train_schedule['full_cars']
+        terminal = Terminal(env, truck_capacity = train_schedule["truck_number"], chassis_count=chassis_count)
+        env.process(process_train_arrival(env, terminal, train_departed_event, train_schedule, next_departed_event, chassis_count))
         train_departed_event = next_departed_event  # Update the departure event for the next train
 
     # Simulation hyperparameters
@@ -357,13 +358,15 @@ def run_simulation(train_consist_plan: pl.DataFrame,
 
     # Performance Matrix
     # Train processing time
-    avg_time_per_train = sum(state.time_per_train.values()) / len(state.time_per_train)
-    print(f"Average train processing time: {sum(state.time_per_train) / len(state.time_per_train) if state.time_per_train else 0:.2f}")
-    print("Simulation completed. ")
-    with open("avg_time_per_train.txt", "w") as f:
-        f.write(str(avg_time_per_train))
+    # TODO fix divide by zero
+    # avg_time_per_train = sum(state.time_per_train.values()) / len(state.time_per_train)
+    #print(f"Average train processing time: {sum(state.time_per_train) / len(state.time_per_train) if state.time_per_train else 0:.2f}")
+    #print("Simulation completed. ")
+    #with open("avg_time_per_train.txt", "w") as f:
+    #    f.write(str(avg_time_per_train))
 
     # Create DataFrame for container events
+    print(state.sim_time)
     container_data = (
         pl.from_dicts(
             [dict(event, **{'container_id': container_id}) for container_id, event in state.container_events.items()]

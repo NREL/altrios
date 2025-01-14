@@ -87,7 +87,8 @@ def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_need
             record_event(ic_id, 'crane_unload', env.now)
             print(f"Time {env.now}: Crane finishes unloading IC {ic_id} onto chassis")
             yield terminal.chassis.put(ic_id)
-            print("chassis:", terminal.chassis.items)
+            print("chassis (loading ic):", terminal.chassis.items)
+            print("hostler (loading ic):", terminal.hostlers.count)
             ic_unloaded_count += 1
             env.process(container_process(env, terminal, train_schedule, all_oc_prepared, oc_needed, all_ic_unload_event, all_ic_picked))
 
@@ -166,13 +167,15 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
         # ICs are all picked up and OCs are prepared
         if sum(1 for item in terminal.chassis.items if "OC-" in str(item)) == oc_needed:
             all_oc_prepared.succeed()
-            print("chassis:", terminal.chassis.items)
+            print("chassis (check if all oc prepared):", terminal.chassis.items)
+            print(f"hostler (check if all oc prepared): {terminal.hostlers.count}")
             print("# of OC on chassis:", sum(1 for item in terminal.chassis.items if "OC-" in str(item)))
             print(f"Time {env.now}: All OCs are ready on chassis.")
 
         # Test: check if all OCs on chassis
-        print("chassis:", terminal.chassis.items)
+        print("chassis (all oc prepared):", terminal.chassis.items)
         print("# of IC on chassis:", sum(str(item).isdigit() for item in terminal.chassis.items))
+        print(f"hostler (all oc prepared): {terminal.hostlers.count}")
 
         # IC < OC: ICs are all picked up and still have OCs remaining
         print("# of OCs in oc_store:", len(terminal.oc_store.items))
@@ -188,10 +191,12 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
                 yield env.timeout(travel_time_to_chassis)
                 print(f"Time {env.now}: Hostler dropped off OC {oc} onto chassis")
                 yield terminal.chassis.put(oc)
-                print("chassis:", terminal.chassis.items)
+                print("chassis (oc_remaining):", terminal.chassis.items)
+                print(f"hostler (oc_remaining): {terminal.hostlers.count}")
                 if sum(1 for item in terminal.chassis.items if "OC-" in str(item)) == oc_needed:
                     all_oc_prepared.succeed()
-                    print("chassis:", terminal.chassis.items)
+                    print("chassis (all_oc_prepared):", terminal.chassis.items)
+                    print(f"hostler (all_oc_prepared): {terminal.hostlers.count}")
                     print("# of OC on chassis:", sum(1 for item in terminal.chassis.items if "OC-" in str(item)))
                     print(f"Time {env.now}: All OCs are ready on chassis.")
                 i += 1
@@ -358,7 +363,7 @@ def run_simulation(train_consist_plan: pl.DataFrame,
 
     # Performance Matrix
     # Train processing time
-    # TODO fix divide by zero
+    # TODO fix divide by zero: might be related to train_departure (the train departure not happening --> no processing data --> 0/0.)
     # avg_time_per_train = sum(state.time_per_train.values()) / len(state.time_per_train)
     #print(f"Average train processing time: {sum(state.time_per_train) / len(state.time_per_train) if state.time_per_train else 0:.2f}")
     #print("Simulation completed. ")

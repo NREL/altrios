@@ -216,7 +216,7 @@ def crane_load_process(env, terminal, chassis_count, load_time, start_load_event
     while terminal.chassis.items:  # if there still has OC on chassis
         with terminal.cranes.request() as request:
             yield request
-            oc = yield terminal.chassis.get()  # obtain an OC from chassis
+            oc = yield terminal.chassis.get(lambda x: isinstance(x, str) and "OC" in x)  # obtain an OC from chassis
             # print("chassis:",terminal.chassis.items)
             print(f"Time {env.now}: Crane starts loading {oc} onto the train.")
             yield env.timeout(load_time)  # loading time, depends on container parameter**

@@ -18,7 +18,7 @@ class Terminal:
         self.out_gates = simpy.Resource(env, state.OUT_GATE_NUMBERS)  # Out-gate source: numbers
         self.truck_store = simpy.Store(env, capacity=truck_capacity)  # Truck source: numbers
         self.oc_store = simpy.Store(env)  # Outbound container source: numbers
-        self.chassis = simpy.Store(env, capacity=chassis_count)  # Chassis source: numbers
+        self.chassis = simpy.FilterStore(env, capacity=chassis_count)  # Chassis source: numbers
 
 
 def record_event(container_id, event_type, timestamp):
@@ -110,7 +110,7 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
         yield request
 
         # Hostler picks up IC from chassis
-        ic_id = yield terminal.chassis.get()
+        ic_id = yield terminal.chassis.get(lambda x: isinstance(x, int))
 
         # Hostler puts IC to the closest parking lot
         print(f"Time {env.now}: Hostler picked up IC {ic_id} and is heading to parking slot.")

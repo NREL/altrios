@@ -30,10 +30,8 @@ use crate::imports::*;
 /// Container
 pub struct PowerTrace {
     /// simulation time
-    #[serde(rename = "time_seconds")]
     pub time: Vec<si::Time>,
     /// simulation power
-    #[serde(rename = "pwr_watts")]
     pub pwr: Vec<si::Power>,
     /// Whether engine is on
     pub engine_on: Vec<Option<bool>>,
@@ -125,10 +123,8 @@ impl Default for PowerTrace {
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
 pub struct PowerTraceElement {
     /// simulation time
-    #[serde(rename = "time_seconds")]
     time: si::Time,
     /// simulation power
-    #[serde(rename = "pwr_watts")]
     pwr: si::Power,
     /// Whether engine is on
     engine_on: Option<bool>,
@@ -136,6 +132,7 @@ pub struct PowerTraceElement {
 
 #[altrios_api(
     #[new]
+    #[pyo3(signature = (loco_unit, power_trace, save_interval=None))]
     fn __new__(
         loco_unit: Locomotive,
         power_trace: PowerTrace,
@@ -156,6 +153,7 @@ pub struct PowerTraceElement {
     }
 
     #[pyo3(name = "set_save_interval")]
+    #[pyo3(signature = (save_interval=None))]
     /// Set save interval and cascade to nested components.
     fn set_save_interval_py(&mut self, save_interval: Option<usize>) -> anyhow::Result<()> {
         self.set_save_interval(save_interval);
@@ -224,8 +222,6 @@ impl LocomotiveSimulation {
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
-        #[cfg(feature = "logging")]
-        log::info!("Solving time step #{}", self.i);
         // linear aux model
         let engine_on = self.power_trace.engine_on[self.i];
         self.loco_unit.set_pwr_aux(engine_on);
@@ -303,6 +299,7 @@ impl Default for LocomotiveSimulation {
 
 #[altrios_api(
     #[pyo3(name="walk")]
+    #[pyo3(signature = (b_parallelize=None))]
     /// Exposes `walk` to Python.
     fn walk_py(&mut self, b_parallelize: Option<bool>) -> anyhow::Result<()> {
         let b_par = b_parallelize.unwrap_or(false);
@@ -332,8 +329,6 @@ impl LocomotiveSimulationVec {
                 .par_iter_mut()
                 .enumerate()
                 .try_for_each(|(i, loco_sim)| {
-                    #[cfg(feature = "logging")]
-                    log::info!("Solving locomotive #{i}");
                     loco_sim
                         .walk()
                         .map_err(|err| err.context(format!("loco_sim idx:{}", i)))

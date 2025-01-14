@@ -260,7 +260,7 @@ pub fn run_dispatch<N: AsRef<[Link]>>(
 #[cfg(feature = "pyo3")]
 #[cfg_attr(feature = "pyo3", pyfunction(name = "run_dispatch"))]
 pub fn run_dispatch_py(
-    network: &PyAny,
+    network: &Bound<PyAny>,
     speed_limit_train_sims: crate::train::SpeedLimitTrainSimVec,
     est_time_vec: Vec<EstTimeNet>,
     print_train_move: bool,

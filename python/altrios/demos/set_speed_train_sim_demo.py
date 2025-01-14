@@ -10,10 +10,6 @@ import os
 import altrios as alt 
 sns.set_theme()
 
-# Uncomment and run `maturin develop --release --features logging` to enable logging, 
-# which is needed because logging bogs the CPU and is off by default.
-# alt.utils.set_log_level("DEBUG")
-
 SHOW_PLOTS = alt.utils.show_plots()
 PYTEST = os.environ.get("PYTEST", "false").lower() == "true"
 

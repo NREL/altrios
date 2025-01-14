@@ -6,6 +6,7 @@ use crate::pyo3::*;
 
 #[altrios_api(
     #[new]
+    #[pyo3(signature = (pwr_out_frac_interp, eta_interp, pwr_out_max_watts, save_interval=None))]
     fn __new__(
         pwr_out_frac_interp: Vec<f64>,
         eta_interp: Vec<f64>,
@@ -70,7 +71,6 @@ pub struct ElectricDrivetrain {
     #[api(skip_set)]
     pub pwr_in_frac_interp: Vec<f64>,
     /// ElectricDrivetrain maximum output power assuming that positive and negative tractive powers have same magnitude
-    #[serde(rename = "pwr_out_max_watts")]
     pub pwr_out_max: si::Power,
     // TODO: add `mass` here
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
@@ -247,7 +247,7 @@ impl Default for ElectricDrivetrain {
     fn default() -> Self {
         // let file_contents = include_str!(EDRV_DEFAULT_PATH_STR);
         let file_contents = include_str!("electric_drivetrain.default.yaml");
-        serde_yaml::from_str::<ElectricDrivetrain>(file_contents).unwrap()
+        Self::from_yaml(file_contents).unwrap()
     }
 }
 

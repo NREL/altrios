@@ -104,13 +104,13 @@ impl ObjState for LinkIdx {
 #[altrios_api(
     #[staticmethod]
     #[pyo3(name = "from_csv_file")]
-    fn from_csv_file_py(filepath: &PyAny) -> anyhow::Result<Self> {
-        Self::from_csv_file(PathBuf::extract(filepath)?)
+    fn from_csv_file_py(filepath: &Bound<PyAny>) -> anyhow::Result<Self> {
+        Self::from_csv_file(PathBuf::extract_bound(filepath)?)
     }
 
     #[pyo3(name = "to_csv_file")]
-    fn to_csv_file_py(&self, filepath: &PyAny) -> anyhow::Result<()> {
-        self.to_csv_file(PathBuf::extract(filepath)?)
+    fn to_csv_file_py(&self, filepath: &Bound<PyAny>) -> anyhow::Result<()> {
+        self.to_csv_file(PathBuf::extract_bound(filepath)?)
     }
 )]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]

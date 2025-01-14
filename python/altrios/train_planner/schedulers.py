@@ -150,6 +150,7 @@ def find_minimum_waiting_time(
     num_iterations: int, 
     demand_hourly: pl.DataFrame, 
     border_time_list: list, 
+    target_num_cars_per_train: int
 ) -> pl.DataFrame:
     """
     Find the minimum waiting time for dispatches using Polars DataFrame.
@@ -305,120 +306,43 @@ def find_minimum_waiting_time(
     print(f"empty_return is {empty_return}")
     return dispatch_times
 
-def calculate_dispatch_data(total_containers, target_num_cars, label, containers, max_min_cars):
-    remaining_containers = total_containers % target_num_cars
-    min_num_cars = (
-        total_containers // target_num_cars + (1 if remaining_containers > 0 else 0)
-    )
-    
-    ## Apply the maximum min_num_cars value
-    min_num_cars = int(max(min_num_cars, max_min_cars))
-
-    border_list = []
-    border_time_list = []
-    dispatched_list = []
-
-    if remaining_containers == 0:
-        border = total_containers / min_num_cars
-    else:
-        border = math.ceil(total_containers / min_num_cars)
-        
-    containers_left = total_containers
-    for _ in range(min_num_cars):
-        if containers_left >= border:
-            border_list.append(border)
-            containers_left -= border
-        else:
-            border_list.append(containers_left)
-            break
-
-    cumulate_demand = 0
-    p = 0
-    for i, container in enumerate(containers):
-        cumulate_demand += container
-        if p == len(border_list) - 1:
-            border_time_list.append(len(containers) - 1)
-            break
-        if cumulate_demand >= border_list[p]:
-            border_time_list.append(i)
-            dispatched_list.append(cumulate_demand)
-            total_containers -= cumulate_demand
-            cumulate_demand = 0
-            p += 1
-            if p >= len(border_list):
-                break
-    if len(border_time_list) < len(border_list):
-        for _ in range(len(border_list) - len(border_time_list)):
-            border_time_list.append(border_time_list[-1]+_+1)
-    dispatched_list.append(total_containers)
-    if len(dispatched_list) < len(border_list):
-        for _ in range(len(border_list) - len(dispatched_list)):
-            dispatched_list.append(0)
-    return {
-        "Border": border_list,
-        "Border_Times": border_time_list,
-        "Dispatched": dispatched_list,
-    }
-
-# TODO read from config
-min_num_cars_per_train = 5
-target_num_cars_per_train = 30
-
 # Define the main function to generate demand trains with the updated rule
 def generate_trains(
     demand_hourly: pl.DataFrame,
     target_num_cars_per_train:int
 ) -> pl.DataFrame:
-    # Step 1: Create an OD pair column
-    demand_hourly = demand_hourly.with_columns(
-        (pl.col("Origin") + "-" + pl.col("Destination")).alias("OD_Pair")
-    )
-
-    # Step 2: Group data by OD pair and calculate total containers for each pair
-    grouped_data = demand_hourly.group_by("OD_Pair").agg([
-        pl.col("Number_of_Containers").sum().alias("Total_Containers")
-    ])
-
-    # Step 3: Create a dictionary to store the max min_num_cars for each OD pair
-    max_min_cars_dict = {}
-
-    # Calculate min_num_cars for each direction and store the maximum in the dictionary
-    for row in grouped_data.iter_rows():
-        od_pair = row[0]
-        total_containers = row[1]
-
-        remaining_containers = total_containers % target_num_cars_per_train
-        min_num_cars = (
-            total_containers // target_num_cars_per_train + (1 if remaining_containers > 0 else 0)
+    grouped_data = (demand_hourly
+        .with_columns(
+            (pl.col("Origin") + "-" + pl.col("Destination")).alias("OD_Pair")
         )
-
-        # Check the reverse direction
-        reverse_pair = "-".join(od_pair.split("-")[::-1])
-        
-        if reverse_pair in max_min_cars_dict:
-            max_min_cars_dict[od_pair] = max(min_num_cars, max_min_cars_dict[reverse_pair])
-            max_min_cars_dict[reverse_pair] = max_min_cars_dict[od_pair]
-        else:
-            max_min_cars_dict[od_pair] = min_num_cars
+        .group_by("OD_Pair")
+            .agg(
+                pl.col("Number_of_Containers").sum().alias("Total_Containers"),
+                pl.col("Number_of_Containers").sum().mod(target_num_cars_per_train).alias("Remaining_Containers")
+            )
+        .with_columns(
+            pl.col("Total_Containers").truediv(target_num_cars_per_train).round().add(pl.col("Remaining_Containers").gt(0)).alias("Max_Min_Cars")
+        )
+    )
 
     # Prepare a list to collect the results for all OD pairs
     all_dispatch_data = []
     # Step 4: Loop through each unique OD pair to calculate dispatch data
-    for row in grouped_data.iter_rows():
-        od_pair = row[0]  # This is the "OD_Pair" string like "Origin-Destination"
-        total_containers = row[1]  # This is the "Total_Containers" value
+    for row in grouped_data.iter_rows(named=True):
+        od_pair = row['OD_Pair']  # This is the "OD_Pair" string like "Origin-Destination"
+        total_containers = row['Total_Containers']  # This is the "Total_Containers" value
 
         # Filter containers list for the specific OD pair
         containers = demand_hourly.filter(pl.col("OD_Pair") == od_pair).select("Number_of_Containers").to_series().to_list()
 
         # Retrieve the max min_num_cars for this OD pair
-        max_min_cars = max_min_cars_dict[od_pair]
+        max_min_cars = row['Max_Min_Cars']
 
         # Calculate dispatch data for the current OD pair with the updated rule
         dispatch_data = calculate_dispatch_data(total_containers, target_num_cars_per_train, od_pair, containers, max_min_cars)
         
         # Add the OD pair label to each entry in the dispatch data
-        dispatch_data_df = pl.DataFrame(dispatch_data)
+        dispatch_data_df = pl.DataFrame(dispatch_data, strict=False)
         dispatch_data_df = dispatch_data_df.with_columns(pl.lit(od_pair).alias("OD_Pair"))
 
         # Ensure the "Border" column exists and is cast to Float64
@@ -431,7 +355,7 @@ def generate_trains(
         all_dispatch_data.append(dispatch_data_df)
 
     # Combine all dispatch data into a single DataFrame
-    final_dispatch_df = pl.concat(all_dispatch_data, how="diagonal")
+    final_dispatch_df = pl.concat(all_dispatch_data, how="diagonal_relaxed")
   
     return final_dispatch_df
 
@@ -471,6 +395,7 @@ def calculate_dispatches_deterministic_hourly(
     schedule = find_minimum_waiting_time(num_iterations=num_iterations,
         demand_hourly=demand,
         border_time_list=border_time_list,
+        target_num_cars_per_train=config.target_num_cars_per_train['Intermodal'] #TODO make this flexible
     )
     return schedule
 
@@ -500,9 +425,9 @@ def generate_dispatch_details(
     grouping_vars = ["Origin", "Destination", "Train_Type"]
     schedule = (demand
         .select(pl.exclude("Number_of_Trains").repeat_by("Number_of_Trains").explode())
-        .pipe(utilities.allocateItems, target = "Number_of_Cars_Loaded", grouping_vars = grouping_vars)
+        .pipe(utilities.allocateIntegerEvenly, target = "Number_of_Cars_Loaded", grouping_vars = grouping_vars)
         .drop("Percent_Within_Group_Cumulative")
-        .pipe(utilities.allocateItems, target = "Number_of_Cars_Empty", grouping_vars = grouping_vars)
+        .pipe(utilities.allocateIntegerEvenly, target = "Number_of_Cars_Empty", grouping_vars = grouping_vars)
         .group_by(pl.exclude("Number_of_Cars_Empty", "Number_of_Cars_Loaded"))
             .agg(pl.col("Number_of_Cars_Empty", "Number_of_Cars_Loaded"))
         .with_columns(pl.col("Number_of_Cars_Loaded").list.sort(descending=True),

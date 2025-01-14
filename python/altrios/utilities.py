@@ -195,7 +195,7 @@ def cumPctWithinGroup(
         )
     )
 
-def allocateItems(
+def allocateIntegerEvenly(
     df: Union[pl.DataFrame, pl.LazyFrame], 
     target: str, 
     grouping_vars: List[str]
@@ -213,6 +213,24 @@ def allocateItems(
     )
     .drop(f'{target}_Group_Cumulative')
 )
+    
+def allocateItems(
+    df: Union[pl.DataFrame, pl.LazyFrame], 
+    grouping_vars: list[str], 
+    count_target: str
+) -> Union[pl.DataFrame, pl.LazyFrame]:
+    return (df
+        .sort(grouping_vars+ [count_target], descending = True)
+        .with_columns(
+            pl.col(count_target).sum().over(grouping_vars).round().alias(f'{count_target}_Group'),
+            (pl.col(count_target).sum().over(grouping_vars).round() * 
+                (
+                    pl.col(count_target).cum_sum().over(grouping_vars) / 
+                    pl.col(count_target).sum().over(grouping_vars)
+                )
+            ).round().alias(f'{count_target}_Group_Cumulative'))
+        .with_columns((pl.col(f'{count_target}_Group_Cumulative') - pl.col(f'{count_target}_Group_Cumulative').shift(1).over(grouping_vars)).fill_null(pl.col(f'{count_target}_Group_Cumulative')).alias("Count"))
+    )
 
 def resample(
     df: pd.DataFrame,

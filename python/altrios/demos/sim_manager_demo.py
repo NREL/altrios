@@ -1,8 +1,11 @@
 # %%
 from altrios import sim_manager
-from altrios import utilities, defaults, train_planner
+from altrios import utilities, defaults
 import altrios as alt
+from altrios.lifts import lifts_simulator
+from altrios.train_planner import planner_config
 import numpy as np
+import polars as pl
 import matplotlib.pyplot as plt
 import time
 import seaborn as sns
@@ -34,9 +37,9 @@ print(
     f"Elapsed time to import rail vehicles, locations, and network: {t1_import - t0_import:.3g} s"
 )
 
-train_planner_config = train_planner.TrainPlannerConfig(
-            cars_per_locomotive=50,
-            target_cars_per_train=90)
+train_planner_config = planner_config.TrainPlannerConfig(
+            cars_per_locomotive={"Default": 50},
+            target_cars_per_train={"Default": 90})
 
 t0_main = time.perf_counter()
 
@@ -55,6 +58,11 @@ t0_main = time.perf_counter()
     train_planner_config=train_planner_config,
     debug=True,
 )
+
+train_consist_plan_csv = pl.read_csv('C:/Users/mbruchon/Downloads/simulation_operation/lifts/results/train_consist_plan.csv')
+container_data = lifts_simulator.run_simulation(
+    train_consist_plan = train_consist_plan_csv, 
+    terminal = "Allouez")
 
 t1_main = time.perf_counter()
 print(f"Elapsed time to run `sim_manager.main()`: {t1_main-t0_main:.3g} s")

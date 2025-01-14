@@ -1217,3 +1217,5 @@ code\ meetings
 altrios/resources/networks/Scenic - ALTRIOS Confidential.yaml
 altrios/dispatch/*.json
 activate.sh
+*.xlsx
+altrios/*.txt

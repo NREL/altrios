@@ -819,6 +819,7 @@ class SpeedLimitTrainSim(SerdeAPI):
     origs: List[Location]
     dests: List[Location]
     loco_con: Consist
+    n_cars_by_type: Dict[str, int]
     state: TrainState
     # train_res: TrainRes # not accessible in Python
     path_tpc: PathTpc
@@ -833,6 +834,7 @@ class SpeedLimitTrainSim(SerdeAPI):
     def __init__(
         cls,
         loco_con: Consist,
+        n_cars_by_type: Dict[str, int],
         state: TrainState,
         train_res_file: Optional[str],
         path_tpc_file: Optional[str],

@@ -69,25 +69,24 @@ class LiftsState:
     def initialize_from_consist_plan(self, train_consist_plan):
         self.train_consist_plan = train_consist_plan
         self.TRAIN_TIMETABLE = train_arrival_parameters(self.train_consist_plan, self.terminal) # a dictionary
-        self.TRAIN_ID = int(self.TRAIN_TIMETABLE['train_id'])
-        self.CARS_LOADED_ARRIVAL = int(float(self.TRAIN_TIMETABLE['full_cars']))
-        self.CARS_EMPTY_ARRIVAL = int(float(self.TRAIN_TIMETABLE['empty_cars']))
-        self.TRAIN_ARRIVAL_HR = self.TRAIN_TIMETABLE['arrival_time']
-        self.TRAIN_DEPARTURE_HR = self.TRAIN_TIMETABLE['departure_time']
-        self.TRAIN_UNITS = self.CARS_LOADED_ARRIVAL + self.CARS_EMPTY_ARRIVAL
-        self.TRAIN_SPOTS = self.TRAIN_UNITS
-
-        # Containers
-        self.INBOUND_CONTAINER_NUMBER = self.CARS_LOADED_ARRIVAL
-        #df = outbound_containers()
-        # TODO: confirm expected source of Outbound_Num; expected input file not available
-        self.OUTBOUND_CONTAINER_NUMBER = self.INBOUND_CONTAINER_NUMBER  #df.loc[df['Train_ID'] == TRAIN_ID, 'Outbound_Num'].values[0]
-
-        # Chassis
-        self.CHASSIS_NUMBER = self.TRAIN_UNITS
-
-        # Trucks
-        self.TRUCK_NUMBERS = max(self.INBOUND_CONTAINER_NUMBER, self.OUTBOUND_CONTAINER_NUMBER)
+        # self.CARS_LOADED_ARRIVAL = int(float(self.TRAIN_TIMETABLE['full_cars']))
+        # self.CARS_EMPTY_ARRIVAL = int(float(self.TRAIN_TIMETABLE['empty_cars']))
+        # self.TRAIN_ARRIVAL_HR = self.TRAIN_TIMETABLE['arrival_time']
+        # self.TRAIN_DEPARTURE_HR = self.TRAIN_TIMETABLE['departure_time']
+        # self.TRAIN_UNITS = self.CARS_LOADED_ARRIVAL + self.CARS_EMPTY_ARRIVAL
+        # self.TRAIN_SPOTS = self.TRAIN_UNITS
+        #
+        # # Containers
+        # self.INBOUND_CONTAINER_NUMBER = self.CARS_LOADED_ARRIVAL
+        # #df = outbound_containers()
+        # # TODO: confirm expected source of Outbound_Num; expected input file not available
+        # self.OUTBOUND_CONTAINER_NUMBER = self.INBOUND_CONTAINER_NUMBER  #df.loc[df['Train_ID'] == TRAIN_ID, 'Outbound_Num'].values[0]
+        #
+        # # Chassis
+        # self.CHASSIS_NUMBER = self.TRAIN_UNITS
+        #
+        # # Trucks
+        # self.TRUCK_NUMBERS = max(self.INBOUND_CONTAINER_NUMBER, self.OUTBOUND_CONTAINER_NUMBER)
 
     def initialize(self):
         self.CRANE_LOAD_CONTAINER_TIME_MEAN = (self.CONTAINERS_PER_CAR*(2*self.CONTAINER_TAL+self.CONTAINER_WID))/self.CONTAINERS_PER_CRANE_MOVE_MEAN   # hr

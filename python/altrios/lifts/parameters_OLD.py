@@ -87,8 +87,6 @@ class LiftsState:
     def initialize_from_consist_plan(self, train_consist_plan):
         self.train_consist_plan = train_consist_plan
         self.TRAIN_TIMETABLE = train_arrival_parameters(self.train_consist_plan, self.terminal, self.train_id_counter)
-        self.TRAIN_ID = int(self.TRAIN_TIMETABLE['train_id'])
-        self.TRAIN_ID_FIXED = 0
         self.CARS_LOADED_ARRIVAL = int(float(self.TRAIN_TIMETABLE['full_cars']))
         self.CARS_EMPTY_ARRIVAL = int(float(self.TRAIN_TIMETABLE['empty_cars']))
         self.TRAIN_ARRIVAL_HR = self.TRAIN_TIMETABLE['arrival_time']

@@ -2,7 +2,7 @@ import simpy
 import random
 import polars as pl
 from altrios.lifts import utilities
-from altrios.lifts.parameters import *
+from altrios.lifts.demo_parameters import *
 from altrios.lifts.distances import *
 from altrios.lifts.dictionary import *
 from altrios.lifts.schedule import *

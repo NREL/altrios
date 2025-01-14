@@ -1,7 +1,7 @@
 import simpy
 import random
 import pandas as pd
-from parameters import *
+from demo_parameters import *
 from distances import *
 from dictionary import *
 from vehicle_performance import record_vehicle_event, save_average_times, save_vehicle_logs

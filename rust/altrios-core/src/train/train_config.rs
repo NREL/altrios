@@ -844,11 +844,7 @@ pub fn run_speed_limit_train_sims(
         ])
         .sort_by_exprs(
             vec![col("Arrival_Time_Actual_Hr"), col("Locomotive_ID")],
-            // TODO: Matt, please verify this next line and remove the subsequent commented lines
             SortMultipleOptions::default(),
-            // vec![false, false],
-            // false,
-            // false,
         )
         .collect()
         .with_context(|| format_dbg!())?;
@@ -883,13 +879,10 @@ pub fn run_speed_limit_train_sims(
     while !done {
         let arrivals_mask = arrival_times
             .column("Arrival_Time_Actual_Hr")?
-            .equal(
-                // TODO: Matt, check if there's a better way to do this
-                &Column::new(
-                    "current_time_const".into(),
-                    vec![current_time; arrival_times.height()],
-                ),
-            )
+            .equal(&Column::new(
+                "current_time_const".into(),
+                vec![current_time; arrival_times.height()],
+            ))
             .with_context(|| format_dbg!())?;
         let arrivals = arrival_times
             .clone()
@@ -1061,10 +1054,10 @@ pub fn run_speed_limit_train_sims(
                 let idx_mask = arrival_times
                     .column("TrainSimVec_Index")
                     .with_context(|| format_dbg!())?
-                    .equal(
-                        // TODO: Matt, check if there's a better way to do this
-                        &Column::new("idx_const".into(), vec![idx as u32; arrival_times.height()]),
-                    )
+                    .equal(&Column::new(
+                        "idx_const".into(),
+                        vec![idx as u32; arrival_times.height()],
+                    ))
                     .with_context(|| format_dbg!())?;
                 let arrival_locos = arrival_times
                     .filter(&idx_mask)
@@ -1088,7 +1081,6 @@ pub fn run_speed_limit_train_sims(
                 let arrival_loco_indices: Vec<usize> = arrival_loco_mask
                     .into_iter()
                     .enumerate()
-                    // TODO: Matt, help Chad figure out what to replace `unwrap_or_default` with
                     .filter(|(_, val)| val.unwrap_or_default())
                     .map(|(i, _)| i)
                     .collect();
@@ -1134,13 +1126,10 @@ pub fn run_speed_limit_train_sims(
             & (loco_pool)
                 .column("Ready_Time_Est")
                 .with_context(|| format_dbg!())?
-                .equal(
-                    // TODO: Matt, remove this `Column::new` if you find a better way
-                    &Column::new(
-                        "current_time_const".into(),
-                        vec![current_time; refueling_mask.len()],
-                    ),
-                )
+                .equal(&Column::new(
+                    "current_time_const".into(),
+                    vec![current_time; refueling_mask.len()],
+                ))
                 .with_context(|| format_dbg!())?;
         let refueling_finished = loco_pool
             .clone()
@@ -1166,8 +1155,6 @@ pub fn run_speed_limit_train_sims(
                     "Node",
                     "Locomotive_Type",
                     "Fuel_Type",
-                    // TODO: Matt, please check that `cumsum(false)` that I removed
-                    // from the next line was not doing anything important
                 ])) + (col("Status").eq(lit("Queued")).over([
                     "Node",
                     "Locomotive_Type",

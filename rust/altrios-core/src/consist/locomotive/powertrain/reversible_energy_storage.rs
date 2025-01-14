@@ -186,7 +186,10 @@ pub struct ReversibleEnergyStorage {
     pub soc_lo_ramp_start: Option<si::Ratio>,
     /// Time step interval at which history is saved
     pub save_interval: Option<usize>,
-    #[serde(default)]
+    #[serde(
+        skip_serializing_if = "ReversibleEnergyStorageStateHistoryVec::is_empty",
+        default
+    )]
     /// Custom vector of [Self::state]
     pub history: ReversibleEnergyStorageStateHistoryVec,
 }

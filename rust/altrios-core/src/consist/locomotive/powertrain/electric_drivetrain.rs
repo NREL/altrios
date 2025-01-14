@@ -76,7 +76,10 @@ pub struct ElectricDrivetrain {
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
-    #[serde(default)]
+    #[serde(
+        skip_serializing_if = "ElectricDrivetrainStateHistoryVec::is_empty",
+        default
+    )]
     pub history: ElectricDrivetrainStateHistoryVec,
 }
 

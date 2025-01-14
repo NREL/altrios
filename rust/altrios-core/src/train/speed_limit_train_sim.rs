@@ -152,8 +152,8 @@ pub struct SpeedLimitTrainSim {
     #[api(skip_set)]
     pub braking_points: BrakingPoints,
     pub fric_brake: FricBrake,
-    #[serde(default)]
     /// Custom vector of [Self::state]
+    #[serde(skip_serializing_if = "TrainStateHistoryVec::is_empty", default)]
     pub history: TrainStateHistoryVec,
     #[api(skip_set, skip_get)]
     save_interval: Option<usize>,

@@ -289,8 +289,8 @@ pub struct SetSpeedTrainSim {
     pub train_res: TrainRes,
     #[api(skip_set)]
     path_tpc: PathTpc,
-    #[serde(default)]
     /// Custom vector of [Self::state]
+    #[serde(skip_serializing_if = "TrainStateHistoryVec::is_empty", default)]
     pub history: TrainStateHistoryVec,
     #[api(skip_set, skip_get)]
     save_interval: Option<usize>,

@@ -617,7 +617,7 @@ pub struct Locomotive {
     #[api(skip_set, skip_get)]
     save_interval: Option<usize>,
     /// Custom vector of [Self::state]
-    #[serde(default)]
+    #[serde(skip_serializing_if = "LocomotiveStateHistoryVec::is_empty", default)]
     pub history: LocomotiveStateHistoryVec,
     #[serde(default = "utils::return_true")]
     /// If true, requires power demand to not exceed consist

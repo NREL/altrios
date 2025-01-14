@@ -115,6 +115,7 @@ pub struct Consist {
     #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ConsistState,
+    #[serde(skip_serializing_if = "ConsistStateHistoryVec::is_empty", default)]
     /// Custom vector of [Self::state]
     pub history: ConsistStateHistoryVec,
     #[api(skip_set, skip_get)] // custom needed for this

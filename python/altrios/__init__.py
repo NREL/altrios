@@ -105,23 +105,22 @@ def variable_path_list_from_py_objs(
     
     return key_paths
 
-def history_path_list(self, element_as_list: bool = False) -> List[str]:
+def history_path_list(self, element_as_list:bool=False) -> List[str]:
     """
     Returns a list of relative paths to all history variables (all variables
     that contain history as a subpath). 
-    See example usage in `fastsim/demos/demo_variable_paths.py`.
+    See example usage in `altrios/demo_data/demo_variable_paths.py`.
 
     # Arguments
     - `element_as_list`: if True, each element is itself a list of the path elements
     """
-    var_paths = self.variable_path_list(element_as_list=element_as_list)
-    history_path_list = []
-    for key in var_paths:
-        if (("history" in key_as_str(key)) or is_cyc_key(key)):
-            history_path_list.append(key)
+    item_str = lambda item: item if not element_as_list else ".".join(item)
+    history_path_list = [
+        item for item in self.variable_path_list(
+            element_as_list=element_as_list) if "history" in item_str(item)
+    ]
+    return history_path_list            
 
-    return history_path_list
-            
 # TODO connect to crate features
 data_formats = [
     'yaml',
@@ -160,69 +159,60 @@ def to_pydict(self, data_fmt: str = "msg_pack", flatten: bool = False) -> Dict:
         return next(iter(pd.json_normalize(pydict, sep=".").to_dict(orient='records')))
 
 @classmethod
-def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack") -> Self:
+def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack", skip_init: bool = True) -> Self:
     """
     Instantiates Self from pure python dictionary 
     # Arguments
     - `pydict`: dictionary to be converted to ALTRIOS object
-    - `data_fmt`: data format for intermediate conversion step
+    - `data_fmt`: data format for intermediate conversion step  
+    - `skip_init`: passed to `SerdeAPI` methods to control whether initialization
+      is skipped
     """
     data_fmt = data_fmt.lower()
     assert data_fmt in data_formats, f"`data_fmt` must be one of {data_formats}"
     match data_fmt.lower():
         case "yaml":
             import yaml
-            obj = cls.from_yaml(yaml.dump(pydict), skip_init=False)
+            obj = cls.from_yaml(yaml.dump(pydict), skip_init=skip_init)
         case "msg_pack":
             import msgpack
             try:
-                obj = cls.from_msg_pack(msgpack.packb(pydict))
+                obj = cls.from_msg_pack(
+                    msgpack.packb(pydict), skip_init=skip_init)
             except Exception as err:
                 print(
                     f"{err}\nFalling back to YAML.")
-                obj = cls.from_pydict(pydict, data_fmt="yaml")
+                obj = cls.from_pydict(
+                    pydict, data_fmt="yaml", skip_init=skip_init)
         case "json":
             from json import dumps
-            obj = cls.from_json(dumps(pydict))
+            obj = cls.from_json(dumps(pydict), skip_init=skip_init)
 
     return obj
 
-def to_dataframe(self, pandas: bool = False, allow_partial: bool = False) -> Union[pd.DataFrame, pl.DataFrame]:
+def to_dataframe(self, pandas:bool=False) -> [pd.DataFrame, pl.DataFrame, pl.LazyFrame]:
     """
-    Returns time series results from fastsim object as a Polars or Pandas dataframe.
+    Returns time series results from altrios object as a Polars or Pandas dataframe.
 
     # Arguments
     - `pandas`: returns pandas dataframe if True; otherwise, returns polars dataframe by default
-    - `allow_partial`: returns dataframe of length equal to solved time steps if simulation fails early
     """
-    obj_dict = self.to_pydict(flatten=False)
-    history_paths = self.history_path_list(element_as_list=True)
+    obj_dict = self.to_pydict()
+    history_paths = self.history_path_list(element_as_list=True)   
     cols = [".".join(hp) for hp in history_paths]
     vals = []
     for hp in history_paths:
-        obj: Union[dict | list] = obj_dict
+        obj:Union[dict|list] = obj_dict
         for elem in hp:
-            try:
+            try: 
                 obj = obj[elem]
-            except Exception:
-                try:
-                    obj = obj[int(elem)]
-                except Exception as err:
-                    raise err
+            except:
+                obj = obj[int(elem)]
         vals.append(obj)
-    if allow_partial:
-        cutoff = min([len(val) for val in vals])
-        if not pandas:
-            df = pl.DataFrame({col: val[:cutoff]
-                              for col, val in zip(cols, vals)})
-        else:
-            df = pd.DataFrame({col: val[:cutoff]
-                              for col, val in zip(cols, vals)})
+    if not pandas:
+        df = pl.DataFrame({col: val for col, val in zip(cols, vals)})
     else:
-        if not pandas:
-            df = pl.DataFrame({col: val for col, val in zip(cols, vals)})
-        else:
-            df = pd.DataFrame({col: val for col, val in zip(cols, vals)})
+        df = pd.DataFrame({col: val for col, val in zip(cols, vals)})
     return df
 
 # adds variable_path_list() and history_path_list() as methods to all classes in

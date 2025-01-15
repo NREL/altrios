@@ -197,7 +197,7 @@ pub struct ReversibleEnergyStorage {
 impl Default for ReversibleEnergyStorage {
     fn default() -> Self {
         let file_contents = include_str!("reversible_energy_storage.default.yaml");
-        let mut res = Self::from_yaml(file_contents).unwrap();
+        let mut res = Self::from_yaml(file_contents, false).unwrap();
         res.state.soc = res.max_soc;
         res
     }

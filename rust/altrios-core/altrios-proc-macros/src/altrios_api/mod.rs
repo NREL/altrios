@@ -38,11 +38,18 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             self.to_str(format)
         }
 
-        /// See [SerdeAPI::from_str]
+        /// Read (deserialize) an object from a string
+        ///
+        /// # Arguments:
+        ///
+        /// * `contents`: `str` - The string containing the object data
+        /// * `format`: `str` - The source format, any of those listed in [`ACCEPTED_STR_FORMATS`](`SerdeAPI::ACCEPTED_STR_FORMATS`)
+        ///
         #[staticmethod]
         #[pyo3(name = "from_str")]
-        pub fn from_str_py(contents: &str, format: &str) -> anyhow::Result<Self> {
-            Self::from_str(contents, format)
+        #[pyo3(signature = (contents, format, skip_init=None))]
+        pub fn from_str_py(contents: &str, format: &str, skip_init: Option<bool>) -> PyResult<Self> {
+            Ok(SerdeAPI::from_str(contents, format, skip_init.unwrap_or_default())?)
         }
 
         /// See [SerdeAPI::to_json]
@@ -51,11 +58,17 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             self.to_json()
         }
 
-        /// See [SerdeAPI::from_json]
+        /// Read (deserialize) an object from a JSON string
+        ///
+        /// # Arguments
+        ///
+        /// * `json_str`: `str` - JSON-formatted string to deserialize from
+        ///
         #[staticmethod]
         #[pyo3(name = "from_json")]
-        fn from_json_py(json_str: &str) -> anyhow::Result<Self> {
-            Self::from_json(json_str)
+        #[pyo3(signature = (json_str, skip_init=None))]
+        pub fn from_json_py(json_str: &str, skip_init: Option<bool>) -> PyResult<Self> {
+            Ok(Self::from_json(json_str, skip_init.unwrap_or_default())?)
         }
 
         /// See [SerdeAPI::to_yaml]
@@ -64,11 +77,17 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             self.to_yaml()
         }
 
-        /// See [SerdeAPI::from_yaml]
+        /// Read (deserialize) an object from a YAML string
+        ///
+        /// # Arguments
+        ///
+        /// * `yaml_str`: `str` - YAML-formatted string to deserialize from
+        ///
         #[staticmethod]
         #[pyo3(name = "from_yaml")]
-        fn from_yaml_py(yaml_str: &str) -> anyhow::Result<Self> {
-            Self::from_yaml(yaml_str)
+        #[pyo3(signature = (yaml_str, skip_init=None))]
+        pub fn from_yaml_py(yaml_str: &str, skip_init: Option<bool>) -> PyResult<Self> {
+            Ok(Self::from_yaml(yaml_str, skip_init.unwrap_or_default())?)
         }
 
         /// Write (serialize) an object to a message pack
@@ -160,14 +179,15 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             ///
             #[staticmethod]
             #[pyo3(name = "from_file")]
-            pub fn from_file_py(filepath: &Bound<PyAny>) -> anyhow::Result<Self> {
-                Self::from_file(PathBuf::extract_bound(filepath)?)
+            #[pyo3(signature = (filepath, skip_init=None))]
+            pub fn from_file_py(filepath: &Bound<PyAny>, skip_init: Option<bool>) -> PyResult<Self> {
+                Ok(Self::from_file(PathBuf::extract_bound(filepath)?, skip_init.unwrap_or_default())?)
             }
         }
     };
     let mut final_output = TokenStream2::default();
     final_output.extend::<TokenStream2>(quote! {
-        #[cfg_attr(feature="pyo3", pyclass(module="altrios_pyo3", subclass))]
+        #[cfg_attr(feature="pyo3", pyclass(module="altrios_pyo3", subclass, eq))]
     });
     let mut output: TokenStream2 = ast.to_token_stream();
     output.extend(impl_block);

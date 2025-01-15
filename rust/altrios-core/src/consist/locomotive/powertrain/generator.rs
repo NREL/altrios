@@ -306,7 +306,7 @@ impl Generator {
 impl Default for Generator {
     fn default() -> Self {
         let file_contents = include_str!("generator.default.yaml");
-        Self::from_yaml(file_contents).unwrap()
+        Self::from_yaml(file_contents, false).unwrap()
     }
 }
 

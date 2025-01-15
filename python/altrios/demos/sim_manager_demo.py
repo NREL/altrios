@@ -23,7 +23,7 @@ plot_dir.mkdir(exist_ok=True)
 t0_import = time.perf_counter()
 t0_total = time.perf_counter()
 
-rail_vehicles=[alt.RailVehicle.from_file(vehicle_file) 
+rail_vehicles=[alt.RailVehicle.from_file(vehicle_file, skip_init=false) 
                for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob('*.yaml')]
 
 location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")

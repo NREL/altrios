@@ -101,7 +101,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 
     #[pyo3(name = "extend_path")]
     pub fn extend_path_py(&mut self, network_file_path: String, link_path: Vec<LinkIdx>) -> anyhow::Result<()> {
-        let network = Vec::<Link>::from_file(network_file_path).unwrap();
+        let network = Vec::<Link>::from_file(network_file_path, false).unwrap();
 
         self.extend_path(&network, &link_path)?;
         Ok(())

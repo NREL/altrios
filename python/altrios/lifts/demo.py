@@ -114,6 +114,8 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
         ic_id = yield terminal.chassis.get(lambda x: isinstance(x, int))
 
         # Hostler puts IC to the closest parking lot
+        travel_time_to_parking = state.HOSTLER_TRANSPORT_CONTAINER_TIME
+        yield env.timeout(travel_time_to_parking)
         print(f"Time {env.now}: Hostler picked up IC {ic_id} and is heading to parking slot.")
         record_event(ic_id, 'hostler_pickup', env.now)
 
@@ -124,7 +126,7 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
 
         # Test: status for chassis
         print("Containers on chassis (hostler picking-up IC):", terminal.chassis.items)
-        print("# of IC", sum(str(item).isdigit() for item in terminal.chassis.items))
+        print("# of IC on chassis:", sum(str(item).isdigit() for item in terminal.chassis.items))
 
         # Hostler drop off IC to parking slot
         travel_time_to_parking = state.HOSTLER_TRANSPORT_CONTAINER_TIME
@@ -145,8 +147,8 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
         print(f"Time {env.now}: Hostler is going to pick up OC {oc}")
 
         # Test: OC remaining before hostlers pick up OCs
-        print(f"Hostler: {terminal.hostlers.count}")
-        print(f"OC remains: {terminal.oc_store.items}")
+        print(f"Hostlers: {terminal.hostlers.count}")
+        print(f"OC remains (oc_store): {terminal.oc_store.items}")
 
         # The hostler picks up an OC
         travel_time_to_oc = state.HOSTLER_FIND_CONTAINER_TIME

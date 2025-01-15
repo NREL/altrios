@@ -32,7 +32,7 @@ class LiftsState:
 
     # Fixed: Hostler parameters
     # HOSTLER_NUMBER = int(input("Enter the number of hostler: "))
-    HOSTLER_NUMBER: int = 2
+    HOSTLER_NUMBER: int = 1
     # Fixed hostler travel time (** will update with density-speed/time functions later soon)
     CONTAINERS_PER_HOSTLER: int = 1  # hostler capacity
     HOSTLER_SPEED_LIMIT: float = 20*5280   # hostler speed: ft/hr

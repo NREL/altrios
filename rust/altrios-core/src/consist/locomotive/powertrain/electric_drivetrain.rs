@@ -77,8 +77,8 @@ pub struct ElectricDrivetrain {
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
     #[serde(
-        skip_serializing_if = "ElectricDrivetrainStateHistoryVec::is_empty",
-        default
+        default,
+        skip_serializing_if = "ElectricDrivetrainStateHistoryVec::is_empty"
     )]
     pub history: ElectricDrivetrainStateHistoryVec,
 }

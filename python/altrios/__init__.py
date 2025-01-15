@@ -121,25 +121,70 @@ def history_path_list(self, element_as_list:bool=False) -> List[str]:
     ]
     return history_path_list
             
-def to_pydict(self) -> Dict:
+# TODO connect to crate features
+data_formats = [
+    'yaml',
+    'msg_pack',
+    # 'toml',
+    'json',
+]
+
+def to_pydict(self, data_fmt: str = "msg_pack", flatten: bool = False) -> Dict:
     """
     Returns self converted to pure python dictionary with no nested Rust objects
+    # Arguments
+    - `flatten`: if True, returns dict without any hierarchy
+    - `data_fmt`: data format for intermediate conversion step
     """
-    from yaml import load
-    try:
-        from yaml import CLoader as Loader
-    except ImportError:
-        from yaml import Loader
-    pydict = load(self.to_yaml(), Loader = Loader)
-    return pydict
+    data_fmt = data_fmt.lower()
+    assert data_fmt in data_formats, f"`data_fmt` must be one of {data_formats}"
+    match data_fmt:
+        case "msg_pack":
+            import msgpack
+            pydict = msgpack.loads(self.to_msg_pack())
+        case "yaml":
+            from yaml import load
+            try:
+                from yaml import CLoader as Loader
+            except ImportError:
+                from yaml import Loader
+            pydict = load(self.to_yaml(), Loader=Loader)
+        case "json":
+            from json import loads
+            pydict = loads(self.to_json())
+
+    if not flatten:
+        return pydict
+    else:
+        return next(iter(pd.json_normalize(pydict, sep=".").to_dict(orient='records')))
 
 @classmethod
-def from_pydict(cls, pydict: Dict) -> Self:
+def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack") -> Self:
     """
     Instantiates Self from pure python dictionary 
+    # Arguments
+    - `pydict`: dictionary to be converted to ALTRIOS object
+    - `data_fmt`: data format for intermediate conversion step
     """
-    import yaml
-    return cls.from_yaml(yaml.dump(pydict),skip_init=False)
+    data_fmt = data_fmt.lower()
+    assert data_fmt in data_formats, f"`data_fmt` must be one of {data_formats}"
+    match data_fmt.lower():
+        case "yaml":
+            import yaml
+            obj = cls.from_yaml(yaml.dump(pydict), skip_init=False)
+        case "msg_pack":
+            import msgpack
+            try:
+                obj = cls.from_msg_pack(msgpack.packb(pydict))
+            except Exception as err:
+                print(
+                    f"{err}\nFalling back to YAML.")
+                obj = cls.from_pydict(pydict, data_fmt="yaml")
+        case "json":
+            from json import dumps
+            obj = cls.from_json(dumps(pydict))
+
+    return obj
 
 def to_dataframe(self, pandas:bool=False) -> [pd.DataFrame, pl.DataFrame, pl.LazyFrame]:
     """

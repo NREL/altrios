@@ -75,8 +75,8 @@ pub struct FuelConverter {
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
     #[serde(
-        skip_serializing_if = "FuelConverterStateHistoryVec::is_empty",
-        default
+        default,
+        skip_serializing_if = "FuelConverterStateHistoryVec::is_empty"
     )]
     pub history: FuelConverterStateHistoryVec, // TODO: spec out fuel tank size and track kg of fuel
 }

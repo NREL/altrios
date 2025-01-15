@@ -249,6 +249,27 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
         Ok(serde_yaml::to_string(&self)?)
     }
 
+    /// Write (serialize) an object to a message pack
+    #[cfg(feature = "msgpack")]
+    fn to_msg_pack(&self) -> anyhow::Result<Vec<u8>> {
+        Ok(rmp_serde::encode::to_vec_named(&self)?)
+    }
+
+    /// Read (deserialize) an object from a message pack
+    ///
+    /// # Arguments
+    ///
+    /// * `msg_pack` - message pack object
+    ///
+    #[cfg(feature = "msgpack")]
+    fn from_msg_pack(msg_pack: &[u8], skip_init: bool) -> anyhow::Result<Self> {
+        let mut msg_pack_de: Self = rmp_serde::decode::from_slice(msg_pack)?;
+        if !skip_init {
+            msg_pack_de.init()?;
+        }
+        Ok(msg_pack_de)
+    }
+
     /// Read (deserialize) an object from a YAML string
     ///
     /// # Arguments

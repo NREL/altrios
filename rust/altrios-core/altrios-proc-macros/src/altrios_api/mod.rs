@@ -71,6 +71,30 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             Self::from_yaml(yaml_str)
         }
 
+        /// Write (serialize) an object to a message pack
+        #[cfg(feature = "msgpack")]
+        #[pyo3(name = "to_msg_pack")]
+        // TODO: figure from Kyle out how to use `PyIOError`
+        pub fn to_msg_pack_py(&self) -> anyhow::Result<Vec<u8>> {
+            self.to_msg_pack()
+        }
+
+        /// Read (deserialize) an object from a message pack
+        ///
+        /// # Arguments
+        /// * `msg_pack`: message pack
+        #[cfg(feature = "msgpack")]
+        #[staticmethod]
+        #[pyo3(name = "from_msg_pack")]
+        #[pyo3(signature = (msg_pack, skip_init=None))]
+        // TODO: figure from Kyle out how to use `PyIOError`
+        pub fn from_msg_pack_py(msg_pack: &Bound<PyBytes>, skip_init: Option<bool>) -> anyhow::Result<Self> {
+            Self::from_msg_pack(
+                msg_pack.as_bytes(), 
+                skip_init.unwrap_or_default()
+            )
+        }
+
         /// See [SerdeAPI::to_bincode]
         #[pyo3(name = "to_bincode")]
         fn to_bincode_py<'py>(&self, py: Python<'py>) -> PyResult<Vec<u8>> {

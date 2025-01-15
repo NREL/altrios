@@ -13,8 +13,8 @@ def migrate_network() -> Tuple[alt.Network, alt.Network]:
     old_network_path = alt.resources_root() / "networks/Taconite_v0.1.6.yaml"
     new_network_path = alt.resources_root() / "networks/Taconite.yaml"
 
-    network_from_old = alt.Network.from_file(old_network_path, skip_init=false)
-    network_from_new = alt.Network.from_file(new_network_path, skip_init=false)
+    network_from_old = alt.Network.from_file(old_network_path, skip_init=False)
+    network_from_new = alt.Network.from_file(new_network_path, skip_init=False)
 
     # `network_from_old` could be used to overwrite the file in the new format with 
     # ```

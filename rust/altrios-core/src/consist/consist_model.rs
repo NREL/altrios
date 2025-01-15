@@ -58,7 +58,7 @@ use super::*;
         );
     }
 
-    fn get_hct(&self) -> String {
+    fn get_pdct(&self) -> String {
         // make a `describe` function
         match &self.pdct {
             PowerDistributionControlType::RESGreedy(val) => format!("{val:?}"),

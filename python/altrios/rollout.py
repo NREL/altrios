@@ -59,13 +59,13 @@ def simulate_prescribed_rollout(
         else:
             demand_paths.append(demand_file)
 
-    rail_vehicles=[alt.RailVehicle.from_file(vehicle_file, skip_init=false) 
+    rail_vehicles=[alt.RailVehicle.from_file(vehicle_file, skip_init=False) 
                 for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob('*.yaml')]
 
     location_map = alt.import_locations(
         str(alt.resources_root() / "networks/default_locations.csv")
     )
-    network = alt.Network.from_file(network_filename_path, skip_init=false)
+    network = alt.Network.from_file(network_filename_path, skip_init=False)
     sim_days = defaults.SIMULATION_DAYS
     scenarios = []
     for idx, scenario_year in enumerate(years):

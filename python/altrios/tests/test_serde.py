@@ -117,6 +117,9 @@ def test_pydict():
     print(f"Elapsed time for json: {t_json:.3e} ns ")
     print(f"JSON time per MessagePack time: {(t_json / t_msg):.3e} ")
 
-    # `to_yaml` is probably needed because of NAN variables
-    assert ts_msg == ts
-    assert ts_yaml == ts
+    # `to_pydict` is necessary because of some funkiness with direct equality comparison
+    assert ts_msg.to_pydict() == ts.to_pydict()
+    assert ts_yaml.to_pydict() == ts.to_pydict()
+
+if __name__ == "__main__":
+    test_pydict()

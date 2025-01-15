@@ -102,7 +102,7 @@ pub struct Generator {
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
-    #[serde(skip_serializing_if = "GeneratorStateHistoryVec::is_empty", default)]
+    #[serde(default, skip_serializing_if = "GeneratorStateHistoryVec::is_empty")]
     pub history: GeneratorStateHistoryVec,
 }
 

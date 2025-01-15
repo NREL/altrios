@@ -187,8 +187,8 @@ pub struct ReversibleEnergyStorage {
     /// Time step interval at which history is saved
     pub save_interval: Option<usize>,
     #[serde(
-        skip_serializing_if = "ReversibleEnergyStorageStateHistoryVec::is_empty",
-        default
+        default,
+        skip_serializing_if = "ReversibleEnergyStorageStateHistoryVec::is_empty"
     )]
     /// Custom vector of [Self::state]
     pub history: ReversibleEnergyStorageStateHistoryVec,

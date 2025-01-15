@@ -75,8 +75,8 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[cfg(feature = "msgpack")]
         #[pyo3(name = "to_msg_pack")]
         // TODO: figure from Kyle out how to use `PyIOError`
-        pub fn to_msg_pack_py(&self) -> anyhow::Result<Vec<u8>> {
-            self.to_msg_pack()
+        pub fn to_msg_pack_py<'py>(&self, py: Python<'py>) -> anyhow::Result<Bound<'py, PyBytes>> {
+            Ok(PyBytes::new_bound(py, &self.to_msg_pack()?))
         }
 
         /// Read (deserialize) an object from a message pack

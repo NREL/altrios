@@ -35,7 +35,7 @@ def truck_entry(env, terminal, truck_id):
     with terminal.in_gates.request() as gate_request:
         yield gate_request
         print(f"Time {env.now}: Truck {truck_id} passed the in-gate and is entering the terminal")
-        yield env.timeout(state.TRUCK_INGATE_TIME + random.uniform(0, state.TRUCK_INGATE_TIME_DEV))    # truck passing gate time: 1 sec (demo_parameters.TRUCK_INGATE_TIME and TRUCK_INGATE_TIME_DEV)
+        yield env.timeout(state.TRUCK_INGATE_TIME + random.uniform(0, state.TRUCK_INGATE_TIME_DEV))   # truck passing gate time: 1 sec (demo_parameters.TRUCK_INGATE_TIME and TRUCK_INGATE_TIME_DEV)
 
         # Assume each truck takes 1 OC, and drop OC to the closest parking lot according to triangular distribution
         oc_id = f"OC-{truck_id}"
@@ -54,7 +54,7 @@ def empty_truck(env, terminal, truck_id):
         yield gate_request
         print(f"Time {env.now}: Truck {truck_id} passed the in-gate and is entering the terminal with empty loading")
         yield env.timeout(state.TRUCK_INGATE_TIME + random.uniform(0, state.TRUCK_INGATE_TIME_DEV))  # truck passing gate time: 1 sec (demo_parameters.TRUCK_INGATE_TIME and TRUCK_INGATE_TIME_DEV)
-        # Empty truck arrival will not be recorded due to excel output dimensions
+        # Note the arrival of empty trucks will not be recorded due to excel output dimensions
 
 
 def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
@@ -372,33 +372,25 @@ def run_simulation(train_consist_plan: pl.DataFrame,
 
     # Create DataFrame for container events
     print(state.sim_time)
+
     container_data = (
         pl.from_dicts(
             [dict(event, **{'container_id': container_id}) for container_id, event in state.container_events.items()]
         )
         .with_columns(
             pl.when(
-                pl.col("container_type") == pl.lit("inbound"),
-                pl.col("truck_exit").is_not_null(),
-                pl.col("train_arrival").is_not_null()
+                pl.col("truck_exit").is_not_null() & pl.col("train_arrival").is_not_null()
             )
             .then(
                 pl.col("truck_exit") - pl.col("train_arrival")
-            )
-            .when(
-                pl.col("container_type") == pl.lit("outbound"),
-                pl.col("train_depart").is_not_null(),
-                pl.col("truck_drop_off").is_not_null()
-            )
-            .then(
-                pl.col("train_depart") - pl.col("truck_drop_off")
             )
             .otherwise(None)
             .alias("container_processing_time")
         )
         .sort("container_id")
-        .select(pl.col("container_id", "container_type"), pl.all().exclude("container_id", "container_type"))
+        .select(pl.col("container_id"), pl.all().exclude("container_id"))
     )
+
     if out_path is not None:
         container_data.write_excel(out_path / f"simulation_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx")
 

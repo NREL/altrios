@@ -105,20 +105,21 @@ def variable_path_list_from_py_objs(
     
     return key_paths
 
-def history_path_list(self, element_as_list:bool=False) -> List[str]:
+def history_path_list(self, element_as_list: bool = False) -> List[str]:
     """
     Returns a list of relative paths to all history variables (all variables
     that contain history as a subpath). 
-    See example usage in `altrios/demo_data/demo_variable_paths.py`.
+    See example usage in `fastsim/demos/demo_variable_paths.py`.
 
     # Arguments
     - `element_as_list`: if True, each element is itself a list of the path elements
     """
-    item_str = lambda item: item if not element_as_list else ".".join(item)
-    history_path_list = [
-        item for item in self.variable_path_list(
-            element_as_list=element_as_list) if "history" in item_str(item)
-    ]
+    var_paths = self.variable_path_list(element_as_list=element_as_list)
+    history_path_list = []
+    for key in var_paths:
+        if (("history" in key_as_str(key)) or is_cyc_key(key)):
+            history_path_list.append(key)
+
     return history_path_list
             
 # TODO connect to crate features
@@ -186,29 +187,42 @@ def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack") -> Self:
 
     return obj
 
-def to_dataframe(self, pandas:bool=False) -> [pd.DataFrame, pl.DataFrame, pl.LazyFrame]:
+def to_dataframe(self, pandas: bool = False, allow_partial: bool = False) -> Union[pd.DataFrame, pl.DataFrame]:
     """
-    Returns time series results from altrios object as a Polars or Pandas dataframe.
+    Returns time series results from fastsim object as a Polars or Pandas dataframe.
 
     # Arguments
     - `pandas`: returns pandas dataframe if True; otherwise, returns polars dataframe by default
+    - `allow_partial`: returns dataframe of length equal to solved time steps if simulation fails early
     """
-    obj_dict = self.to_pydict()
-    history_paths = self.history_path_list(element_as_list=True)   
+    obj_dict = self.to_pydict(flatten=False)
+    history_paths = self.history_path_list(element_as_list=True)
     cols = [".".join(hp) for hp in history_paths]
     vals = []
     for hp in history_paths:
-        obj:Union[dict|list] = obj_dict
+        obj: Union[dict | list] = obj_dict
         for elem in hp:
-            try: 
+            try:
                 obj = obj[elem]
-            except:
-                obj = obj[int(elem)]
+            except Exception:
+                try:
+                    obj = obj[int(elem)]
+                except Exception as err:
+                    raise err
         vals.append(obj)
-    if not pandas:
-        df = pl.DataFrame({col: val for col, val in zip(cols, vals)})
+    if allow_partial:
+        cutoff = min([len(val) for val in vals])
+        if not pandas:
+            df = pl.DataFrame({col: val[:cutoff]
+                              for col, val in zip(cols, vals)})
+        else:
+            df = pd.DataFrame({col: val[:cutoff]
+                              for col, val in zip(cols, vals)})
     else:
-        df = pd.DataFrame({col: val for col, val in zip(cols, vals)})
+        if not pandas:
+            df = pl.DataFrame({col: val for col, val in zip(cols, vals)})
+        else:
+            df = pd.DataFrame({col: val for col, val in zip(cols, vals)})
     return df
 
 # adds variable_path_list() and history_path_list() as methods to all classes in

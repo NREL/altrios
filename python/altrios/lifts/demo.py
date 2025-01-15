@@ -13,12 +13,15 @@ class Terminal:
     def __init__(self, env, truck_capacity, chassis_count):
         self.env = env
         self.cranes = simpy.Resource(env, state.CRANE_NUMBER)  # Crane source: numbers
-        self.hostlers = simpy.Resource(env, state.HOSTLER_NUMBER)  # Hostler source: numbers
         self.in_gates = simpy.Resource(env, state.IN_GATE_NUMBERS)  # In-gate source: numbers
         self.out_gates = simpy.Resource(env, state.OUT_GATE_NUMBERS)  # Out-gate source: numbers
         self.truck_store = simpy.Store(env, capacity=truck_capacity)  # Truck source: numbers
         self.oc_store = simpy.Store(env)  # Outbound container source: numbers
         self.chassis = simpy.FilterStore(env, capacity=chassis_count)  # Chassis source: numbers
+        self.hostlers = simpy.Store(env, capacity=state.HOSTLER_NUMBER)  # Hostler source: numbers
+        for hostler_id in range(1, state.HOSTLER_NUMBER + 1):
+            self.hostlers.put(hostler_id)
+
 
 
 def record_event(container_id, event_type, timestamp):
@@ -88,7 +91,7 @@ def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_need
             print(f"Time {env.now}: Crane finishes unloading IC {ic_id} onto chassis")
             yield terminal.chassis.put(ic_id)
             print("chassis (loading ic):", terminal.chassis.items)
-            print("hostler (loading ic):", terminal.hostlers.count)
+            print("hostler (loading ic):", terminal.hostlers.items)
             ic_unloaded_count += 1
             env.process(container_process(env, terminal, train_schedule, all_oc_prepared, oc_needed, all_ic_unload_event, all_ic_picked))
 
@@ -107,101 +110,106 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
     3. The hostler picks up an OC, and drops off OC at the chassis.
     4. Once all OCs are prepared (all_oc_prepared), the crane starts loading (other function).
     '''
-    with terminal.hostlers.request() as request:
-        yield request
+    hostler_id = yield terminal.hostlers.get()
+    print(f'Hostler assigned: {hostler_id}')
 
-        # Hostler picks up IC from chassis
-        ic_id = yield terminal.chassis.get(lambda x: isinstance(x, int))
 
-        # Hostler puts IC to the closest parking lot
-        travel_time_to_parking = state.HOSTLER_TRANSPORT_CONTAINER_TIME
-        yield env.timeout(travel_time_to_parking)
-        print(f"Time {env.now}: Hostler picked up IC {ic_id} and is heading to parking slot.")
-        record_event(ic_id, 'hostler_pickup', env.now)
+    # Hostler picks up IC from chassis
+    ic_id = yield terminal.chassis.get(lambda x: isinstance(x, int))
 
-        # Prepare for crane loading: if chassis has no IC AND all_ic_picked (parking side) is not triggered => trigger all_ic_picked
-        if sum(str(item).isdigit() for item in terminal.chassis.items) == 0 and all_ic_unload_event.triggered:
-            all_ic_picked.succeed()
-            print(f"Time {env.now}: All ICs are picked up by hostlers.")
+    # Hostler puts IC to the closest parking lot
+    travel_time_to_parking = state.HOSTLER_TRANSPORT_CONTAINER_TIME
+    yield env.timeout(travel_time_to_parking)
+    print(f"Time {env.now}: Hostler picked up IC {ic_id} and is heading to parking slot.")
+    record_event(ic_id, 'hostler_pickup', env.now)
 
-        # Test: status for chassis
-        print("Containers on chassis (hostler picking-up IC):", terminal.chassis.items)
-        print("# of IC on chassis:", sum(str(item).isdigit() for item in terminal.chassis.items))
+    # Prepare for crane loading: if chassis has no IC AND all_ic_picked (parking side) is not triggered => trigger all_ic_picked
+    if sum(str(item).isdigit() for item in terminal.chassis.items) == 0 and all_ic_unload_event.triggered:
+        all_ic_picked.succeed()
+        print(f"Time {env.now}: All ICs are picked up by hostlers.")
 
-        # Hostler drop off IC to parking slot
-        travel_time_to_parking = state.HOSTLER_TRANSPORT_CONTAINER_TIME
-        yield env.timeout(travel_time_to_parking)   # update: time calculated by density-travel_time function
-        print(f"Time {env.now}: Hostler dropped off IC {ic_id} at parking slot.")
-        record_event(ic_id, 'hostler_dropoff', env.now)
+    # Test: status for chassis
+    print("Containers on chassis (hostler picking-up IC):", terminal.chassis.items)
+    print("# of IC on chassis:", sum(str(item).isdigit() for item in terminal.chassis.items))
 
-        # Assign a truck to pick up IC
-        truck_id = yield terminal.truck_store.get()
-        print(f"Time {env.now}: Truck {truck_id} is assigned to IC {ic_id} for exit.")
-        record_event(ic_id, 'truck_pickup', env.now)
+    # Hostler drop off IC to parking slot
+    travel_time_to_parking = state.HOSTLER_TRANSPORT_CONTAINER_TIME
+    yield env.timeout(travel_time_to_parking)   # update: time calculated by density-travel_time function
+    print(f"Time {env.now}: Hostler dropped off IC {ic_id} at parking slot.")
+    record_event(ic_id, 'hostler_dropoff', env.now)
 
-        # Truck queue and exit the gate
-        env.process(truck_exit(env, terminal, truck_id, ic_id))
+    # Assign a truck to pick up IC
+    truck_id = yield terminal.truck_store.get()
+    print(f"Time {env.now}: Truck {truck_id} is assigned to IC {ic_id} for exit.")
+    record_event(ic_id, 'truck_pickup', env.now)
 
-        # Assign a hostler to pick up an OC
-        oc = yield terminal.oc_store.get()
-        print(f"Time {env.now}: Hostler is going to pick up OC {oc}")
+    # Truck queue and exit the gate
+    env.process(truck_exit(env, terminal, truck_id, ic_id))
 
-        # Test: OC remaining before hostlers pick up OCs
-        print(f"Hostlers: {terminal.hostlers.count}")
-        print(f"OC remains (oc_store): {terminal.oc_store.items}")
+    # Assign a hostler to pick up an OC
+    oc = yield terminal.oc_store.get()
+    print(f"Time {env.now}: Hostler is going to pick up OC {oc}")
 
-        # The hostler picks up an OC
-        travel_time_to_oc = state.HOSTLER_FIND_CONTAINER_TIME
-        yield env.timeout(travel_time_to_oc)
-        print(f"Time {env.now}: Hostler picked up OC {oc} and is returning to the terminal")
+    # Test: OC remaining before hostlers pick up OCs
+    print(f"Hostlers: {terminal.hostlers.items}")
+    print(f"OC remains (oc_store): {terminal.oc_store.items}")
 
-        # Test: Containers after hostler picking-up OC
-        print("Containers on chassis (after hostler picking-up OC):", terminal.chassis.items)
-        print("# of IC", sum(str(item).isdigit() for item in terminal.chassis.items))
+    # The hostler picks up an OC
+    travel_time_to_oc = state.HOSTLER_FIND_CONTAINER_TIME
+    yield env.timeout(travel_time_to_oc)
+    print(f"Time {env.now}: Hostler picked up OC {oc} and is returning to the terminal")
 
-        # The hostler drops off OC at the chassis
-        travel_time_to_chassis = state.HOSTLER_TRANSPORT_CONTAINER_TIME
-        yield env.timeout(travel_time_to_chassis)
-        print(f"Time {env.now}: Hostler dropped off OC {oc} onto chassis")
-        yield terminal.chassis.put(oc)
+    # Test: Containers after hostler picking-up OC
+    print("Containers on chassis (after hostler picking-up OC):", terminal.chassis.items)
+    print("# of IC", sum(str(item).isdigit() for item in terminal.chassis.items))
 
-        # The hostler-truck-hostler process keeps going, until conditions are satisfied and then further trigger crane movement.
-        # ICs are all picked up and OCs are prepared
-        if sum(1 for item in terminal.chassis.items if "OC-" in str(item)) == oc_needed:
-            all_oc_prepared.succeed()
-            print("chassis (check if all oc prepared):", terminal.chassis.items)
-            print(f"hostler (check if all oc prepared): {terminal.hostlers.count}")
-            print("# of OC on chassis:", sum(1 for item in terminal.chassis.items if "OC-" in str(item)))
-            print(f"Time {env.now}: All OCs are ready on chassis.")
+    # The hostler drops off OC at the chassis
+    travel_time_to_chassis = state.HOSTLER_TRANSPORT_CONTAINER_TIME
+    yield env.timeout(travel_time_to_chassis)
+    print(f"Time {env.now}: Hostler dropped off OC {oc} onto chassis")
+    yield terminal.chassis.put(oc)
+    travel_time_to_parking = state.HOSTLER_TRANSPORT_CONTAINER_TIME
+    yield env.timeout(travel_time_to_parking)   # update: time calculated by density-travel_time function
+    print(f"Time {env.now}: Hostler {hostler_id} return to parking slot.")
+    yield terminal.hostlers.put(hostler_id)
 
-        # Test: check if all OCs on chassis
-        print("chassis (all oc prepared):", terminal.chassis.items)
-        print("# of IC on chassis:", sum(str(item).isdigit() for item in terminal.chassis.items))
-        print(f"hostler (all oc prepared): {terminal.hostlers.count}")
+    # The hostler-truck-hostler process keeps going, until conditions are satisfied and then further trigger crane movement.
+    # ICs are all picked up and OCs are prepared
+    if sum(1 for item in terminal.chassis.items if "OC-" in str(item)) == oc_needed:
+        all_oc_prepared.succeed()
+        print("chassis (check if all oc prepared):", terminal.chassis.items)
+        print(f"hostler (check if all oc prepared): {terminal.hostlers.items}")
+        print("# of OC on chassis:", sum(1 for item in terminal.chassis.items if "OC-" in str(item)))
+        print(f"Time {env.now}: All OCs are ready on chassis.")
 
-        # IC < OC: ICs are all picked up and still have OCs remaining
-        print("# of OCs in oc_store:", len(terminal.oc_store.items))
-        print("Containers gap:", train_schedule['oc_number'] - train_schedule['full_cars'])
-        if sum(str(item).isdigit() for item in terminal.chassis.items) == 0 and len(terminal.oc_store.items) == train_schedule['oc_number'] - train_schedule['full_cars'] :
-            print(f"ICs are prepared, but OCs remaining: {terminal.oc_store.items}")
-            remaining_oc = len(terminal.oc_store.items)
-            # Repeat hostler picking-up OC process only, until all remaining OCs are transported
-            for i in range (1, remaining_oc + 1):
-                oc = yield terminal.oc_store.get()
-                print(f"The OC is {oc}")
-                travel_time_to_chassis = state.HOSTLER_TRANSPORT_CONTAINER_TIME
-                yield env.timeout(travel_time_to_chassis)
-                print(f"Time {env.now}: Hostler dropped off OC {oc} onto chassis")
-                yield terminal.chassis.put(oc)
-                print("chassis (oc_remaining):", terminal.chassis.items)
-                print(f"hostler (oc_remaining): {terminal.hostlers.count}")
-                if sum(1 for item in terminal.chassis.items if "OC-" in str(item)) == oc_needed:
-                    all_oc_prepared.succeed()
-                    print("chassis (all_oc_prepared):", terminal.chassis.items)
-                    print(f"hostler (all_oc_prepared): {terminal.hostlers.count}")
-                    print("# of OC on chassis:", sum(1 for item in terminal.chassis.items if "OC-" in str(item)))
-                    print(f"Time {env.now}: All OCs are ready on chassis.")
-                i += 1
+    # Test: check if all OCs on chassis
+    print("chassis (all oc prepared):", terminal.chassis.items)
+    print("# of IC on chassis:", sum(str(item).isdigit() for item in terminal.chassis.items))
+    print(f"hostler (all oc prepared): {terminal.hostlers.items}")
+
+    # IC < OC: ICs are all picked up and still have OCs remaining
+    print("# of OCs in oc_store:", len(terminal.oc_store.items))
+    print("Containers gap:", train_schedule['oc_number'] - train_schedule['full_cars'])
+    if sum(str(item).isdigit() for item in terminal.chassis.items) == 0 and len(terminal.oc_store.items) == train_schedule['oc_number'] - train_schedule['full_cars'] :
+        print(f"ICs are prepared, but OCs remaining: {terminal.oc_store.items}")
+        remaining_oc = len(terminal.oc_store.items)
+        # Repeat hostler picking-up OC process only, until all remaining OCs are transported
+        for i in range (1, remaining_oc + 1):
+            oc = yield terminal.oc_store.get()
+            print(f"The OC is {oc}")
+            travel_time_to_chassis = state.HOSTLER_TRANSPORT_CONTAINER_TIME
+            yield env.timeout(travel_time_to_chassis)
+            print(f"Time {env.now}: Hostler dropped off OC {oc} onto chassis")
+            yield terminal.chassis.put(oc)
+            print("chassis (oc_remaining):", terminal.chassis.items)
+            print(f"hostler (oc_remaining): {terminal.hostlers.items}")
+            if sum(1 for item in terminal.chassis.items if "OC-" in str(item)) == oc_needed:
+                all_oc_prepared.succeed()
+                print("chassis (all_oc_prepared):", terminal.chassis.items)
+                print(f"hostler (all_oc_prepared): {terminal.hostlers.items}")
+                print("# of OC on chassis:", sum(1 for item in terminal.chassis.items if "OC-" in str(item)))
+                print(f"Time {env.now}: All OCs are ready on chassis.")
+            i += 1
 
 
 def truck_exit(env, terminal, truck_id, ic_id):
@@ -393,12 +401,12 @@ def run_simulation(train_consist_plan: pl.DataFrame,
         .select(pl.col("container_id"), pl.all().exclude("container_id"))
     )
 
-    if out_path is not None:
-        container_data.write_excel(out_path / f"simulation_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx")
+#    if out_path is not None:
+#        container_data.write_excel(out_path / f"simulation_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx")
 
     # Use save_average_times and save_vehicle_logs for vehicle related logs
-    save_average_times()
-    save_vehicle_logs()
+#    save_average_times()
+#    save_vehicle_logs()
 
     print("Done!")
     return container_data

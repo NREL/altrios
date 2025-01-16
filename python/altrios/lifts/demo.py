@@ -30,7 +30,7 @@ def record_event(container_id, event_type, timestamp):
     state.container_events[container_id][event_type] = timestamp
 
 
-def truck_entry(env, terminal, truck_id):
+def truck_entry(env, terminal, truck_id, oc_id):
     global state
     with terminal.in_gates.request() as gate_request:
         yield gate_request
@@ -39,7 +39,7 @@ def truck_entry(env, terminal, truck_id):
 
         # Assume each truck takes 1 OC, and drop OC to the closest parking lot according to triangular distribution
         # Assign IDs for OCs
-        oc_id = yield terminal.oc_store.get()
+        terminal.oc_store.put(f"OC-{oc_id}")
         print(f"Time {env.now}: Truck {truck_id} placed OC {oc_id} at parking slot.")
         record_event(oc_id, 'truck_arrival', env.now)
 
@@ -63,19 +63,20 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
     total_oc = train_schedule["oc_number"]
     arrival_rate = 1  # truck arrival rate: poisson distribution, arrival rate depends on the gap between last train departure and next train arrival
 
-    for oc_id in range(state.OC_NUM, state.OC_NUM + total_oc):
-        terminal.oc_store.put(f"OC-{oc_id}")
     print("state.OC_NUM", state.OC_NUM)
     print("total_oc", total_oc)
     print("OC has:", terminal.oc_store.items)
 
+    oc_id = state.OC_NUM
     for truck_id in range(1, truck_number + 1):
         yield env.timeout(random.expovariate(arrival_rate))  # Assume truck arrives according to the poisson distribution
         terminal.truck_store.put(truck_id)
         if truck_id <= total_oc:
-            env.process(truck_entry(env, terminal, truck_id))
+            env.process(truck_entry(env, terminal, truck_id, oc_id))
         else:
             env.process(empty_truck(env, terminal, truck_id))
+        
+        oc_id += 1
 
     yield env.timeout(state.TRUCK_TO_PARKING)    # truck travel time of placing OC at parking slot (demo_parameters.TRUCK_TO_PARKING)
     all_trucks_arrived_event.succeed()  # if all_trucks_arrived_event is triggered, train is allowed to enter
@@ -85,7 +86,7 @@ def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_need
     global state
     ic_unloaded_count = 0
 
-    for ic_id in range(state.IC_NUM, state.IC_NUM + total_ic + 1):
+    for ic_id in range(state.IC_NUM, state.IC_NUM + total_ic):
         with terminal.cranes.request() as request:
             yield request
             print(f"Time {env.now}: Crane starts unloading IC {ic_id}")

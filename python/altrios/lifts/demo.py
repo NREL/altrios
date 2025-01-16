@@ -23,7 +23,6 @@ class Terminal:
             self.hostlers.put(hostler_id)
 
 
-
 def record_event(container_id, event_type, timestamp):
     global state
     if container_id not in state.container_events:
@@ -39,9 +38,9 @@ def truck_entry(env, terminal, truck_id):
         yield env.timeout(state.TRUCK_INGATE_TIME + random.uniform(0, state.TRUCK_INGATE_TIME_DEV))   # truck passing gate time: 1 sec (demo_parameters.TRUCK_INGATE_TIME and TRUCK_INGATE_TIME_DEV)
 
         # Assume each truck takes 1 OC, and drop OC to the closest parking lot according to triangular distribution
-        oc_id = f"OC-{truck_id}"
-        yield terminal.oc_store.put(oc_id)
-        print(f"Time {env.now}: Truck {truck_id} placed container {oc_id} at parking slot.")
+        # Assign IDs for OCs
+        oc_id = yield terminal.oc_store.get()
+        print(f"Time {env.now}: Truck {truck_id} placed OC {oc_id} at parking slot.")
         record_event(oc_id, 'truck_arrival', env.now)
 
         d_t_dist = create_triang_distribution(d_t_min, d_t_avg, d_t_max).rvs()
@@ -64,6 +63,12 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
     total_oc = train_schedule["oc_number"]
     arrival_rate = 1  # truck arrival rate: poisson distribution, arrival rate depends on the gap between last train departure and next train arrival
 
+    for oc_id in range(state.OC_NUM, state.OC_NUM + total_oc):
+        terminal.oc_store.put(f"OC-{oc_id}")
+    print("state.OC_NUM", state.OC_NUM)
+    print("total_oc", total_oc)
+    print("OC has:", terminal.oc_store.items)
+
     for truck_id in range(1, truck_number + 1):
         yield env.timeout(random.expovariate(arrival_rate))  # Assume truck arrives according to the poisson distribution
         terminal.truck_store.put(truck_id)
@@ -80,7 +85,7 @@ def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_need
     global state
     ic_unloaded_count = 0
 
-    for ic_id in range(1, total_ic + 1):
+    for ic_id in range(state.IC_NUM, state.IC_NUM + total_ic + 1):
         with terminal.cranes.request() as request:
             yield request
             print(f"Time {env.now}: Crane starts unloading IC {ic_id}")
@@ -341,8 +346,8 @@ def run_simulation(train_consist_plan: pl.DataFrame,
          "truck_number": 5},    # test: ic > oc
         {"train_id": 12, "arrival_time": 300, "departure_time": 500, "empty_cars": 5, "full_cars": 4, "oc_number": 4,
          "truck_number": 4},    # test: ic = oc
-        {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 5, "full_cars": 3, "oc_number": 5,
-         "truck_number": 5},    # test: ic < oc
+        # {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 5, "full_cars": 3, "oc_number": 5,
+        #  "truck_number": 5},    # test: ic < oc
     ]
 
     # train_timetable = build_train_timetable(train_consist_plan, terminal, swap_arrive_depart=True, as_dicts=True)
@@ -374,11 +379,10 @@ def run_simulation(train_consist_plan: pl.DataFrame,
 
     # Performance Matrix
     # Train processing time
-    # TODO fix divide by zero: might be related to train_departure (the train departure not happening --> no processing data --> 0/0.)
     # avg_time_per_train = sum(state.time_per_train.values()) / len(state.time_per_train)
-    #print(f"Average train processing time: {sum(state.time_per_train) / len(state.time_per_train) if state.time_per_train else 0:.2f}")
-    #print("Simulation completed. ")
-    #with open("avg_time_per_train.txt", "w") as f:
+    # print(f"Average train processing time: {sum(state.time_per_train) / len(state.time_per_train) if state.time_per_train else 0:.2f}")
+    # print("Simulation completed. ")
+    # with open("avg_time_per_train.txt", "w") as f:
     #    f.write(str(avg_time_per_train))
 
     # Create DataFrame for container events
@@ -401,13 +405,12 @@ def run_simulation(train_consist_plan: pl.DataFrame,
         .sort("container_id")
         .select(pl.col("container_id"), pl.all().exclude("container_id"))
     )
-
-#    if out_path is not None:
-#        container_data.write_excel(out_path / f"simulation_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx")
+    if out_path is not None:
+       container_data.write_excel(out_path / f"simulation_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx")
 
     # Use save_average_times and save_vehicle_logs for vehicle related logs
-#    save_average_times()
-#    save_vehicle_logs()
+    save_average_times()
+    # save_vehicle_logs()
 
     print("Done!")
     return container_data

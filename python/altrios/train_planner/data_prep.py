@@ -8,6 +8,8 @@ import altrios as alt
 from altrios import defaults, utilities
 from altrios.train_planner import planner_config
 
+day_order_map = 
+
 def load_freight_demand(
     demand_table: Union[pl.DataFrame, Path, str]
 ) -> Tuple[pl.DataFrame, pl.Series, int]:
@@ -41,9 +43,32 @@ def prep_hourly_demand(
     hourly_demand_density: Union[pl.DataFrame, pl.LazyFrame],
     daily_demand_density: Union[pl.DataFrame, pl.LazyFrame]
 ) -> Union[pl.DataFrame, pl.LazyFrame]:
-    return (
-
+    day_order_map = {
+        "Mon": 1,
+        "Tue": 2,
+        "Wed": 3,
+        "Thu": 4,
+        "Fri": 5,
+        "Sat": 6,
+        "Sun": 7
+    }
+    return (total_demand
+        .join(hourly_demand_density, how="inner", on=["Origin", "Destination"])
+        .with_columns(
+            (pl.col("Number_of_Containers") * pl.col("Percentage")).round(0).alias("Number_of_Containers_Daily"),
+            pl.col("Day of Week").replace_strict(day_order_map).alias("Day_Order")
+        )
+        .join(hourly_demand_density, how="inner", on=["Origin", "Destination"])
+        .sort("Origin", "Destination", "Day_Order", "Hour of Day")
+        .with_columns(
+            (pl.col("Number_of_Containers_Daily") * pl.col("Percentage_of_Hour")).round(0).alias("Number_of_Containers"),
+            pl.concat_str(pl.col("Origin"), pl.lit("-"), pl.col("Destination")).alias("OD_Pair"),
+            pl.int_range(0, pl.len()).over("Origin", "Destination").alias("Hour")
+        )
+        .with_columns(pl.col("Number_of_Containers").alias("Number_of_Cars"))
+        .select("Origin", "Destination", "Train_Type", "Hour", "Number_of_Cars", "Number_of_Containers")
     )
+    
 def append_loco_info(loco_info: pd.DataFrame) -> pd.DataFrame:
     if all(item in loco_info.columns for item in [
         'HP','Loco_Mass_Tons','SOC_J','SOC_Min_J','SOC_Max_J','Capacity_J'

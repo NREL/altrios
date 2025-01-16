@@ -150,20 +150,20 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     ///
     /// * `filepath`: The filepath from which to read the object
     ///
-    fn from_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
+    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> anyhow::Result<Self> {
         let filepath = filepath.as_ref();
         let extension = filepath
             .extension()
             .and_then(OsStr::to_str)
             .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        let file = File::open(filepath).with_context(|| {
+        let mut file = File::open(filepath).with_context(|| {
             if !filepath.exists() {
                 format!("File not found: {filepath:?}")
             } else {
                 format!("Could not open file: {filepath:?}")
             }
         })?;
-        Self::from_reader(file, extension)
+        Self::from_reader(&mut file, extension, skip_init)
     }
 
     /// Write (serialize) an object into a string
@@ -190,11 +190,11 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     /// * `contents` - The string containing the object data
     /// * `format` - The source format, any of those listed in [`ACCEPTED_STR_FORMATS`](`SerdeAPI::ACCEPTED_STR_FORMATS`)
     ///
-    fn from_str<S: AsRef<str>>(contents: S, format: &str) -> anyhow::Result<Self> {
+    fn from_str<S: AsRef<str>>(contents: S, format: &str, skip_init: bool) -> anyhow::Result<Self> {
         Ok(
             match format.trim_start_matches('.').to_lowercase().as_str() {
-                "yaml" | "yml" => Self::from_yaml(contents)?,
-                "json" => Self::from_json(contents)?,
+                "yaml" | "yml" => Self::from_yaml(contents, skip_init)?,
+                "json" => Self::from_json(contents, skip_init)?,
                 _ => bail!(
                     "Unsupported format {format:?}, must be one of {:?}",
                     Self::ACCEPTED_STR_FORMATS
@@ -210,20 +210,24 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     /// * `rdr` - The reader from which to read object data
     /// * `format` - The source format, any of those listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`)
     ///
-    fn from_reader<R>(rdr: R, format: &str) -> anyhow::Result<Self>
-    where
-        R: std::io::Read,
-    {
+    fn from_reader<R: std::io::Read>(
+        rdr: &mut R,
+        format: &str,
+        skip_init: bool,
+    ) -> anyhow::Result<Self> {
         let mut deserialized: Self = match format.trim_start_matches('.').to_lowercase().as_str() {
             "yaml" | "yml" => serde_yaml::from_reader(rdr)?,
             "json" => serde_json::from_reader(rdr)?,
-            "bin" => bincode::deserialize_from(rdr)?,
+            #[cfg(feature = "msgpack")]
+            "msgpack" => rmp_serde::decode::from_read(rdr)?,
             _ => bail!(
                 "Unsupported format {format:?}, must be one of {:?}",
                 Self::ACCEPTED_BYTE_FORMATS
             ),
         };
-        deserialized.init()?;
+        if !skip_init {
+            deserialized.init()?;
+        }
         Ok(deserialized)
     }
 
@@ -232,15 +236,17 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
         Ok(serde_json::to_string(&self)?)
     }
 
-    /// Read (deserialize) an object to a JSON string
+    /// Read (deserialize) an object from a JSON string
     ///
     /// # Arguments
     ///
     /// * `json_str` - JSON-formatted string to deserialize from
     ///
-    fn from_json<S: AsRef<str>>(json_str: S) -> anyhow::Result<Self> {
+    fn from_json<S: AsRef<str>>(json_str: S, skip_init: bool) -> anyhow::Result<Self> {
         let mut json_de: Self = serde_json::from_str(json_str.as_ref())?;
-        json_de.init()?;
+        if !skip_init {
+            json_de.init()?;
+        }
         Ok(json_de)
     }
 
@@ -249,15 +255,38 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
         Ok(serde_yaml::to_string(&self)?)
     }
 
+    /// Write (serialize) an object to a message pack
+    #[cfg(feature = "msgpack")]
+    fn to_msg_pack(&self) -> anyhow::Result<Vec<u8>> {
+        Ok(rmp_serde::encode::to_vec_named(&self)?)
+    }
+
+    /// Read (deserialize) an object from a message pack
+    ///
+    /// # Arguments
+    ///
+    /// * `msg_pack` - message pack object
+    ///
+    #[cfg(feature = "msgpack")]
+    fn from_msg_pack(msg_pack: &[u8], skip_init: bool) -> anyhow::Result<Self> {
+        let mut msg_pack_de: Self = rmp_serde::decode::from_slice(msg_pack)?;
+        if !skip_init {
+            msg_pack_de.init()?;
+        }
+        Ok(msg_pack_de)
+    }
+
     /// Read (deserialize) an object from a YAML string
     ///
     /// # Arguments
     ///
     /// * `yaml_str` - YAML-formatted string to deserialize from
     ///
-    fn from_yaml<S: AsRef<str>>(yaml_str: S) -> anyhow::Result<Self> {
+    fn from_yaml<S: AsRef<str>>(yaml_str: S, skip_init: bool) -> anyhow::Result<Self> {
         let mut yaml_de: Self = serde_yaml::from_str(yaml_str.as_ref())?;
-        yaml_de.init()?;
+        if !skip_init {
+            yaml_de.init()?;
+        }
         Ok(yaml_de)
     }
 

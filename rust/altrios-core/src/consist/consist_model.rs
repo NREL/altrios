@@ -58,7 +58,7 @@ use super::*;
         );
     }
 
-    fn get_hct(&self) -> String {
+    fn get_pdct(&self) -> String {
         // make a `describe` function
         match &self.pdct {
             PowerDistributionControlType::RESGreedy(val) => format!("{val:?}"),
@@ -115,7 +115,7 @@ pub struct Consist {
     #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ConsistState,
-    #[serde(skip_serializing_if = "ConsistStateHistoryVec::is_empty", default)]
+    #[serde(default, skip_serializing_if = "ConsistStateHistoryVec::is_empty")]
     /// Custom vector of [Self::state]
     pub history: ConsistStateHistoryVec,
     #[api(skip_set, skip_get)] // custom needed for this

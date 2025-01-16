@@ -102,7 +102,7 @@ pub struct Generator {
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
-    #[serde(skip_serializing_if = "GeneratorStateHistoryVec::is_empty", default)]
+    #[serde(default, skip_serializing_if = "GeneratorStateHistoryVec::is_empty")]
     pub history: GeneratorStateHistoryVec,
 }
 
@@ -306,7 +306,7 @@ impl Generator {
 impl Default for Generator {
     fn default() -> Self {
         let file_contents = include_str!("generator.default.yaml");
-        Self::from_yaml(file_contents).unwrap()
+        Self::from_yaml(file_contents, false).unwrap()
     }
 }
 

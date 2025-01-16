@@ -75,8 +75,8 @@ pub struct FuelConverter {
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
     #[serde(
-        skip_serializing_if = "FuelConverterStateHistoryVec::is_empty",
-        default
+        default,
+        skip_serializing_if = "FuelConverterStateHistoryVec::is_empty"
     )]
     pub history: FuelConverterStateHistoryVec, // TODO: spec out fuel tank size and track kg of fuel
 }
@@ -84,7 +84,7 @@ pub struct FuelConverter {
 impl Default for FuelConverter {
     fn default() -> Self {
         let file_contents = include_str!("fuel_converter.default.yaml");
-        Self::from_yaml(file_contents).unwrap()
+        Self::from_yaml(file_contents, false).unwrap()
     }
 }
 

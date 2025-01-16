@@ -77,8 +77,8 @@ pub struct ElectricDrivetrain {
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
     #[serde(
-        skip_serializing_if = "ElectricDrivetrainStateHistoryVec::is_empty",
-        default
+        default,
+        skip_serializing_if = "ElectricDrivetrainStateHistoryVec::is_empty"
     )]
     pub history: ElectricDrivetrainStateHistoryVec,
 }
@@ -250,7 +250,7 @@ impl Default for ElectricDrivetrain {
     fn default() -> Self {
         // let file_contents = include_str!(EDRV_DEFAULT_PATH_STR);
         let file_contents = include_str!("electric_drivetrain.default.yaml");
-        Self::from_yaml(file_contents).unwrap()
+        Self::from_yaml(file_contents, false).unwrap()
     }
 }
 

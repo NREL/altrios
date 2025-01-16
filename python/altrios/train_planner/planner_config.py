@@ -1,5 +1,5 @@
 from __future__ import annotations
-from altrios.train_planner import demand_generators
+from altrios.train_planner import data_prep
 import polars as pl
 import pandas as pd
 from typing import Dict, Callable, Optional
@@ -102,7 +102,7 @@ class TrainPlannerConfig:
     drag_coeff_function: Optional[Callable]= None
     dispatch_scheduler: Optional[Callable] = None
     return_demand_generators: Dict = field(default_factory = lambda: {
-        'Unit': demand_generators.generate_return_demand_unit,
-        'Manifest': demand_generators.generate_return_demand_manifest,
-        'Intermodal': demand_generators.generate_return_demand_intermodal
+        'Unit': data_prep.generate_return_demand_unit,
+        'Manifest': data_prep.generate_return_demand_manifest,
+        'Intermodal': data_prep.generate_return_demand_intermodal
     })

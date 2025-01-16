@@ -1,14 +1,13 @@
 from typing import Union, List, Tuple
 from pathlib import Path
 import polars as pl
-import polars.selectors as cs
 import pandas as pd
 import numpy as np
+import math
+from scipy.stats import rankdata
 import altrios as alt
 from altrios import defaults, utilities
 from altrios.train_planner import planner_config
-
-day_order_map = 
 
 def load_freight_demand(
     demand_table: Union[pl.DataFrame, Path, str]
@@ -61,11 +60,13 @@ def prep_hourly_demand(
         .join(hourly_demand_density, how="inner", on=["Origin", "Destination"])
         .sort("Origin", "Destination", "Day_Order", "Hour of Day")
         .with_columns(
-            (pl.col("Number_of_Containers_Daily") * pl.col("Percentage_of_Hour")).round(0).alias("Number_of_Containers"),
+            (pl.col("Number_of_Containers_Daily") * pl.col("Percentage_of_Hour")).alias("Number_of_Containers"),
             pl.concat_str(pl.col("Origin"), pl.lit("-"), pl.col("Destination")).alias("OD_Pair"),
             pl.int_range(0, pl.len()).over("Origin", "Destination").alias("Hour")
         )
         .with_columns(pl.col("Number_of_Containers").alias("Number_of_Cars"))
+        #TODO allocateItems to get integers
+        #TODO handle double vs single stacked?
         .select("Origin", "Destination", "Train_Type", "Hour", "Number_of_Cars", "Number_of_Containers")
     )
     
@@ -108,7 +109,7 @@ def build_locopool(
     """
     config.loco_info = append_loco_info(config.loco_info)
     loco_types = list(config.loco_info.loc[:,'Locomotive_Type'])
-    demand, node_list = demand_loader(demand_file)
+    demand, node_list = load_freight_demand(demand_file)
     
     num_nodes = len(node_list)
     if locomotives_per_node is None:

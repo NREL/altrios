@@ -37,7 +37,7 @@ class LiftsState:
     CONTAINERS_PER_HOSTLER: int = 1  # hostler capacity
     HOSTLER_SPEED_LIMIT: float = 20*5280   # hostler speed: ft/hr
     HOSTLER_TRANSPORT_CONTAINER_TIME: float = 0    # hostler travel time of picking up IC: hr, triangular distribution
-    HOSTLER_FIND_CONTAINER_TIME: float = 0  # hostler travel time between dropping off IC and picking up OC: hr, triangular distribution
+    HOSTLER_FIND_CONTAINER_TIME: float = 1/5  # hostler travel time between dropping off IC and picking up OC: hr, triangular distribution
 
     # Fixed: Truck parameters
     # TRUCK_ARRIVAL_MEAN: float = 40/60   # hr, arrival rate depends on the gap between last train departure and next train arrival
@@ -47,7 +47,7 @@ class LiftsState:
     TRUCK_OUTGATE_TIME_DEV: float = 1/60    # hr
     TRUCK_TO_PARKING: float = 2/60    # hr
     TRUCK_SPEED_LIMIT: float = 20*5280   # ft/hr
-    TRUCK_TRANSPORT_CONTAINER_TIME: float = 0  # hr, triangular distribution, will be updated with truck density-speed function
+    TRUCK_TRANSPORT_CONTAINER_TIME: float = 1/6  # hr, triangular distribution, will be updated with truck density-speed function
 
     # Fixed: Gate parameters
     IN_GATE_NUMBERS: int = 6  # test queuing module with 1; normal operations with 6

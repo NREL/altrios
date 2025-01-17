@@ -41,11 +41,11 @@ def truck_entry(env, terminal, truck_id, oc_id):
         # Assign IDs for OCs
         terminal.oc_store.put(f"OC-{oc_id}")
         print(f"Time {env.now}: Truck {truck_id} placed OC {oc_id} at parking slot.")
-        record_event(oc_id, 'truck_arrival', env.now)
+        record_event(f"OC-{oc_id}", 'truck_arrival', env.now)
 
         d_t_dist = create_triang_distribution(d_t_min, d_t_avg, d_t_max).rvs()
         yield env.timeout(d_t_dist / (2 * state.TRUCK_SPEED_LIMIT))
-        record_event(oc_id, 'truck_drop_off', env.now)
+        record_event(f"OC-{oc_id}", 'truck_dropoff', env.now)
 
 
 def empty_truck(env, terminal, truck_id):
@@ -162,6 +162,7 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
         travel_time_to_oc = state.HOSTLER_FIND_CONTAINER_TIME
         yield env.timeout(travel_time_to_oc)
         print(f"Time {env.now}: Hostler picked up OC {oc} and is returning to the terminal")
+        record_event(oc, 'hostler_pickup', env.now)
 
         # Test: Containers after hostler picking-up OC
         print("Containers on chassis (after hostler picking-up OC):", terminal.chassis.items)
@@ -172,6 +173,7 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
         yield env.timeout(travel_time_to_chassis)
         print(f"Time {env.now}: Hostler dropped off OC {oc} onto chassis")
         yield terminal.chassis.put(oc)
+        record_event(oc, 'hostler_dropoff', env.now)
         # The hostler-truck-hostler process keeps going, until conditions are satisfied and then further trigger crane movement.
         # ICs are all picked up and OCs are prepared
         if sum(1 for item in terminal.chassis.items if "OC-" in str(item)) == oc_needed:
@@ -194,7 +196,7 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
 
     # IC < OC: ICs are all picked up and still have OCs remaining
     print("# of OCs in oc_store:", len(terminal.oc_store.items))
-    print("Containers gap:", train_schedule['oc_number'] - train_schedule['full_cars'])
+    # print("Containers gap:", train_schedule['oc_number'] - train_schedule['full_cars'])
     if sum(str(item).isdigit() for item in terminal.chassis.items) == 0 and len(terminal.oc_store.items) == train_schedule['oc_number'] - train_schedule['full_cars'] :
         print(f"ICs are prepared, but OCs remaining: {terminal.oc_store.items}")
         remaining_oc = len(terminal.oc_store.items)
@@ -202,10 +204,15 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
         for i in range (1, remaining_oc + 1):
             oc = yield terminal.oc_store.get()
             print(f"The OC is {oc}")
+            travel_time_to_oc = state.HOSTLER_FIND_CONTAINER_TIME
+            yield env.timeout(travel_time_to_oc)
+            print(f"Time {env.now}: Hostler picked up OC {oc} and is returning to the terminal")
+            record_event(oc, 'hostler_pickup', env.now)
             travel_time_to_chassis = state.HOSTLER_TRANSPORT_CONTAINER_TIME
             yield env.timeout(travel_time_to_chassis)
             print(f"Time {env.now}: Hostler dropped off OC {oc} onto chassis")
             yield terminal.chassis.put(oc)
+            record_event(oc, 'hostler_dropoff', env.now)
             print("chassis (oc_remaining):", terminal.chassis.items)
             print(f"hostler (oc_remaining): {terminal.hostlers.items}")
             if sum(1 for item in terminal.chassis.items if isinstance(item, str) and "OC-" in str(item)) == oc_needed:
@@ -347,8 +354,8 @@ def run_simulation(train_consist_plan: pl.DataFrame,
          "truck_number": 5},    # test: ic > oc
         {"train_id": 12, "arrival_time": 300, "departure_time": 500, "empty_cars": 5, "full_cars": 4, "oc_number": 4,
          "truck_number": 4},    # test: ic = oc
-        # {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 5, "full_cars": 3, "oc_number": 5,
-        #  "truck_number": 5},    # test: ic < oc
+        {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 5, "full_cars": 3, "oc_number": 5,
+         "truck_number": 5},    # test: ic < oc
     ]
 
     # train_timetable = build_train_timetable(train_consist_plan, terminal, swap_arrive_depart=True, as_dicts=True)
@@ -399,6 +406,12 @@ def run_simulation(train_consist_plan: pl.DataFrame,
             )
             .then(
                 pl.col("truck_exit") - pl.col("train_arrival")
+            )
+            .when(
+                pl.col("train_depart").is_not_null()
+            )
+            .then(
+                pl.col("crane_load") - pl.col("truck_arrival")
             )
             .otherwise(None)
             .alias("container_processing_time")

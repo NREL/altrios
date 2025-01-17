@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import Union, List, Dict, Callable
 import polars as pl
 import polars.selectors as cs
 import pandas as pd
@@ -6,6 +6,13 @@ import numpy as np
 import altrios as alt
 from altrios import utilities
 from altrios.train_planner import planner_config
+
+def get_default_return_demand_generators() -> Dict[str, Callable]:
+    return {
+        'Unit': generate_return_demand_unit,
+        'Manifest': generate_return_demand_manifest,
+        'Intermodal': generate_return_demand_intermodal
+    }
 
 def initialize_reverse_empties(demand: Union[pl.LazyFrame, pl.DataFrame]) -> Union[pl.LazyFrame, pl.DataFrame]:
     """
@@ -214,8 +221,6 @@ def generate_manifest_rebalancing_demand(
     )
 
     return balance_trains(origin_manifest_demand)
-
-
 
 def generate_demand_trains(
     demand: pl.DataFrame,

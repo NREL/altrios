@@ -3,7 +3,7 @@ Module for getting the output of the Train Consist Planner and Meet Pass Planner
 """
 
 import polars as pl
-from typing import Any, Union, Dict, List, Optional, Tuple
+from typing import Any, Union, Dict, List, Tuple
 from pathlib import Path
 import time
 from altrios import defaults
@@ -65,7 +65,7 @@ def main(
             
     train_planner_config.loco_info = metrics.add_battery_costs(train_planner_config.loco_info, scenario_year)
 
-    if loco_pool is None: loco_pool = planner.build_locopool(
+    if loco_pool is None: loco_pool = planner.data_prep.build_locopool(
             config = train_planner_config,
             method="shares_twoway",
             shares=[1-target_bel_share, target_bel_share],

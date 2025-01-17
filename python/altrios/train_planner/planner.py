@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-from altrios.train_planner import data_prep, demand_generators, schedulers, planner_config
+from altrios.train_planner import data_prep, schedulers, planner_config, train_demand_generators
 import numpy as np
 import polars as pl
 import polars.selectors as cs
@@ -313,9 +313,12 @@ def run_train_planner(
     if network_charging_guidelines is None: 
         network_charging_guidelines = pl.read_csv(alt.resources_root() / "networks" / "network_charging_guidelines.csv")
 
+    if config.return_demand_generators is None:
+        config.return_demand_generators = train_demand_generators.get_default_return_demand_generators()
+
     refuelers, loco_pool = data_prep.append_charging_guidelines(refuelers, loco_pool, demand, network_charging_guidelines)
     if config.single_train_mode:
-        demand = demand_generators.generate_demand_trains(demand, 
+        demand = train_demand_generators.generate_demand_trains(demand, 
                                         demand_returns = pl.DataFrame(), 
                                         demand_rebalancing = pl.DataFrame(), 
                                         rail_vehicles = rail_vehicles, 
@@ -326,11 +329,11 @@ def run_train_planner(
             .drop("index")
         )
     else:
-        demand_returns = demand_generators.generate_return_demand(demand, config)
+        demand_returns = train_demand_generators.generate_return_demand(demand, config)
         demand_rebalancing = pl.DataFrame()
         if demand.filter(pl.col("Train_Type").str.contains("Manifest")).height > 0:
-            demand_rebalancing = demand_generators.generate_manifest_rebalancing_demand(demand, node_list, config)
-        demand = demand_generators.generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicles, config)
+            demand_rebalancing = train_demand_generators.generate_manifest_rebalancing_demand(demand, node_list, config)
+        demand = train_demand_generators.generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicles, config)
         if config.dispatch_scheduler is None:
             config.dispatch_scheduler = schedulers.generate_dispatch_details
         dispatch_schedule = config.dispatch_scheduler(demand, rail_vehicles, simulation_days, config)

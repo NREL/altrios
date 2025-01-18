@@ -8,6 +8,7 @@ from pathlib import Path
 
 import altrios as alt
 from altrios import utilities, defaults
+from altrios.train_planner import planner_config
 
 MetricType = pl.DataFrame
 
@@ -73,6 +74,7 @@ class ScenarioInfo:
     emissions_factors: pl.DataFrame = None
     nodal_energy_prices: pl.DataFrame = None
     count_unused_locomotives: bool = False
+    train_planner_config: planner_config = None
 
 def metric(
         name: str,
@@ -274,7 +276,7 @@ def calculate_energy_per_freight(info: ScenarioInfo,
     ----------
     DataFrame of energy usage per freight moved (metric name, units, value, and scenario year)
     """
-    if "per car-mile" not in units:
+    if "per car-mile" not in units and "per container-mile" not in units:
         print(f"Units of {units} not supported for energy-per-freight calculation.")
         return metric("Energy_Per_Freight_Moved", units, None)
     
@@ -290,7 +292,10 @@ def calculate_energy_per_freight(info: ScenarioInfo,
     electricity_mj = calculate_electricity_use(info, units="MJ")
     total_mj = value_from_metrics(diesel_mj) + value_from_metrics(electricity_mj, subset="All")
     total_energy = total_mj * conversion_from_megajoule
-    freight_moved = calculate_freight_moved(info, units="car-miles")
+    if "per car-mile" in units:
+        freight_moved = calculate_freight_moved(info, units="car-miles")
+    elif "per container-mile" in units:
+        freight_moved = calculate_freight_moved(info, units="container-miles")
     freight_val = value_from_metrics(freight_moved)
     return metrics_from_list([
         diesel_mj,
@@ -455,7 +460,27 @@ def calculate_freight_moved(
         return metric("Freight_Moved", units, info.sims.get_car_kilometers(annualize=info.annualize) * conversion_from_km, year=info.scenario_year)
     elif units == "cars":
         return metric("Freight_Moved", units, info.sims.get_cars_moved(annualize=info.annualize), year=info.scenario_year)
-    elif units == "detailed":
+    elif units in ["container-km", "container-miles"]:
+        assert info.consist_plan.filter(~pl.col("Train_Type").str.contains("Intermodal")).height == 0, "Can only count containers if the consist plan is all Intermodal"
+        car_distance = info.sims.get_car_kilometers(annualize=info.annualize) * conversion_from_km
+        
+        if info.train_planner_config.stack_type == "double":
+            containers_per_car = 2.0
+        elif info.train_planner_config.stack_type == "single":
+            containers_per_car = 1.0
+        return metric("Freight_Moved", units, car_distance * containers_per_car, year=info.scenario_year)
+        
+    elif units == "containers":
+        container_counts = info.consist_plan.select("Train_ID", "Containers_Loaded", "Containers_Empty").unique().drop("Train_ID").sum()
+        if info.annualize: 
+            annualizer = 365.25 / info.simulation_days
+        else:
+            annualizer = 1.0
+        return metrics_from_list([
+            metric("Freight_Moved", units, container_counts.get_column("Containers_Loaded").item() * annualizer, "Loaded", year=info.scenario_year),
+            metric("Freight_Moved", units, container_counts.get_column("Containers_Empty").item() * annualizer, "Loaded", year=info.scenario_year),
+        ])
+    elif units == "detailed_car_counts":
         kilometers = (pl.DataFrame(data = {"car-km": [sim.get_kilometers(annualize=info.annualize) for sim in info.sims.tolist()]})
             .with_row_index("idx")
             .with_columns(

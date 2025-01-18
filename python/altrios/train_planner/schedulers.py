@@ -305,16 +305,34 @@ def find_minimum_waiting_time(
     print(f"empty_return is {empty_return}")
     return dispatch_times
 
-def formatScheduleColumns(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
+def formatScheduleColumns(
+    df: Union[pl.DataFrame, pl.LazyFrame],
+    config: planner_config.TrainPlannerConfig
+) -> Union[pl.DataFrame, pl.LazyFrame]: 
+    containers_per_car = 0.0
+    if config.stack_type == "single":
+        containers_per_car = 1.0
+    elif config.stack_type == "double":
+        containers_per_car = 2.0
+    else:
+        assert(f'Unhandled container stack type: {config.stack_type}')
     return (df
         .with_columns(
             (pl.col("Tons_Per_Car_Loaded").mul("Number_of_Cars_Loaded") + pl.col("Tons_Per_Car_Empty").mul("Number_of_Cars_Empty")).alias("Tons_Per_Train"),
             (pl.col("HP_Required_Per_Ton_Loaded").mul("Tons_Per_Car_Loaded").mul("Number_of_Cars_Loaded") + 
                 pl.col("HP_Required_Per_Ton_Empty").mul("Tons_Per_Car_Empty").mul("Number_of_Cars_Empty")
-                ).alias("HP_Required")
+                ).alias("HP_Required"),
+            pl.when(pl.col("Train_Type").str.contains("Intermodal"))
+                .then(pl.col("Number_of_Cars_Loaded").mul(containers_per_car))
+                .otherwise(0)
+                .alias("Containers_Loaded"),
+            pl.when(pl.col("Train_Type").str.contains("Intermodal"))
+                .then(pl.col("Number_of_Cars_Empty").mul(containers_per_car))
+                .otherwise(0)
+                .alias("Containers_Empty"),
         )
         .select("Hour", "Origin", "Destination", "Train_Type", 
-                "Number_of_Cars", "Number_of_Cars_Loaded", "Number_of_Cars_Empty",
+                "Number_of_Cars", "Number_of_Cars_Loaded", "Number_of_Cars_Empty", "Containers_Empty", "Containers_Loaded",
                 "Tons_Per_Train", "HP_Required"
         )
         .rename({"Number_of_Cars_Loaded": "Cars_Loaded", 
@@ -345,17 +363,15 @@ def calculate_dispatches_deterministic_hourly(
         demand_hourly: pl.DataFrame,
         target_num_cars_per_train:int
     ) -> pl.DataFrame:
+        demand_hourly = demand_hourly.with_columns((pl.col("Origin") + "-" + pl.col("Destination")).alias("OD_Pair"))
         grouped_data = (demand_hourly
-            .with_columns(
-                (pl.col("Origin") + "-" + pl.col("Destination")).alias("OD_Pair")
-            )
             .group_by("OD_Pair")
                 .agg(
-                    pl.col("Number_of_Containers").sum().alias("Total_Containers"),
-                    pl.col("Number_of_Containers").sum().mod(target_num_cars_per_train).alias("Remaining_Containers")
+                    pl.col("Number_of_Cars").sum().alias("Total_Cars"),
+                    pl.col("Number_of_Cars").sum().mod(target_num_cars_per_train).alias("Remaining_Cars")
                 )
             .with_columns(
-                pl.col("Total_Containers").truediv(target_num_cars_per_train).round().add(pl.col("Remaining_Containers").gt(0)).alias("Max_Min_Cars")
+                pl.col("Total_Cars").truediv(target_num_cars_per_train).round().add(pl.col("Remaining_Cars").gt(0)).alias("Max_Min_Cars")
             )
         )
 
@@ -364,16 +380,16 @@ def calculate_dispatches_deterministic_hourly(
         # Step 4: Loop through each unique OD pair to calculate dispatch data
         for row in grouped_data.iter_rows(named=True):
             od_pair = row['OD_Pair']  # This is the "OD_Pair" string like "Origin-Destination"
-            total_containers = row['Total_Containers']  # This is the "Total_Containers" value
+            total_cars = row['Total_Cars']  # This is the "Total_Cars" value
 
-            # Filter containers list for the specific OD pair
-            containers = demand_hourly.filter(pl.col("OD_Pair") == od_pair).select("Number_of_Containers").to_series().to_list()
+            # Filter cars list for the specific OD pair
+            cars = demand_hourly.filter(pl.col("OD_Pair") == od_pair).select("Number_of_Cars").to_series().to_list()
 
             # Retrieve the max min_num_cars for this OD pair
             max_min_cars = row['Max_Min_Cars']
 
             # Calculate dispatch data for the current OD pair with the updated rule
-            dispatch_data = calculate_dispatch_data(total_containers, target_num_cars_per_train, od_pair, containers, max_min_cars)
+            dispatch_data = calculate_dispatch_data(total_cars, target_num_cars_per_train, od_pair, cars, max_min_cars)
             
             # Add the OD pair label to each entry in the dispatch data
             dispatch_data_df = pl.DataFrame(dispatch_data, strict=False)
@@ -393,7 +409,7 @@ def calculate_dispatches_deterministic_hourly(
     
         return final_dispatch_df
 
-    target_num_cars_per_train = config.target_num_cars_per_train
+    target_num_cars_per_train = config.target_cars_per_train['Default'] #TODO make this flexible
     dispatch_df = generate_trains(demand,target_num_cars_per_train)
     od_border_time = []
     border_time = dispatch_df["Border_Times"].to_list() 
@@ -411,7 +427,7 @@ def calculate_dispatches_deterministic_hourly(
     schedule = find_minimum_waiting_time(num_iterations=num_iterations,
         demand_hourly=demand,
         border_time_list=border_time_list,
-        target_num_cars_per_train=config.target_num_cars_per_train['Intermodal'] #TODO make this flexible
+        target_num_cars_per_train=target_num_cars_per_train 
     )
     return schedule.pipe(formatScheduleColumns)
 
@@ -461,5 +477,5 @@ def generate_dispatch_details(
             ((pl.col("Interval").cum_count().over(["Origin","Destination"])) \
              * pl.col("Interval")).alias("Hour")
         )
-        .pipe(formatScheduleColumns)
+        .pipe(formatScheduleColumns, config = config)
     )

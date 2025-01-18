@@ -1,6 +1,6 @@
 ---
 car_type: Manifest_Loaded
-freight_type: Manifest
+freight_type: Manifest_Loaded
 length: 18.0
 axle_count: 4
 brake_count: 1

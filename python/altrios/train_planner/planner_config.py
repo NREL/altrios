@@ -44,7 +44,7 @@ class TrainPlannerConfig:
     })
     cars_per_locomotive_fixed: bool = False
     refuelers_per_incoming_corridor: int = 4
-    stack_type: str = "single"
+    stack_type: str = "double"
     require_diesel: bool = False
     manifest_empty_return_ratio: float = 0.6
     hp_required_per_ton: Dict = field(default_factory = lambda: {

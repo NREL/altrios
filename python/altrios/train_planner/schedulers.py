@@ -1,3 +1,4 @@
+import math
 from typing import List, Union
 from collections import defaultdict
 import polars as pl
@@ -339,6 +340,63 @@ def formatScheduleColumns(
                 "Number_of_Cars_Empty": "Cars_Empty"})
         .sort(["Hour","Origin","Destination","Train_Type"])
     )
+
+
+def calculate_dispatch_data(total_cars, target_num_cars, label, cars, max_min_cars):
+    remaining_cars = total_cars % target_num_cars
+    min_num_cars = (
+        total_cars // target_num_cars + (1 if remaining_cars > 0 else 0)
+    )
+    
+    ## Apply the maximum min_num_cars value
+    min_num_cars = int(max(min_num_cars, max_min_cars))
+
+    border_list = []
+    border_time_list = []
+    dispatched_list = []
+
+    if remaining_cars == 0:
+        border = total_cars / min_num_cars
+    else:
+        border = math.ceil(total_cars / min_num_cars)
+        
+    containers_left = total_cars
+    for _ in range(min_num_cars):
+        if containers_left >= border:
+            border_list.append(border)
+            containers_left -= border
+        else:
+            border_list.append(containers_left)
+            break
+
+    cumulate_demand = 0
+    p = 0
+    for i, car in enumerate(cars):
+        cumulate_demand += car
+        if p == len(border_list) - 1:
+            border_time_list.append(len(cars) - 1)
+            break
+        if cumulate_demand >= border_list[p]:
+            border_time_list.append(i)
+            dispatched_list.append(cumulate_demand)
+            total_cars -= cumulate_demand
+            cumulate_demand = 0
+            p += 1
+            if p >= len(border_list):
+                break
+    if len(border_time_list) < len(border_list):
+        for _ in range(len(border_list) - len(border_time_list)):
+            border_time_list.append(border_time_list[-1]+_+1)
+    dispatched_list.append(total_cars)
+    if len(dispatched_list) < len(border_list):
+        for _ in range(len(border_list) - len(dispatched_list)):
+            dispatched_list.append(0)
+    return {
+        "Border": border_list,
+        "Border_Times": border_time_list,
+        "Dispatched": dispatched_list,
+    }
+
 
 def calculate_dispatches_deterministic_hourly(
     demand: pl.DataFrame,

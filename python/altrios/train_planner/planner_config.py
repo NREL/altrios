@@ -51,10 +51,7 @@ class TrainPlannerConfig:
         "Default": {
         "Unit": 2.0,
         "Manifest": 1.5,
-        "Intermodal": 2.0 + 2.0,
-        "Unit_Empty": 2.0,
-        "Manifest_Empty": 1.5,
-        "Intermodal_Empty": 2.0 + 2.0,
+        "Intermodal": 4.0
         }                         
     })
     dispatch_scaling_dict: Dict = field(default_factory = lambda: {

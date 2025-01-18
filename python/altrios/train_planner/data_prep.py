@@ -1,4 +1,4 @@
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Dict
 from pathlib import Path
 import polars as pl
 import pandas as pd
@@ -124,17 +124,18 @@ def build_locopool(
     config.loco_info = append_loco_info(config.loco_info)
     loco_types = list(config.loco_info.loc[:,'Locomotive_Type'])
     demand, node_list = load_freight_demand(demand_file)
+    #TODO: handle different train types (or mixed train types?)
     
     num_nodes = len(node_list)
     if locomotives_per_node is None:
         num_ods = demand.height
         cars_per_od = demand.get_column("Number_of_Cars").mean()
         if config.single_train_mode:
-            initial_size = math.ceil(cars_per_od / config.cars_per_locomotive["Default"]) 
+            initial_size = math.ceil(cars_per_od / min(config.cars_per_locomotive.values())) 
             rows = initial_size
         else:
             num_destinations_per_node = num_ods*1.0 / num_nodes*1.0
-            initial_size = math.ceil((cars_per_od / config.cars_per_locomotive["Default"]) *
+            initial_size = math.ceil((cars_per_od / min(config.cars_per_locomotive.values())) *
                                     num_destinations_per_node)  # number of locomotives per node
             rows = initial_size * num_nodes  # number of locomotives in total
     else:
@@ -303,3 +304,33 @@ def append_charging_guidelines(
             .alias("Battery_Headroom_J"))
         .with_columns(pl.max_horizontal([pl.col('SOC_Max_J')-pl.col('Battery_Headroom_J'), pl.col('SOC_Min_J')]).alias("SOC_J")))
     return refuelers, loco_pool
+
+def configure_rail_vehicles(
+    single_train_dispatch: Dict,
+    available_rail_vehicles: List[alt.RailVehicle],
+    freight_type_to_car_type: Dict
+) -> (List[alt.RailVehicle], Dict[str, int]):
+    freight_types = []
+    n_cars_by_type = {}
+    this_train_type = single_train_dispatch['Train_Type']
+    if single_train_dispatch['Cars_Loaded'] > 0:
+        freight_type = f'{this_train_type}_Loaded'
+        freight_types.append(freight_type)
+        car_type = None
+        if freight_type in freight_type_to_car_type:
+            car_type = freight_type_to_car_type[freight_type]
+        else: 
+            assert(f'Rail vehicle car type not found for freight type {freight_type}.')
+        n_cars_by_type[car_type] = int(single_train_dispatch['Cars_Loaded'])
+    if single_train_dispatch['Cars_Empty'] > 0:
+        freight_type = f'{this_train_type}_Empty'
+        freight_types.append(freight_type)
+        car_type = None
+        if freight_type in freight_type_to_car_type:
+            car_type = freight_type_to_car_type[freight_type]
+        else: 
+            assert(f'Rail vehicle car type not found for freight type {freight_type}.')
+        n_cars_by_type[car_type] = int(single_train_dispatch['Cars_Empty'])
+
+    rv_to_use = [vehicle for vehicle in available_rail_vehicles if vehicle.freight_type in freight_types]
+    return rv_to_use, n_cars_by_type

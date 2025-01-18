@@ -95,19 +95,19 @@ def dispatch(
     message = ""
     if config.cars_per_locomotive_fixed:
         # Get as many available locomotives as are needed (in order of loco_pool)
-        enough_locomotives = loco_pool.select(
-            (pl.lit(1.0) * pl.lit(candidates)).cumsum() >= total_cars).to_series()
-        if not enough_locomotives.any():
+        enough = loco_pool.select(
+            (pl.lit(1.0) * pl.lit(candidates)).cum_sum() >= total_cars).to_series()
+        if not enough.any():
             message = f"""Locomotives needed ({total_cars}) at {origin} at hour {dispatch_time}
                 is more than the available locomotives ({candidates.sum()}).
                 Count of locomotives servicing, refueling, or queueing at {origin} are:"""
     else:
         # Get running sum, including first diesel, of hp of the candidates (in order of loco_pool)
-        enough_hp = loco_pool.select((
+        enough = loco_pool.select((
             (
                 (pl.col("HP") - (pl.col("Loco_Mass_Tons") * pl.lit(hp_per_ton))) * pl.lit(candidates)
             ).cum_sum() + pl.lit(diesel_to_require_hp)) >= hp_required).to_series()
-        if not enough_hp.any():
+        if not enough.any():
             available_hp = loco_pool.select(
                 (
                     (pl.col("HP") - (pl.col("Loco_Mass_Tons") * pl.lit(hp_per_ton))) * pl.lit(candidates)
@@ -116,7 +116,7 @@ def dispatch(
                 is more than the available horsepower ({available_hp}).
                 Count of locomotives servicing, refueling, or queueing at {origin} are:"""
 
-    if not enough_hp.any():
+    if not enough.any():
         # Hold the train until enough diesels are present (future development)
         waiting_counts = (loco_pool
             .filter(
@@ -132,7 +132,7 @@ def dispatch(
         # Hold the train until enough locomotives are present (future development)
         raise ValueError(message)
 
-    last_row_to_use = enough_hp.eq(True).cum_sum().eq(1).arg_max()
+    last_row_to_use = enough.eq(True).cum_sum().eq(1).arg_max()
     # Set false all the locomotives that would add unnecessary hp
     selected[np.arange(last_row_to_use+1, len(selected))] = False
 
@@ -317,6 +317,14 @@ def run_train_planner(
         config.return_demand_generators = train_demand_generators.get_default_return_demand_generators()
 
     refuelers, loco_pool = data_prep.append_charging_guidelines(refuelers, loco_pool, demand, network_charging_guidelines)
+    
+    freight_type_to_car_type = {}
+    for rv in rail_vehicles: 
+        if rv.freight_type in freight_type_to_car_type:
+            assert(f'More than one rail vehicle car type for freight type {rv.freight_type}')
+        else:
+            freight_type_to_car_type[rv.freight_type] = rv.car_type
+
     if config.single_train_mode:
         demand = train_demand_generators.generate_demand_trains(demand, 
                                         demand_returns = pl.DataFrame(), 
@@ -333,7 +341,7 @@ def run_train_planner(
         demand_rebalancing = pl.DataFrame()
         if demand.filter(pl.col("Train_Type").str.contains("Manifest")).height > 0:
             demand_rebalancing = train_demand_generators.generate_manifest_rebalancing_demand(demand, node_list, config)
-        demand = train_demand_generators.generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicles, config)
+        demand = train_demand_generators.generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicles, freight_type_to_car_type, config)
         if config.dispatch_scheduler is None:
             config.dispatch_scheduler = schedulers.generate_dispatch_details
         dispatch_schedule = config.dispatch_scheduler(demand, rail_vehicles, simulation_days, config)
@@ -389,24 +397,15 @@ def run_train_planner(
 
                     if config.drag_coeff_function is not None:
                         cd_area_vec = config.drag_coeff_function(
-                             this_train['Number_of_Cars'], 
-                             gap_size = defaults.DEFAULT_GAP_SIZE
+                             int(this_train['Number_of_Cars'])
                          )
                     else:
                         cd_area_vec = None
 
-                    train_types = []
-                    n_cars_by_type = {}
-                    this_train_type = this_train['Train_Type']
-                    if this_train['Cars_Loaded'] > 0:
-                        train_types.append(f'{this_train_type}_Loaded')
-                        n_cars_by_type[f'{this_train_type}_Loaded'] = int(this_train['Cars_Loaded'])
-                    if this_train['Cars_Empty'] > 0:
-                        train_types.append(f'{this_train_type}_Empty')
-                        n_cars_by_type[f'{this_train_type}_Empty'] = int(this_train['Cars_Empty'])
+                    rv_to_use, n_cars_by_type = data_prep.configure_rail_vehicles(this_train, rail_vehicles, freight_type_to_car_type)
 
                     train_config = alt.TrainConfig(
-                        rail_vehicles = [vehicle for vehicle in rail_vehicles if vehicle.car_type in train_types],
+                        rail_vehicles = rv_to_use,
                         n_cars_by_type = n_cars_by_type,
                         train_type = train_type,
                         cd_area_vec = cd_area_vec
@@ -558,9 +557,9 @@ if __name__ == "__main__":
         str(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
     )
     config = planner_config.TrainPlannerConfig()
-    loco_pool = build_locopool(config, defaults.DEMAND_FILE)
-    demand, node_list = demand_loader(defaults.DEMAND_FILE)
-    refuelers = build_refuelers(
+    loco_pool = data_prep.build_locopool(config, defaults.DEMAND_FILE)
+    demand, node_list = data_prep.load_freight_demand(defaults.DEMAND_FILE)
+    refuelers = data_prep.build_refuelers(
         node_list, 
         loco_pool,
         config.refueler_info, 

@@ -8,6 +8,10 @@ pub struct RailVehicle {
     #[serde(alias = "Car Type")]
     pub car_type: String,
 
+    /// Identifier for the freight type carried by this car type (e.g., Intermodal).
+    #[serde(alias = "Freight Type")]
+    pub freight_type: String,
+
     /// Railcar length (between pulling-faces)
     #[serde(alias = "Length (m)")]
     pub length: si::Length,

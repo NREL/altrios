@@ -1,5 +1,6 @@
 ---
 car_type: Unit_Empty
+freight_type: Unit
 length: 10.7
 axle_count: 4
 brake_count: 1

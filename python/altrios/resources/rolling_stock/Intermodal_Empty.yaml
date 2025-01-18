@@ -1,5 +1,6 @@
 ---
 car_type: Intermodal_Empty
+freight_type: Intermodal
 length: 18.0
 axle_count: 4
 brake_count: 1

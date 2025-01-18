@@ -933,6 +933,7 @@ class RailVehicle(SerdeAPI):
     braking_ratio_empty: float
     braking_ratio_loaded: float
     car_type: str
+    freight_type: str
     davis_b_seconds_per_meter: float
     cd_area_empty_square_meters: float
     cd_area_loaded_square_meters: float

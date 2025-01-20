@@ -350,14 +350,15 @@ def calculate_dispatch_data(
     ## Apply the maximum min_num_cars value
     num_trains = int(max(num_trains, max_min_trains))
 
-    accumulated_arrivals = (demand_hourly
+    new_accumulated_carloads = (demand_hourly
         .sort("Hour")
-        .with_columns(pl.col("Number_of_Containers").cum_sum().floordiv(containers_per_car).alias("Accumulated_Arrivals"))
-        .filter(pl.col("Accumulated_Arrivals") - pl.col("Accumulated_Arrivals").shift(1).fill_null(0.0) > 0)
-        .select("Hour", "Accumulated_Arrivals")
+        .with_columns(pl.col("Number_of_Containers").cum_sum().floordiv(containers_per_car).alias("Accumulated_Carloads"))
+        .with_columns((pl.col("Accumulated_Carloads") - pl.col("Accumulated_Carloads").shift(1).fill_null(0.0)).alias("New_Carloads"))
+        .filter(pl.col("New_Carloads") > 0)
+        .select("Hour", "New_Carloads")
     )
 
-    planned_train_sizes = (
+    planned_train_lengths = (
         pl.DataFrame({
             "Group": [1] * num_trains, #Unused, just needed for allocateIntegerEvenly to work,
             "Train_ID": list(range(num_trains)),
@@ -365,48 +366,41 @@ def calculate_dispatch_data(
         })
         # Divide containers into trains as evenly as possible
         .pipe(utilities.allocateIntegerEvenly, target="Cars", grouping_vars = ["Group"])
-        .with_columns(pl.col("Cars").cum_sum().alias("Cumulative_Cars"))
-        .select("Train_ID", "Cars", "Cumulative_Cars")
-        #.join_where(accumulated_arrivals, pl.col("Cumulative_Cars") <= pl.col("Accumulated_Arrivals"))
-        #.sort("Train_ID", "Hour")
+        .sort("Train_ID")
+        .get_column("Cars")
+        .to_list()
     )
 
-    p = 0
-    for arrival in accumulated_arrivals.iter_rows(named=True):
-        accumulated_demand += arrival['Accumulated_Arrivals']
-        if p == planned_train_sizes.height - 1:
-
-    for train in planned_train_sizes.partition_by("Train_ID"):
-        dispatch_time = train.filter()
-
     train_dispatch_times = []
-    dispatched_container_counts = []
+    dispatched_train_lengths = []
     accumulated_demand = 0
     p = 0
-    for i, container_count in enumerate(containers):
-        accumulated_demand += container_count
-        if p == len(planned_container_counts) - 1:
-            train_dispatch_times.append(len(containers) - 1)
+    for arrival in new_accumulated_carloads.iter_rows(named=True):
+        accumulated_demand += arrival['New_Carloads']
+        if p == len(planned_train_lengths) - 1:
+            train_dispatch_times.append(new_accumulated_carloads.get_column("Hour").max())
             break
-        if accumulated_demand >= planned_container_counts[p]:
-            train_dispatch_times.append(i)
-            dispatched_container_counts.append(accumulated_demand)
-            total_containers -= accumulated_demand
+        if accumulated_demand >= planned_train_lengths[p]:
+            train_dispatch_times.append(arrival['Hour'])
+            dispatched_train_lengths.append(accumulated_demand)
+            total_containers -= (accumulated_demand * containers_per_car)
             accumulated_demand = 0
             p += 1
-            if p >= len(planned_container_counts):
+            if p >= len(planned_train_lengths):
                 break
-    if len(train_dispatch_times) < len(planned_container_counts):
-        for _ in range(len(planned_container_counts) - len(train_dispatch_times)):
+
+    if len(train_dispatch_times) < len(planned_train_lengths):
+        for _ in range(len(planned_train_lengths) - len(train_dispatch_times)):
             train_dispatch_times.append(train_dispatch_times[-1]+_+1)
-    dispatched_container_counts.append(total_containers)
-    if len(dispatched_container_counts) < len(planned_container_counts):
-        for _ in range(len(planned_container_counts) - len(dispatched_container_counts)):
-            dispatched_container_counts.append(0)
+    dispatched_train_lengths.append(total_containers / containers_per_car)
+    if len(dispatched_train_lengths) < len(planned_train_lengths):
+        for _ in range(len(planned_train_lengths) - len(dispatched_train_lengths)):
+            dispatched_train_lengths.append(0)
+
     return {
-        "Border": planned_container_counts,
+        "Border": planned_train_lengths,
         "Border_Times": train_dispatch_times,
-        "Dispatched": dispatched_container_counts,
+        "Dispatched": dispatched_train_lengths,
     }
 
 # Define the main function to generate demand trains with the updated rule
@@ -442,7 +436,7 @@ def generate_trains_deterministic_hourly(
             total_containers = row['Total_Containers'], 
             target_num_cars_per_train = target_num_cars_per_train, 
             od_pair = row['OD_Pair'], 
-            containers = demand_hourly.filter(pl.col("OD_Pair") == row['OD_Pair']).sort("Hour"), 
+            demand_hourly = demand_hourly.filter(pl.col("OD_Pair") == row['OD_Pair']).sort("Hour"), 
             max_min_trains =row['Max_Min_Trains'],
             containers_per_car = containers_per_car)
         

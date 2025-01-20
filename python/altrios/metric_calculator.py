@@ -463,12 +463,7 @@ def calculate_freight_moved(
     elif units in ["container-km", "container-miles"]:
         assert info.consist_plan.filter(~pl.col("Train_Type").str.contains("Intermodal")).height == 0, "Can only count containers if the consist plan is all Intermodal"
         car_distance = info.sims.get_car_kilometers(annualize=info.annualize) * conversion_from_km
-        
-        if info.train_planner_config.stack_type == "double":
-            containers_per_car = 2.0
-        elif info.train_planner_config.stack_type == "single":
-            containers_per_car = 1.0
-        return metric("Freight_Moved", units, car_distance * containers_per_car, year=info.scenario_year)
+        return metric("Freight_Moved", units, car_distance * info.train_planner_config.containers_per_car, year=info.scenario_year)
         
     elif units == "containers":
         container_counts = info.consist_plan.select("Train_ID", "Containers_Loaded", "Containers_Empty").unique().drop("Train_ID").sum()

@@ -64,13 +64,15 @@ def main(
                                  str(loc.link_idx.idx) + " is invalid for network!")
             
     train_planner_config.loco_info = metrics.add_battery_costs(train_planner_config.loco_info, scenario_year)
+    train_planner_config.simulation_days = simulation_days + 2 * warm_start_days
 
-    if loco_pool is None: loco_pool = planner.data_prep.build_locopool(
-            config = train_planner_config,
-            method="shares_twoway",
-            shares=[1-target_bel_share, target_bel_share],
-            demand_file=demand_file
-            )
+    # TODO mbruchon: un-comment this and move it out into rollout.py so rollouts still work
+    #if loco_pool is None: loco_pool = planner.data_prep.build_locopool(
+    #        config = train_planner_config,
+    #       method="shares_twoway",
+    #        shares=[1-target_bel_share, target_bel_share],
+    #        demand_file=demand_file
+    #       )
         
     t0_ptc = time.perf_counter()
     (
@@ -85,7 +87,6 @@ def main(
         network = network,
         loco_pool= loco_pool,
         refuelers = refuelers,
-        simulation_days=simulation_days + 2 * warm_start_days,
         scenario_year = scenario_year,
         config = train_planner_config,
         demand_file = demand_file,

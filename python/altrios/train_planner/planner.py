@@ -272,7 +272,6 @@ def run_train_planner(
     network: List[alt.Link],
     loco_pool: pl.DataFrame,
     refuelers: pl.DataFrame,
-    simulation_days: int,
     scenario_year: int,
     train_type: alt.TrainType = alt.TrainType.Freight, 
     config: planner_config.TrainPlannerConfig = planner_config.TrainPlannerConfig(),
@@ -294,30 +293,17 @@ def run_train_planner(
     network:
     loco_pool:
     refuelers:
-    simulation_days:
     config: Object storing train planner configuration paramaters
     demand_file: 
     Outputs:
     ----------
     """
     config.loco_info = data_prep.append_loco_info(config.loco_info)
-    demand, node_list = data_prep.load_freight_demand(demand_file)
-
-    if refuelers is None: 
-        refuelers = data_prep.build_refuelers(
-            node_list, 
-            loco_pool,
-            config.refueler_info, 
-            config.refuelers_per_incoming_corridor)
-        
-    if network_charging_guidelines is None: 
-        network_charging_guidelines = pl.read_csv(alt.resources_root() / "networks" / "network_charging_guidelines.csv")
-
+    demand, node_list = data_prep.load_freight_demand(demand_file, config)
+    
     if config.return_demand_generators is None:
         config.return_demand_generators = train_demand_generators.get_default_return_demand_generators()
 
-    refuelers, loco_pool = data_prep.append_charging_guidelines(refuelers, loco_pool, demand, network_charging_guidelines)
-    
     freight_type_to_car_type = {}
     for rv in rail_vehicles: 
         if rv.freight_type in freight_type_to_car_type:
@@ -336,15 +322,46 @@ def run_train_planner(
             .with_columns(pl.col("index").mul(24.0).alias("Hour"))
             .drop("index")
         )
-    else:
-        demand_returns = train_demand_generators.generate_return_demand(demand, config)
+    else: 
+        demand_returns = pl.DataFrame()
         demand_rebalancing = pl.DataFrame()
-        if demand.filter(pl.col("Train_Type").str.contains("Manifest")).height > 0:
-            demand_rebalancing = train_demand_generators.generate_manifest_rebalancing_demand(demand, node_list, config)
-        demand = train_demand_generators.generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicles, freight_type_to_car_type, config)
+        if (config.dispatch_scheduler is None) and ("Hour" in demand.collect_schema()):
+            if "Number_of_Containers" in demand.collect_schema():
+                demand = (demand
+                    .group_by("Origin", "Destination", "Train_Type")
+                        .agg(pl.col("Number_of_Containers").sum())
+                    .with_columns(pl.col("Number_of_Containers").truediv(config.containers_per_car).ceil().alias("Number_of_Cars"))
+                )
+            else:
+                demand = (demand
+                    .group_by("Origin", "Destination", "Train_Type")
+                        .agg(pl.col("Number_of_Cars").sum())
+                )
+        if "Hour" not in demand.schema:
+            demand_returns = train_demand_generators.generate_return_demand(demand, config)
+            if demand.filter(pl.col("Train_Type").str.contains("Manifest")).height > 0:
+                demand_rebalancing = train_demand_generators.generate_manifest_rebalancing_demand(demand, node_list, config)
+                
         if config.dispatch_scheduler is None:
+            demand = train_demand_generators.generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicles, freight_type_to_car_type, config)
             config.dispatch_scheduler = schedulers.generate_dispatch_details
-        dispatch_schedule = config.dispatch_scheduler(demand, rail_vehicles, simulation_days, config)
+
+        dispatch_schedule = config.dispatch_scheduler(demand, rail_vehicles, config)
+   
+    if loco_pool is None:
+        loco_pool = data_prep.build_locopool(config=config, demand_file=demand, dispatch_schedule=dispatch_schedule)
+
+    if refuelers is None: 
+        refuelers = data_prep.build_refuelers(
+            node_list, 
+            loco_pool,
+            config.refueler_info, 
+            config.refuelers_per_incoming_corridor)
+        
+    if network_charging_guidelines is None: 
+        network_charging_guidelines = pl.read_csv(alt.resources_root() / "networks" / "network_charging_guidelines.csv")
+
+    refuelers, loco_pool = data_prep.append_charging_guidelines(refuelers, loco_pool, demand, network_charging_guidelines)
 
     final_departure = dispatch_schedule.get_column("Hour").max()
     train_consist_plan = pl.DataFrame(schema=
@@ -450,7 +467,7 @@ def run_train_planner(
                     slts = tsb.make_speed_limit_train_sim(
                         location_map=location_map, 
                         save_interval=None, 
-                        simulation_days=simulation_days, 
+                        simulation_days=config.simulation_days, 
                         scenario_year=scenario_year
                     )
 
@@ -561,6 +578,7 @@ if __name__ == "__main__":
         str(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
     )
     config = planner_config.TrainPlannerConfig()
+    config.simulation_days=defaults.SIMULATION_DAYS + 2 * defaults.WARM_START_DAYS
     loco_pool = data_prep.build_locopool(config, defaults.DEMAND_FILE)
     demand, node_list = data_prep.load_freight_demand(defaults.DEMAND_FILE)
     refuelers = data_prep.build_refuelers(
@@ -575,6 +593,5 @@ if __name__ == "__main__":
         network=network,
         loco_pool=loco_pool,
         refuelers=refuelers,
-        simulation_days=defaults.SIMULATION_DAYS + 2 * defaults.WARM_START_DAYS,
         scenario_year=defaults.BASE_ANALYSIS_YEAR,
         config=config)

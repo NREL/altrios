@@ -22,7 +22,7 @@ class TrainPlannerConfig:
     - `cars_per_locomotive`: Heuristic scaling factor used to size number of locomotives needed based on demand.
     - `cars_per_locomotive_fixed`: If `True`, `cars_per_locomotive` overrides `hp_per_ton` calculations used for dispatching decisions.
     - `refuelers_per_incoming_corridor`: Heuristic scaling factor used to scale number of refuelers needed at each node based on number of incoming corridors.
-    - `stack_type`: Type of stacking (applicable only for intermodal containers)
+    - `containers_per_car`: Containers stacked on each car (applicable only for intermodal containers)
     - `require_diesel`: `True` to require each consist to have at least one diesel locomotive.
     - `manifest_empty_return_ratio`: `Dict`
     - `drag_coeff_function`: `Dict`
@@ -32,6 +32,7 @@ class TrainPlannerConfig:
     - `refueler_info`: `Dict`
     - `return_demand_generators`: `Dict`
     """
+    simulation_days: int = 21
     single_train_mode: bool = False
     min_cars_per_train: Dict = field(default_factory = lambda: {
         "Default": 60
@@ -44,7 +45,7 @@ class TrainPlannerConfig:
     })
     cars_per_locomotive_fixed: bool = False
     refuelers_per_incoming_corridor: int = 4
-    stack_type: str = "double"
+    containers_per_car: int = 2
     require_diesel: bool = False
     manifest_empty_return_ratio: float = 0.6
     hp_required_per_ton: Dict = field(default_factory = lambda: {

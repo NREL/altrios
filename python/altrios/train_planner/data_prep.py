@@ -1,6 +1,7 @@
 from typing import Union, List, Tuple, Dict
 from pathlib import Path
 import polars as pl
+import polars.selectors as cs
 import pandas as pd
 import numpy as np
 import math
@@ -19,8 +20,25 @@ day_order_map = {
     "Sun": 7
 }
 
+def convert_demand_to_sim_days(
+    demand_table: Union[pl.DataFrame, pl.LazyFrame],
+    simulation_days: int
+) -> Union[pl.DataFrame, pl.LazyFrame]:
+    if "Number_of_Days" in demand_table.collect_schema():
+        return demand_table.with_columns( 
+            cs.starts_with("Number_of_").truediv(pl.col("Number_of_Days").truediv(simulation_days))
+        )
+
+    else:
+        print("`Number_of_Days` not specified in demand file. Assuming demand in the file is expressed per week.")
+        return demand_table.with_columns( 
+            cs.starts_with("Number_of_").mul(simulation_days / 7.0)
+        )
+
+
 def load_freight_demand(
-    demand_table: Union[pl.DataFrame, Path, str]
+    demand_table: Union[pl.DataFrame, pl.LazyFrame, Path, str],
+    config: planner_config.TrainPlannerConfig,
 ) -> Tuple[pl.DataFrame, pl.Series, int]:
     """
     Load the user input csv file into a dataframe for later processing
@@ -39,8 +57,14 @@ def load_freight_demand(
     origin, destination, train type, number of cars
     node_list: List of origin or destination demand nodes
     """
-    if type(demand_table) is not pl.DataFrame:
-        demand_table = pl.read_csv(demand_table, dtypes = {"Number_of_Cars": pl.UInt32, "Number_of_Containers": pl.UInt32})
+    if isinstance(demand_table, (Path, str)):
+        demand_table = (pl.read_csv(demand_table)
+            .pipe(convert_demand_to_sim_days, simulation_days = config.simulation_days)
+        )
+    elif "Hour" not in demand_table.collect_schema():
+        demand_table = (demand_table
+            .pipe(convert_demand_to_sim_days, simulation_days = config.simulation_days)
+        )
 
     nodes = pl.concat(
         [demand_table.get_column("Origin"),
@@ -50,8 +74,16 @@ def load_freight_demand(
 def prep_hourly_demand(
     total_demand: Union[pl.DataFrame, pl.LazyFrame],
     hourly_demand_density: Union[pl.DataFrame, pl.LazyFrame],
-    daily_demand_density: Union[pl.DataFrame, pl.LazyFrame]
+    daily_demand_density: Union[pl.DataFrame, pl.LazyFrame],
+    simulation_weeks = 1
 ) -> Union[pl.DataFrame, pl.LazyFrame]:
+    if "Number_of_Containers" in total_demand.collect_schema():
+        demand_col = "Number_of_Containers"
+    else:
+        demand_col = "Number_of_Cars"
+
+    total_demand = total_demand.pipe(convert_demand_to_sim_days, simulation_days = simulation_weeks * 7)
+    
     hourly_demand_density = (hourly_demand_density
         .group_by("Terminal_Type", "Hour_Of_Day")
             .agg(pl.col("Share").sum())
@@ -62,27 +94,32 @@ def prep_hourly_demand(
             .agg(pl.col("Share").sum())
         .with_columns(pl.col("Share").truediv(pl.col("Share").sum().over("Terminal_Type")))
     )
-    return (total_demand
+    one_week = (total_demand
         .join(daily_demand_density, how="inner", on=["Terminal_Type"])
         .with_columns(
-            (pl.col("Number_of_Cars") * pl.col("Share")).alias("Number_of_Cars_Daily"),
+            (pl.col(demand_col) * pl.col("Share")).alias(f'{demand_col}_Daily'),
             pl.col("Day_Of_Week").replace_strict(day_order_map).alias("Day_Order")
         )
-        .pipe(utilities.allocateItems, grouping_vars=["Origin", "Destination", "Train_Type"], count_target="Number_of_Cars_Daily")
-        .drop("Number_of_Cars_Daily", "Share")
-        .rename({"Count": "Number_of_Cars_Daily"})
+        .pipe(utilities.allocateItems, grouping_vars=["Origin", "Destination", "Train_Type"], count_target=f'{demand_col}_Daily')
+        .drop(f'{demand_col}_Daily', "Share")
+        .rename({"Count": f'{demand_col}_Daily'})
         .join(hourly_demand_density, how="inner", on=["Terminal_Type"])
         .sort("Origin", "Destination", "Day_Order", "Hour_Of_Day")
         .with_columns(
-            (pl.col("Number_of_Cars_Daily") * pl.col("Share")).alias("Number_of_Cars"),
+            (pl.col(f'{demand_col}_Daily') * pl.col("Share")).alias(demand_col),
             pl.concat_str(pl.col("Origin"), pl.lit("-"), pl.col("Destination")).alias("OD_Pair"),
             pl.int_range(0, pl.len()).over("Origin", "Destination").alias("Hour")
         )
-        .pipe(utilities.allocateItems, grouping_vars=["Origin", "Destination", "Train_Type", "Day_Order"], count_target="Number_of_Cars")
-        .drop("Number_of_Cars")
-        .rename({"Count": "Number_of_Cars"})
-        .select("Origin", "Destination", "Train_Type", "Hour", "Number_of_Cars")
+        .pipe(utilities.allocateItems, grouping_vars=["Origin", "Destination", "Train_Type", "Day_Order"], count_target=demand_col)
+        .drop(demand_col)
+        .rename({"Count": demand_col})
+        .select("Origin", "Destination", "Train_Type", "Hour", "Number_of_Days", demand_col)
     )
+    return pl.concat([
+        one_week,
+        one_week.with_columns(pl.col("Hour").add(24*7)),
+        one_week.with_columns(pl.col("Hour").add(24*7*2))
+    ])
     
 def append_loco_info(loco_info: pd.DataFrame) -> pd.DataFrame:
     if all(item in loco_info.columns for item in [
@@ -105,7 +142,8 @@ def append_loco_info(loco_info: pd.DataFrame) -> pd.DataFrame:
 
 def build_locopool(
     config: planner_config.TrainPlannerConfig,
-    demand_file: Union[pl.DataFrame, Path, str],
+    demand_file: Union[pl.DataFrame, pl.LazyFrame, Path, str],
+    dispatch_schedule: Union[pl.DataFrame, pl.LazyFrame] = None,
     method: str = "tile",
     shares: List[float] = [],
     locomotives_per_node: int = None
@@ -123,21 +161,49 @@ def build_locopool(
     """
     config.loco_info = append_loco_info(config.loco_info)
     loco_types = list(config.loco_info.loc[:,'Locomotive_Type'])
-    demand, node_list = load_freight_demand(demand_file)
+    demand, node_list = load_freight_demand(demand_file, config)
     #TODO: handle different train types (or mixed train types?)
     
     num_nodes = len(node_list)
     if locomotives_per_node is None:
-        num_ods = demand.height
-        cars_per_od = demand.get_column("Number_of_Cars").mean()
+        num_ods = demand.select("Origin", "Destination").unique().height
+        if "Number_of_Cars" in demand.collect_schema():
+            cars_per_od = (demand
+                .group_by("Origin","Destination")
+                    .agg(pl.col("Number_of_Cars").sum())
+                .get_column("Number_of_Cars").mean()
+            )
+        elif "Number_of_Containers" in demand.collect_schema():
+            cars_per_od = (demand
+                .group_by("Origin","Destination")
+                    .agg(pl.col("Number_of_Containers").sum())
+                .get_column("Number_of_Containers").mean()
+            ) / config.containers_per_car
+        else:
+            assert("No valid columns in demand DataFrame")
         if config.single_train_mode:
             initial_size = math.ceil(cars_per_od / min(config.cars_per_locomotive.values())) 
             rows = initial_size
         else:
             num_destinations_per_node = num_ods*1.0 / num_nodes*1.0
-            initial_size = math.ceil((cars_per_od / min(config.cars_per_locomotive.values())) *
+            initial_size_demand = math.ceil((cars_per_od / min(config.cars_per_locomotive.values())) *
                                     num_destinations_per_node)  # number of locomotives per node
-            rows = initial_size * num_nodes  # number of locomotives in total
+            initial_size_hp = 0
+            if dispatch_schedule is not None:
+                # Compute the 24-hour window with the most total locomotives needed 
+                # (assuming each loco is only dispatched once in a given day)
+                loco_mass = config.loco_info['Loco_Mass_Tons'].mean()
+                hp_per_ton = config.hp_required_per_ton['Default'][dispatch_schedule.select(pl.col("Train_Type").mode()).item()]
+                hp_per_loco = config.loco_info['HP'].mean() - loco_mass * hp_per_ton
+                initial_size_hp = (dispatch_schedule
+                    .with_columns((pl.col("Hour") // 24).cast(pl.Int32).alias("Day"),
+                                    pl.col("HP_Required").truediv(hp_per_loco).ceil().alias("Locos_Per_Dispatch"))
+                    .group_by("Day", "Origin")
+                        .agg(pl.col("Locos_Per_Dispatch").ceil().sum().alias("Locos_Per_Day_Per_Origin"))
+                    .select(pl.col("Locos_Per_Day_Per_Origin").max().cast(pl.Int64)).item()
+                )
+            initial_size = max(initial_size_demand, initial_size_hp)
+            rows = initial_size * num_nodes # number of locomotives in total
     else:
         initial_size = locomotives_per_node
         rows = locomotives_per_node * num_nodes

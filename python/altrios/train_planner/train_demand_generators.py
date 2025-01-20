@@ -78,13 +78,15 @@ def generate_return_demand_intermodal(demand_subset: Union[pl.LazyFrame, pl.Data
             pl.concat_str(pl.min_horizontal("Origin", "Destination"), pl.lit("_"), pl.max_horizontal("Origin", "Destination")).alias("OD")
         )
         .with_columns(
-            pl.col("Number_of_Cars").range().over("OD").name.suffix("_Return")
+            pl.col("Number_of_Cars", "Number_of_Containers").range().over("OD").name.suffix("_Return")
         )
         .filter(
-            pl.col("Number_of_Cars") == pl.col("Number_of_Cars").max().over("OD")
+            pl.col("Number_of_Cars") == pl.col("Number_of_Cars").max().over("OD"),
+            pl.col("Number_of_Cars_Return") > 0
         )
-        .drop("OD", "Number_of_Cars")
-        .rename({"Number_of_Cars_Return": "Number_of_Cars"})
+        .drop("OD", "Number_of_Cars", "Number_of_Containers")
+        .rename({"Number_of_Cars_Return": "Number_of_Cars",
+                 "Number_of_Containers_Return": "Number_of_Containers"})
     )
 
 def generate_return_demand(
@@ -104,18 +106,17 @@ def generate_return_demand(
     of returning the empty cars to their original nodes
     """
     demand_subsets = demand.partition_by("Train_Type", as_dict = True)
-    return_demand = []
+    return_demands = []
     for train_type, demand_subset in demand_subsets.items():
         train_type_label = train_type[0]
         if train_type_label in config.return_demand_generators:
             return_demand_generator = config.return_demand_generators[train_type_label]
-            temp = return_demand_generator(demand_subset, config)
-            print(temp)
-            return_demand.append(temp)
+            return_demand = return_demand_generator(demand_subset, config)
+            return_demands.append(return_demand)
         else:
             print(f'Return demand generator not implemented for train type: {train_type_label}')
 
-    demand_return = (pl.concat(return_demand, how="diagonal_relaxed")
+    demand_return = (pl.concat(return_demands, how="diagonal_relaxed")
         .filter(pl.col("Number_of_Cars") > 0)
     )
     return demand_return
@@ -288,8 +289,8 @@ def generate_demand_trains(
             pl.when(pl.col("Car_Type").str.to_lowercase().str.contains("_empty"))
                 .then(pl.col("KG_Empty") / utilities.KG_PER_TON)
                 .otherwise(pl.col("KG") / utilities.KG_PER_TON)
-                .alias("Tons_Per_Car"),
-            pl.col("Car_Type").str.strip_suffix("_Loaded"))
+                .alias("Tons_Per_Car")
+        )
         .drop(["KG_Empty","KG"])
     )
 
@@ -379,7 +380,10 @@ def generate_demand_trains(
                             pl.col("Number_of_Cars").floordiv("Cars_Per_Train_Min")
                         ])
                     ])
-                ).cast(pl.UInt32).alias("Number_of_Trains")
+                ).cast(pl.UInt32).alias("Number_of_Trains"),
+            pl.col("Number_of_Cars_Loaded").mul(config.containers_per_car).alias("Number_of_Containers_Loaded"),
+            pl.col("Number_of_Cars_Empty").mul(config.containers_per_car).alias("Number_of_Containers_Empty"),
+            pl.lit(config.simulation_days).alias("Number_of_Days")
         )
         .drop("Cars_Per_Train_Target_Loaded", "Cars_Per_Train_Target_Empty", "Cars_Per_Train_Min_Empty", "Cars_Per_Train_Min_Loaded")
     )

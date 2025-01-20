@@ -48,6 +48,7 @@ class TrainPlannerConfig:
     containers_per_car: int = 2
     require_diesel: bool = False
     manifest_empty_return_ratio: float = 0.6
+    loco_pool_safety_factor: float = 1.1
     hp_required_per_ton: Dict = field(default_factory = lambda: {
         "Default": {
         "Unit": 2.0,

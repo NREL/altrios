@@ -115,11 +115,14 @@ def prep_hourly_demand(
         .rename({"Count": demand_col})
         .select("Origin", "Destination", "Train_Type", "Hour", "Number_of_Days", demand_col)
     )
-    return pl.concat([
-        one_week,
-        one_week.with_columns(pl.col("Hour").add(24*7)),
-        one_week.with_columns(pl.col("Hour").add(24*7*2))
-    ])
+    return (
+        pl.concat([
+            one_week,
+            one_week.with_columns(pl.col("Hour").add(24*7)),
+            one_week.with_columns(pl.col("Hour").add(24*7*2))
+        ])
+        .sort("Origin", "Destination", "Train_Type", "Hour")
+    )
     
 def append_loco_info(loco_info: pd.DataFrame) -> pd.DataFrame:
     if all(item in loco_info.columns for item in [
@@ -197,7 +200,7 @@ def build_locopool(
                 hp_per_loco = config.loco_info['HP'].mean() - loco_mass * hp_per_ton
                 initial_size_hp = (dispatch_schedule
                     .with_columns((pl.col("Hour") // 24).cast(pl.Int32).alias("Day"),
-                                    pl.col("HP_Required").truediv(hp_per_loco).ceil().alias("Locos_Per_Dispatch"))
+                                    pl.col("HP_Required").truediv(hp_per_loco).ceil().mul(config.loco_pool_safety_factor).alias("Locos_Per_Dispatch"))
                     .group_by("Day", "Origin")
                         .agg(pl.col("Locos_Per_Dispatch").ceil().sum().alias("Locos_Per_Day_Per_Origin"))
                     .select(pl.col("Locos_Per_Day_Per_Origin").max().cast(pl.Int64)).item()
@@ -400,3 +403,63 @@ def configure_rail_vehicles(
 
     rv_to_use = [vehicle for vehicle in available_rail_vehicles if vehicle.freight_type in freight_types]
     return rv_to_use, n_cars_by_type
+
+def appendTonsAndHP(
+    df: Union[pl.DataFrame, pl.LazyFrame],
+    rail_vehicles,
+    freight_type_to_car_type,
+    config
+) -> Union[pl.DataFrame, pl.LazyFrame]:
+    
+    hp_per_ton = pl.concat([
+        (pl.DataFrame(this_dict)
+            .melt(variable_name="Train_Type", value_name="HP_Required_Per_Ton") 
+            .with_columns(pl.lit(this_item).alias("O_D"))
+            .with_columns(pl.col("O_D").str.split("_").list.first().alias("Origin"),
+                        pl.col("O_D").str.split("_").list.last().alias("Destination"))
+        )
+        for this_item, this_dict in config.hp_required_per_ton.items()
+    ], how="horizontal_relaxed")
+
+    def get_kg_empty(veh):
+        return veh.mass_static_base_kilograms + veh.axle_count * veh.mass_rot_per_axle_kilograms
+    def get_kg(veh):
+        return veh.mass_static_base_kilograms + veh.mass_freight_kilograms + veh.axle_count * veh.mass_rot_per_axle_kilograms
+            
+    tons_per_car = (
+        pl.DataFrame({"Car_Type": pl.Series([rv.car_type for rv in rail_vehicles]),
+                        "KG": [get_kg(rv) for rv in rail_vehicles],
+                        "KG_Empty": [get_kg_empty(rv) for rv in rail_vehicles]
+        })
+        .with_columns(
+            pl.when(pl.col("Car_Type").str.to_lowercase().str.contains("_empty"))
+                .then(pl.col("KG_Empty") / utilities.KG_PER_TON)
+                .otherwise(pl.col("KG") / utilities.KG_PER_TON)
+                .alias("Tons_Per_Car")
+        )
+        .drop(["KG_Empty","KG"])
+    )
+
+    return (df
+        .with_columns(
+            pl.when(pl.col("Train_Type").str.contains(pl.lit("_Empty")))
+                        .then(pl.col("Train_Type"))
+                        .otherwise(pl.concat_str(pl.col("Train_Type").str.strip_suffix("_Loaded"), pl.lit("_Loaded")))
+                        .replace_strict(freight_type_to_car_type)
+                        .alias("Car_Type")
+        )
+        .join(tons_per_car, how="left", on="Car_Type")
+        # Merge on OD-specific hp_per_ton if the user specified any
+        .join(hp_per_ton.filter(pl.col("O_D") != pl.lit("Default")).drop("O_D"), 
+            on=[pl.col("Origin"), pl.col("Destination"), pl.col("Train_Type").str.strip_suffix("_Empty").str.strip_suffix("_Loaded")], 
+            how="left")
+        # Second, merge on defaults per train type
+        .join(hp_per_ton.filter((pl.col("O_D") =="Default")).drop(["O_D","Origin","Destination"]),
+            on=[pl.col("Train_Type").str.strip_suffix("_Empty").str.strip_suffix("_Loaded")],
+            how="left",
+            suffix="_Default")
+        .with_columns(
+            pl.coalesce("HP_Required_Per_Ton", "HP_Required_Per_Ton_Default").alias("HP_Required_Per_Ton")
+        ) 
+        .drop(cs.ends_with("_Default") | cs.ends_with("_right"))
+    )

@@ -346,7 +346,7 @@ def run_train_planner(
             demand = train_demand_generators.generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicles, freight_type_to_car_type, config)
             config.dispatch_scheduler = schedulers.generate_dispatch_details
 
-        dispatch_schedule = config.dispatch_scheduler(demand, rail_vehicles, config)
+        dispatch_schedule = config.dispatch_scheduler(demand, rail_vehicles, freight_type_to_car_type, config)
    
     if loco_pool is None:
         loco_pool = data_prep.build_locopool(config=config, demand_file=demand, dispatch_schedule=dispatch_schedule)

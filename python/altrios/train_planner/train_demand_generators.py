@@ -4,8 +4,7 @@ import polars.selectors as cs
 import pandas as pd
 import numpy as np
 import altrios as alt
-from altrios import utilities
-from altrios.train_planner import planner_config
+from altrios.train_planner import planner_config, data_prep
 
 def get_default_return_demand_generators() -> Dict[str, Callable]:
     return {
@@ -263,65 +262,18 @@ def generate_demand_trains(
         .filter(pl.col("Train_Type") == pl.lit("Default"))
         .select("Cars_Per_Train_Target").item()
     )
-    #Prepare hp_per_ton requirements to merge onto the demand DataFrame
-    hp_per_ton = pl.concat([
-        (pl.DataFrame(this_dict)
-            .melt(variable_name="Train_Type", value_name="HP_Required_Per_Ton") 
-            .with_columns(pl.lit(this_item).alias("O_D"))
-            .with_columns(pl.col("O_D").str.split("_").list.first().alias("Origin"),
-                        pl.col("O_D").str.split("_").list.last().alias("Destination"))
-        )
-        for this_item, this_dict in config.hp_required_per_ton.items()
-    ], how="horizontal_relaxed")
-    
-    #Prepare ton_per_car requirements to merge onto the demand DataFrame
-    def get_kg_empty(veh):
-        return veh.mass_static_base_kilograms + veh.axle_count * veh.mass_rot_per_axle_kilograms
-    def get_kg(veh):
-        return veh.mass_static_base_kilograms + veh.mass_freight_kilograms + veh.axle_count * veh.mass_rot_per_axle_kilograms
-    
-    tons_per_car = (
-        pl.DataFrame({"Car_Type": pl.Series([rv.car_type for rv in rail_vehicles]),
-                        "KG": [get_kg(rv) for rv in rail_vehicles],
-                        "KG_Empty": [get_kg_empty(rv) for rv in rail_vehicles]
-        })
-        .with_columns(
-            pl.when(pl.col("Car_Type").str.to_lowercase().str.contains("_empty"))
-                .then(pl.col("KG_Empty") / utilities.KG_PER_TON)
-                .otherwise(pl.col("KG") / utilities.KG_PER_TON)
-                .alias("Tons_Per_Car")
-        )
-        .drop(["KG_Empty","KG"])
-    )
-
+             
     demand = (pl.concat([demand, demand_returns, demand_rebalancing], how="diagonal_relaxed")
         .group_by("Origin","Destination", "Train_Type")
             .agg(pl.col("Number_of_Cars").sum())
         .filter(pl.col("Number_of_Cars") > 0)
-        .with_columns(
-            pl.when(pl.col("Train_Type").str.contains(pl.lit("_Empty")))
-                        .then(pl.col("Train_Type"))
-                        .otherwise(pl.concat_str(pl.col("Train_Type").str.strip_suffix("_Loaded"), pl.lit("_Loaded")))
-                        .replace_strict(freight_type_to_car_type)
-                        .alias("Car_Type")
-        )
-        .join(tons_per_car, how="left", on="Car_Type")
-        # Merge on OD-specific hp_per_ton if the user specified any
-        .join(hp_per_ton.drop("O_D"), 
-              on=[pl.col("Origin"), pl.col("Destination"), pl.col("Train_Type").str.strip_suffix("_Empty").str.strip_suffix("_Loaded")], 
-              how="left")
-        # Second, merge on defaults per train type
-        .join(hp_per_ton.filter((pl.col("O_D") =="Default")).drop(["O_D","Origin","Destination"]),
-            on=[pl.col("Train_Type").str.strip_suffix("_Empty").str.strip_suffix("_Loaded")],
-            how="left",
-            suffix="_Default")
+        .pipe(data_prep.appendTonsAndHP, rail_vehicles, freight_type_to_car_type, config)
         # Merge on cars_per_train_min if the user specified any
         .join(cars_per_train_min, on=["Train_Type"], how="left")
         # Merge on cars_per_train_target if the user specified any
         .join(cars_per_train_target, on=["Train_Type"], how="left")
         # Fill in defaults per train type wherever the user didn't specify OD-specific hp_per_ton
         .with_columns(
-            pl.coalesce("HP_Required_Per_Ton", "HP_Required_Per_Ton_Default").alias("HP_Required_Per_Ton"),
             pl.col("Cars_Per_Train_Min").fill_null(cars_per_train_min_default),
             pl.col("Cars_Per_Train_Target").fill_null(cars_per_train_target_default),
         )

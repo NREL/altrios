@@ -1,29 +1,29 @@
 import math
-from typing import List, Union
+from typing import List, Union, Dict
 from collections import defaultdict
 import polars as pl
 import altrios as alt
 from altrios import utilities
-from altrios.train_planner import planner_config
+from altrios.train_planner import planner_config, data_prep
 
 def calculate_waiting_time_single_dispatch(
     cumulative_demand_control: int, 
     last_dispatch: int, 
-    demand_hourly: pl.DataFrame, 
+    new_accumulated_carloads: pl.DataFrame, 
     dispatch_hour: int, 
     remaining_demand_list: pl.DataFrame, 
     remaining_demand_list_control: pl.DataFrame, 
     search_range: int,
     od_pair_loop: str,
     min_num_cars_per_train: int,
-    target_num_cars_per_train: int
-    
+    target_num_cars_per_train: int, 
+    config: planner_config.TrainPlannerConfig
 ) -> tuple:
     """
     Calculate the waiting time for a single dispatch using Polars DataFrames.
     """
     # Initialize variables
-    direction_demand = demand_hourly.filter(pl.col("OD_Pair") == od_pair_loop)
+    direction_demand = new_accumulated_carloads.filter(pl.col("OD_Pair") == od_pair_loop)
     remaining_demand = 0
     total_waiting_time = 0
     total_waiting_time_before_dispatch = 0
@@ -32,13 +32,13 @@ def calculate_waiting_time_single_dispatch(
     remaining_demand_list = remaining_demand_list_control.clone() #Copy to avoid modifying original
     remaining_demand_tem = []
     # Calculate cumulative demand up to the dispatch hour
-    end_hour = min(dispatch_hour + 1, len(demand_hourly))
+    end_hour = min(dispatch_hour + 1, direction_demand.get_column("Hour").max())
     hourly_demand = direction_demand.slice(last_dispatch, end_hour - last_dispatch)
-    cumulative_demand += hourly_demand["Number_of_Containers"].sum()
+    cumulative_demand += hourly_demand["Number_of_Cars"].sum()
     
     if remaining_demand_list.is_empty():
         hourly_demand = hourly_demand.with_columns(
-            ((pl.col("Number_of_Containers") * (dispatch_hour - pl.col("Hour"))).alias("Waiting_Time"))
+            ((pl.col("Number_of_Cars") * (dispatch_hour - pl.col("Hour"))).alias("Waiting_Time"))
         )
         total_waiting_time_before_dispatch = hourly_demand["Waiting_Time"].sum()
         total_waiting_time += hourly_demand["Waiting_Time"].sum()
@@ -46,7 +46,7 @@ def calculate_waiting_time_single_dispatch(
         # If there is remaining demand, calculate waiting time for new and remaining demand
     else:
         hourly_demand = hourly_demand.with_columns(
-            ((pl.col("Number_of_Containers") * (dispatch_hour - pl.col("Hour"))).alias("Waiting_Time"))
+            ((pl.col("Number_of_Cars") * (dispatch_hour - pl.col("Hour"))).alias("Waiting_Time"))
         )
         total_waiting_time_before_dispatch = hourly_demand["Waiting_Time"].sum()
         total_waiting_time += hourly_demand["Waiting_Time"].sum()
@@ -68,15 +68,15 @@ def calculate_waiting_time_single_dispatch(
             # Update remaining demand list if there's no prior remaining demand
             if remaining_demand_list.height == 0:
                 #remaining_demand_tem = []
-                for row in hourly_demand.iter_rows():
+                for row in hourly_demand.iter_rows(named=True):
                     # Number_of_Containers is located at the 4th column
-                    if row[3] > 0:
-                        if dispatched_split >= row[3]:
-                            dispatched_split -= row[3]
+                    if row['Number_of_Cars'] > 0:
+                        if dispatched_split >= row['Number_of_Cars']:
+                            dispatched_split -= row['Number_of_Cars']
                         else:
-                            remaining_demand_for_hour = row[3] - dispatched_split
+                            remaining_demand_for_hour = row['Number_of_Cars'] - dispatched_split
                             # Hour is located at the 5th column
-                            remaining_demand_tem.append((remaining_demand_for_hour,row[4]))
+                            remaining_demand_tem.append((remaining_demand_for_hour,row['Hour']))
                             # dispatched_split stop working from this hour to the end of this loop behavior
                             dispatched_split = 0
                 # Filter `remaining_demand_tem` to include only positive Remaining_Demand values
@@ -91,25 +91,16 @@ def calculate_waiting_time_single_dispatch(
                 cumulative_demand = remaining_demand            
             else:                
                 # Prepare the cumulative transformation approach
-                for row in remaining_demand_list.iter_rows():
-                    if dispatched_split >= row[0]:
-                        dispatched_split -= row[0]                       
-                        list_tem = list(row)
-                        list_tem[0] = 0
-                        row = tuple(list_tem)                     
-                    else:
-                        row[0] -= dispatched_split
-                        dispatched_split = 0
-                    remaining_demand_list = remaining_demand_list.filter(pl.col("Remaining_Demand") > 0)          
+                dispatched_split -= min(dispatched_split, remaining_demand_list.get_column("Remaining_Demand").sum())
                 # If there is still dispatched capacity left, apply it to new demand within the range
                 if dispatched_split > 0:
-                    for row in hourly_demand.iter_rows():
-                        if row[3] > 0:
-                            if dispatched_split >= row[3]:
-                                dispatched_split -= row[3]
+                    for row in hourly_demand.iter_rows(named=True):
+                        if row['Number_of_Cars'] > 0:
+                            if dispatched_split >= row['Number_of_Cars']:
+                                dispatched_split -= row['Number_of_Cars']
                             else:
-                                remaining_demand_for_hour = row[3] - dispatched_split
-                                remaining_demand_tem.append((remaining_demand_for_hour,row[4]))
+                                remaining_demand_for_hour = row['Number_of_Cars'] - dispatched_split
+                                remaining_demand_tem.append((remaining_demand_for_hour,row['Hour']))
                                 dispatched_split = 0
                 remaining_demand_list = pl.DataFrame({"Remaining_Demand": [rd[0] for rd in remaining_demand_tem],"Hour": [rd[1] for rd in remaining_demand_tem]}).filter(pl.col("Remaining_Demand") > 0)
                 cumulative_demand = remaining_demand
@@ -122,13 +113,13 @@ def calculate_waiting_time_single_dispatch(
         cumulative_demand = cumulative_demand
 
     # Filter demand for future hours in the specified search range
-    future_demand = demand_hourly.filter(
-        (pl.col("Hour") > dispatch_hour) & (pl.col("Hour") < min(last_dispatch + search_range, len(demand_hourly)))
+    future_demand = direction_demand.filter(
+        (pl.col("Hour") > dispatch_hour) & (pl.col("Hour") < min(last_dispatch + search_range, direction_demand.get_column("Hour").max()))
     )
 
     # Calculate waiting time for each future hour
     future_demand = future_demand.with_columns(
-        ((last_dispatch + search_range - 1 - pl.col("Hour")) * pl.col("Number_of_Containers")).alias("Waiting_Time")
+        ((last_dispatch + search_range - 1 - pl.col("Hour")) * pl.col("Number_of_Cars")).alias("Waiting_Time")
     )
     
     # Sum up all waiting times for future demand
@@ -151,28 +142,30 @@ def find_minimum_waiting_time(
     demand_hourly: pl.DataFrame, 
     border_time_list: list, 
     min_num_cars_per_train: int,
-    target_num_cars_per_train: int
+    target_num_cars_per_train: int,
+    config: planner_config.TrainPlannerConfig
 ) -> pl.DataFrame:
     """
     Find the minimum waiting time for dispatches using Polars DataFrame.
     """
+    group_cols = ["Origin", "Destination", "OD_Pair", "Train_Type"]
+    new_accumulated_carloads = get_new_accumulated_carloads(demand_hourly, group_cols, containers_per_car = config.containers_per_car).rename({"New_Carloads": "Number_of_Cars"})
     for i in range(len(border_time_list)):
         od_pair_loop = border_time_list[i][0]
         reverse_pair = "-".join(od_pair_loop.split("-")[::-1])
-        directional_total_cars = demand_hourly.filter(pl.col("OD_Pair") == od_pair_loop)["Number_of_Cars"].sum()
-        reverse_total_cars = demand_hourly.filter(pl.col("OD_Pair") == reverse_pair)["Number_of_Cars"].sum()
+        directional_total_cars = new_accumulated_carloads.filter(pl.col("OD_Pair") == od_pair_loop)["Number_of_Cars"].sum()
+        reverse_total_cars = new_accumulated_carloads.filter(pl.col("OD_Pair") == reverse_pair)["Number_of_Cars"].sum()
         if directional_total_cars > reverse_total_cars:
-            empty_containers = directional_total_cars - reverse_total_cars
-            empty_containers_o_d = reverse_pair
+            empty_cars = directional_total_cars - reverse_total_cars
+            empty_cars_o_d = reverse_pair
         else:
-            empty_containers = reverse_total_cars - directional_total_cars
-            empty_containers_o_d = od_pair_loop
+            empty_cars = reverse_total_cars - directional_total_cars
+            empty_cars_o_d = od_pair_loop
         print(f"total cars for {od_pair_loop} is {directional_total_cars}")
         print(f"reverse_total_cars for {reverse_pair} is {reverse_total_cars}")
-        #print(f"empty_containers for {empty_containers_o_d} is {empty_containers}")
-    print(f"empty_containers for {empty_containers_o_d} is {empty_containers}")
+        #print(f"empty_containers for {empty_cars_o_d} is {empty_containers}")
+    print(f"empty_containers for {empty_cars_o_d} is {empty_cars}")
     print(f"There are {len(border_time_list[0])-1} trains to dispatch")
-    empty_return = []
     final_dispatch_rows = []
     for j in range(len(border_time_list)):
         start_hour = 0
@@ -194,9 +187,9 @@ def find_minimum_waiting_time(
         #print(f"origin is {origin}")
         #print(f"destination is {destination}")
         #print(demand)
-        total_containers = demand_hourly.filter(pl.col("OD_Pair") == od_pair_loop)["Number_of_Cars"].sum()
+        total_cars = new_accumulated_carloads.filter(pl.col("OD_Pair") == od_pair_loop)["Number_of_Cars"].sum()
         for i in range(2, num_iterations):
-            if total_containers - total_dispatched == 0:
+            if total_cars - total_dispatched == 0:
                 dispatched_list.append(0.0)
             search_range = border_time_list[j][i] - start_hour
             # DataFrame to accumulate dispatch hour info
@@ -210,7 +203,7 @@ def find_minimum_waiting_time(
             }) 
             for dispatch_hour in range(start_hour, start_hour + search_range):
                 total_waiting_time_before_dispatch, total_waiting_time, remaining_demand_list, cumulative_demand, dispatched = calculate_waiting_time_single_dispatch(
-                    cumulative_demand_control, last_dispatch, demand_hourly, dispatch_hour, remaining_demand_list_control, remaining_demand_list_control.clone(), search_range,od_pair_loop,min_num_cars_per_train, target_num_cars_per_train
+                    cumulative_demand_control, last_dispatch, new_accumulated_carloads, dispatch_hour, remaining_demand_list_control, remaining_demand_list_control.clone(), search_range,od_pair_loop,min_num_cars_per_train, target_num_cars_per_train, config
                 )
                 # Append data for each dispatch hour, ensuring consistent types
                 new_row = pl.DataFrame({
@@ -256,13 +249,12 @@ def find_minimum_waiting_time(
             # Add the dispatch hour to the list
             dispatch_time.append(min_waiting_time_hour) 
                     
-        remaining_to_dispatch = total_containers - total_dispatched
-        final_waiting_time = remaining_to_dispatch * (168 - start_hour)
+        remaining_to_dispatch = total_cars - total_dispatched
+        final_waiting_time = remaining_to_dispatch * (demand_hourly.get_column("Hour").max()+1 - start_hour)
         waiting_time_total += final_waiting_time
-        dispatch_time.append(167)  # Assuming final dispatch at the end of the period
+        dispatch_time.append(demand_hourly.get_column("Hour").max())  # Assuming final dispatch at the end of the period
         dispatched_list.append(remaining_to_dispatch)  
         dispatch_df_row = []
-        print(dispatched_list)
         for i in range(len(dispatched_list)):
             dispatch_df_row.append({
                 "Origin": origin,
@@ -272,30 +264,19 @@ def find_minimum_waiting_time(
                 "Cars_Per_Train_Empty": 0.0,
                 "Target_Cars_Per_Train": float(target_num_cars_per_train),
                 "Number_of_Cars_Total": dispatched_list[i],
-                "Tons_Per_Train_Total": dispatched_list[i]*98.006382,
-                "HP_Required_Per_Ton": 4.0,
                 "Hour":float(dispatch_time[i])
             })
-        if od_pair_loop == empty_containers_o_d:
+        if od_pair_loop == empty_cars_o_d:
             dispatch_df_row = []
-            for i in range(len(dispatched_list)):
-                if empty_containers > target_num_cars_per_train-dispatched_list[i]:
-                    empty_return.append(target_num_cars_per_train-dispatched_list[i])
-                    empty_containers -= (target_num_cars_per_train-dispatched_list[i])
-                else:
-                    empty_return.append(empty_containers)
-                    empty_containers = 0.0
             for i in range(len(dispatched_list)):
                 dispatch_df_row.append({
                     "Origin": origin,
                     "Destination": destination,
                     "Train_Type": "Intermodal",
                     "Cars_Per_Train_Loaded": dispatched_list[i],
-                    "Cars_Per_Train_Empty": empty_return[i],
+                    "Cars_Per_Train_Empty": 0.0,
                     "Target_Cars_Per_Train": float(target_num_cars_per_train),
-                    "Number_of_Cars_Total": dispatched_list[i]+empty_return[i],
-                    "Tons_Per_Train_Total": dispatched_list[i]*98.006382 + empty_return[i]*39.106152 ,
-                    "HP_Required_Per_Ton": 4.0,
+                    "Number_of_Cars_Total": dispatched_list[i],
                     "Hour":float(dispatch_time[i])
                 }) 
         #print(f"dispatch_df_row is {dispatch_df_row}")
@@ -303,8 +284,6 @@ def find_minimum_waiting_time(
     #print(f"final_dispatch_rows is {final_dispatch_rows}")
     dispatch_times = pl.DataFrame(final_dispatch_rows)
     dispatch_times = dispatch_times.sort("Hour")
-    print(dispatch_times)
-    print(f"empty_return is {empty_return}")
     return dispatch_times
 
 def formatScheduleColumns(
@@ -335,6 +314,29 @@ def formatScheduleColumns(
         .sort(["Hour","Origin","Destination","Train_Type"])
     )
 
+def get_new_accumulated_carloads(
+    demand_hourly: Union[pl.DataFrame, pl.LazyFrame],
+    group_cols: List[str],
+    containers_per_car: int
+) -> Union[pl.DataFrame, pl.LazyFrame]:
+    if group_cols is None:
+        return (demand_hourly
+            .sort("Hour")
+            .with_columns(pl.col("Number_of_Containers").cum_sum().floordiv(containers_per_car).alias("Accumulated_Carloads"))
+            .with_columns((pl.col("Accumulated_Carloads") - pl.col("Accumulated_Carloads").shift(1).fill_null(0.0)).alias("New_Carloads"))
+            .filter(pl.col("New_Carloads") > 0)
+            .select("Hour", "New_Carloads")
+        )
+    else:
+        return (demand_hourly
+            .sort(group_cols + ["Hour"])
+            .with_columns(pl.col("Number_of_Containers").cum_sum().over(group_cols).floordiv(containers_per_car).alias("Accumulated_Carloads"))
+            .with_columns((pl.col("Accumulated_Carloads") - pl.col("Accumulated_Carloads").shift(1).over(group_cols).fill_null(0.0)).alias("New_Carloads"))
+            .filter(pl.col("New_Carloads") > 0)
+            .select(group_cols + ["Hour", "New_Carloads"])
+        )
+        
+
 def calculate_dispatch_data(
     total_containers, 
     target_num_cars_per_train,  
@@ -346,17 +348,9 @@ def calculate_dispatch_data(
     num_trains = (
         total_containers // (target_num_cars_per_train * containers_per_car) + (1 if remaining_containers > 0 else 0)
     )
-    
-    ## Apply the maximum min_num_cars value
     num_trains = int(max(num_trains, max_min_trains))
 
-    new_accumulated_carloads = (demand_hourly
-        .sort("Hour")
-        .with_columns(pl.col("Number_of_Containers").cum_sum().floordiv(containers_per_car).alias("Accumulated_Carloads"))
-        .with_columns((pl.col("Accumulated_Carloads") - pl.col("Accumulated_Carloads").shift(1).fill_null(0.0)).alias("New_Carloads"))
-        .filter(pl.col("New_Carloads") > 0)
-        .select("Hour", "New_Carloads")
-    )
+    new_accumulated_carloads = get_new_accumulated_carloads(demand_hourly, group_cols = None, containers_per_car = containers_per_car)
 
     planned_train_lengths = (
         pl.DataFrame({
@@ -397,11 +391,17 @@ def calculate_dispatch_data(
         for _ in range(len(planned_train_lengths) - len(dispatched_train_lengths)):
             dispatched_train_lengths.append(0)
 
-    return {
-        "Border": planned_train_lengths,
-        "Border_Times": train_dispatch_times,
-        "Dispatched": dispatched_train_lengths,
-    }
+    return (
+        pl.DataFrame({
+            "Dispatch_Time": train_dispatch_times,
+            "Number_of_Cars_Planned": planned_train_lengths,
+            "Number_of_Cars_Dispatched": dispatched_train_lengths
+        })
+        .with_columns(
+            (pl.col("Number_of_Cars_Planned") * containers_per_car).alias("Number_of_Containers_Planned"),
+            (pl.col("Number_of_Cars_Dispatched") * containers_per_car).alias("Number_of_Containers_Dispatched")
+        )
+    )
 
 # Define the main function to generate demand trains with the updated rule
 def generate_trains_deterministic_hourly(
@@ -439,25 +439,21 @@ def generate_trains_deterministic_hourly(
             demand_hourly = demand_hourly.filter(pl.col("OD_Pair") == row['OD_Pair']).sort("Hour"), 
             max_min_trains =row['Max_Min_Trains'],
             containers_per_car = containers_per_car)
-        
-        # Add the OD pair label to each entry in the dispatch data
-        dispatch_data_df = (pl.DataFrame(dispatch_data, strict=False)
-            .with_columns(
-                pl.lit(od_pair).alias("OD_Pair"),
-                pl.col("Border").cast(pl.Float64)
+        # Append the result to the list
+        all_dispatch_data.append(
+            dispatch_data.with_columns(
+                pl.lit(row['Origin']).alias("Origin"),
+                pl.lit(row['Destination']).alias("Destination"),
+                pl.lit(row['OD_Pair']).alias("OD_Pair")
             )
         )
 
-        # Append the result to the list
-        all_dispatch_data.append(dispatch_data_df)
-
-    # Combine all dispatch data into a single DataFrame
-    final_dispatch_df = pl.concat(all_dispatch_data, how="diagonal_relaxed")
-    return final_dispatch_df
+    return pl.concat(all_dispatch_data, how="diagonal_relaxed")
 
 def calculate_dispatches_deterministic_hourly(
     demand_hourly: pl.DataFrame,
     rail_vehicles: List[alt.RailVehicle],
+    freight_type_to_car_type: Dict[str, str],
     config: planner_config.TrainPlannerConfig
 ) -> pl.DataFrame:
     """
@@ -475,30 +471,56 @@ def calculate_dispatches_deterministic_hourly(
     target_num_cars_per_train=config.target_cars_per_train['Intermodal_Loaded'] #TODO make this flexible 
     demand_hourly = demand_hourly.with_columns((pl.col("Origin") + "-" + pl.col("Destination")).alias("OD_Pair"))
     dispatch_df = generate_trains_deterministic_hourly(demand_hourly,target_num_cars_per_train, config.containers_per_car)
-    od_border_time = []
-    border_time = dispatch_df["Border_Times"].to_list() 
+    od_dispatch_times = []
+    dispatch_times = dispatch_df["Dispatch_Time"].to_list() 
     od_pair_list = dispatch_df["OD_Pair"].to_list()
     for i in range(len(od_pair_list)):
         od_border_list_sub =[]
         od_border_list_sub.append(od_pair_list[i])
-        od_border_list_sub.append(border_time[i])
-        od_border_time.append(od_border_list_sub)
+        od_border_list_sub.append(dispatch_times[i])
+        od_dispatch_times.append(od_border_list_sub)
     grouped_data = defaultdict(list)
-    for od_pair, value in od_border_time:
+    for od_pair, value in od_dispatch_times:
         grouped_data[od_pair].append(value)
     border_time_list= [[key] + values for key, values in grouped_data.items()]
     num_iterations = len(border_time_list[0])
+
     schedule = find_minimum_waiting_time(num_iterations=num_iterations,
         demand_hourly=demand_hourly,
         border_time_list=border_time_list,
         min_num_cars_per_train=min_num_cars_per_train,
-        target_num_cars_per_train=target_num_cars_per_train
+        target_num_cars_per_train=target_num_cars_per_train,
+        config=config
     )
-    return schedule.pipe(formatScheduleColumns)
+    return (schedule
+        #TODO: this doesn't handle tons correctly for train type empty
+        .pipe(data_prep.appendTonsAndHP, rail_vehicles, freight_type_to_car_type, config)
+        .rename({"Cars_Per_Train_Loaded": "Cars_Loaded",
+                "Cars_Per_Train_Empty": "Cars_Empty"})
+        .with_columns(
+            (pl.col("Cars_Loaded") + pl.col("Cars_Empty")).alias("Number_of_Cars"),
+            pl.col("Tons_Per_Car").mul("Cars_Loaded").alias("Tons_Per_Train"),
+            pl.col("Tons_Per_Car").mul("Cars_Loaded").mul("HP_Required_Per_Ton").alias("HP_Required"),
+            pl.when(pl.col("Train_Type").str.contains("Intermodal"))
+                .then(pl.col("Cars_Loaded").mul(config.containers_per_car))
+                .otherwise(0)
+                .alias("Containers_Loaded"),
+            pl.when(pl.col("Train_Type").str.contains("Intermodal"))
+                .then(pl.col("Cars_Empty").mul(config.containers_per_car))
+                .otherwise(0)
+                .alias("Containers_Empty"),
+        )
+        .select("Hour", "Origin", "Destination", "Train_Type", 
+                "Number_of_Cars", "Cars_Loaded", "Cars_Empty", "Containers_Empty", "Containers_Loaded",
+                "Tons_Per_Train", "HP_Required"
+        )
+        .sort(["Hour","Origin","Destination","Train_Type"])
+    )
 
 def generate_dispatch_details(
     demand: pl.DataFrame,
     rail_vehicles: List[alt.RailVehicle],
+    freight_type_to_car_type: Dict[str, str],
     config: planner_config.TrainPlannerConfig
 ) -> pl.DataFrame:
     """

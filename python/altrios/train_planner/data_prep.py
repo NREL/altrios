@@ -121,6 +121,7 @@ def prep_hourly_demand(
             one_week.with_columns(pl.col("Hour").add(24*7)),
             one_week.with_columns(pl.col("Hour").add(24*7*2))
         ])
+        .with_columns(pl.col("Number_of_Days").mul(3))
         .sort("Origin", "Destination", "Train_Type", "Hour")
     )
     

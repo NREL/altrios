@@ -475,7 +475,7 @@ def calculate_freight_moved(
             metric("Freight_Moved", units, container_counts.get_column("Containers_Loaded").item() * annualizer, "Loaded", year=info.scenario_year),
             metric("Freight_Moved", units, container_counts.get_column("Containers_Empty").item() * annualizer, "Loaded", year=info.scenario_year),
         ])
-    elif units == "detailed_car_counts":
+    elif units == "detailed car counts":
         kilometers = (pl.DataFrame(data = {"car-km": [sim.get_kilometers(annualize=info.annualize) for sim in info.sims.tolist()]})
             .with_row_index("idx")
             .with_columns(

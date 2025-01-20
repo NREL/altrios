@@ -328,13 +328,13 @@ def run_train_planner(
         if (config.dispatch_scheduler is None) and ("Hour" in demand.collect_schema()):
             if "Number_of_Containers" in demand.collect_schema():
                 demand = (demand
-                    .group_by("Origin", "Destination", "Train_Type")
+                    .group_by("Origin", "Destination", "Number_of_Days", "Train_Type")
                         .agg(pl.col("Number_of_Containers").sum())
                     .with_columns(pl.col("Number_of_Containers").truediv(config.containers_per_car).ceil().alias("Number_of_Cars"))
                 )
             else:
                 demand = (demand
-                    .group_by("Origin", "Destination", "Train_Type")
+                    .group_by("Origin", "Destination", "Number_of_Days", "Train_Type")
                         .agg(pl.col("Number_of_Cars").sum())
                 )
         if "Hour" not in demand.schema:
@@ -344,7 +344,7 @@ def run_train_planner(
                 
         if config.dispatch_scheduler is None:
             demand = train_demand_generators.generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicles, freight_type_to_car_type, config)
-            config.dispatch_scheduler = schedulers.generate_dispatch_details
+            config.dispatch_scheduler = schedulers.dispatch_uniform_demand_uniform_departure
 
         dispatch_schedule = config.dispatch_scheduler(demand, rail_vehicles, freight_type_to_car_type, config)
    

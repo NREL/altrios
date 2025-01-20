@@ -269,9 +269,19 @@ def generate_demand_trains(
         .filter(pl.col("Number_of_Cars") > 0)
         .pipe(data_prep.appendTonsAndHP, rail_vehicles, freight_type_to_car_type, config)
         # Merge on cars_per_train_min if the user specified any
-        .join(cars_per_train_min, on=["Train_Type"], how="left")
+        .join(cars_per_train_min,  
+              left_on = pl.when(pl.col("Train_Type").str.contains(pl.lit("_Empty")))
+                    .then(pl.col("Train_Type"))
+                    .otherwise(pl.concat_str(pl.col("Train_Type").str.strip_suffix("_Loaded"), pl.lit("_Loaded"))),
+              right_on=["Train_Type"], 
+              how="left")
         # Merge on cars_per_train_target if the user specified any
-        .join(cars_per_train_target, on=["Train_Type"], how="left")
+        .join(cars_per_train_target, 
+              left_on = pl.when(pl.col("Train_Type").str.contains(pl.lit("_Empty")))
+                    .then(pl.col("Train_Type"))
+                    .otherwise(pl.concat_str(pl.col("Train_Type").str.strip_suffix("_Loaded"), pl.lit("_Loaded"))),
+              right_on=["Train_Type"], 
+              how="left")
         # Fill in defaults per train type wherever the user didn't specify OD-specific hp_per_ton
         .with_columns(
             pl.col("Cars_Per_Train_Min").fill_null(cars_per_train_min_default),

@@ -719,9 +719,9 @@ impl TrainDisp {
 
         // Update front and back dispatch nodes
         let (idx_min, idx_max) = if self.disp_node_idx_back < self.disp_node_idx_front {
-            (&mut self.disp_node_idx_front, &mut self.disp_node_idx_back)
-        } else {
             (&mut self.disp_node_idx_back, &mut self.disp_node_idx_front)
+        } else {
+            (&mut self.disp_node_idx_front, &mut self.disp_node_idx_back)
         };
         assert!(idx_max.idx() < idx_join_base);
 

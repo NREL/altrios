@@ -542,13 +542,7 @@ impl TrainSimBuilder {
             ))
         };
 
-        let fric_brake = FricBrake::new(
-            max_fric_braking,
-            ramp_up_time,
-            ramp_up_coeff,
-            None,
-            save_interval,
-        );
+        let fric_brake = FricBrake::new(max_fric_braking, None, None, None, save_interval);
 
         Ok((train_params, state, path_tpc, train_res, fric_brake))
     }

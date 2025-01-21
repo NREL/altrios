@@ -47,7 +47,7 @@ dependencies = [
     "pyarrow",
     "requests",
     "PyYAML==6.0.2",
-    "simpy"
+    "simpy",
     "msgpack==1.1.0",
 ]
 

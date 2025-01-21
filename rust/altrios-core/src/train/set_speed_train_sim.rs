@@ -190,6 +190,7 @@ pub struct SpeedTraceElement {
     #[new]
     #[pyo3(signature = (
         loco_con,
+        n_cars_by_type,
         state,
         speed_trace,
         train_res_file=None,

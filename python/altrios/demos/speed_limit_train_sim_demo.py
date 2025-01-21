@@ -103,9 +103,6 @@ if OVERRIDE_SSTS_INPUTS:
     link_path = alt.LinkPath([x.link_idx for x in timed_link_path.tolist()])
     link_path.to_csv_file(alt.resources_root() / "demo_data/link_path.csv")
 
-# uncomment this line to see example of logging functionality
-# alt.utils.set_log_level("DEBUG")
-
 t0 = time.perf_counter()
 train_sim.walk_timed_path(
     network=network,

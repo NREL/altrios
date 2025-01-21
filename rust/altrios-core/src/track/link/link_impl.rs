@@ -310,22 +310,22 @@ impl ObjState for Network {
 }
 
 impl SerdeAPI for Network {
-    fn from_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
+    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> anyhow::Result<Self> {
         let filepath = filepath.as_ref();
         let extension = filepath
             .extension()
             .and_then(OsStr::to_str)
             .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        let file = File::open(filepath).with_context(|| {
+        let mut file = File::open(filepath).with_context(|| {
             if !filepath.exists() {
                 format!("File not found: {filepath:?}")
             } else {
                 format!("Could not open file: {filepath:?}")
             }
         })?;
-        let mut network = match Self::from_reader(file, extension) {
+        let mut network = match Self::from_reader(&mut file, extension, skip_init) {
             Ok(network) => network,
-            Err(err) => NetworkOld::from_file(filepath)
+            Err(err) => NetworkOld::from_file(filepath, false)
                 .map_err(|old_err| {
                     anyhow!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err)
                 })?
@@ -617,7 +617,10 @@ mod tests {
         let tempdir = tempfile::tempdir().unwrap();
         let temp_file_path = tempdir.path().join("links_test2.yaml");
         links.to_file(temp_file_path.clone()).unwrap();
-        assert_eq!(Vec::<Link>::from_file(temp_file_path).unwrap(), links);
+        assert_eq!(
+            Vec::<Link>::from_file(temp_file_path, false).unwrap(),
+            links
+        );
         tempdir.close().unwrap();
     }
 
@@ -626,7 +629,7 @@ mod tests {
         let network_file_path = project_root::get_project_root()
             .unwrap()
             .join("../python/altrios/resources/networks/Taconite.yaml");
-        let network_speed_sets = Network::from_file(network_file_path).unwrap();
+        let network_speed_sets = Network::from_file(network_file_path, false).unwrap();
         let mut network_speed_set = network_speed_sets.clone();
         network_speed_set
             .set_speed_set_for_train_type(TrainType::Freight)

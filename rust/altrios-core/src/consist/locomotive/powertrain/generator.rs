@@ -7,6 +7,12 @@ use crate::pyo3::*;
 #[altrios_api(
     /// Initialize a fuel converter object
     #[new]
+    #[pyo3(signature = (
+        pwr_out_frac_interp,
+        eta_interp,
+        pwr_out_max_watts,
+        save_interval=None,
+    ))]
     fn __new__(
         pwr_out_frac_interp: Vec<f64>,
         eta_interp: Vec<f64>,
@@ -92,12 +98,11 @@ pub struct Generator {
     #[api(skip_set)]
     pub pwr_in_frac_interp: Vec<f64>,
     /// Generator max power out
-    #[serde(rename = "pwr_out_max_watts")]
     pub pwr_out_max: si::Power,
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "GeneratorStateHistoryVec::is_empty")]
     pub history: GeneratorStateHistoryVec,
 }
 
@@ -132,11 +137,6 @@ impl Mass for Generator {
         let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
         if let (Some(derived_mass), Some(new_mass)) = (derived_mass, new_mass) {
             if derived_mass != new_mass {
-                #[cfg(feature = "logging")]
-                log::info!(
-                    "Derived mass from `self.specific_pwr` and `self.pwr_out_max` does not match {}",
-                    "provided mass. Updating based on `side_effect`"
-                );
                 match side_effect {
                     MassSideEffect::Extensive => {
                         self.pwr_out_max = self.specific_pwr.with_context(|| {
@@ -155,8 +155,6 @@ impl Mass for Generator {
                 }
             }
         } else if new_mass.is_none() {
-            #[cfg(feature = "logging")]
-            log::debug!("Provided mass is None, setting `self.specific_pwr` to None");
             self.specific_pwr = None;
         }
         self.mass = new_mass;
@@ -308,7 +306,7 @@ impl Generator {
 impl Default for Generator {
     fn default() -> Self {
         let file_contents = include_str!("generator.default.yaml");
-        serde_yaml::from_str::<Generator>(file_contents).unwrap()
+        Self::from_yaml(file_contents, false).unwrap()
     }
 }
 

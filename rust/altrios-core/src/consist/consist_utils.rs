@@ -267,6 +267,7 @@ impl SolvePower for FrontAndBack {
         todo!() // not needed urgently
     }
 }
+
 /// Variants of this enum are used to determine what control strategy gets used for distributing
 /// power required from or delivered to during negative tractive power each locomotive.
 #[derive(PartialEq, Clone, Deserialize, Serialize, Debug, SerdeAPI)]

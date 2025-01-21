@@ -47,6 +47,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 
 #[altrios_api(
     #[pyo3(name = "set_save_interval")]
+    #[pyo3(signature = (save_interval=None))]
     /// Set save interval and cascade to nested components.
     fn set_save_interval_py(&mut self, save_interval: Option<usize>) {
         self.set_save_interval(save_interval);
@@ -110,7 +111,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 
     #[pyo3(name = "extend_path")]
     pub fn extend_path_py(&mut self, network_file_path: String, link_path: Vec<LinkIdx>) -> anyhow::Result<()> {
-        let network = Vec::<Link>::from_file(network_file_path).unwrap();
+        let network = Vec::<Link>::from_file(network_file_path, false).unwrap();
 
         self.extend_path(&network, &link_path)?;
         Ok(())
@@ -119,8 +120,8 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     #[pyo3(name = "walk_timed_path")]
     pub fn walk_timed_path_py(
         &mut self,
-        network: &PyAny,
-        timed_path: &PyAny,
+        network: &Bound<PyAny>,
+        timed_path: &Bound<PyAny>,
     ) -> anyhow::Result<()> {
         let network = match network.extract::<Network>() {
             Ok(n) => n,
@@ -163,8 +164,8 @@ pub struct SpeedLimitTrainSim {
     #[api(skip_set)]
     pub braking_points: BrakingPoints,
     pub fric_brake: FricBrake,
-    #[serde(default)]
     /// Custom vector of [Self::state]
+    #[serde(default, skip_serializing_if = "TrainStateHistoryVec::is_empty")]
     pub history: TrainStateHistoryVec,
     #[api(skip_set, skip_get)]
     save_interval: Option<usize>,
@@ -316,8 +317,6 @@ impl SpeedLimitTrainSim {
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         // set catenary power limit
-        #[cfg(feature = "logging")]
-        log::info!("Solving time step #{}", self.state.i);
         self.loco_con
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
         // set aux power for the consist
@@ -329,12 +328,6 @@ impl SpeedLimitTrainSim {
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
         // solve the required power
         self.solve_required_pwr()?;
-        #[cfg(feature = "logging")]
-        log::debug!(
-            "{}\ntime step: {}",
-            format_dbg!(),
-            self.state.time.get::<si::second>().format_eng(Some(9))
-        );
 
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
@@ -361,15 +354,6 @@ impl SpeedLimitTrainSim {
             || (self.state.offset < self.path_tpc.offset_end()
                 && self.state.speed != si::Velocity::ZERO)
         {
-            #[cfg(feature = "logging")]
-            log::debug!(
-                "{}",
-                format_dbg!(
-                    self.state.offset < self.path_tpc.offset_end() - 1000.0 * uc::FT
-                        || (self.state.offset < self.path_tpc.offset_end()
-                            && self.state.speed != si::Velocity::ZERO)
-                )
-            );
             self.step()?;
         }
         Ok(())
@@ -399,8 +383,6 @@ impl SpeedLimitTrainSim {
         let mut idx_prev = 0;
         while idx_prev != timed_path.len() - 1 {
             let mut idx_next = idx_prev + 1;
-            #[cfg(feature = "logging")]
-            log::debug!("Solving idx: {}", idx_next);
             while idx_next + 1 < timed_path.len() - 1 && timed_path[idx_next].time < self.state.time
             {
                 idx_next += 1;
@@ -509,8 +491,6 @@ impl SpeedLimitTrainSim {
             .min(pwr_pos_max / speed_target.min(v_max));
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
-            #[cfg(feature = "logging")]
-            log::debug!("{}", format_dbg!(self.path_tpc));
             bail!(
                 "{}\nTrain does not have sufficient power to move!\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", // ,\nlink={:?}
                 format_dbg!(),

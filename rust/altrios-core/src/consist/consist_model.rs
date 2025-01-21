@@ -2,6 +2,7 @@ use super::*;
 
 #[altrios_api(
     #[new]
+    #[pyo3(signature = (loco_vec, save_interval=None))]
     fn __new__(
         loco_vec: Vec<Locomotive>,
         save_interval: Option<usize>
@@ -26,6 +27,7 @@ use super::*;
     }
 
     #[pyo3(name = "set_save_interval")]
+    #[pyo3(signature = (save_interval=None))]
     /// Set save interval and cascade to nested components.
     fn set_save_interval_py(&mut self, save_interval: Option<usize>) -> anyhow::Result<()> {
         self.set_save_interval(save_interval);
@@ -56,7 +58,7 @@ use super::*;
         );
     }
 
-    fn get_hct(&self) -> String {
+    fn get_pdct(&self) -> String {
         // make a `describe` function
         match &self.pdct {
             PowerDistributionControlType::RESGreedy(val) => format!("{val:?}"),
@@ -113,6 +115,7 @@ pub struct Consist {
     #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ConsistState,
+    #[serde(default, skip_serializing_if = "ConsistStateHistoryVec::is_empty")]
     /// Custom vector of [Self::state]
     pub history: ConsistStateHistoryVec,
     #[api(skip_set, skip_get)] // custom needed for this
@@ -336,12 +339,6 @@ impl Consist {
         // maybe put logic for toggling `engine_on` here
 
         for (i, (loco, pwr_out)) in self.loco_vec.iter_mut().zip(pwr_out_vec.iter()).enumerate() {
-            #[cfg(feature = "logging")]
-            log::info!(
-                "Solving locomotive #{}\n`pwr_out: `{} MW",
-                i,
-                pwr_out.get::<si::megawatt>().format_eng(None)
-            );
             loco.solve_energy_consumption(*pwr_out, dt, engine_on)
                 .map_err(|err| {
                     err.context(format!(

@@ -357,8 +357,6 @@ def set_log_level(level: str | int) -> int:
     python_logger  = logging.getLogger("altrios")
     previous_level = python_logger .level
     python_logger .setLevel(level)
-    rust_logger = logging.getLogger("altrios_core")
-    rust_logger.setLevel(level)
     return previous_level
 
 def disable_logging():

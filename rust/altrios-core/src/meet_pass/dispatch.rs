@@ -260,7 +260,7 @@ pub fn run_dispatch<N: AsRef<[Link]>>(
 #[cfg(feature = "pyo3")]
 #[cfg_attr(feature = "pyo3", pyfunction(name = "run_dispatch"))]
 pub fn run_dispatch_py(
-    network: &PyAny,
+    network: &Bound<PyAny>,
     speed_limit_train_sims: crate::train::SpeedLimitTrainSimVec,
     est_time_vec: Vec<EstTimeNet>,
     print_train_move: bool,
@@ -304,7 +304,7 @@ mod test_dispatch {
         let network_file_path = project_root::get_project_root()
             .unwrap()
             .join("../python/altrios/resources/networks/Taconite.yaml");
-        let network = Network::from_file(network_file_path).unwrap();
+        let network = Network::from_file(network_file_path, false).unwrap();
 
         let train_sims = vec![
             crate::train::speed_limit_train_sim_fwd(),

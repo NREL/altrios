@@ -8,6 +8,21 @@ const TOL: f64 = 1e-3;
 #[altrios_api(
    #[allow(clippy::too_many_arguments)]
     #[new]
+    #[pyo3(signature = (
+        temperature_interp_grid,
+        soc_interp_grid,
+        c_rate_interp_grid,
+        eta_interp_values,
+        pwr_out_max_watts,
+        energy_capacity_joules,
+        min_soc,
+        max_soc,
+        initial_soc,
+        initial_temperature_celcius,
+        soc_hi_ramp_start=None,
+        soc_lo_ramp_start=None,
+        save_interval=None,
+    ))]
     fn __new__(
         temperature_interp_grid: Vec<f64>,
         soc_interp_grid: Vec<f64>,
@@ -139,7 +154,7 @@ pub struct ReversibleEnergyStorage {
     volume: Option<si::Volume>,
     /// ReversibleEnergyStorage specific energy
     #[api(skip_get, skip_set)]
-    specific_energy: Option<si::AvailableEnergy>,
+    specific_energy: Option<si::SpecificEnergy>,
     /// ReversibleEnergyStorage energy density (note that pressure has the same units as energy density)
     #[api(skip_get, skip_set)]
     pub energy_density: Option<si::Pressure>,
@@ -151,12 +166,10 @@ pub struct ReversibleEnergyStorage {
     /// - soc
     /// - c_rate
     pub eta_interp_values: Vec<Vec<Vec<f64>>>,
-    #[serde(rename = "pwr_out_max_watts")]
     /// Max output (and input) power battery can produce (accept)
     pub pwr_out_max: si::Power,
 
     /// Total energy capacity of battery of full discharge SOC of 0.0 and 1.0
-    #[serde(rename = "energy_capacity_joules")]
     pub energy_capacity: si::Energy,
 
     /// Hard limit on minimum SOC, e.g. 0.05
@@ -173,7 +186,10 @@ pub struct ReversibleEnergyStorage {
     pub soc_lo_ramp_start: Option<si::Ratio>,
     /// Time step interval at which history is saved
     pub save_interval: Option<usize>,
-    #[serde(default)]
+    #[serde(
+        default,
+        skip_serializing_if = "ReversibleEnergyStorageStateHistoryVec::is_empty"
+    )]
     /// Custom vector of [Self::state]
     pub history: ReversibleEnergyStorageStateHistoryVec,
 }
@@ -181,7 +197,7 @@ pub struct ReversibleEnergyStorage {
 impl Default for ReversibleEnergyStorage {
     fn default() -> Self {
         let file_contents = include_str!("reversible_energy_storage.default.yaml");
-        let mut res = Self::from_yaml(file_contents).unwrap();
+        let mut res = Self::from_yaml(file_contents, false).unwrap();
         res.state.soc = res.max_soc;
         res
     }
@@ -210,11 +226,6 @@ impl Mass for ReversibleEnergyStorage {
         let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
         if let (Some(derived_mass), Some(new_mass)) = (derived_mass, new_mass) {
             if derived_mass != new_mass {
-                #[cfg(feature = "logging")]
-                log::info!(
-                    "Derived mass from `self.specific_energy` and `self.energy_capacity` does not match {}",
-                    "provided mass. Updating based on `side_effect`"
-                );
                 match side_effect {
                     MassSideEffect::Extensive => {
                         self.energy_capacity = self.specific_energy.ok_or_else(|| {
@@ -233,8 +244,6 @@ impl Mass for ReversibleEnergyStorage {
                 }
             }
         } else if new_mass.is_none() {
-            #[cfg(feature = "logging")]
-            log::debug!("Provided mass is None, setting `self.specific_energy` to None");
             self.specific_energy = None;
         }
         self.mass = new_mass;

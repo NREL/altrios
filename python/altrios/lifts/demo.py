@@ -312,6 +312,7 @@ def process_train_arrival(env, terminal, train_departed_event, train_schedule, n
 
     yield end_load_event
 
+    # train departs
     if env.now <= departure_time:
         yield env.timeout(departure_time - env.now)
         print(f"Time {env.now}: [In Time] Train {train_schedule['train_id']} departs.")
@@ -333,7 +334,7 @@ def process_train_arrival(env, terminal, train_departed_event, train_schedule, n
     state.IC_NUM = state.IC_NUM + train_schedule['full_cars']
     state.OC_NUM = state.OC_NUM + train_schedule['oc_number']
 
-    # # Trigger the departure event for the current train
+    # Trigger the departure event for the current train
     next_departed_event.succeed()   # the terminal now is clear and ready to accept the next train
 
 def run_simulation(train_consist_plan: pl.DataFrame,

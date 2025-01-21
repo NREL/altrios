@@ -37,124 +37,74 @@ def truck_entry(env, terminal, truck_id, oc_id):
         print(f"Time {env.now}: Truck {truck_id} passed the in-gate and is entering the terminal")
         yield env.timeout(state.TRUCK_INGATE_TIME + random.uniform(0,state.TRUCK_INGATE_TIME_DEV))  # truck passing gate time: 1 sec (demo_parameters.TRUCK_INGATE_TIME and TRUCK_INGATE_TIME_DEV)
 
-        # Assume each truck takes 1 OC, and drop OC to the closest parking lot according to triangular distribution
         # Assign IDs for OCs
         terminal.oc_store.put(f"OC-{oc_id}")
-        print(f"Time {env.now}: Truck {truck_id} placed OC {oc_id} at parking slot.")
-        record_event(f"OC-{oc_id}", 'truck_arrival', env.now)
-
+        # Each truck drops an OC to the closest parking lot according to triangular distribution
         d_t_dist = create_triang_distribution(d_t_min, d_t_avg, d_t_max).rvs()
         yield env.timeout(d_t_dist / (2 * state.TRUCK_SPEED_LIMIT))
-        record_event(f"OC-{oc_id}", 'truck_dropoff', env.now)
+        print(f"Time {env.now}: Truck {truck_id} placed OC {oc_id} at parking slot.")
 
 
-def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
+def container_process(env, terminal, train_schedule, all_trucks_arrived_event, all_oc_prepared):
     global state
     truck_number = train_schedule["truck_number"]
-    total_oc = train_schedule["oc_number"]
-    arrival_rate = 1  # truck arrival rate: poisson distribution, arrival rate depends on the gap between last train departure and next train arrival
+    arrival_rate = 1  # Truck arrival rate: poisson distribution, arrival rate depends on the gap between last train departure and next train arrival
 
-    print("state.OC_NUM", state.OC_NUM)
-    print("total_oc", total_oc)
-    print("OC has:", terminal.oc_store.items)
-
-    oc_id = state.OC_NUM
+    # Trucks enter according to truck schedule (truck_numbers)
     for truck_id in range(1, truck_number + 1):
-        yield env.timeout(
-            random.expovariate(arrival_rate))  # Assume truck arrives according to the poisson distribution
+        print("truck_id", truck_id)
+        oc_id = truck_id
+        yield env.timeout(random.expovariate(arrival_rate))  # Assume truck arrives according to the poisson distribution
         terminal.truck_store.put(truck_id)
-        if truck_id <= total_oc:
-            env.process(truck_entry(env, terminal, truck_id, oc_id))
-        oc_id += 1
+        # Truck drops off an OC
+        env.process(truck_entry(env, terminal, truck_id, oc_id))
+        # Hostler picks up an OC
+        if len(terminal.oc_store.items) >= 0:
+            hostler_id = yield terminal.hostlers.get()
+            print(f'Hostler assigned for the next OC {oc_id}: {hostler_id}')
+
+            # Hostler picks up the OC
+            oc_id = yield terminal.oc_store.get()
+            travel_time_to_oc = state.HOSTLER_TRANSPORT_CONTAINER_TIME
+            yield env.timeout(travel_time_to_oc)
+            print(f"Time {env.now}: Hostler {hostler_id} picked up OC {oc_id} and heading to drop off OC")
+            record_event(oc_id, 'hostler_pickup', env.now)
+
+            # Hostler drops off the OC to chassis
+            yield env.timeout(travel_time_to_oc)
+            yield terminal.chassis.put(oc_id)
+            print(f"Time {env.now}: Hostler {hostler_id} dropped OC {oc_id} and returned to the terminal")
+            record_event(oc_id, 'hostler_dropoff', env.now)
+
+            yield env.timeout(travel_time_to_oc)
+            yield terminal.hostlers.put(hostler_id)
+            print(f"Time {env.now}: Hostler {hostler_id} has returned to the platoon")
 
     yield env.timeout(state.TRUCK_TO_PARKING)  # truck travel time of placing OC at parking slot (demo_parameters.TRUCK_TO_PARKING)
     all_trucks_arrived_event.succeed()  # if all_trucks_arrived_event is triggered, train is allowed to enter
 
-
-def container_process(env, terminal, train_schedule, all_oc_prepared, oc_needed):
-    global state
-    '''
-    It is designed to transfer only outbound containers for initial station.
-    The main simulation process is as follows:
-    1. A truck drops off an OC.
-    3. The hostler picks up an OC, and drops off OC at the chassis.
-    4. Once all OCs are prepared (all_oc_prepared), the crane starts loading (other function).
-    '''
-    hostler_id = yield terminal.hostlers.get()
-    print(f'Hostler assigned: {hostler_id}')
-
-    # Assign a hostler to pick up an OC
-    if len(terminal.oc_store.items) > 0:
-        oc = yield terminal.oc_store.get()
-        print(f"Time {env.now}: Hostler is going to pick up OC {oc}")
-
-        # Test: OC remaining before hostlers pick up OCs
-        print(f"Hostlers: {terminal.hostlers.items}")
-        print(f"OC remains (oc_store): {terminal.oc_store.items}")
-
-        # The hostler picks up an OC
-        travel_time_to_oc = state.HOSTLER_FIND_CONTAINER_TIME
-        yield env.timeout(travel_time_to_oc)
-        print(f"Time {env.now}: Hostler picked up OC {oc} and is returning to the terminal")
-        record_event(oc, 'hostler_pickup', env.now)
-
-        # Test: Containers after hostler picking-up OC
-        print("Containers on chassis (after hostler picking-up OC):", terminal.chassis.items)
-        print("# of IC", sum(str(item).isdigit() for item in terminal.chassis.items))
-
-        # The hostler drops off OC at the chassis
-        travel_time_to_chassis = state.HOSTLER_TRANSPORT_CONTAINER_TIME
-        yield env.timeout(travel_time_to_chassis)
-        print(f"Time {env.now}: Hostler dropped off OC {oc} onto chassis")
-        yield terminal.chassis.put(oc)
-        record_event(oc, 'hostler_dropoff', env.now)
-        # The hostler-truck-hostler process keeps going, until conditions are satisfied and then further trigger crane movement.
-        # ICs are all picked up and OCs are prepared
-        if sum(1 for item in terminal.chassis.items if "OC-" in str(item)) == oc_needed:
-            all_oc_prepared.succeed()
-            print("chassis (check if all oc prepared):", terminal.chassis.items)
-            print(f"hostler (check if all oc prepared): {terminal.hostlers.items}")
-            print("# of OC on chassis:", sum(1 for item in terminal.chassis.items if "OC-" in str(item)))
-            print(f"Time {env.now}: All OCs are ready on chassis.")
-
-    travel_time_to_parking = state.HOSTLER_TRANSPORT_CONTAINER_TIME
-    yield env.timeout(travel_time_to_parking)  # update: time calculated by density-travel_time function
-    print(f"Time {env.now}: Hostler {hostler_id} return to parking slot.")
-    yield terminal.hostlers.put(hostler_id)
-
-    # Test: check if all OCs on chassis
-    print("chassis (all oc prepared):", terminal.chassis.items)
-    print(f"hostler (all oc prepared): {terminal.hostlers.items}")
-
-
-def truck_exit(env, terminal, truck_id, ic_id):
-    global state
-    with terminal.out_gates.request() as out_gate_request:
-        yield out_gate_request
-        print(f"Time {env.now}: Truck {truck_id} is passing through the out-gate and leaving the terminal")
-        yield env.timeout(state.TRUCK_OUTGATE_TIME + random.uniform(0, state.TRUCK_OUTGATE_TIME_DEV))
-        record_event(ic_id, 'truck_exit', env.now)
-
-    yield terminal.truck_store.put(truck_id)
+    if len(terminal.chassis.items) == truck_number:
+        print("Chassis are fully loaded, and the train is ready to depart")
+        all_oc_prepared.succeed()
 
 
 def crane_load_process(env, terminal, load_time, start_load_event, end_load_event):
     global state
     yield start_load_event
     print(f"Time {env.now}: Starting loading process onto the train.")
+    print("items on chassis", terminal.chassis.items)
 
-    while len([item for item in terminal.chassis.items if
-               isinstance(item, str) and "OC" in item]) > 0:  # if there still has OC on chassis
+    while len([item for item in terminal.chassis.items if isinstance(item, str) and "OC" in item]) > 0:  # if there still has OC on chassis
         with terminal.cranes.request() as request:
             yield request
             oc = yield terminal.chassis.get(lambda x: isinstance(x, str) and "OC" in x)  # obtain an OC from chassis
             # print("chassis:",terminal.chassis.items)
-            print(f"Time {env.now}: Crane starts loading {oc} onto the train.")
+            print(f"Time {env.now}: Crane starts loading {oc} onto the train")
             yield env.timeout(load_time)  # loading time, depends on container parameter**
             record_event(oc, 'crane_load', env.now)
-            print(f"Time {env.now}: Crane finished loading {oc} onto the train.")
+            print(f"Time {env.now}: Crane finished loading {oc} onto the train")
 
-    print(f"Time {env.now}: All OCs loaded. Train is fully loaded and ready to depart.")
+    print(f"Time {env.now}: All OCs loaded. Train is fully loaded and ready to depart!")
     print("Containers on chassis (after loading OCs):", terminal.chassis.items)
     end_load_event.succeed()
 
@@ -182,41 +132,24 @@ def process_train_arrival(env, terminal, train_departed_event, train_schedule, n
     # Initialize dictionary
     delay_list = {}
 
+    # Train is waiting to load OCs
+    yield env.timeout(arrival_time - env.now)
+    print(f"Time {env.now}: [In Time] Train {train_schedule['train_id']} has arrived.")
+
     # All trucks arrive
-    env.process(truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event))
+    env.process(container_process(env, terminal, train_schedule, all_trucks_arrived_event, all_oc_prepared))
 
-    # Process OCs
-    env.process(container_process(env, terminal, train_schedule, all_oc_prepared, oc_needed))
-
-    # Truck leave
-    env.process(truck_exit(env, terminal, train_schedule, oc_needed))
-
-    # Wait train arriving
-    if env.now <= arrival_time:
-        yield env.timeout(arrival_time - env.now)
-        print(f"Time {env.now}: [In Time] Train {train_schedule['train_id']} has arrived.")
-        delay_time = 0
-    else:
-        delay_time = env.now - arrival_time
-        if f"train_id_{train_id}" not in delay_list:
-            delay_list[f"train_id_{train_id}"] = {}
-        delay_list[f"train_id_{train_id}"]["arrival"] = delay_time
-        print(f"Time {env.now}: [DELAYED] Train {train_schedule['train_id']} has been delayed for {delay_time} hours.")
-    state.train_delay_time[train_schedule['train_id']] = delay_time
-
-    for ic_id in range(state.IC_NUM, state.IC_NUM + train_schedule['full_cars']):
-        record_event(ic_id, 'train_arrival', env.now)  # loop: assign container_id range(current_ic, current_ic + train_schedule['full_cars'])
-
-    # prepare all OC and pick up all IC before crane loading
-    yield all_oc_prepared
+    # Check loading conditions
+    yield all_trucks_arrived_event & all_oc_prepared
     print(f"Time {env.now}: All {oc_needed} OCs are ready on chassis.")
     start_load_event.succeed()  # condition of chassis loading
 
     # crane loading process
-    env.process(crane_load_process(env, terminal, load_time=2, start_load_event=start_load_event,end_load_event=end_load_event))
+    env.process(crane_load_process(env, terminal, load_time=2,start_load_event=start_load_event, end_load_event=end_load_event))
 
     yield end_load_event
 
+    # train departs
     if env.now <= departure_time:
         yield env.timeout(departure_time - env.now)
         print(f"Time {env.now}: [In Time] Train {train_schedule['train_id']} departs.")
@@ -242,9 +175,7 @@ def process_train_arrival(env, terminal, train_departed_event, train_schedule, n
     next_departed_event.succeed()  # the terminal now is clear and ready to accept the next train
 
 
-def run_simulation(train_consist_plan: pl.DataFrame,
-                   terminal: str,
-                   out_path=None):
+def run_simulation(train_consist_plan: pl.DataFrame, terminal: str, out_path=None):
     global state
     state.terminal = terminal
     state.train_consist_plan = train_consist_plan
@@ -253,10 +184,11 @@ def run_simulation(train_consist_plan: pl.DataFrame,
     # Create environment
     env = simpy.Environment()
 
-    # Train timetable
-    # Truck_numbers is equal to max(full_cars, oc_numbers), to make sure each container has one truck to pick up
+    # Train timetable: only one train
+    # For initializations, only load OCs, so full_cars = 0
+    # Trucks prepare according to truck_number, and truck_number = oc_number = empty_time
     train_timetable = [
-        {"train_id": 2, "arrival_time": 0, "departure_time": 50, "empty_cars": 8, "full_cars": 0, "oc_number": 0 ,
+        {"train_id": 2, "arrival_time": 0, "departure_time": 50, "empty_cars": 8, "full_cars": 0, "oc_number": 8,
          "truck_number": 8},  # test: ic > oc
         ]
 
@@ -278,50 +210,42 @@ def run_simulation(train_consist_plan: pl.DataFrame,
     # Simulation hyperparameters
     env.run(until=state.sim_time)
 
-    # Performance Matrix
-    # Train processing time
-    # avg_time_per_train = sum(state.time_per_train.values()) / len(state.time_per_train)
-    # print(f"Average train processing time: {sum(state.time_per_train) / len(state.time_per_train) if state.time_per_train else 0:.2f}")
-    # print("Simulation completed. ")
-    # with open("avg_time_per_train.txt", "w") as f:
-    #    f.write(str(avg_time_per_train))
-
     # Create DataFrame for container events
-    print(state.sim_time)
+    print("Total simulation time (hr):", state.sim_time)
 
-    container_data = (
-        pl.from_dicts(
-            [dict(event, **{'container_id': container_id}) for container_id, event in state.container_events.items()]
-        )
-        .with_columns(
-            pl.when(
-                pl.col("truck_exit").is_not_null() & pl.col("train_arrival").is_not_null()
-            )
-            .then(
-                pl.col("truck_exit") - pl.col("train_arrival")
-            )
-            .when(
-                pl.col("train_depart").is_not_null()
-            )
-            .then(
-                pl.col("crane_load") - pl.col("truck_arrival")
-            )
-            .otherwise(None)
-            .alias("container_processing_time")
-        )
-        .sort("container_id")
-        .select(pl.col("container_id"), pl.all().exclude("container_id"))
-    )
+    # container_data = (
+    #     pl.from_dicts(
+    #         [dict(event, **{'container_id': container_id}) for container_id, event in state.container_events.items()]
+    #     )
+    #     .with_columns(
+    #         pl.when(
+    #             pl.col("truck_exit").is_not_null() & pl.col("train_arrival").is_not_null()
+    #         )
+    #         .then(
+    #             pl.col("truck_exit") - pl.col("train_arrival")
+    #         )
+    #         .when(
+    #             pl.col("train_depart").is_not_null()
+    #         )
+    #         .then(
+    #             pl.col("crane_load") - pl.col("truck_arrival")
+    #         )
+    #         .otherwise(None)
+    #         .alias("container_processing_time")
+    #     )
+    #     .sort("container_id")
+    #     .select(pl.col("container_id"), pl.all().exclude("container_id"))
+    # )
     # if out_path is not None:
     #     container_data.write_excel(
     #         out_path / f"first_station_simulation_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx")
 
     # Use save_average_times and save_vehicle_logs for vehicle related logs
-    save_average_times()
+    # save_average_times()
     # save_vehicle_logs()
 
     print("Done!")
-    return container_data
+    # return container_data
 
 
 if __name__ == "__main__":

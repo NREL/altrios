@@ -542,12 +542,6 @@ impl TrainSimBuilder {
             ))
         };
 
-        // brake propagation rate is 800 ft/s (about speed of sound)
-        // ramp up duration is ~30 s
-        // TODO: make this not hard coded!
-        let ramp_up_time = 0.0 * uc::S;
-        let ramp_up_coeff = 0.6 * uc::R;
-
         let fric_brake = FricBrake::new(
             max_fric_braking,
             ramp_up_time,
@@ -1457,10 +1451,7 @@ impl SpeedLimitTrainSimVec {
     }
 
     pub fn get_cars_moved(&self, annualize: bool) -> f64 {
-        self.0
-            .iter()
-            .map(|sim| sim.get_cars_moved(annualize))
-            .sum()
+        self.0.iter().map(|sim| sim.get_cars_moved(annualize)).sum()
     }
 
     pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {

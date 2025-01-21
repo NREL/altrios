@@ -26,6 +26,8 @@ use crate::imports::*;
     }
 )]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
+// brake propagation rate is ~800 ft/s (about speed of sound)
+// ramp up duration is ~30 s
 pub struct FricBrake {
     /// max static force achievable
     pub force_max: si::Force,

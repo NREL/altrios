@@ -137,6 +137,7 @@ def main(
          'Arrival_Time_Actual_Hr': pl.Series([this[len(this)-1].time_hours for this in timed_paths], dtype=pl.Float64)}
     )
 
+    train_consist_plan_untrimmed = train_consist_plan.clone()
     train_consist_plan = (train_consist_plan
         .join(train_times,on=["Train_ID","Origin_ID","Destination_ID"],how="left")
     )
@@ -165,4 +166,5 @@ def main(
         nodal_energy_prices,
         train_sims,
         timed_paths,
+        train_consist_plan_untrimmed
     )

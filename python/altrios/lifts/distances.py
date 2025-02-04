@@ -16,6 +16,13 @@ BL_w = 80  # fixed block width
 A = M * 10 * n_r + (M+1) * n_p * P  # the vertical width of the yard
 B = N * 80 + (N+1) * n_p * P # the horizontal length of the yard
 
+# Total length of yard lanes, used to estimate density (veh/ft)
+total_distance = A * (N + 1) + B * (M + 1)  # total distances of lanes
+
+def speed_density(count):
+    speed = 10 / count  # density-speed function: calculate the current speed of the vehicle
+    return speed
+
 def create_triang_distribution(min_val, avg_val, max_val):
     c = (avg_val - min_val) / (max_val - min_val)
     return triang(c, loc=min_val, scale=(max_val - min_val))

@@ -6,6 +6,7 @@ from altrios.lifts.demo_parameters import *
 from altrios.lifts.distances import *
 from altrios.lifts.dictionary import *
 from altrios.lifts.schedule import *
+from altrios.lifts.train_test import train_schedule
 from altrios.lifts.vehicle_performance import record_vehicle_event, save_average_times, save_vehicle_logs
 
 
@@ -43,7 +44,13 @@ def truck_entry(env, terminal, truck_id, oc_id):
         print(f"Time {env.now}: Truck {truck_id} placed OC {oc_id} at parking slot.")
         record_event(f"OC-{oc_id}", 'truck_arrival', env.now)
 
+        # Calculate truck speed according to the current density
         d_t_dist = create_triang_distribution(d_t_min, d_t_avg, d_t_max).rvs()
+        # current_veh_num = train_schedule["truck_number"] - len(terminal.truck_store.items)
+        # veh_density = current_veh_num / total_distance
+        # truck_speed = speed_density(veh_density)
+        # print("Current truck speed is:", truck_speed)
+        # yield env.timeout(d_t_dist / (2 * truck_speed))
         yield env.timeout(d_t_dist / (2 * state.TRUCK_SPEED_LIMIT))
         record_event(f"OC-{oc_id}", 'truck_dropoff', env.now)
 
@@ -121,6 +128,13 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
     ic_id = yield terminal.chassis.get(lambda x: isinstance(x, int))
 
     # Hostler puts IC to the closest parking lot
+    # # TODO: Replace state.HOSTLER_TRANSPORT_CONTAINER_TIME from hostler speed to the current density
+    # d_h_dist = create_triang_distribution(d_h_min, d_h_avg, d_h_max).rvs()
+    # current_veh_num = state.HOSTLER_NUMBER - len(terminal.hostlers.items)
+    # veh_density = current_veh_num / total_distance
+    # hostler_speed = speed_density(veh_density)
+    # print("Current hostler speed is:", hostler_speed)
+    # yield env.timeout(d_h_dist / (2 * hostler_speed))
     travel_time_to_parking = state.HOSTLER_TRANSPORT_CONTAINER_TIME
     yield env.timeout(travel_time_to_parking)
     print(f"Time {env.now}: Hostler picked up IC {ic_id} and is heading to parking slot.")
@@ -136,6 +150,13 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
     print("# of IC on chassis:", sum(str(item).isdigit() for item in terminal.chassis.items))
 
     # Hostler drop off IC to parking slot
+    # # TODO: Replace state.HOSTLER_TRANSPORT_CONTAINER_TIME from hostler speed to the current density
+    # d_h_dist = create_triang_distribution(d_h_min, d_h_avg, d_h_max).rvs()
+    # current_veh_num = state.HOSTLER_NUMBER - len(terminal.hostlers.items)
+    # veh_density = current_veh_num / total_distance
+    # hostler_speed = speed_density(veh_density)
+    # print("Current hostler speed is:", hostler_speed)
+    # yield env.timeout(d_h_dist / (2 * hostler_speed))
     travel_time_to_parking = state.HOSTLER_TRANSPORT_CONTAINER_TIME
     yield env.timeout(travel_time_to_parking)   # update: time calculated by density-travel_time function
     print(f"Time {env.now}: Hostler dropped off IC {ic_id} at parking slot.")
@@ -159,6 +180,13 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
         print(f"OC remains (oc_store): {terminal.oc_store.items}")
 
         # The hostler picks up an OC
+        # # TODO: Replace state.HOSTLER_FIND_CONTAINER_TIME from d_r / hostler speed (using the current density)
+        # d_r_dist = create_triang_distribution(d_r_min, d_r_avg, d_r_max).rvs()
+        # current_veh_num = state.HOSTLER_NUMBER - len(terminal.hostlers.items)
+        # veh_density = current_veh_num / total_distance
+        # hostler_speed = speed_density(veh_density)
+        # print("Current hostler speed is:", hostler_speed)
+        # yield env.timeout(d_r_dist / (2 * hostler_speed))
         travel_time_to_oc = state.HOSTLER_FIND_CONTAINER_TIME
         yield env.timeout(travel_time_to_oc)
         print(f"Time {env.now}: Hostler picked up OC {oc} and is returning to the terminal")
@@ -169,6 +197,13 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
         print("# of IC", sum(str(item).isdigit() for item in terminal.chassis.items))
 
         # The hostler drops off OC at the chassis
+        # # TODO: Replace state.HOSTLER_TRANSPORT_CONTAINER_TIME from hostler speed to the current density
+        # d_h_dist = create_triang_distribution(d_h_min, d_h_avg, d_h_max).rvs()
+        # current_veh_num = state.HOSTLER_NUMBER - len(terminal.hostlers.items)
+        # veh_density = current_veh_num / total_distance
+        # hostler_speed = speed_density(veh_density)
+        # print("Current hostler speed is:", hostler_speed)
+        # yield env.timeout(d_h_dist / (2 * hostler_speed))
         travel_time_to_chassis = state.HOSTLER_TRANSPORT_CONTAINER_TIME
         yield env.timeout(travel_time_to_chassis)
         print(f"Time {env.now}: Hostler dropped off OC {oc} onto chassis")
@@ -183,7 +218,13 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
             print("# of OC on chassis:", sum(1 for item in terminal.chassis.items if "OC-" in str(item)))
             print(f"Time {env.now}: All OCs are ready on chassis.")
 
-
+    # # TODO: Replace state.HOSTLER_TRANSPORT_CONTAINER_TIME from hostler speed to the current density
+    # d_h_dist = create_triang_distribution(d_h_min, d_h_avg, d_h_max).rvs()
+    # current_veh_num = state.HOSTLER_NUMBER - len(terminal.hostlers.items)
+    # veh_density = current_veh_num / total_distance
+    # hostler_speed = speed_density(veh_density)
+    # print("Current hostler speed is:", hostler_speed)
+    # yield env.timeout(d_h_dist / (2 * hostler_speed))
     travel_time_to_parking = state.HOSTLER_TRANSPORT_CONTAINER_TIME
     yield env.timeout(travel_time_to_parking)   # update: time calculated by density-travel_time function
     print(f"Time {env.now}: Hostler {hostler_id} return to parking slot.")
@@ -204,6 +245,13 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
         for i in range (1, remaining_oc + 1):
             oc = yield terminal.oc_store.get()
             print(f"The OC is {oc}")
+            # # TODO: Replace state.HOSTLER_FIND_CONTAINER_TIME from d_r / hostler speed (using the current density)
+            # d_r_dist = create_triang_distribution(d_r_min, d_r_avg, d_r_max).rvs()
+            # current_veh_num = state.HOSTLER_NUMBER - len(terminal.hostlers.items)
+            # veh_density = current_veh_num / total_distance
+            # hostler_speed = speed_density(veh_density)
+            # print("Current hostler speed is:", hostler_speed)
+            # yield env.timeout(d_r_dist / (2 * hostler_speed))
             travel_time_to_oc = state.HOSTLER_FIND_CONTAINER_TIME
             yield env.timeout(travel_time_to_oc)
             print(f"Time {env.now}: Hostler picked up OC {oc} and is returning to the terminal")
@@ -359,6 +407,8 @@ def run_simulation(train_consist_plan: pl.DataFrame,
          "truck_number": 5},    # test: ic < oc
     ]
 
+    # max([item["truck_number"] for item in train_timetable])
+
     # train_timetable = build_train_timetable(train_consist_plan, terminal, swap_arrive_depart=True, as_dicts=True)
 
     # # Resource numbers and settings
@@ -425,7 +475,7 @@ def run_simulation(train_consist_plan: pl.DataFrame,
 
     # Use save_average_times and save_vehicle_logs for vehicle related logs
     save_average_times()
-    # save_vehicle_logs()
+    save_vehicle_logs()
 
     print("Done!")
     return container_data
@@ -433,7 +483,7 @@ def run_simulation(train_consist_plan: pl.DataFrame,
 
 if __name__ == "__main__":
     run_simulation(
-        train_consist_plan=pl.read_csv(utilities.package_root() / 'demos' / 'starter_demo' / 'train_consist_plan.csv'),
+        train_consist_plan = pl.read_csv(utilities.package_root() / 'demos' / 'starter_demo' / 'train_consist_plan.csv'),
         terminal = "Allouez",
         out_path = utilities.package_root() / 'demos' / 'starter_demo' / 'results'
     )

@@ -55,6 +55,25 @@ class LiftsState:
     last_leave_time: float = 0
     truck_arrival_time: list[float] = field(default_factory = lambda: [])   # **trucks arrive according to train departure and arrival gap
 
+    # Fixed: Emission matrix
+    # Trucks types: diesel and electric
+    IDLE_DIESEL_TRUCK_EMS: float = 5.2
+    IDLE_ELECTRIC_TRUCK_EMS: float = 2.4
+    FULL_DIESEL_TRUCK_EMS: float = 20.7
+    FULL_ELECTRIC_TRUCK_EMS: float = 10.2
+
+    # Hostler types: diesel and electric
+    IDLE_DIESEL_HOSTLER_EMS: float = 6.2
+    IDLE_ELECTRIC_HOSTLER_EMS: float = 2.4
+    FULL_DIESEL_HOSTLER_EMS: float = 15.7
+    FULL_ELECTRIC_HOSTLER_EMS: float = 10.2
+
+    # Crane types: diesel and hybrid
+    IDLE_DIESEL_CRANE_EMS: float = 40.3
+    IDLE_HYBRID_CRANE_EMS: float = 30.5
+    FULL_DIESEL_CRANE_EMS: float = 60.3
+    FULL_HYBRID_CRANE_EMS: float = 50.5
+
     # Various: tracking container number
     IC_NUM: int = 1     # tracking
     OC_NUM: int = 1

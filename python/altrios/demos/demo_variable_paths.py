@@ -118,7 +118,7 @@ if ENABLE_ASSERTS:
     print("Checking output of `variable_path_list()`")
     with open(ref_dir / "variable_path_list_expected.txt", 'r') as f:
         variable_path_list_expected = [line.strip() for line in f.readlines()]
-    assert variable_path_list_expected == train_sim.variable_path_list()
+    assert variable_path_list_expected == train_sim.variable_path_list(), "Try running with `ENABLE_REF_OVERRIDE=True`"
     print("\n")
 
 # print out all subpaths for history variables in train_sim
@@ -133,5 +133,5 @@ if ENABLE_REF_OVERRIDE:
 if ENABLE_ASSERTS:
     print("Checking output of `to_dataframe`")
     to_dataframe_expected = pl.scan_csv(ref_dir / "to_dataframe_expected.csv").collect()
-    assert to_dataframe_expected.equals(train_sim.to_dataframe())
+    assert to_dataframe_expected.equals(train_sim.to_dataframe()), "Try running with `ENABLE_REF_OVERRIDE=True`"
     print("Success!")

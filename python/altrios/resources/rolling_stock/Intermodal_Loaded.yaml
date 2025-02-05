@@ -4,8 +4,8 @@ freight_type: Intermodal_Loaded
 length: 18.0
 axle_count: 4
 brake_count: 1
-mass_static_base: 28500.0
-mass_freight: 101500.0
+mass_static_base: 23133.0
+mass_freight: 29369.0 # 14684.5 for single containers; 29369 for double containers (both number loaded weight)
 speed_max: 20.0
 braking_ratio: 0.11
 mass_rot_per_axle: 750.0

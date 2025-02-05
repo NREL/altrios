@@ -137,15 +137,15 @@ def main(
          'Arrival_Time_Actual_Hr': pl.Series([this[len(this)-1].time_hours for this in timed_paths], dtype=pl.Float64)}
     )
 
-    train_consist_plan_untrimmed = train_consist_plan.clone()
     train_consist_plan = (train_consist_plan
         .join(train_times,on=["Train_ID","Origin_ID","Destination_ID"],how="left")
     )
+    train_consist_plan_untrimmed = train_consist_plan.clone()
     if train_planner_config.single_train_mode is False:
         train_consist_plan = (train_consist_plan
             .filter(
-                pl.col("Departure_Time_Actual_Hr") >= pl.lit(24*warm_start_days),
-                pl.col("Departure_Time_Actual_Hr") < pl.lit(24*(simulation_days+warm_start_days))
+                pl.col("Departure_Time_Planned_Hr") >= pl.lit(24*warm_start_days),
+                pl.col("Departure_Time_Planned_Hr") < pl.lit(24*(simulation_days+warm_start_days))
             )
         )
     train_consist_plan = (train_consist_plan

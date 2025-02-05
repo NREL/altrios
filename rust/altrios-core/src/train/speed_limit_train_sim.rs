@@ -422,13 +422,25 @@ impl SpeedLimitTrainSim {
         ensure!(
             self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO,
             format!(
-                "Insufficient braking force.\n{}\n{}\n{}\n{}\n{}\n{}",
+                "Insufficient braking force.\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
                 format_dbg!(self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO),
                 format_dbg!(self.fric_brake.force_max),
                 format_dbg!(self.state.res_net()),
                 format_dbg!(self.state.res_grade),
                 format_dbg!(self.state.grade_front),
                 format_dbg!(self.state.grade_back),
+                format_dbg!(self.state.elev_front),
+                format_dbg!(self.state.offset),
+                format_dbg!(self.state.offset_back),
+                format_dbg!(self.state.speed),
+                format_dbg!(self.state.speed_limit),
+                format_dbg!(self.state.speed_target),
+                format_dbg!(self.state.time),
+                format_dbg!(self.state.dt),
+                format_dbg!(self.state.i),
+                format_dbg!(self.state.total_dist),
+                format_dbg!(self.state.link_idx_front),
+                format_dbg!(self.state.offset_in_link)
             )
         );
 

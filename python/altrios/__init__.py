@@ -159,7 +159,7 @@ def to_pydict(self, data_fmt: str = "msg_pack", flatten: bool = False) -> Dict:
         return next(iter(pd.json_normalize(pydict, sep=".").to_dict(orient='records')))
 
 @classmethod
-def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack", skip_init: bool = True) -> Self:
+def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack", skip_init: bool = False) -> Self:
     """
     Instantiates Self from pure python dictionary 
     # Arguments

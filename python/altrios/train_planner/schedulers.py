@@ -195,9 +195,10 @@ def find_minimum_waiting_time(
         #print(demand)
         total_cars = new_accumulated_carloads.filter(pl.col("OD_Pair") == od_pair_loop)["Number_of_Cars"].sum()
         for i in range(2, num_iterations):
+            this_demand_hourly = demand_hourly
             if total_cars - total_dispatched == 0:
                 dispatched_list.append(0.0)
-            search_range = border_time_list[j][i] - start_hour
+            search_range = border_time_list[j][i] - max(0,start_hour-1)
             # DataFrame to accumulate dispatch hour info
             total_waiting_time_demand_list = pl.DataFrame({
                 "Dispatch_Hour": pl.Series([], dtype=pl.Int64),
@@ -207,9 +208,10 @@ def find_minimum_waiting_time(
                 "Cumulative_Demand": pl.Series([], dtype=pl.Float64),
                 "Dispatched": pl.Series([], dtype=pl.Float64)
             }) 
-            for dispatch_hour in range(start_hour, start_hour + search_range):
+            x = 5
+            for dispatch_hour in range(max(0,start_hour-1), start_hour + search_range):
                 total_waiting_time_before_dispatch, total_waiting_time, remaining_demand_list, cumulative_demand, dispatched = calculate_waiting_time_single_dispatch(
-                    cumulative_demand_control, last_dispatch, demand_hourly, dispatch_hour, remaining_demand_list_control, remaining_demand_list_control.clone(), search_range,od_pair_loop,min_num_cars_per_train, target_num_cars_per_train, config
+                    cumulative_demand_control, last_dispatch, this_demand_hourly, dispatch_hour, remaining_demand_list_control, remaining_demand_list_control.clone(), search_range,od_pair_loop,min_num_cars_per_train, target_num_cars_per_train, config
                 )
                 # Append data for each dispatch hour, ensuring consistent types
                 new_row = pl.DataFrame({
@@ -241,6 +243,8 @@ def find_minimum_waiting_time(
             # Update control values for the next iteration
             remaining_demand_list_control = remaining_demand_list
             cumulative_demand_control = cumulative_demand
+            if min_waiting_time_hour == 503:
+                x = 5
             last_dispatch = min_waiting_time_hour + 1
             start_hour = min_waiting_time_hour + 1
             total_dispatched += dispatched
@@ -381,14 +385,16 @@ def calculate_dispatch_data(
     p = 0
     for arrival in new_accumulated_carloads.iter_rows(named=True):
         accumulated_demand += arrival['New_Carloads']
+        if p >= len(planned_train_lengths):
+            break
         if p == len(planned_train_lengths) - 1:
             train_dispatch_times.append(new_accumulated_carloads.get_column("Hour").max())
             break
-        if accumulated_demand >= planned_train_lengths[p]:
+        while accumulated_demand >= planned_train_lengths[p]:
             train_dispatch_times.append(arrival['Hour'])
-            dispatched_train_lengths.append(accumulated_demand)
-            total_containers -= (accumulated_demand * containers_per_car)
-            accumulated_demand = 0
+            dispatched_train_lengths.append(planned_train_lengths[p])
+            total_containers -= (planned_train_lengths[p])
+            accumulated_demand -= (planned_train_lengths[p])
             p += 1
             if p >= len(planned_train_lengths):
                 break

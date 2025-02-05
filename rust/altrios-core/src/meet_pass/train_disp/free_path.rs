@@ -726,7 +726,7 @@ impl TrainDisp {
         assert!(idx_max.idx() < idx_join_base);
 
         // If the train has passed the split point
-        if idx_split < idx_max.idx() {
+        if idx_split <= idx_max.idx() {
             let mut idx_new = 0;
             let mut update_disp_node_idx = |idx_update: &mut DispNodeIdx| {
                 // This exits because some place on the new path must match
@@ -738,7 +738,7 @@ impl TrainDisp {
                 *idx_update = (idx_split + idx_new).try_from_idx().unwrap();
             };
 
-            if idx_split < idx_min.idx() {
+            if idx_split <= idx_min.idx() {
                 update_disp_node_idx(idx_min);
             }
             update_disp_node_idx(idx_max);

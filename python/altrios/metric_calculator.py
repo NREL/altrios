@@ -119,6 +119,7 @@ def main(
         scenario_infos: Union[ScenarioInfo, List[ScenarioInfo]],
         annual_metrics: Union[Tuple[str, str],
                               List[Tuple[str, str]]] = [
+            ('Meet_Pass_Events', 'count'),
             ('Freight_Moved', 'million tonne-mi'),
             ('Freight_Moved', 'car-miles'),
             ('Freight_Moved', 'cars'),
@@ -408,14 +409,16 @@ def calculate_electricity_use(
         return metric("Electricity_Usage", units, 
             info.sims.get_net_energy_res_joules(annualize=info.annualize) * conversion_from_joule / defaults.BEL_CHARGER_EFFICIENCY)
    else:
+        if info.annualize:
+            scaler = 365.25 / info.simulation_days
+        else:
+            scaler = 1
         disagg_energy = (info.refuel_sessions
             .filter(pl.col("Fuel_Type")==pl.lit("Electricity"))
             .group_by(["Node"])
-                .agg((pl.col('Refuel_Energy_J') * pl.lit(info.simulation_days)).sum())
+                .agg(pl.col('Refuel_Energy_J').mul(conversion_from_joule).mul(scaler).sum().alias(units))
             .with_columns(
-                pl.col("Refuel_Energy_J").mul(conversion_from_joule).alias(units),
                 pl.lit("Electricity_Usage").alias("Metric"))
-            .drop("Refuel_Energy_J")
             .melt(
                 id_vars=["Metric","Node"],
                 value_vars=units,
@@ -1116,8 +1119,36 @@ def add_battery_costs(loco_info: pd.DataFrame, year: int) -> pd.DataFrame:
                 kWh * usd_per_kWh) * defaults.RETAIL_PRICE_EQUIVALENT_MULTIPLIER
     return loco_info
 
+def calculate_meet_pass_events(
+        info: ScenarioInfo,
+        units: str) -> MetricType:
+    import re
+    slts_results = []
+    i = 0
+    for slts in info.sims.tolist():
+        df = (slts.to_dataframe()
+            .select("history.time", "history.speed")
+            .with_columns( 
+                pl.lit(i).alias("train_idx")
+            )
+        )
+        if df.height > 0:
+            slts_results.append(df)
+        i += 1
+    all = pl.concat(slts_results, how="diagonal_relaxed")
+    val = (all
+        .sort("train_idx", "history.speed")
+        .with_columns((pl.col("history.speed") - pl.col("history.speed").shift(1).over("train_idx").fill_null(0.0)).alias("speed_change"))
+        .with_columns(pl.when(pl.col("speed_change") < 0, pl.col("history.speed") == 0).then(1).otherwise(0).alias("stop"))
+        .group_by("train_idx").agg((pl.max_horizontal([0, pl.col("stop").sum() - 1]).alias("meet_pass_stops")))
+        .get_column("meet_pass_stops").sum()
+    )
+    return metric("Meet_Pass_Events", units, val)
 
-function_mappings = {'Energy_Costs': calculate_energy_cost,
+
+function_mappings = {
+    'Meet_Pass_Events': calculate_meet_pass_events,
+    'Energy_Costs': calculate_energy_cost,
     'Freight_Moved': calculate_freight_moved,
     'Energy_Per_Freight_Moved': calculate_energy_per_freight,
     'GHG': calculate_ghg,

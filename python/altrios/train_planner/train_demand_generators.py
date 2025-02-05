@@ -71,21 +71,23 @@ def generate_return_demand_intermodal(demand_subset: Union[pl.LazyFrame, pl.Data
     ----------
     Updated demand `DataFrame` or `LazyFrame` representing demand in the reverse direction(s) for each origin-destination pair.
     """
-    return (demand_subset
+    demand_subset = (demand_subset
         .pipe(initialize_reverse_empties)
         .with_columns(
             pl.concat_str(pl.min_horizontal("Origin", "Destination"), pl.lit("_"), pl.max_horizontal("Origin", "Destination")).alias("OD")
         )
         .with_columns(
-            pl.col("Number_of_Cars", "Number_of_Containers").range().over("OD").name.suffix("_Return")
+            pl.selectors.starts_with("Number_of").range().over("OD").name.suffix("_Return")
         )
-        .filter(
-            pl.col("Number_of_Cars") == pl.col("Number_of_Cars").max().over("OD"),
-            pl.col("Number_of_Cars_Return") > 0
-        )
-        .drop("OD", "Number_of_Cars", "Number_of_Containers")
-        .rename({"Number_of_Cars_Return": "Number_of_Cars",
-                 "Number_of_Containers_Return": "Number_of_Containers"})
+        .sort([pl.col("OD"), pl.selectors.starts_with("Number_of")], descending=True)
+        .group_by("OD").first() # Max demand direction per corridor
+        .drop([
+            pl.col("OD"), 
+            (pl.selectors.starts_with("Number_of") & ~(pl.selectors.ends_with("_Return")))
+        ])
+    )
+    return (demand_subset
+        .rename({col: col.removesuffix("_Return") for col in demand_subset.collect_schema()})
     )
 
 def generate_return_demand(
@@ -116,7 +118,7 @@ def generate_return_demand(
             print(f'Return demand generator not implemented for train type: {train_type_label}')
 
     demand_return = (pl.concat(return_demands, how="diagonal_relaxed")
-        .filter(pl.col("Number_of_Cars") > 0)
+        .filter(pl.sum_horizontal(pl.selectors.starts_with("Number_of")) > 0)
     )
     return demand_return
 

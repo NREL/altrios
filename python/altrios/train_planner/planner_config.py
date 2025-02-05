@@ -57,9 +57,9 @@ class TrainPlannerConfig:
         }                         
     })
     dispatch_scaling_dict: Dict = field(default_factory = lambda: {
-        "time_mult_factor": 1.4,
-        "hours_add": 2,
-        "energy_mult_factor": 1.25
+        "time_mult_factor": 2.0,
+        "hours_add": 3,
+        "energy_mult_factor": 1.8
     })
     loco_info: pd.DataFrame = field(default_factory = lambda: pd.DataFrame({
         "Diesel_Large": {

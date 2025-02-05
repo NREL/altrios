@@ -23,6 +23,11 @@ pub trait LinSearchHint {
 }
 
 impl<T: GetOffset + core::fmt::Debug> LinSearchHint for &[T] {
+    /// # Arguments
+    /// - `offset`: linear displacement of front of train from initial starting
+    ///   position of back of train along entire PathTPC
+    /// - `idx`: index of front (TODO: clarify this) of train within corresponding [PathResCoeff]
+    /// - `dir`: direction of train along PathTPC
     fn calc_idx(&self, offset: si::Length, mut idx: usize, dir: &Dir) -> anyhow::Result<usize> {
         if dir != &Dir::Bwd {
             ensure!(

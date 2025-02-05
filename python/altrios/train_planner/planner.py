@@ -325,18 +325,19 @@ def run_train_planner(
     else: 
         demand_returns = pl.DataFrame()
         demand_rebalancing = pl.DataFrame()
-        if (config.dispatch_scheduler is None) and ("Hour" in demand.collect_schema()):
+        if config.dispatch_scheduler is None:
+            grouping_vars = ["Origin", "Destination", "Train_Type"]
+            aggregations = []
+            if "Number_of_Days" in demand.collect_schema():
+                grouping_vars.append("Number_of_Days")
             if "Number_of_Containers" in demand.collect_schema():
-                demand = (demand
-                    .group_by("Origin", "Destination", "Number_of_Days", "Train_Type")
-                        .agg(pl.col("Number_of_Containers").sum())
-                    .with_columns(pl.col("Number_of_Containers").truediv(config.containers_per_car).ceil().alias("Number_of_Cars"))
-                )
-            else:
-                demand = (demand
-                    .group_by("Origin", "Destination", "Number_of_Days", "Train_Type")
-                        .agg(pl.col("Number_of_Cars").sum())
-                )
+                aggregations.append(pl.col("Number_of_Containers").sum().truediv(config.containers_per_car))
+            if "Number_of_Cars" in demand.collect_schema():
+                aggregations.append(pl.col("Number_of_Cars").sum())
+            demand = (demand
+                .group_by(grouping_vars)
+                    .agg(pl.max_horizontal(aggregations).ceil().alias("Number_of_Cars"))
+            )
         if "Hour" not in demand.schema:
             demand_returns = train_demand_generators.generate_return_demand(demand, config)
             if demand.filter(pl.col("Train_Type").str.contains("Manifest")).height > 0:
@@ -347,6 +348,7 @@ def run_train_planner(
             config.dispatch_scheduler = schedulers.dispatch_uniform_demand_uniform_departure
 
         dispatch_schedule = config.dispatch_scheduler(demand, rail_vehicles, freight_type_to_car_type, config)
+        #dispatch_schedule = dispatch_schedule.with_columns(pl.col("Hour").add(pl.random.rand()))
    
     if loco_pool is None:
         loco_pool = data_prep.build_locopool(config=config, demand_file=demand, dispatch_schedule=dispatch_schedule)
@@ -580,7 +582,7 @@ if __name__ == "__main__":
     config = planner_config.TrainPlannerConfig()
     config.simulation_days=defaults.SIMULATION_DAYS + 2 * defaults.WARM_START_DAYS
     loco_pool = data_prep.build_locopool(config, defaults.DEMAND_FILE)
-    demand, node_list = data_prep.load_freight_demand(defaults.DEMAND_FILE)
+    demand, node_list = data_prep.load_freight_demand(defaults.DEMAND_FILE, config=config)
     refuelers = data_prep.build_refuelers(
         node_list, 
         loco_pool,

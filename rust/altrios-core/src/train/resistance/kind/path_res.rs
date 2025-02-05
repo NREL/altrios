@@ -146,6 +146,10 @@ impl Strap {
         path_res_coeffs[self.idx_front].calc_res_val(state.offset)
     }
 
+    pub fn res_net_back(&self, path_res_coeffs: &[PathResCoeff], state: &TrainState) -> si::Length {
+        path_res_coeffs[self.idx_back].calc_res_val(state.offset_back)
+    }
+
     /// Returns index of current element containing front of train within `PathTPC`
     pub fn path_tpc_idx_front(&self) -> usize {
         self.idx_front

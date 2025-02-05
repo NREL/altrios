@@ -46,7 +46,16 @@ impl TrainDisp {
                 (self.offset_free - disp_node_front.offset)
                     <= link_disp_front[disp_auth_idx_curr.idx() - 1].offset_back
             );
-
+            
+            assert!(
+                disp_auth_idx_curr.idx()>0,
+                "Train {} error on disp_auth_idx_curr {}, est_idx {}, time_pass {}, offset {}",
+                self.train_idx.idx(),
+                disp_auth_idx_curr.idx(),
+                disp_node_front.est_idx,
+                disp_node_front.time_pass.value,
+                disp_node_front.offset.value
+            );
             !link_disp_front[disp_auth_idx_curr.idx() - 1]
                 .offset_back
                 .is_infinite()

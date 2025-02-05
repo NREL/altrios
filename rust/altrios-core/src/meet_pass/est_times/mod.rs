@@ -6,7 +6,7 @@ use crate::track::Network;
 use uc::SPEED_DIFF_JOIN;
 use uc::TIME_NAN;
 
-mod est_time_structs;
+pub(crate) mod est_time_structs;
 mod update_times;
 
 use est_time_structs::*;

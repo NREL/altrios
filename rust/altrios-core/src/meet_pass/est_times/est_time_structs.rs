@@ -1,7 +1,7 @@
 use super::super::disp_imports::*;
 
 #[readonly::make]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, SerdeAPI)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, SerdeAPI, PartialEq)]
 pub(super) struct EstJoinPath {
     pub link_idx_match: LinkIdx,
     pub est_idx_next: EstIdx,
@@ -38,10 +38,14 @@ impl SimpleState {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, SerdeAPI)]
-pub(super) struct SavedSim {
+#[altrios_api]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, SerdeAPI, PartialEq)]
+pub struct SavedSim {
+    #[api(skip_get, skip_set)]
     pub train_sim: Box<SpeedLimitTrainSim>,
+    #[api(skip_get, skip_set)]
     pub join_paths: Vec<EstJoinPath>,
+    #[api(skip_get, skip_set)]
     pub est_alt: EstTime,
 }
 

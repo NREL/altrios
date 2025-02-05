@@ -163,5 +163,7 @@ if ENABLE_REF_OVERRIDE:
 if ENABLE_ASSERTS:
     print("Checking output of `to_dataframe`")
     to_dataframe_expected = pl.scan_csv(ref_dir / "to_dataframe_expected.csv").collect()[-1]
-    assert to_dataframe_expected.equals(train_sim.to_dataframe()[-1])
+    assert to_dataframe_expected.equals(train_sim.to_dataframe()[-1]), \
+        f"to_dataframe_expected: \n{to_dataframe_expected}\ntrain_sim.to_dataframe()[-1]: \n{train_sim.to_dataframe()[-1]}" + \
+            "\ntry running with `ENABLE_REF_OVERRIDE=True`"
     print("Success!")

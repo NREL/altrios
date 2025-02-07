@@ -32,94 +32,11 @@ logger = logging.getLogger(__name__)
 def __array__(self):
     return np.array(self.tolist())
 
-# creates a list of all python classes from rust structs that need variable_path_list() and
-# history_path_list() added as methods
+# creates a list of all python classes from rust structs that need python-side serde helpers
 ACCEPTED_RUST_STRUCTS = [
     attr for attr in altrios_pyo3.__dir__() if not attr.startswith("__") and isinstance(getattr(altrios_pyo3, attr), type) and
     attr[0].isupper() 
 ]
-
-def variable_path_list(self, element_as_list:bool=False) -> List[str]:
-    """
-    Returns list of key paths to all variables and sub-variables within
-    dict version of `self`. See example usage in `altrios/demos/
-    demo_variable_paths.py`.
-
-    # Arguments:  
-    - `element_as_list`: if True, each element is itself a list of the path elements
-    """
-    return variable_path_list_from_py_objs(self.to_pydict(), element_as_list=element_as_list)
-                                        
-def variable_path_list_from_py_objs(
-    obj: Union[Dict, List], 
-    pre_path:Optional[str]=None,
-    element_as_list:bool=False,
-) -> List[str]:
-    """
-    Returns list of key paths to all variables and sub-variables within
-    dict version of class. See example usage in `altrios/demos/
-    demo_variable_paths.py`.
-
-    # Arguments:  
-    - `obj`: altrios object in dictionary form from `to_pydict()`
-    - `pre_path`: This is used to call the method recursively and should not be
-        specified by user.  Specifies a path to be added in front of all paths
-        returned by the method.
-    - `element_as_list`: if True, each element is itself a list of the path elements
-    """
-    key_paths = []
-    if isinstance(obj, dict):
-        for key, val in obj.items():
-            # check for nested dicts and call recursively
-            if isinstance(val, dict):
-                key_path = f"['{key}']" if pre_path is None else pre_path + f"['{key}']"
-                key_paths.extend(variable_path_list_from_py_objs(val, key_path))
-            # check for lists or other iterables that do not contain numeric data
-            elif "__iter__" in dir(val) and (len(val) > 0) and not(isinstance(val[0], float) or isinstance(val[0], int)):
-                key_path = f"['{key}']" if pre_path is None else pre_path + f"['{key}']"
-                key_paths.extend(variable_path_list_from_py_objs(val, key_path))
-            else:
-                key_path = f"['{key}']" if pre_path is None else pre_path + f"['{key}']"
-                key_paths.append(key_path)
-                
-    elif isinstance(obj, list):
-        for key, val in enumerate(obj):
-            # check for nested dicts and call recursively
-            if isinstance(val, dict):
-                key_path = f"[{key}]" if pre_path is None else pre_path + f"[{key}]"
-                key_paths.extend(variable_path_list_from_py_objs(val, key_path))
-            # check for lists or other iterables that do not contain numeric data
-            elif "__iter__" in dir(val) and (len(val) > 0) and not(isinstance(val[0], float) or isinstance(val[0], int)):
-                key_path = f"[{key}]" if pre_path is None else pre_path + f"[{key}]"
-                key_paths.extend(variable_path_list_from_py_objs(val, key_path))
-            else:
-                key_path = f"[{key}]" if pre_path is None else pre_path + f"[{key}]"
-                key_paths.append(key_path)
-    if element_as_list:
-        re_for_elems = re.compile("\\[('(\\w+)'|(\\w+))\\]")
-        for i, kp in enumerate(key_paths):
-            kp: str
-            groups = re_for_elems.findall(kp)
-            selected = [g[1] if len(g[1]) > 0 else g[2] for g in groups]
-            key_paths[i] = selected
-    
-    return key_paths
-
-def history_path_list(self, element_as_list:bool=False) -> List[str]:
-    """
-    Returns a list of relative paths to all history variables (all variables
-    that contain history as a subpath). 
-    See example usage in `altrios/demo_data/demo_variable_paths.py`.
-
-    # Arguments
-    - `element_as_list`: if True, each element is itself a list of the path elements
-    """
-    item_str = lambda item: item if not element_as_list else ".".join(item)
-    history_path_list = [
-        item for item in self.variable_path_list(
-            element_as_list=element_as_list) if "history" in item_str(item)
-    ]
-    return history_path_list            
 
 # TODO connect to crate features
 data_formats = [
@@ -176,50 +93,60 @@ def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack", skip_init: bool =
             obj = cls.from_yaml(yaml.dump(pydict), skip_init=skip_init)
         case "msg_pack":
             import msgpack
-            try:
-                obj = cls.from_msg_pack(
-                    msgpack.packb(pydict), skip_init=skip_init)
-            except Exception as err:
-                print(
-                    f"{err}\nFalling back to YAML.")
-                obj = cls.from_pydict(
-                    pydict, data_fmt="yaml", skip_init=skip_init)
+            obj = cls.from_msg_pack(
+                msgpack.packb(pydict), skip_init=skip_init)
         case "json":
             from json import dumps
             obj = cls.from_json(dumps(pydict), skip_init=skip_init)
 
     return obj
 
-def to_dataframe(self, pandas:bool=False) -> [pd.DataFrame, pl.DataFrame, pl.LazyFrame]:
+def to_dataframe(self, pandas: bool = False, allow_partial: bool = False) -> Union[pd.DataFrame, pl.DataFrame]:
     """
-    Returns time series results from altrios object as a Polars or Pandas dataframe.
+    Returns time series results from fastsim object as a Polars or Pandas dataframe.
 
     # Arguments
     - `pandas`: returns pandas dataframe if True; otherwise, returns polars dataframe by default
+    - `allow_partial`: returns dataframe of length equal to solved time steps if simulation fails early
     """
-    obj_dict = self.to_pydict()
-    history_paths = self.history_path_list(element_as_list=True)   
-    cols = [".".join(hp) for hp in history_paths]
-    vals = []
-    for hp in history_paths:
-        obj:Union[dict|list] = obj_dict
-        for elem in hp:
-            try: 
-                obj = obj[elem]
-            except:
-                obj = obj[int(elem)]
-        vals.append(obj)
-    if not pandas:
-        df = pl.DataFrame({col: val for col, val in zip(cols, vals)})
+    obj_dict = self.to_pydict(flatten=True)
+    history_dict = {}
+    history_keys = ['history', 'speed_trace', 'power_trace']
+    if len(history_dict) > 0:
+        val0 = next(iter(history_dict.values()))
     else:
-        df = pd.DataFrame({col: val for col, val in zip(cols, vals)})
+        val0 = None
+    for k, v in obj_dict.items():
+        if any(k in hk for hk in history_keys) or (val0 is not None and len(v) == len(val0)):
+            history_dict[k] = v
+
+    if allow_partial:
+        cutoff = min([len(val) for val in history_dict.values()])
+
+        if not pandas:
+            df = pl.DataFrame({col: val[:cutoff]
+                              for col, val in history_dict.items()})
+        else:
+            df = pd.DataFrame({col: val[:cutoff]
+                              for col, val in history_dict.items()})
+    else:
+        if not pandas:
+            try:
+                df = pl.DataFrame(history_dict)
+            except Exception as err:
+                raise (
+                    f"{err}\nTry passing `allow_partial=True` to `to_dataframe`")
+        else:
+            try:
+                df = pd.DataFrame(history_dict)
+            except Exception as err:
+                raise (
+                    f"{err}\nTry passing `allow_partial=True` to `to_dataframe`")
     return df
 
 # adds variable_path_list() and history_path_list() as methods to all classes in
 # ACCEPTED_RUST_STRUCTS
 for item in ACCEPTED_RUST_STRUCTS:
-    setattr(getattr(altrios_pyo3, item), "variable_path_list", variable_path_list)
-    setattr(getattr(altrios_pyo3, item), "history_path_list", history_path_list)
     setattr(getattr(altrios_pyo3, item), "to_pydict", to_pydict)
     setattr(getattr(altrios_pyo3, item), "from_pydict", from_pydict)
     setattr(getattr(altrios_pyo3, item), "to_dataframe", to_dataframe)

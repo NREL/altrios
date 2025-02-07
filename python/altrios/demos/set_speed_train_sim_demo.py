@@ -13,7 +13,7 @@ sns.set_theme()
 SHOW_PLOTS = alt.utils.show_plots()
 PYTEST = os.environ.get("PYTEST", "false").lower() == "true"
 
-SAVE_INTERVAL = 100
+SAVE_INTERVAL = 1
 
 # Build the train config
 rail_vehicle_loaded = alt.RailVehicle.from_file(
@@ -99,6 +99,8 @@ train_sim.walk()
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
 
+df = train_sim.to_dataframe()
+
 fig, ax = plt.subplots(3, 1, sharex=True)
 ax[0].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
@@ -138,7 +140,7 @@ ax[1].legend()
 
 ax[-1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.speed_trace.speed_meters_per_second)[::SAVE_INTERVAL][1:],
+    np.array(train_sim.speed_trace.speed_meters_per_second)[::SAVE_INTERVAL],
 )
 ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')

@@ -111,13 +111,21 @@ def to_dataframe(self, pandas: bool = False, allow_partial: bool = False) -> Uni
     """
     obj_dict = self.to_pydict(flatten=True)
     history_dict = {}
-    history_keys = ['history', 'speed_trace', 'power_trace']
-    if len(history_dict) > 0:
-        val0 = next(iter(history_dict.values()))
-    else:
-        val0 = None
+    history_keys = [
+        'history',
+        'speed_trace',
+        'power_trace'
+    ]
     for k, v in obj_dict.items():
-        if any(k in hk for hk in history_keys) or (val0 is not None and len(v) == len(val0)):
+        if any([hk in k for hk in history_keys]):
+            history_dict[k] = v
+    try:
+        hd_len = len(next(iter(history_dict.values())))
+    except StopIteration as err:
+        raise Exception(f"{err}\n`history_dict` should not be empty by this point")
+  
+    for k, v in obj_dict.items():
+        if ("__len__" in dir(v)) and (len(v) == hd_len):
             history_dict[k] = v
 
     if allow_partial:

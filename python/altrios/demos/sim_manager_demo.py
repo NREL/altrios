@@ -39,7 +39,8 @@ print(
 
 train_planner_config = planner_config.TrainPlannerConfig(
             cars_per_locomotive={"Default": 50},
-            target_cars_per_train={"Default": 90})
+            target_cars_per_train={"Default": 90},
+            require_diesel=True)
 
 t0_main = time.perf_counter()
 
@@ -50,7 +51,8 @@ t0_main = time.perf_counter()
     grid_emissions_factors, 
     nodal_energy_prices, 
     speed_limit_train_sims, 
-    timed_paths
+    timed_paths,
+    train_consist_plan_untrimmed
 ) = sim_manager.main(
     network=network,
     rail_vehicles=rail_vehicles,

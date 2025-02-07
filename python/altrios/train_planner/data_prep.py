@@ -197,7 +197,15 @@ def build_locopool(
                 # Compute the 24-hour window with the most total locomotives needed 
                 # (assuming each loco is only dispatched once in a given day)
                 loco_mass = config.loco_info['Loco_Mass_Tons'].mean()
-                hp_per_ton = config.hp_required_per_ton['Default'][dispatch_schedule.select(pl.col("Train_Type").mode()).item()]
+                # Average hp_per_ton, weighted by total number of cars.
+                # Max hp_per_ton across trains would be more conservative if runs are failing.
+                hp_per_ton = (dispatch_schedule
+                    .select(
+                        (pl.col("HP_Required").truediv("Tons_Per_Train"))
+                        .mul(pl.col("Number_of_Cars")).sum()
+                        .truediv(pl.col("Number_of_Cars").sum())
+                    ).item()
+                )
                 hp_per_loco = config.loco_info['HP'].mean() - loco_mass * hp_per_ton
                 initial_size_hp = (dispatch_schedule
                     .with_columns((pl.col("Hour") // 24).cast(pl.Int32).alias("Day"),

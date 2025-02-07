@@ -436,7 +436,7 @@ def run_train_planner(
                     dispatch_order =  (dispatched.select(
                         pl.col('Locomotive_ID')
                         .rank().alias('rank').cast(pl.UInt32)
-                        ).with_row_count().sort('row_nr'))
+                        ).with_row_index().sort('index'))
                     dispatched = dispatched.sort('Locomotive_ID')
                     loco_start_soc_pct = dispatched.select(pl.col('SOC_J') / pl.col('Capacity_J')).to_series()
                     locos = [
@@ -473,7 +473,7 @@ def run_train_planner(
                         scenario_year=scenario_year
                     )
 
-                    (est_time_net, loco_con_out) = alt.make_est_times(slts, network)
+                    (est_time_net, loco_con_out) = alt.make_est_times(slts, network, config.failed_sim_logging_path)
                     travel_time = (
                         est_time_net.get_running_time_hours()
                         * config.dispatch_scaling_dict["time_mult_factor"] 

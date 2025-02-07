@@ -504,7 +504,7 @@ impl SpeedLimitTrainSim {
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
             bail!(
-                "{}\nTrain does not have sufficient power to move!\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", // ,\nlink={:?}
+                "{}\nTrain does not have sufficient power to move!\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", // ,\nlink={:?}
                 format_dbg!(),
                 // force_max
                 format!(
@@ -518,7 +518,8 @@ impl SpeedLimitTrainSim {
                     // force based on speed target
                     format!("pwr_pos_max / speed_target.min(v_max): {} N", (pwr_pos_max / speed_target.min(v_max)).get::<si::newton>().format_eng(Some(5))),
                     // pwr_pos_max
-                    format!("pwr_pos_max: {} W", pwr_pos_max.get::<si::watt>().format_eng(Some(5))
+                    format!("pwr_pos_max: {} W", pwr_pos_max.get::<si::watt>().format_eng(Some(5)),
+                    
                 ),
                 // SOC across all RES-equipped locomotives
                 format!(
@@ -552,7 +553,22 @@ impl SpeedLimitTrainSim {
                 // grade at rear of train
                 format!("grade_back: {}", self.state.grade_back.get::<si::ratio>().format_eng(Some(5))),
                 format!("f_pos_max: {} N", f_pos_max.get::<si::newton>().format_eng(Some(5))),
-                format!("res_net: {} N", res_net.get::<si::newton>().format_eng(Some(5)))
+                format!("res_net: {} N", res_net.get::<si::newton>().format_eng(Some(5))),
+                format_dbg!(self.fric_brake.force_max),
+                format_dbg!(self.state.res_grade),
+                format_dbg!(self.state.elev_front),
+                format_dbg!(self.state.elev_back),
+                format_dbg!(self.state.offset),
+                format_dbg!(self.state.offset_back),
+                format_dbg!(self.state.speed),
+                format_dbg!(self.state.speed_limit),
+                format_dbg!(self.state.speed_target),
+                format_dbg!(self.state.time),
+                format_dbg!(self.state.dt),
+                format_dbg!(self.state.i),
+                format_dbg!(self.state.total_dist),
+                format_dbg!(self.state.link_idx_front),
+                format_dbg!(self.state.offset_in_link)
             )
         }
 

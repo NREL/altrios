@@ -1,7 +1,8 @@
 from __future__ import annotations
+import os
 import polars as pl
 import pandas as pd
-from typing import Dict, Callable, Optional
+from typing import Dict, Callable, Optional, Union
 from dataclasses import dataclass, field
 import altrios as alt
 from altrios import defaults
@@ -49,6 +50,7 @@ class TrainPlannerConfig:
     require_diesel: bool = False
     manifest_empty_return_ratio: float = 0.6
     loco_pool_safety_factor: float = 1.1
+    failed_sim_logging_path: Union[str, os.PathLike] = None
     hp_required_per_ton: Dict = field(default_factory = lambda: {
         "Default": {
         "Unit": 2.0,
@@ -57,9 +59,9 @@ class TrainPlannerConfig:
         }                         
     })
     dispatch_scaling_dict: Dict = field(default_factory = lambda: {
-        "time_mult_factor": 2.0,
-        "hours_add": 3,
-        "energy_mult_factor": 1.8
+        "time_mult_factor": 1.4,
+        "hours_add": 2,
+        "energy_mult_factor": 1.25
     })
     loco_info: pd.DataFrame = field(default_factory = lambda: pd.DataFrame({
         "Diesel_Large": {

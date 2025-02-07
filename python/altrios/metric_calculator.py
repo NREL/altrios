@@ -1126,11 +1126,18 @@ def calculate_meet_pass_events(
     slts_results = []
     i = 0
     for slts in info.sims.tolist():
-        df = (slts.to_dataframe()
+        if len(info.sims.tolist()[0].history.i) == 0:
+            print("No SpeedLimitTrainSim history was saved, so meet pass events cannot be counted.")
+            return metric("Meet_Pass_Events", units, None)
+
+        df = slts.to_dataframe()
+        if ("history.time" not in df.collect_schema()) or ("history.speed" not in df.collect_schema()):
+            print("SpeedLimitTrainSim history doesn't include time and/or speed, so meet pass events cannot be counted.")
+            return metric("Meet_Pass_Events", units, None)
+        
+        df = (df
             .select("history.time", "history.speed")
-            .with_columns( 
-                pl.lit(i).alias("train_idx")
-            )
+            .with_columns(pl.lit(i).alias("train_idx"))
         )
         if df.height > 0:
             slts_results.append(df)

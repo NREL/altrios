@@ -72,7 +72,7 @@ def simulate_prescribed_rollout(
     for idx, scenario_year in enumerate(years):
         t0 = time.perf_counter()
         (
-            train_consist_plan, loco_pool, refuel_facilities, grid_emissions_factors, nodal_energy_prices, speed_limit_train_sims, timed_paths
+            train_consist_plan, loco_pool, refuel_facilities, grid_emissions_factors, nodal_energy_prices, speed_limit_train_sims, timed_paths, train_consist_plan_untrimmed
         ) = sim_manager.main(
             network=network,
             rail_vehicles=rail_vehicles,

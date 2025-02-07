@@ -1,5 +1,5 @@
 import altrios.altrios_pyo3 as altpy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Path
 import polars as pl
 from typing_extensions import Self
 from typing import Union, Tuple
@@ -1027,6 +1027,7 @@ def run_dispatch(
 def make_est_times(
     speed_limit_train_sim: SpeedLimitTrainSim,
     network: List[Link],
+    path_for_failed_sim: Optional[Path]=None
 ) -> Tuple[EstTimeNet, Consist]:
     ...
 

@@ -128,7 +128,7 @@ print("\n")
 # print results as dataframe
 print("Results as dataframe:\n", train_sim.to_dataframe(), sep="")
 if ENABLE_REF_OVERRIDE:
-    df:pl.DataFrame = train_sim.to_dataframe().lazy().collect()
+    df:pl.DataFrame = train_sim.to_dataframe()
     df.write_csv(ref_dir / "to_dataframe_expected.csv")
 if ENABLE_ASSERTS:
     print("Checking output of `to_dataframe`")

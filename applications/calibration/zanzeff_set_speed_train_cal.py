@@ -44,7 +44,7 @@ def get_train_sim_df_mods(
     df_train_sim.drop_duplicates(subset='PacificTime', inplace=True)
 
     df_train_sim['time [s]'] = cval.get_delta_seconds(
-        df_train_sim['PacificTime']).cum_sum()
+        df_train_sim['PacificTime']).cumsum()
     df_train_sim['Total Tractive Force [N]'] = df_train_sim[[
         'Tractive Effort Feedback BNSF 3940',
         'Tractive Effort Feedback BNSF 3965',
@@ -56,13 +56,13 @@ def get_train_sim_df_mods(
     df_train_sim['Total Cumu. Tractive Energy [J]'] = (
         df_train_sim['Total Tractive Power [W]'] *
         df_train_sim['time [s]'].diff().fillna(0.0)
-    ).cum_sum()
+    ).cumsum()
 
     df_train_sim['Total Pos. Cumu. Tractive Energy [J]'] = (
        (df_train_sim['Total Tractive Power [W]'] *
         df_train_sim['time [s]'].diff().fillna(0.0)) 
         .where(df_train_sim['Total Tractive Power [W]'] > 0, 0.0)
-        .cum_sum()
+        .cumsum()
     )
     
     speed = savgol_filter(

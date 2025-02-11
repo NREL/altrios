@@ -125,7 +125,7 @@ def get_flattened(obj: Dict | List, hist_len: int, prepend_str: str = "") -> Dic
                 flat[new_key] = v
     elif isinstance(obj, list):
         for (i, v) in enumerate(obj):
-            new_key = i if (prepend_str == "") else prepend_str + "." + str(i)
+            new_key = i if (prepend_str == "") else prepend_str + "." + f"[{i}]"
             if isinstance(v, dict) or (isinstance(v, list) and len(v) != hist_len):
                 flat.update(get_flattened(v, hist_len, prepend_str=new_key))
             else:

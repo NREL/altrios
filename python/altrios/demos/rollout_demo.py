@@ -1,7 +1,8 @@
 # %%
 import altrios as alt
-from altrios import rollout, defaults, train_planner
+from altrios import rollout, defaults
 
+from altrios.train_planner import planner, planner_config
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -21,9 +22,10 @@ plot_dir = Path() / "plots"
 plot_dir.mkdir(exist_ok=True)
 File = defaults.DEMAND_FILE
 #targets = [0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75, 0.8]
-train_planner_config = train_planner.TrainPlannerConfig(
-            cars_per_locomotive=50,
-            target_cars_per_train=90)
+train_planner_config = planner_config.TrainPlannerConfig(
+    cars_per_locomotive={"Default": 50},
+    target_cars_per_train={"Default": 90},
+    require_diesel=True)
 targets = [0.5]
 for target in targets:
     scenario_infos, metrics = rollout.simulate_prescribed_rollout(

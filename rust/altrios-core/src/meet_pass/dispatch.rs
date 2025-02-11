@@ -323,7 +323,7 @@ mod test_dispatch {
 
         let est_time_vec = train_sims
             .iter()
-            .map(|slts| make_est_times(slts.clone(), &network).unwrap().0)
+            .map(|slts| make_est_times(slts.clone(), &network, None).unwrap().0)
             .collect::<Vec<EstTimeNet>>();
         let _output = run_dispatch(&network, &train_sims, est_time_vec, true, true).unwrap();
     }

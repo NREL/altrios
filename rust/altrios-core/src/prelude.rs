@@ -24,6 +24,8 @@ pub use crate::consist::{Consist, ConsistState, ConsistStateHistoryVec};
 
 pub use crate::utils::{Pyo3Vec2Wrapper, Pyo3Vec3Wrapper, Pyo3VecBoolWrapper, Pyo3VecWrapper};
 
+pub use crate::meet_pass::est_times::est_time_structs::SavedSim;
+
 #[cfg(feature = "pyo3")]
 pub use crate::meet_pass::{
     dispatch::run_dispatch_py, est_times::check_od_pair_valid, est_times::make_est_times_py,

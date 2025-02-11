@@ -90,16 +90,21 @@ pub struct TrainState {
     pub time: si::Time,
     /// index for time steps
     pub i: usize,
-    /// Linear-along-track, directional distance from initial starting position.
+    /// Linear-along-track, directional distance of front of train from original
+    /// starting position of back of train.
     ///
     /// If this is provided in [InitTrainState::new], it gets set as the train length or the value,
     /// whichever is larger, and if it is not provided, then it defaults to the train length.
     pub offset: si::Length,
+    /// Linear-along-track, directional distance of back of train from original
+    /// starting position of back of train.
     pub offset_back: si::Length,
     /// Linear-along-track, cumulative, absolute distance from initial starting position.
     pub total_dist: si::Length,
     /// Current link containing head end (i.e. pulling locomotives) of train
     pub link_idx_front: u32,
+    /// Current link containing tail/back end of train
+    pub link_idx_back: u32,
     /// Offset from start of current link
     pub offset_in_link: si::Length,
     /// Achieved speed based on consist capabilities and train resistance
@@ -136,10 +141,11 @@ pub struct TrainState {
     /// Grade at front of train
     pub grade_front: si::Ratio,
     /// Grade at back of train of train if strap method is used
-    // TODO: make this an option
     pub grade_back: si::Ratio,
     /// Elevation at front of train
     pub elev_front: si::Length,
+    /// Elevation at back of train
+    pub elev_back: si::Length,
 
     /// Power to overcome train resistance forces
     pub pwr_res: si::Power,
@@ -164,6 +170,7 @@ impl Default for TrainState {
             offset_back: Default::default(),
             total_dist: si::Length::ZERO,
             link_idx_front: Default::default(),
+            link_idx_back: Default::default(),
             offset_in_link: Default::default(),
             speed: Default::default(),
             speed_limit: Default::default(),
@@ -173,6 +180,7 @@ impl Default for TrainState {
             mass_rot: Default::default(),
             mass_freight: Default::default(),
             elev_front: Default::default(),
+            elev_back: Default::default(),
             energy_whl_out: Default::default(),
             grade_front: Default::default(),
             grade_back: Default::default(),
@@ -294,25 +302,37 @@ impl ObjState for TrainState {
 ///
 /// Assumes that `offset` in `link_points()` is monotically increasing, which may not always be true.
 pub fn set_link_and_offset(state: &mut TrainState, path_tpc: &PathTpc) -> anyhow::Result<()> {
+    // index of current link within `path_tpc`
+    // if the link_point.offset is greater than the train `state` offset, then
+    // the train is in the previous link
     let idx_curr_link = path_tpc
         .link_points()
         .iter()
-        .position(|&lp| lp.offset >= state.offset)
+        .position(|&lp| lp.offset > state.offset)
         // if None, assume that it's the last element
         .unwrap_or_else(|| path_tpc.link_points().len())
         - 1;
-    state.link_idx_front = path_tpc
+    let link_point = path_tpc
         .link_points()
         .get(idx_curr_link)
+        .with_context(|| format_dbg!())?;
+    state.link_idx_front = link_point.link_idx.idx() as u32;
+    state.offset_in_link = state.offset - link_point.offset;
+
+    // link index of back of train at current time step
+    let idx_back_link = path_tpc
+        .link_points()
+        .iter()
+        .position(|&lp| lp.offset > state.offset_back)
+        // if None, assume that it's the last element
+        .unwrap_or_else(|| path_tpc.link_points().len())
+        - 1;
+    state.link_idx_back = path_tpc
+        .link_points()
+        .get(idx_back_link)
         .with_context(|| format_dbg!())?
         .link_idx
         .idx() as u32;
-    state.offset_in_link = state.offset
-        - path_tpc
-            .link_points()
-            .get(idx_curr_link)
-            .with_context(|| format_dbg!())?
-            .offset;
 
     Ok(())
 }

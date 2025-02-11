@@ -190,6 +190,7 @@ pub struct SpeedTraceElement {
     #[new]
     #[pyo3(signature = (
         loco_con,
+        n_cars_by_type,
         state,
         speed_trace,
         train_res_file=None,
@@ -198,6 +199,7 @@ pub struct SpeedTraceElement {
     ))]
     fn __new__(
         loco_con: Consist,
+        n_cars_by_type: HashMap<String, u32>,
         state: TrainState,
         speed_trace: SpeedTrace,
         train_res_file: Option<String>,
@@ -213,7 +215,7 @@ pub struct SpeedTraceElement {
             None => TrainRes::valid()
         };
 
-        Self::new(loco_con, state, speed_trace, train_res, path_tpc, save_interval)
+        Self::new(loco_con, n_cars_by_type, state, speed_trace, train_res, path_tpc, save_interval)
     }
 
     #[setter]
@@ -280,6 +282,7 @@ pub struct SpeedTraceElement {
 /// should be less than 0.1%)
 pub struct SetSpeedTrainSim {
     pub loco_con: Consist,
+    pub n_cars_by_type: HashMap<String, u32>,
     #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: TrainState,
@@ -299,6 +302,7 @@ pub struct SetSpeedTrainSim {
 impl SetSpeedTrainSim {
     pub fn new(
         loco_con: Consist,
+        n_cars_by_type: HashMap<String, u32>,
         state: TrainState,
         speed_trace: SpeedTrace,
         train_res: TrainRes,
@@ -307,6 +311,7 @@ impl SetSpeedTrainSim {
     ) -> Self {
         let mut train_sim = Self {
             loco_con,
+            n_cars_by_type,
             state,
             train_res,
             path_tpc,
@@ -474,6 +479,7 @@ impl Default for SetSpeedTrainSim {
     fn default() -> Self {
         Self {
             loco_con: Consist::default(),
+            n_cars_by_type: Default::default(),
             state: TrainState::valid(),
             train_res: TrainRes::valid(),
             path_tpc: PathTpc::valid(),

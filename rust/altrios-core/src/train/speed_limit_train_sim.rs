@@ -58,14 +58,24 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
         Ok(self.get_save_interval())
     }
 
+    #[pyo3(name = "get_kilometers")]
+    pub fn get_kilometers_py(&self, annualize: bool)  -> f64 {
+        self.get_kilometers(annualize)
+    }
+
     #[pyo3(name = "get_megagram_kilometers")]
     pub fn get_megagram_kilometers_py(&self, annualize: bool)  -> f64 {
         self.get_megagram_kilometers(annualize)
     }
 
-    #[pyo3(name = "get_kilometers")]
-    pub fn get_kilometers_py(&self, annualize: bool)  -> f64 {
-        self.get_kilometers(annualize)
+    #[pyo3(name = "get_car_kilometers")]
+    pub fn get_car_kilometers_py(&self, annualize: bool)  -> f64 {
+        self.get_car_kilometers(annualize)
+    }
+
+    #[pyo3(name = "get_cars_moved")]
+    pub fn get_cars_moved_py(&self, annualize: bool)  -> f64 {
+        self.get_cars_moved(annualize)
     }
 
     #[pyo3(name = "get_res_kilometers")]
@@ -142,6 +152,8 @@ pub struct SpeedLimitTrainSim {
     pub origs: Vec<Location>,
     pub dests: Vec<Location>,
     pub loco_con: Consist,
+    /// Number of railcars by type on the train
+    pub n_cars_by_type: HashMap<String, u32>,
     #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: TrainState,
@@ -168,6 +180,7 @@ impl SpeedLimitTrainSim {
         origs: &[Location],
         dests: &[Location],
         loco_con: Consist,
+        n_cars_by_type: HashMap<String, u32>,
         state: TrainState,
         train_res: TrainRes,
         path_tpc: PathTpc,
@@ -181,6 +194,7 @@ impl SpeedLimitTrainSim {
             origs: origs.to_vec(),
             dests: dests.to_vec(),
             loco_con,
+            n_cars_by_type,
             state,
             train_res,
             path_tpc,
@@ -209,14 +223,25 @@ impl SpeedLimitTrainSim {
         }
     }
 
+    pub fn get_kilometers(&self, annualize: bool) -> f64 {
+        self.state.total_dist.get::<si::kilometer>() * self.get_scaling_factor(annualize)
+    }
+
     pub fn get_megagram_kilometers(&self, annualize: bool) -> f64 {
         self.state.mass_freight.get::<si::megagram>()
             * self.state.total_dist.get::<si::kilometer>()
             * self.get_scaling_factor(annualize)
     }
 
-    pub fn get_kilometers(&self, annualize: bool) -> f64 {
-        self.state.total_dist.get::<si::kilometer>() * self.get_scaling_factor(annualize)
+    pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
+        let n_cars = self.get_cars_moved(annualize) as f64;
+        // Note: n_cars already includes an annualization scaling factor; no need to multiply twice.
+        self.state.total_dist.get::<si::kilometer>() * n_cars
+    }
+
+    pub fn get_cars_moved(&self, annualize: bool) -> f64 {
+        let n_cars: f64 = self.n_cars_by_type.values().fold(0, |acc, n| *n + acc) as f64;
+        n_cars * self.get_scaling_factor(annualize)
     }
 
     pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {
@@ -397,13 +422,25 @@ impl SpeedLimitTrainSim {
         ensure!(
             self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO,
             format!(
-                "Insufficient braking force.\n{}\n{}\n{}\n{}\n{}\n{}",
+                "Insufficient braking force.\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
                 format_dbg!(self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO),
                 format_dbg!(self.fric_brake.force_max),
                 format_dbg!(self.state.res_net()),
                 format_dbg!(self.state.res_grade),
                 format_dbg!(self.state.grade_front),
                 format_dbg!(self.state.grade_back),
+                format_dbg!(self.state.elev_front),
+                format_dbg!(self.state.offset),
+                format_dbg!(self.state.offset_back),
+                format_dbg!(self.state.speed),
+                format_dbg!(self.state.speed_limit),
+                format_dbg!(self.state.speed_target),
+                format_dbg!(self.state.time),
+                format_dbg!(self.state.dt),
+                format_dbg!(self.state.i),
+                format_dbg!(self.state.total_dist),
+                format_dbg!(self.state.link_idx_front),
+                format_dbg!(self.state.offset_in_link)
             )
         );
 
@@ -467,7 +504,7 @@ impl SpeedLimitTrainSim {
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
             bail!(
-                "{}\nTrain does not have sufficient power to move!\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", // ,\nlink={:?}
+                "{}\nTrain does not have sufficient power to move!\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", // ,\nlink={:?}
                 format_dbg!(),
                 // force_max
                 format!(
@@ -481,7 +518,8 @@ impl SpeedLimitTrainSim {
                     // force based on speed target
                     format!("pwr_pos_max / speed_target.min(v_max): {} N", (pwr_pos_max / speed_target.min(v_max)).get::<si::newton>().format_eng(Some(5))),
                     // pwr_pos_max
-                    format!("pwr_pos_max: {} W", pwr_pos_max.get::<si::watt>().format_eng(Some(5))
+                    format!("pwr_pos_max: {} W", pwr_pos_max.get::<si::watt>().format_eng(Some(5)),
+                    
                 ),
                 // SOC across all RES-equipped locomotives
                 format!(
@@ -515,7 +553,22 @@ impl SpeedLimitTrainSim {
                 // grade at rear of train
                 format!("grade_back: {}", self.state.grade_back.get::<si::ratio>().format_eng(Some(5))),
                 format!("f_pos_max: {} N", f_pos_max.get::<si::newton>().format_eng(Some(5))),
-                format!("res_net: {} N", res_net.get::<si::newton>().format_eng(Some(5)))
+                format!("res_net: {} N", res_net.get::<si::newton>().format_eng(Some(5))),
+                format_dbg!(self.fric_brake.force_max),
+                format_dbg!(self.state.res_grade),
+                format_dbg!(self.state.elev_front),
+                format_dbg!(self.state.elev_back),
+                format_dbg!(self.state.offset),
+                format_dbg!(self.state.offset_back),
+                format_dbg!(self.state.speed),
+                format_dbg!(self.state.speed_limit),
+                format_dbg!(self.state.speed_target),
+                format_dbg!(self.state.time),
+                format_dbg!(self.state.dt),
+                format_dbg!(self.state.i),
+                format_dbg!(self.state.total_dist),
+                format_dbg!(self.state.link_idx_front),
+                format_dbg!(self.state.offset_in_link)
             )
         }
 
@@ -664,6 +717,7 @@ impl Default for SpeedLimitTrainSim {
             origs: Default::default(),
             dests: Default::default(),
             loco_con: Default::default(),
+            n_cars_by_type: Default::default(),
             state: TrainState::valid(),
             train_res: TrainRes::valid(),
             path_tpc: PathTpc::default(),

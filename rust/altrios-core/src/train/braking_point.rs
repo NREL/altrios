@@ -47,8 +47,11 @@ impl BrakingPoints {
         }
         assert!(
             speed <= self.points[self.idx_curr].speed_limit,
-            "Speed limit violated! speed={speed:?}, speed_limit={:?}",
-            self.points[self.idx_curr].speed_limit
+            "Speed limit violated! idx_curr={:?}, offset={:?}, speed={speed:?}, speed_limit={:?}, speed_target={:?}",
+            self.idx_curr,
+            self.points[self.idx_curr].offset,
+            self.points[self.idx_curr].speed_limit,
+            self.points[self.idx_curr].speed_target
         );
 
         // need to make a way for this to never decrease until a stop happens or maybe never at all
@@ -107,7 +110,7 @@ impl BrakingPoints {
                     ensure!(
                         fric_brake.force_max + train_state.res_net() > si::Force::ZERO,
                         format!(
-                            "{}\n{}\n{}\n{}\n{}\n{}",
+                            "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
                             format_dbg!(
                                 fric_brake.force_max + train_state.res_net() > si::Force::ZERO
                             ),
@@ -116,6 +119,19 @@ impl BrakingPoints {
                             format_dbg!(train_state.res_grade),
                             format_dbg!(train_state.grade_front),
                             format_dbg!(train_state.grade_back),
+                            format_dbg!(train_state.elev_front),
+                            format_dbg!(train_state.elev_back),
+                            format_dbg!(train_state.offset),
+                            format_dbg!(train_state.offset_back),
+                            format_dbg!(train_state.speed),
+                            format_dbg!(train_state.speed_limit),
+                            format_dbg!(train_state.speed_target),
+                            format_dbg!(train_state.time),
+                            format_dbg!(train_state.dt),
+                            format_dbg!(train_state.i),
+                            format_dbg!(train_state.total_dist),
+                            format_dbg!(train_state.link_idx_front),
+                            format_dbg!(train_state.offset_in_link)
                         )
                     );
                     let vel_change = train_state.dt

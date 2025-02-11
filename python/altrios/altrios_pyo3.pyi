@@ -1,5 +1,5 @@
 import altrios.altrios_pyo3 as altpy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Path
 import polars as pl
 from typing_extensions import Self
 from typing import Union, Tuple
@@ -23,7 +23,7 @@ class SerdeAPI(object):
     def to_yaml(self) -> str: ...
     def to_pydict(self, data_fmt: str = "msg_pack", flatten: bool = False) -> Dict: ...
     @classmethod
-    def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack") -> Self:
+    def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack", skip_init: bool=False) -> Self:
 
 
 class Consist(SerdeAPI):
@@ -822,6 +822,7 @@ class SpeedLimitTrainSim(SerdeAPI):
     origs: List[Location]
     dests: List[Location]
     loco_con: Consist
+    n_cars_by_type: Dict[str, int]
     state: TrainState
     # train_res: TrainRes # not accessible in Python
     path_tpc: PathTpc
@@ -836,6 +837,7 @@ class SpeedLimitTrainSim(SerdeAPI):
     def __init__(
         cls,
         loco_con: Consist,
+        n_cars_by_type: Dict[str, int],
         state: TrainState,
         train_res_file: Optional[str],
         path_tpc_file: Optional[str],
@@ -934,6 +936,7 @@ class RailVehicle(SerdeAPI):
     braking_ratio_empty: float
     braking_ratio_loaded: float
     car_type: str
+    freight_type: str
     davis_b_seconds_per_meter: float
     cd_area_empty_square_meters: float
     cd_area_loaded_square_meters: float
@@ -1024,6 +1027,7 @@ def run_dispatch(
 def make_est_times(
     speed_limit_train_sim: SpeedLimitTrainSim,
     network: List[Link],
+    path_for_failed_sim: Optional[Path]=None
 ) -> Tuple[EstTimeNet, Consist]:
     ...
 

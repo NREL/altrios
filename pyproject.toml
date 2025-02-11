@@ -43,10 +43,11 @@ dependencies = [
     "plotly",
     "typing_extensions",
     "pyyaml",
-    "polars==0.20.25",
+    "polars >= 1.20.0",
     "pyarrow",
     "requests",
     "PyYAML==6.0.2",
+    "simpy",
     "msgpack==1.1.0",
 ]
 
@@ -55,7 +56,17 @@ homepage = "https://www.nrel.gov/transportation/altrios.html"
 source = "https://github.com/NREL/altrios"
 
 [project.optional-dependencies]
-dev = ["black", "pytest", "maturin", "ipykernel"]
+dev = [
+    "pytest~=8.3",
+    "maturin~=1.8",
+    "ipykernel~=6.29",
+    "python-lsp-server~=1.10",
+    "ruff~=0.9",
+    "pylsp-mypy~=0.7.0",
+    "memory_profiler~=0.61.0",
+    "pymoo~=0.6",
+    "plotly~=6.0",
+]
 
 [tool.maturin]
 profile = "release"

@@ -4,28 +4,30 @@ use crate::imports::*;
     #[new]
     #[pyo3(signature = (
         force_max_newtons,
-        ramp_up_time_seconds,
-        ramp_up_coeff,
+        ramp_up_time_seconds=None,
+        ramp_up_coeff=None,
         state=None,
         save_interval=None,
     ))]
     fn __new__(
         force_max_newtons: f64,
-        ramp_up_time_seconds: f64,
-        ramp_up_coeff: f64,
+        ramp_up_time_seconds: Option<f64>,
+        ramp_up_coeff: Option<f64>,
         state: Option<FricBrakeState>,
         save_interval: Option<usize>,
     ) -> Self {
         Self::new(
             force_max_newtons * uc::N,
-            ramp_up_time_seconds * uc::S,
-            ramp_up_coeff * uc::R,
+            ramp_up_time_seconds.map(|ruts| ruts * uc::S),
+            ramp_up_coeff.map(|ruc| ruc * uc::R),
             state,
             save_interval,
         )
     }
 )]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
+// brake propagation rate is ~800 ft/s (about speed of sound)
+// ramp up duration is ~30 s
 pub struct FricBrake {
     /// max static force achievable
     pub force_max: si::Force,
@@ -65,14 +67,17 @@ impl Default for FricBrake {
 impl FricBrake {
     pub fn new(
         force_max: si::Force,
-        ramp_up_time: si::Time,
-        ramp_up_coeff: si::Ratio,
+        ramp_up_time: Option<si::Time>,
+        ramp_up_coeff: Option<si::Ratio>,
         // recharge_rate_pa_per_sec: f64,
         state: Option<FricBrakeState>,
         save_interval: Option<usize>,
     ) -> Self {
         let mut state = state.unwrap_or_default();
         state.force_max_curr = force_max;
+        let fric_brake_def: Self = Default::default();
+        let ramp_up_time = ramp_up_time.unwrap_or(fric_brake_def.ramp_up_time);
+        let ramp_up_coeff = ramp_up_coeff.unwrap_or(fric_brake_def.ramp_up_coeff);
         Self {
             force_max,
             ramp_up_time,

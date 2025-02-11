@@ -6,7 +6,7 @@ use crate::track::Network;
 use uc::SPEED_DIFF_JOIN;
 use uc::TIME_NAN;
 
-mod est_time_structs;
+pub(crate) mod est_time_structs;
 mod update_times;
 
 use est_time_structs::*;
@@ -504,6 +504,7 @@ fn add_new_join_paths(
 /// * `network` - Network comprises an ensemble of links (path between junctions
 ///    along the rail with heading, grade, and location) this simulation
 ///    operates on.
+/// * `path_for_failed_sim` - if provided, saves failed `speed_limit_train_sim` at Path
 ///
 /// # Returns
 ///
@@ -520,6 +521,7 @@ fn add_new_join_paths(
 pub fn make_est_times<N: AsRef<[Link]>>(
     mut speed_limit_train_sim: SpeedLimitTrainSim,
     network: N,
+    path_for_failed_sim: Option<PathBuf>,
 ) -> anyhow::Result<(EstTimeNet, Consist)> {
     speed_limit_train_sim.set_save_interval(None);
     let network = network.as_ref();
@@ -744,10 +746,17 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                     // and create a new train sim that will travel the alternate branch
                     [link_idx_next, link_idx_next_alt] => {
                         let mut new_sim = sim.clone();
-                        new_sim
+                        if let Err(err) = new_sim
                             .train_sim
                             .extend_path(network, &[link_idx_next_alt])
-                            .with_context(|| format_dbg!())?;
+                            .with_context(|| format_dbg!())
+                        {
+                            if let Some(save_path) = path_for_failed_sim {
+                                new_sim.to_file(save_path)?;
+                            }
+
+                            bail!(err)
+                        }
                         new_sim.check_dests(dests);
                         saved_sims.push(new_sim);
                         link_idx_next
@@ -854,9 +863,11 @@ pub fn make_est_times<N: AsRef<[Link]>>(
 
 #[cfg(feature = "pyo3")]
 #[pyfunction(name = "make_est_times")]
+#[pyo3(signature=(speed_limit_train_sim, network, path_for_failed_sim=None))]
 pub fn make_est_times_py(
     speed_limit_train_sim: SpeedLimitTrainSim,
     network: &Bound<PyAny>,
+    path_for_failed_sim: Option<&Bound<PyAny>>,
 ) -> anyhow::Result<(EstTimeNet, Consist)> {
     let network = match network.extract::<Network>() {
         Ok(n) => n,
@@ -868,5 +879,10 @@ pub fn make_est_times_py(
         }
     };
 
-    make_est_times(speed_limit_train_sim, network)
+    let path_for_failed_sim = match path_for_failed_sim {
+        Some(pffs) => Some(PathBuf::extract_bound(pffs)?),
+        None => None,
+    };
+
+    make_est_times(speed_limit_train_sim, network, path_for_failed_sim)
 }

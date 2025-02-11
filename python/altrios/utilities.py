@@ -3,8 +3,9 @@
 from __future__ import annotations
 import re
 import numpy as np
-from typing import Tuple, Union, Optional, Dict, Any, TYPE_CHECKING
+from typing import Tuple, Union, Optional, List, Dict, Any, TYPE_CHECKING
 import pandas as pd
+import polars as pl
 import datetime
 import numpy.typing as npt
 import logging
@@ -177,6 +178,59 @@ def set_param_from_path(
 
     return model
 
+def range_minmax(self) -> pl.Expr:
+     return self.max() - self.min()
+pl.Expr.range=range_minmax
+del range_minmax
+
+def cumPctWithinGroup(
+    df: Union[pl.DataFrame, pl.LazyFrame], 
+    grouping_vars: List[str]
+) -> Union[pl.DataFrame, pl.LazyFrame]:
+    return (df
+        .with_columns(
+            ((pl.int_range(pl.len(), dtype=pl.UInt32).over(grouping_vars).add(1)) / 
+            pl.count().over(grouping_vars))
+            .alias("Percent_Within_Group_Cumulative")
+        )
+    )
+
+def allocateIntegerEvenly(
+    df: Union[pl.DataFrame, pl.LazyFrame], 
+    target: str, 
+    grouping_vars: List[str]
+) -> Union[pl.DataFrame, pl.LazyFrame]:
+    return (df
+    .sort(grouping_vars)
+    .pipe(cumPctWithinGroup, grouping_vars = grouping_vars)
+    .with_columns(
+        pl.col(target).mul("Percent_Within_Group_Cumulative").round().alias(f'{target}_Group_Cumulative')
+    )
+    .with_columns(
+        (pl.col(f'{target}_Group_Cumulative') - pl.col(f'{target}_Group_Cumulative').shift(1).over(grouping_vars))
+            .fill_null(pl.col(f'{target}_Group_Cumulative'))
+            .alias(f'{target}')
+    )
+    .drop(f'{target}_Group_Cumulative')
+)
+    
+def allocateItems(
+    df: Union[pl.DataFrame, pl.LazyFrame], 
+    grouping_vars: list[str], 
+    count_target: str
+) -> Union[pl.DataFrame, pl.LazyFrame]:
+    return (df
+        .sort(grouping_vars+ [count_target], descending = True)
+        .with_columns(
+            pl.col(count_target).sum().over(grouping_vars).round().alias(f'{count_target}_Group'),
+            (pl.col(count_target).sum().over(grouping_vars).round() * 
+                (
+                    pl.col(count_target).cum_sum().over(grouping_vars) / 
+                    pl.col(count_target).sum().over(grouping_vars)
+                )
+            ).round().alias(f'{count_target}_Group_Cumulative'))
+        .with_columns((pl.col(f'{count_target}_Group_Cumulative') - pl.col(f'{count_target}_Group_Cumulative').shift(1).over(grouping_vars)).fill_null(pl.col(f'{count_target}_Group_Cumulative')).alias("Count"))
+    )
 
 def resample(
     df: pd.DataFrame,
@@ -206,7 +260,7 @@ def resample(
     for col in df.columns:
         if col in rate_vars:
             # calculate average value over time step
-            cumu_vals = (df[time_col].diff().fillna(0) * df[col]).cumsum()
+            cumu_vals = (df[time_col].diff().fillna(0) * df[col]).cum_sum()
             new_dict[col] = (
                 np.diff(
                     np.interp(

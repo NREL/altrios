@@ -143,8 +143,8 @@ def get_hist_len(obj: Dict) -> Optional[int]:
     if 'history' in obj.keys():
         return len(next(iter(obj['history'].values())))
 
-    elif next(iter(k for k in obj.keys() if re.search("(history\.\w+)$", k) is not None), None) is not None:
-        return len(next((v for (k, v) in obj.items() if re.search("(history\.\w+)$", k) is not None)))
+    elif next(iter(k for k in obj.keys() if re.search("(history\\.\\w+)$", k) is not None), None) is not None:
+        return len(next((v for (k, v) in obj.items() if re.search("(history\\.\\w+)$", k) is not None)))
 
     for (k, v) in obj.items():
         if isinstance(v, dict):

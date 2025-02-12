@@ -326,6 +326,7 @@ impl SpeedLimitTrainSim {
         // calculate new resistance
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
+        set_link_and_offset(&mut self.state, &self.path_tpc)?;
         // solve the required power
         self.solve_required_pwr()?;
 
@@ -334,7 +335,6 @@ impl SpeedLimitTrainSim {
             self.state.dt,
             Some(true),
         )?;
-        set_link_and_offset(&mut self.state, &self.path_tpc)?;
         Ok(())
     }
 

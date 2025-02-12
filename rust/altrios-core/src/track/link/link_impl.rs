@@ -273,6 +273,63 @@ impl ObjState for Link {
                 }
             }
         }
+
+        // TODO: validate that grade and maybe also d(heading) / d(offset) are within reasonable (configurable) bounds
+        let grades: Vec<si::Ratio> = self
+            .elevs
+            .windows(2)
+            .map(|w| (w[1].elev - w[0].elev) / (w[1].offset - w[0].offset))
+            .collect();
+        // TODO: parameterize this
+        // TODO: make the code show the exact offset(s) at which the grades are bad
+        // grade cannot exceed 6%
+        let max_allowed_abs_grade: si::Ratio = 0.06 * uc::R;
+        match grades.iter().map(|g| g.abs()).reduce(si::Ratio::max) {
+            Some(max_abs_grade) => {
+                if max_abs_grade > max_allowed_abs_grade {
+                    errors.push(anyhow!(
+                        "{}\nMax absolute grade ({}%) exceeds max allowed grade ({}%)",
+                        format_dbg!(),
+                        max_abs_grade.get::<si::ratio>() / 100.0,
+                        max_allowed_abs_grade.get::<si::ratio>() / 100.0
+                    ));
+                }
+            }
+            None => errors.push(anyhow!(
+                "{}\nFailed to calculate max absolute grade.",
+                format_dbg!()
+            )),
+        };
+        let curves: Vec<si::Curvature> = self
+            .headings
+            .windows(2)
+            .map(|w| {
+                let dh: si::Angle = w[1].heading - w[0].heading;
+                let dx: si::Length = w[1].offset - w[0].offset;
+                (dh / dx).into()
+            })
+            .collect();
+        // TODO: parameterize this
+        // curvature cannot exceed 15 degrees per 100 feet
+        // really don't understand why `into` is needed here but it works!
+        let max_allowed_abs_curv: si::Curvature = (15.0 * uc::DEG / (100.0 * uc::FT)).into();
+        match curves.iter().map(|y| y.abs()).reduce(si::Curvature::max) {
+            Some(max_abs_curv) => {
+                if max_abs_curv > max_allowed_abs_curv {
+                    errors.push(anyhow!(
+                        "{}\nMax curvature ({} degrees per 100 feet) exceeds max allowed curvature ({} degrees per 100 feet)",
+                        format_dbg!(),
+                        max_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0,
+                        max_allowed_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0
+                    ));
+                }
+            }
+            None => errors.push(anyhow!(
+                "{}\nFailed to calculate max absolute curvature.",
+                format_dbg!()
+            )),
+        };
+
         errors.make_err()
     }
 }

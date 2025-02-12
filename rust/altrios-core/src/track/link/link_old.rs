@@ -12,7 +12,7 @@ use crate::imports::*;
 /// # Note:
 /// This struct is to be deprecated and superseded by [super::link_impl::Link].
 #[altrios_api()]
-pub struct Link {
+pub struct LinkOld {
     pub elevs: Vec<Elev>,
     #[serde(default)]
     pub headings: Vec<Heading>,

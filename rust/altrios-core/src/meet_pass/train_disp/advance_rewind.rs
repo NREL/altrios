@@ -46,9 +46,9 @@ impl TrainDisp {
                 (self.offset_free - disp_node_front.offset)
                     <= link_disp_front[disp_auth_idx_curr.idx() - 1].offset_back
             );
-            
+
             assert!(
-                disp_auth_idx_curr.idx()>0,
+                disp_auth_idx_curr.idx() > 0,
                 "Train {} error on disp_auth_idx_curr {}, est_idx {}, time_pass {}, offset {}",
                 self.train_idx.idx(),
                 disp_auth_idx_curr.idx(),

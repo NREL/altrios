@@ -234,7 +234,7 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
-        let n_cars = self.get_cars_moved(annualize) as f64;
+        let n_cars = self.get_cars_moved(annualize);
         // Note: n_cars already includes an annualization scaling factor; no need to multiply twice.
         self.state.total_dist.get::<si::kilometer>() * n_cars
     }
@@ -419,6 +419,7 @@ impl SpeedLimitTrainSim {
         // of any braking), and if `self.state.res_net()` is negative and has
         // a higher magnitude than `self.fric_brake.force_max`, then the train
         // cannot slow down.
+        // TODO: dial this back to just show `self.state` via debug print
         ensure!(
             self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO,
             format!(
@@ -519,7 +520,6 @@ impl SpeedLimitTrainSim {
                     format!("pwr_pos_max / speed_target.min(v_max): {} N", (pwr_pos_max / speed_target.min(v_max)).get::<si::newton>().format_eng(Some(5))),
                     // pwr_pos_max
                     format!("pwr_pos_max: {} W", pwr_pos_max.get::<si::watt>().format_eng(Some(5)),
-                    
                 ),
                 // SOC across all RES-equipped locomotives
                 format!(

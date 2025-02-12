@@ -109,7 +109,7 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         // TODO: figure from Kyle out how to use `PyIOError`
         pub fn from_msg_pack_py(msg_pack: &Bound<PyBytes>, skip_init: Option<bool>) -> anyhow::Result<Self> {
             Self::from_msg_pack(
-                msg_pack.as_bytes(), 
+                msg_pack.as_bytes(),
                 skip_init.unwrap_or_default()
             )
         }

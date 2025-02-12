@@ -2,7 +2,7 @@ use super::cat_power::*;
 use super::elev::*;
 use super::heading::*;
 use super::link_idx::*;
-use super::link_old::Link as LinkOld;
+use super::link_old::LinkOld;
 use super::speed::*;
 use crate::imports::*;
 
@@ -477,6 +477,11 @@ impl ObjState for [Link] {
                 ));
             }
         }
+
+        // TODO: validate coincident data for adjoining links (e.g. elevation, heading, and maybe lat/lon)
+        // either in the above for loop or an equivalent loop below
+        // for (idx, link) in self.iter().enumerate().skip(1) {
+
         errors.make_err()
     }
 }
@@ -612,7 +617,6 @@ mod tests {
 
     #[test]
     fn test_to_and_from_file_for_links() {
-        // TODO: make use of `tempfile` or similar crate
         let links = Vec::<Link>::valid();
         let tempdir = tempfile::tempdir().unwrap();
         let temp_file_path = tempdir.path().join("links_test2.yaml");

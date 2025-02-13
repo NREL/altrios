@@ -6,9 +6,12 @@ vehicle_events = {
     'truck': []
 }
 
-def record_vehicle_event(vehicle_type, vehicle_id, event_type, timestamp):
+def record_vehicle_event(vehicle_type, vehicle_id, action, state, emission, event_type, timestamp):
     vehicle_events[vehicle_type].append({
         'vehicle_id': vehicle_id,
+        'action': action,
+        'state': state,
+        'emission': emission,
         'event_type': event_type,
         'timestamp': timestamp
     })
@@ -42,7 +45,12 @@ def save_vehicle_logs():
         log_file = f"{vehicle_type}_work_log.txt"
         with open(log_file, "w") as f:
             for event in events:
-                f.write(f"Vehicle ID: {event['vehicle_id']}, Event Type: {event['event_type']}, Timestamp: {event['timestamp']}\n")
+                f.write(f"Vehicle ID: {event['vehicle_id']}, "
+                        f"Action: {event['action']}, "
+                        f"State: {event['state']}, "
+                        f"Event Type: {event['event_type']}, "
+                        f"Emission: {event['emission']}, "
+                        f"Timestamp: {event['timestamp']}\n")
 
 if __name__ == "__main__":
     save_average_times()

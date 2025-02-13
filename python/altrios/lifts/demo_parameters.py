@@ -33,13 +33,15 @@ class LiftsState:
     # Fixed: Hostler parameters
     # HOSTLER_NUMBER = int(input("Enter the number of hostler: "))
     HOSTLER_NUMBER: int = 1
+    HOSTLER_DIESEL_PERCENTAGE: float = 0.6
     # Fixed hostler travel time (** will update with density-speed/time functions later soon)
     CONTAINERS_PER_HOSTLER: int = 1  # hostler capacity
     HOSTLER_SPEED_LIMIT: float = 20*5280   # hostler speed: ft/hr
-    HOSTLER_TRANSPORT_CONTAINER_TIME: float = 0    # hostler travel time of picking up IC: hr, triangular distribution
+    HOSTLER_TRANSPORT_CONTAINER_TIME: float = 0.5    # hostler travel time of picking up IC: hr, triangular distribution
     HOSTLER_FIND_CONTAINER_TIME: float = 1/5  # hostler travel time between dropping off IC and picking up OC: hr, triangular distribution
 
     # Fixed: Truck parameters
+    TRUCK_DIESEL_PERCENTAGE: float = 0.6
     # TRUCK_ARRIVAL_MEAN: float = 40/60   # hr, arrival rate depends on the gap between last train departure and next train arrival
     TRUCK_INGATE_TIME: float = 1/60    # hr
     TRUCK_OUTGATE_TIME: float = 2/60    # hr
@@ -56,23 +58,21 @@ class LiftsState:
     truck_arrival_time: list[float] = field(default_factory = lambda: [])   # **trucks arrive according to train departure and arrival gap
 
     # Fixed: Emission matrix
-    # Trucks types: diesel and electric
-    IDLE_DIESEL_TRUCK_EMS: float = 5.2
-    IDLE_ELECTRIC_TRUCK_EMS: float = 2.4
-    FULL_DIESEL_TRUCK_EMS: float = 20.7
-    FULL_ELECTRIC_TRUCK_EMS: float = 10.2
+    IDLE_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
+        default_factory=lambda: {
+            'Truck': {'Diesel': 5.2, 'Electric': 2.4},
+            'Hostler': {'Diesel': 6.2, 'Electric': 2.4},
+            'Crane': {'Hybrid': 40.3, 'Electric': 30.5},
+        }
+    )
 
-    # Hostler types: diesel and electric
-    IDLE_DIESEL_HOSTLER_EMS: float = 6.2
-    IDLE_ELECTRIC_HOSTLER_EMS: float = 2.4
-    FULL_DIESEL_HOSTLER_EMS: float = 15.7
-    FULL_ELECTRIC_HOSTLER_EMS: float = 10.2
-
-    # Crane types: diesel and hybrid
-    IDLE_DIESEL_CRANE_EMS: float = 40.3
-    IDLE_HYBRID_CRANE_EMS: float = 30.5
-    FULL_DIESEL_CRANE_EMS: float = 60.3
-    FULL_HYBRID_CRANE_EMS: float = 50.5
+    FULL_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
+        default_factory=lambda: {
+            'Truck': {'Diesel': 20.7, 'Electric': 10.2},
+            'Hostler': {'Diesel': 15.7, 'Electric': 10.2},
+            'Crane': {'Hybrid': 60.3, 'Electric': 50.5},
+        }
+    )
 
     # Various: tracking container number
     IC_NUM: int = 1     # tracking

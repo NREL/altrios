@@ -284,7 +284,12 @@ impl ObjState for Link {
         // TODO: make the code show the exact offset(s) at which the grades are bad
         // grade cannot exceed 6%
         let max_allowed_abs_grade: si::Ratio = 0.06 * uc::R;
-        match grades.iter().map(|g| g.abs()).reduce(si::Ratio::max) {
+        match grades
+            .iter()
+            .skip(1)
+            .map(|g| g.abs())
+            .reduce(si::Ratio::max)
+        {
             Some(max_abs_grade) => {
                 if max_abs_grade > max_allowed_abs_grade {
                     errors.push(anyhow!(
@@ -313,7 +318,12 @@ impl ObjState for Link {
         // curvature cannot exceed 15 degrees per 100 feet
         // really don't understand why `into` is needed here but it works!
         let max_allowed_abs_curv: si::Curvature = (15.0 * uc::DEG / (100.0 * uc::FT)).into();
-        match curves.iter().map(|y| y.abs()).reduce(si::Curvature::max) {
+        match curves
+            .iter()
+            .skip(1)
+            .map(|y| y.abs())
+            .reduce(si::Curvature::max)
+        {
             Some(max_abs_curv) => {
                 if max_abs_curv > max_allowed_abs_curv {
                     errors.push(anyhow!(

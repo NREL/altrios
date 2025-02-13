@@ -10,4 +10,4 @@ pub enum AltriosError {
     Other(String),
 }
 
-pub type AltriosResult<T> = core::result::Result<T, AltriosError>;
+pub type AltriosResult<T> = Result<T, AltriosError>;

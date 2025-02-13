@@ -309,20 +309,17 @@ impl ObjState for Link {
             .headings
             .windows(2)
             .map(|w| {
-                let dh: si::Angle = (w[1].heading - w[0].heading + uc::REV / 2.0) % uc::REV - uc::REV / 2.0;
+                let dh: si::Angle =
+                    (w[1].heading - w[0].heading + uc::REV / 2.0) % uc::REV - uc::REV / 2.0;
                 let dx: si::Length = w[1].offset - w[0].offset;
-                (dh / dx)
+                (dh / dx).into()
             })
             .collect();
         // TODO: parameterize this
         // curvature cannot exceed 15 degrees per 100 feet
         // really don't understand why `into` is needed here but it works!
         let max_allowed_abs_curv: si::Curvature = (15.0 * uc::DEG / (100.0 * uc::FT)).into();
-        match curves
-            .iter()
-            .map(|y| y.abs())
-            .reduce(si::Curvature::max)
-        {
+        match curves.iter().map(|y| y.abs()).reduce(si::Curvature::max) {
             Some(max_abs_curv) => {
                 if max_abs_curv > max_allowed_abs_curv {
                     errors.push(anyhow!(

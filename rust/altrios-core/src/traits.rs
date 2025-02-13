@@ -1,6 +1,6 @@
 use crate::imports::*;
 
-///Standardizes conversion from smaller than usize types for indexing.
+/// Standardizes conversion from smaller than usize types for indexing.
 pub trait Idx {
     fn idx(self) -> usize;
 }

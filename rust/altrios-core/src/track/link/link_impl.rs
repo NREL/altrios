@@ -309,9 +309,9 @@ impl ObjState for Link {
             .headings
             .windows(2)
             .map(|w| {
-                let dh: si::Angle = w[1].heading - w[0].heading;
+                let dh: si::Angle = (w[1].heading - w[0].heading + uc::REV / 2.0) % uc::REV - uc::REV / 2.0;
                 let dx: si::Length = w[1].offset - w[0].offset;
-                (dh / dx).into()
+                (dh / dx)
             })
             .collect();
         // TODO: parameterize this
@@ -320,7 +320,6 @@ impl ObjState for Link {
         let max_allowed_abs_curv: si::Curvature = (15.0 * uc::DEG / (100.0 * uc::FT)).into();
         match curves
             .iter()
-            .skip(1)
             .map(|y| y.abs())
             .reduce(si::Curvature::max)
         {

@@ -18,6 +18,9 @@ class LiftsState:
     ## Train timetable: train_units, train arrival time
     TRAIN_INSPECTION_TIME: float = 10/60    # hr
 
+    # Fixed: Yard parameters
+    TRACK_NUM: int = 2
+
     # Fixed: Crane parameters
     # Container parameters: calculate crane horizontal and vertical processing time
     # Current 1 TEU = 20 ft long, 8 ft wide, and 8.6 ft tall; optional 2 TEU = 40 ft long, 8 ft wide, and 8.6 ft tall
@@ -26,18 +29,18 @@ class LiftsState:
     CONTAINER_WID: float = 8
     CONTAINER_TAL: float = 8.6
     # CRANE_NUMBER = int(input("Enter the number of crane: "))
-    CRANE_NUMBER: int = 1
+    CRANE_NUMBER: int = 2
     CONTAINERS_PER_CRANE_MOVE_MEAN: float = 600   # crane movement speed mean value: 10ft/min = 600 ft/hr, crane speed
     CRANE_MOVE_DEV_TIME: float = 5/60 # crane movement speed deviation value: hr
 
     # Fixed: Hostler parameters
     # HOSTLER_NUMBER = int(input("Enter the number of hostler: "))
-    HOSTLER_NUMBER: int = 1
+    HOSTLER_NUMBER: int = 2
     HOSTLER_DIESEL_PERCENTAGE: float = 0.6
     # Fixed hostler travel time (** will update with density-speed/time functions later soon)
     CONTAINERS_PER_HOSTLER: int = 1  # hostler capacity
     HOSTLER_SPEED_LIMIT: float = 20*5280   # hostler speed: ft/hr
-    HOSTLER_TRANSPORT_CONTAINER_TIME: float = 0.5    # hostler travel time of picking up IC: hr, triangular distribution
+    HOSTLER_TRANSPORT_CONTAINER_TIME: float = 0.1    # hostler travel time of picking up IC: hr, triangular distribution
     HOSTLER_FIND_CONTAINER_TIME: float = 1/5  # hostler travel time between dropping off IC and picking up OC: hr, triangular distribution
 
     # Fixed: Truck parameters

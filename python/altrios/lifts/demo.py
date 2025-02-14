@@ -64,7 +64,6 @@ def truck_entry(env, terminal, truck_id, oc_id):
 
         # Assume each truck takes 1 OC, and drop OC to the closest parking lot according to triangular distribution
         # Assign IDs for OCs
-        terminal.oc_store.put(f"OC-{oc_id}")
         print(f"Time {env.now}: Truck {truck_id} placed OC {oc_id} at parking slot.")
         record_event(f"OC-{oc_id}", 'truck_arrival', env.now)
 
@@ -105,7 +104,6 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
 
     print("state.OC_NUM", state.OC_NUM)
     print("total_oc", total_oc)
-    print("OC has:", terminal.oc_store.items)
 
     trucks = [(i, "diesel") for i in range(num_diesel)] + \
              [(i + num_diesel, "electric") for i in range(num_electric)]
@@ -113,6 +111,12 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
     print(f"truck is:", trucks)
 
     oc_id = state.OC_NUM
+    print("start oc_id:", oc_id)
+    for oc in range(state.OC_NUM, state.OC_NUM + total_oc):
+        terminal.oc_store.put(f"OC-{oc_id}")
+        oc_id += 1
+    print("oc has:", terminal.oc_store.items)
+
     # for truck_id in range(1, truck_number + 1):
     for truck_id in trucks:
         yield env.timeout(random.expovariate(arrival_rate))  # Assume truck arrives according to the poisson distribution
@@ -122,8 +126,6 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
             env.process(truck_entry(env, terminal, truck_id, oc_id))
         else:
             env.process(empty_truck(env, terminal, truck_id))
-        
-        oc_id += 1
 
     yield env.timeout(state.TRUCK_TO_PARKING)    # truck travel time of placing OC at parking slot (demo_parameters.TRUCK_TO_PARKING)
     all_trucks_arrived_event.succeed()  # if all_trucks_arrived_event is triggered, train is allowed to enter
@@ -165,9 +167,6 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
     '''
     hostler_id = yield terminal.hostlers.get()
 
-    # Hostler picks up IC from chassis
-    ic_id = yield terminal.chassis.get(lambda x: isinstance(x, int))
-
     # Hostler puts IC to the closest parking lot
     # # TODO: Replace state.HOSTLER_TRANSPORT_CONTAINER_TIME from hostler speed to the current density
     # d_h_dist = create_triang_distribution(d_h_min, d_h_avg, d_h_max).rvs()
@@ -178,7 +177,10 @@ def container_process(env, terminal,train_schedule, all_oc_prepared, oc_needed, 
     # yield env.timeout(d_h_dist / (2 * hostler_speed))
     travel_time_to_parking = state.HOSTLER_TRANSPORT_CONTAINER_TIME
     yield env.timeout(travel_time_to_parking)
+    # Hostler picks up IC from chassis
+    ic_id = yield terminal.chassis.get(lambda x: isinstance(x, int))
     print(f"Time {env.now}: Hostler {hostler_id} picked up IC {ic_id} and is heading to parking slot.")
+    print(f"Chassis: {terminal.chassis.items}")
     record_event(ic_id, 'hostler_pickup', env.now)
     emissions = emission_calculation('empty', 'hostler',hostler_id, travel_time_to_parking)
     record_vehicle_event('hostler', hostler_id, f'pickup_IC_{ic_id}', 'empty',
@@ -360,7 +362,7 @@ def crane_load_process(env, terminal, load_time, start_load_event, end_load_even
         with terminal.cranes.request() as request:
             yield request
             oc = yield terminal.chassis.get(lambda x: isinstance(x, str) and "OC" in x)  # obtain an OC from chassis
-            # print("chassis:",terminal.chassis.items)
+            print("line 364 chassis:",terminal.chassis.items)
             print(f"Time {env.now}: Crane starts loading {oc} onto the train.")
             yield env.timeout(load_time)  # loading time, depends on container parameter**
             record_event(oc, 'crane_load', env.now)

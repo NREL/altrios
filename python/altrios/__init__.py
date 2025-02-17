@@ -47,12 +47,17 @@ data_formats = [
 ]
 
 
-def to_pydict(self, data_fmt: str = "msg_pack", flatten: bool = False) -> Dict:
+def to_pydict(self, 
+    data_fmt: str = "msg_pack", 
+    flatten: bool = False,
+    key_substrings_to_keep: List[str] = None
+    ) -> Dict:
     """
     Returns self converted to pure python dictionary with no nested Rust objects
     # Arguments
     - `flatten`: if True, returns dict without any hierarchy
     - `data_fmt`: data format for intermediate conversion step
+    - `key_substrings_to_keep`: list of substrings to check for in object dictionary.
     """
     data_fmt = data_fmt.lower()
     assert data_fmt in data_formats, f"`data_fmt` must be one of {data_formats}"
@@ -76,7 +81,7 @@ def to_pydict(self, data_fmt: str = "msg_pack", flatten: bool = False) -> Dict:
     else:
         hist_len = get_hist_len(pydict)
         assert hist_len is not None, "Cannot be flattened"
-        flat_dict = get_flattened(pydict, hist_len)
+        flat_dict = get_flattened(pydict, hist_len, key_substrings_to_keep=key_substrings_to_keep)
         return flat_dict
 
 
@@ -107,29 +112,32 @@ def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack", skip_init: bool =
     return obj
 
 
-def get_flattened(obj: Dict | List, hist_len: int, prepend_str: str = "") -> Dict:
+def get_flattened(obj: Dict | List, hist_len: int, prepend_str: str = "", key_substrings_to_keep = None) -> Dict:
     """
     Flattens and returns dictionary, separating keys and indices with a `"."`
     # Arguments
     # - `obj`: object to flatten
     # -  hist_len: length of any lists storing history data
     # - `prepend_str`: prepend this to all keys in the returned `flat` dict
+    # - `key_substrings_to_keep`: list of substrings to check for in object dictionary.
     """
     flat: Dict = {}
     if isinstance(obj, dict):
         for (k, v) in obj.items():
             new_key = k if (prepend_str == "") else prepend_str + "." + k
             if isinstance(v, dict) or (isinstance(v, list) and len(v) != hist_len):
-                flat.update(get_flattened(v, hist_len, prepend_str=new_key))
+                flat.update(get_flattened(v, hist_len, prepend_str=new_key, key_substrings_to_keep=key_substrings_to_keep))
             else:
-                flat[new_key] = v
+                if key_substrings_to_keep is None or any(to_keep in new_key for to_keep in key_substrings_to_keep):
+                    flat[new_key] = v
     elif isinstance(obj, list):
         for (i, v) in enumerate(obj):
-            new_key = i if (prepend_str == "") else prepend_str + "." + f"[{i}]"
+            new_key = i if (prepend_str == "") else prepend_str + "." + str(i)
             if isinstance(v, dict) or (isinstance(v, list) and len(v) != hist_len):
-                flat.update(get_flattened(v, hist_len, prepend_str=new_key))
+                flat.update(get_flattened(v, hist_len, prepend_str=new_key, key_substrings_to_keep=key_substrings_to_keep))
             else:
-                flat[new_key] = v
+                if key_substrings_to_keep is None or any(to_keep in new_key for to_keep in key_substrings_to_keep):
+                    flat[new_key] = v
     else:
         raise TypeError("`obj` should be `dict` or `list`")
 
@@ -143,8 +151,8 @@ def get_hist_len(obj: Dict) -> Optional[int]:
     if 'history' in obj.keys():
         return len(next(iter(obj['history'].values())))
 
-    elif next(iter(k for k in obj.keys() if re.search("(history\\.\\w+)$", k) is not None), None) is not None:
-        return len(next((v for (k, v) in obj.items() if re.search("(history\\.\\w+)$", k) is not None)))
+    elif next(iter(k for k in obj.keys() if re.search("(history\.\w+)$", k) is not None), None) is not None:
+        return len(next((v for (k, v) in obj.items() if re.search("(history\.\w+)$", k) is not None)))
 
     for (k, v) in obj.items():
         if isinstance(v, dict):
@@ -167,7 +175,7 @@ def to_dataframe(self,
     - `allow_partial`: tries to return dataframe of length equal to solved time steps if simulation fails early
     - `key_substrings_to_keep`: list of substrings to check for in object dictionary.
     """
-    obj_dict = self.to_pydict(flatten=True)
+    obj_dict = self.to_pydict(flatten=True, key_substrings_to_keep=key_substrings_to_keep)
     hist_len = get_hist_len(obj_dict)
     assert hist_len is not None
 
@@ -222,6 +230,7 @@ def to_dataframe(self,
             df = len_one_df.merge(df, how='cross')
 
     return df
+
 
 # adds variable_path_list() and history_path_list() as methods to all classes in
 # ACCEPTED_RUST_STRUCTS

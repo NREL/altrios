@@ -132,7 +132,7 @@ def get_flattened(obj: Dict | List, hist_len: int, prepend_str: str = "", key_su
                     flat[new_key] = v
     elif isinstance(obj, list):
         for (i, v) in enumerate(obj):
-            new_key = i if (prepend_str == "") else prepend_str + "." + str(i)
+            new_key = i if (prepend_str == "") else prepend_str + "." + f"[{i}]"
             if isinstance(v, dict) or (isinstance(v, list) and len(v) != hist_len):
                 flat.update(get_flattened(v, hist_len, prepend_str=new_key, key_substrings_to_keep=key_substrings_to_keep))
             else:
@@ -151,8 +151,8 @@ def get_hist_len(obj: Dict) -> Optional[int]:
     if 'history' in obj.keys():
         return len(next(iter(obj['history'].values())))
 
-    elif next(iter(k for k in obj.keys() if re.search("(history\.\w+)$", k) is not None), None) is not None:
-        return len(next((v for (k, v) in obj.items() if re.search("(history\.\w+)$", k) is not None)))
+    elif next(iter(k for k in obj.keys() if re.search("(history\\.\\w+)$", k) is not None), None) is not None:
+        return len(next((v for (k, v) in obj.items() if re.search("(history\\.\\w+)$", k) is not None)))
 
     for (k, v) in obj.items():
         if isinstance(v, dict):

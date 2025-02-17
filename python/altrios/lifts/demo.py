@@ -13,18 +13,20 @@ from altrios.lifts.vehicle_performance import record_vehicle_event, save_average
 class Terminal:
     def __init__(self, env, truck_capacity, chassis_count):
         self.env = env
-        self.cranes = simpy.Resource(env, state.CRANE_NUMBER)  # Crane source: numbers
-        self.in_gates = simpy.Resource(env, state.IN_GATE_NUMBERS)  # In-gate source: numbers
-        self.out_gates = simpy.Resource(env, state.OUT_GATE_NUMBERS)  # Out-gate source: numbers
-        self.truck_store = simpy.Store(env, capacity=truck_capacity)  # Truck source: numbers
-        self.oc_store = simpy.Store(env)  # Outbound container source: numbers
-        self.chassis = simpy.FilterStore(env, capacity=chassis_count)  # Chassis source: numbers
-        self.hostlers = simpy.Store(env, capacity=state.HOSTLER_NUMBER)  # Hostler source: numbers
+        self.tracks = simpy.Store(env, capacity=state.TRACK_NUMBER)
+        for track_id in range(1, state.TRACK_NUMBER + 1):
+            self.tracks.put(track_id)
+        self.cranes = simpy.Resource(env, state.CRANE_NUMBER)
+        self.in_gates = simpy.Resource(env, state.IN_GATE_NUMBERS)
+        self.out_gates = simpy.Resource(env, state.OUT_GATE_NUMBERS)
+        self.oc_store = simpy.Store(env)
+        self.chassis = simpy.FilterStore(env, capacity=chassis_count)
+        self.hostlers = simpy.Store(env, capacity=state.HOSTLER_NUMBER)
+        self.truck_store = simpy.Store(env, capacity=truck_capacity)
         num_diesel = round(state.HOSTLER_NUMBER * state.HOSTLER_DIESEL_PERCENTAGE)
         num_electric = state.HOSTLER_NUMBER - num_diesel
         hostlers = [(i, "diesel") for i in range(num_diesel)] + \
                  [(i + num_diesel, "electric") for i in range(num_electric)]
-        # for hostler_id in range(1, state.HOSTLER_NUMBER + 1):
         for hostler_id in hostlers:
             self.hostlers.put(hostler_id)
         print(f"hostler {hostlers}")
@@ -404,7 +406,7 @@ def process_train_arrival(env, terminal, train_departed_event, train_schedule, n
     # Wait train arriving
     if env.now <= arrival_time:
         yield env.timeout(arrival_time - env.now)
-        print(f"Time {env.now}: [In Time] Train {train_schedule['train_id']} has arrived.")
+        print(f"Time {env.now}: [In Time] Train {train_schedule['train_id']} has arrived, waiting to be assigned to a track.")
         delay_time = 0
     else:
         delay_time = env.now - arrival_time
@@ -413,6 +415,14 @@ def process_train_arrival(env, terminal, train_departed_event, train_schedule, n
         delay_list[f"train_id_{train_id}"]["arrival"] = delay_time
         print(f"Time {env.now}: [DELAYED] Train {train_schedule['train_id']} has been delayed for {delay_time} hours.")
     state.train_delay_time[train_schedule['train_id']] = delay_time
+
+    track_id = yield terminal.tracks.get()
+    if track_id is None:
+        print(f"Time {env.now}: Train {train_id} is waiting for an available track.")
+        terminal.waiting_trains.append(train_id)
+        return
+    print(f"Time {env.now}: Train {train_id} is assigned to Track {track_id}.")
+
 
     for ic_id in range(state.IC_NUM, state.IC_NUM + train_schedule['full_cars']):
         record_event(ic_id, 'train_arrival',env.now)  # loop: assign container_id range(current_ic, current_ic + train_schedule['full_cars'])
@@ -433,15 +443,17 @@ def process_train_arrival(env, terminal, train_departed_event, train_schedule, n
     # train departs
     if env.now <= departure_time:
         yield env.timeout(departure_time - env.now)
-        print(f"Time {env.now}: [In Time] Train {train_schedule['train_id']} departs.")
+        print(f"Time {env.now}: [In Time] Train {train_schedule['train_id']} departs from the track {track_id}.")
     else:
         delay_time = env.now - departure_time
         if f"train_id_{train_id}" not in delay_list:
             delay_list[f"train_id_{train_id}"] = {}
         delay_list[f"train_id_{train_id}"]["departure"] = delay_time
-        print(f"Time {env.now}: [DELAYED] Train {train_schedule['train_id']} has been delayed for {delay_time} hours.")
+        print(f"Time {env.now}: [DELAYED] Train {train_schedule['train_id']} has been delayed for {delay_time} hours from the track {track_id}..")
 
+    yield terminal.tracks.put(track_id)
     print(f"Time {env.now}: Train is departing the terminal.")
+    print("current available track has:", terminal.tracks.items)
 
     for oc_id in range(state.OC_NUM, state.OC_NUM + train_schedule['oc_number']):
         record_event(f"OC-{oc_id}", 'train_depart', env.now) # loop: assign container_id range(current_oc, current_oc + train_schedule['full_cars'])
@@ -466,15 +478,25 @@ def run_simulation(train_consist_plan: pl.DataFrame,
     # Create environment
     env = simpy.Environment()
 
-    # Train timetable
-    # Truck_numbers is equal to max(full_cars, oc_numbers), to make sure each container has one truck to pick up
+    # # Train timetable
+    # # Truck_numbers is equal to max(full_cars, oc_numbers), to make sure each container has one truck to pick up
+    # train_timetable = [
+    #     {"train_id": 19, "arrival_time": 187, "departure_time": 250, "empty_cars": 3, "full_cars": 5, "oc_number": 2,
+    #      "truck_number": 5},    # test: ic > oc
+    #     {"train_id": 12, "arrival_time": 300, "departure_time": 500, "empty_cars": 5, "full_cars": 4, "oc_number": 4,
+    #      "truck_number": 4},    # test: ic = oc
+    #     {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 5, "full_cars": 3, "oc_number": 5,
+    #      "truck_number": 5},    # test: ic < oc
+    # ]
+
+    # Train timetable: shorter headway
     train_timetable = [
         {"train_id": 19, "arrival_time": 187, "departure_time": 250, "empty_cars": 3, "full_cars": 5, "oc_number": 2,
-         "truck_number": 5},    # test: ic > oc
-        {"train_id": 12, "arrival_time": 300, "departure_time": 500, "empty_cars": 5, "full_cars": 4, "oc_number": 4,
-         "truck_number": 4},    # test: ic = oc
-        {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 5, "full_cars": 3, "oc_number": 5,
-         "truck_number": 5},    # test: ic < oc
+         "truck_number": 5},  # test: ic > oc
+        {"train_id": 12, "arrival_time": 200, "departure_time": 400, "empty_cars": 5, "full_cars": 4, "oc_number": 4,
+         "truck_number": 4},  # test: ic = oc
+        {"train_id": 70, "arrival_time": 300, "departure_time": 600, "empty_cars": 5, "full_cars": 3, "oc_number": 5,
+         "truck_number": 5},  # test: ic < oc
     ]
 
     # train_timetable = build_train_timetable(train_consist_plan, terminal, swap_arrive_depart=True, as_dicts=True)

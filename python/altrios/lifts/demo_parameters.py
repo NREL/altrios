@@ -19,7 +19,7 @@ class LiftsState:
     TRAIN_INSPECTION_TIME: float = 10/60    # hr
 
     # Fixed: Yard parameters
-    TRACK_NUM: int = 2
+    TRACK_NUMBER: int = 2
 
     # Fixed: Crane parameters
     # Container parameters: calculate crane horizontal and vertical processing time

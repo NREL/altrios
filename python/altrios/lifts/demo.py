@@ -400,8 +400,10 @@ def process_train_arrival(env, terminal, train_departed_event, train_schedule, n
     # Initialize dictionary
     delay_list = {}
 
-    # All trucks arrive
+    # All trucks arrive before train arrives
     env.process(truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event))
+
+    print("Current available track has ", terminal.tracks.items)
 
     # Wait train arriving
     if env.now <= arrival_time:
@@ -453,7 +455,6 @@ def process_train_arrival(env, terminal, train_departed_event, train_schedule, n
 
     yield terminal.tracks.put(track_id)
     print(f"Time {env.now}: Train is departing the terminal.")
-    print("current available track has:", terminal.tracks.items)
 
     for oc_id in range(state.OC_NUM, state.OC_NUM + train_schedule['oc_number']):
         record_event(f"OC-{oc_id}", 'train_depart', env.now) # loop: assign container_id range(current_oc, current_oc + train_schedule['full_cars'])
@@ -495,7 +496,7 @@ def run_simulation(train_consist_plan: pl.DataFrame,
          "truck_number": 5},  # test: ic > oc
         {"train_id": 12, "arrival_time": 200, "departure_time": 400, "empty_cars": 5, "full_cars": 4, "oc_number": 4,
          "truck_number": 4},  # test: ic = oc
-        {"train_id": 70, "arrival_time": 300, "departure_time": 600, "empty_cars": 5, "full_cars": 3, "oc_number": 5,
+        {"train_id": 70, "arrival_time": 200, "departure_time": 600, "empty_cars": 5, "full_cars": 3, "oc_number": 5,
          "truck_number": 5},  # test: ic < oc
     ]
 

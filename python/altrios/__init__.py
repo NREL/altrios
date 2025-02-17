@@ -154,26 +154,34 @@ def get_hist_len(obj: Dict) -> Optional[int]:
     return None
 
 
-def to_dataframe(self, pandas: bool = False, allow_partial: bool = False) -> Union[pd.DataFrame, pl.DataFrame]:
+def to_dataframe(self, 
+    pandas: bool = False, 
+    allow_partial: bool = False,
+    key_substrings_to_keep: List[str] = ['history.', 'speed_trace.', 'power_trace.']
+) -> Union[pd.DataFrame, pl.DataFrame]:
     """
     Returns time series results from fastsim object as a Polars or Pandas dataframe.
 
     # Arguments
     - `pandas`: returns pandas dataframe if True; otherwise, returns polars dataframe by default
     - `allow_partial`: tries to return dataframe of length equal to solved time steps if simulation fails early
+    - `key_substrings_to_keep`: list of substrings to check for in object dictionary.
     """
     obj_dict = self.to_pydict(flatten=True)
-    history_keys = ['history.', 'speed_trace.', 'power_trace.']
     hist_len = get_hist_len(obj_dict)
     assert hist_len is not None
 
     history_dict: Dict[str, Any] = {}
+    len_one_dict: Dict[str, Any] = {}
     for k, v in obj_dict.items():
-        hk_in_k = any(hk in k for hk in history_keys)
-        if hk_in_k and ("__len__" in dir(v)):
-            if (len(v) == hist_len) or allow_partial:
-                history_dict[k] = v
-
+        keep_key_in_k = any(to_keep in k for to_keep in key_substrings_to_keep)
+        if keep_key_in_k:
+            if ("__len__" in dir(v)) and isinstance(v, list) and (len(v) > 1):
+                if (len(v) == hist_len) or allow_partial:
+                    history_dict[k] = v
+            else:
+                len_one_dict[k] = v
+    
     if allow_partial:
         cutoff = min([len(val) for val in history_dict.values()])
 
@@ -203,8 +211,17 @@ def to_dataframe(self, pandas: bool = False, allow_partial: bool = False) -> Uni
             except Exception as err:
                 raise Exception(
                     f"{err}\nTry passing `allow_partial=True` to `to_dataframe` or checking for consistent save intervals")
-    return df
 
+
+    if len(len_one_dict) > 0:
+        if not pandas:
+            len_one_df = pl.DataFrame(len_one_dict)
+            df = len_one_df.join(df, how="cross", maintain_order="right_left")
+        else:
+            len_one_df = pd.DataFrame(len_one_dict, index=[0])
+            df = len_one_df.merge(df, how='cross')
+
+    return df
 
 # adds variable_path_list() and history_path_list() as methods to all classes in
 # ACCEPTED_RUST_STRUCTS

@@ -345,9 +345,6 @@ impl LocoTrait for DummyLoco {
                 generator,
                 reversible_energy_storage,
                 drivetrain,
-                fuel_res_split,
-                fuel_res_ratio,
-                gss_interval,
             ))),
             pwr_aux_offset: loco_params.pwr_aux_offset,
             pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
@@ -412,22 +409,6 @@ impl LocoTrait for DummyLoco {
         };
         dummy.set_mass(None, MassSideEffect::None).unwrap();
         dummy
-    }
-
-    #[getter]
-    fn get_fuel_res_split(&self) -> anyhow::Result<Option<f64>> {
-        match &self.loco_type {
-            PowertrainType::HybridLoco(loco) => Ok(Some(loco.fuel_res_split)),
-            _ => Ok(None),
-        }
-    }
-
-    #[getter]
-    fn get_fuel_res_ratio(&self) -> anyhow::Result<Option<f64>> {
-        match &self.loco_type {
-            PowertrainType::HybridLoco(loco) => Ok(loco.fuel_res_ratio),
-            _ => Ok(None),
-        }
     }
 
     #[pyo3(name = "set_save_interval")]

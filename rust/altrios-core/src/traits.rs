@@ -136,7 +136,7 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
     #[cfg(feature = "resources")]
     const RESOURCE_PREFIX: &'static str = "";
 
-    /// Read (deserialize) an object from a resource file packaged with the `fastsim-core` crate
+    /// Read (deserialize) an object from a resource file packaged with the `altrios-core` crate
     ///
     /// # Arguments:
     ///

@@ -1,4 +1,4 @@
-use super::powertrain::electric_drivetrain::ElectricDrivetrain;
+use super::powertrain::electric_drivetrain::{ElectricDrivetrain, ElectricDrivetrainState};
 use super::powertrain::fuel_converter::FuelConverter;
 use super::powertrain::generator::Generator;
 use super::powertrain::reversible_energy_storage::ReversibleEnergyStorage;
@@ -190,7 +190,6 @@ impl FCOnCauses {
     }
 }
 
-// TODO: figure out why this is not appearing in the dataframe but is in the pydict
 #[altrios_api]
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
 #[non_exhaustive]
@@ -382,7 +381,7 @@ impl HEVPowertrainControls {
         veh_state: VehicleState,
         hev_state: &mut HEVState,
         fc: &FuelConverter,
-        em_state: &ElectricMachineState,
+        em_state: &ElectricDrivetrainState,
         res: &ReversibleEnergyStorage,
     ) -> anyhow::Result<(si::Power, si::Power)> {
         let fc_state = &fc.state;
@@ -528,10 +527,13 @@ impl HEVPowertrainControls {
     fn get_pwr_fc_and_em(
         &mut self,
         pwr_prop_req: si::Power,
+        // TODO: replace this with TrainState and then make it so that this
+        // locomotive is reponsible for the total train weight (and maybe factor in
+        // elevation delta somehow) per count of locomotives
         veh_state: VehicleState,
         hev_state: &mut HEVState,
         fc: &FuelConverter,
-        em_state: &ElectricMachineState,
+        em_state: &ElectricDrivetrainState,
         res: &ReversibleEnergyStorage,
     ) -> anyhow::Result<(si::Power, si::Power)> {
         let fc_state = &fc.state;
@@ -671,23 +673,12 @@ pub struct RESGreedyWithDynamicBuffers {
     /// below min buffer or engine is otherwise forced on and battery has room
     /// to receive charge, engine will run at this level and charge.
     pub frac_of_most_eff_pwr_to_run_fc: Option<si::Ratio>,
-    /// Fraction of available charging capacity to use toward running the engine
-    /// efficiently.
-    // NOTE: this is inherited from fastsim-2 and has no effect here.  After
-    // further thought, either remove it or use it.
-    pub frac_res_chrg_for_fc: si::Ratio,
-    // TODO: put `save_interval` in here
-    // NOTE: this is inherited from fastsim-2 and has no effect here.  After
-    // further thought, either remove it or use it.
-    /// Fraction of available discharging capacity to use toward running the
-    /// engine efficiently.
-    pub frac_res_dschrg_for_fc: si::Ratio,
-    /// temperature at which engine is forced on to warm up
-    #[serde(default)]
-    pub temp_fc_forced_on: Option<si::Temperature>,
-    /// temperature at which engine is allowed to turn off due to being sufficiently warm
-    #[serde(default)]
-    pub temp_fc_allowed_off: Option<si::Temperature>,
+    // /// temperature at which engine is forced on to warm up
+    // #[serde(default)]
+    // pub temp_fc_forced_on: Option<si::Temperature>,
+    // /// temperature at which engine is allowed to turn off due to being sufficiently warm
+    // #[serde(default)]
+    // pub temp_fc_allowed_off: Option<si::Temperature>,
     /// current state of control variables
     #[serde(default)]
     pub state: RGWDBState,
@@ -718,8 +709,8 @@ impl Init for RESGreedyWithDynamicBuffers {
 }
 impl SerdeAPI for RESGreedyWithDynamicBuffers {}
 
-#[fastsim_api]
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec, SetCumulative)]
+#[altrios_api]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
 #[serde(default)]
 /// State for [RESGreedyWithDynamicBuffers ]
 pub struct RGWDBState {

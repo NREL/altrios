@@ -106,13 +106,14 @@ pub struct Generator {
     pub history: GeneratorStateHistoryVec,
 }
 
-impl SerdeAPI for Generator {
+impl Init for Generator {
     fn init(&mut self) -> anyhow::Result<()> {
         let _ = self.mass().with_context(|| format_dbg!())?;
         self.state.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for Generator {}
 
 impl Mass for Generator {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {

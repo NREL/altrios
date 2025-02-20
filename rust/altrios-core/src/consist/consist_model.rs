@@ -125,7 +125,7 @@ pub struct Consist {
     n_res_equipped: Option<u8>,
 }
 
-impl SerdeAPI for Consist {
+impl Init for Consist {
     fn init(&mut self) -> anyhow::Result<()> {
         let _mass = self.mass().with_context(|| format_dbg!())?;
         self.set_pwr_dyn_brake_max();
@@ -136,6 +136,7 @@ impl SerdeAPI for Consist {
         Ok(())
     }
 }
+impl SerdeAPI for Consist {}
 
 impl Consist {
     pub fn new(

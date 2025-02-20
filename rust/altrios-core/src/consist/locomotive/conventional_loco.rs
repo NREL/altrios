@@ -110,7 +110,7 @@ impl Mass for ConventionalLoco {
     }
 }
 
-impl SerdeAPI for ConventionalLoco {
+impl Init for ConventionalLoco {
     fn init(&mut self) -> anyhow::Result<()> {
         self.fc.init()?;
         self.gen.init()?;
@@ -118,6 +118,7 @@ impl SerdeAPI for ConventionalLoco {
         Ok(())
     }
 }
+impl SerdeAPI for ConventionalLoco {}
 
 impl LocoTrait for ConventionalLoco {
     /// returns current max power, current max power rate, and current max regen

@@ -8,7 +8,7 @@ pub enum PowertrainType {
     DummyLoco(DummyLoco),
 }
 
-impl SerdeAPI for PowertrainType {
+impl Init for PowertrainType {
     fn init(&mut self) -> anyhow::Result<()> {
         match self {
             Self::ConventionalLoco(l) => l.init()?,
@@ -19,6 +19,7 @@ impl SerdeAPI for PowertrainType {
         Ok(())
     }
 }
+impl SerdeAPI for PowertrainType {}
 
 impl LocoTrait for PowertrainType {
     fn set_cur_pwr_max_out(
@@ -635,13 +636,14 @@ impl Default for Locomotive {
     }
 }
 
-impl SerdeAPI for Locomotive {
+impl Init for Locomotive {
     fn init(&mut self) -> anyhow::Result<()> {
         let _mass = self.mass().with_context(|| format_dbg!())?;
         self.loco_type.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for Locomotive {}
 
 impl Mass for Locomotive {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {

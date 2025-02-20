@@ -26,12 +26,13 @@ pub trait LocoTrait {
 /// Wrapper struct for `Vec<Locomotive>` to expose various methods to Python.
 pub struct Pyo3VecLocoWrapper(pub Vec<Locomotive>);
 
-impl SerdeAPI for Pyo3VecLocoWrapper {
+impl Init for Pyo3VecLocoWrapper {
     fn init(&mut self) -> anyhow::Result<()> {
         self.0.iter_mut().try_for_each(|l| l.init())?;
         Ok(())
     }
 }
+impl SerdeAPI for Pyo3VecLocoWrapper {}
 
 pub trait SolvePower {
     /// Returns vector of locomotive tractive powers during positive traction events
@@ -250,6 +251,7 @@ impl SolvePower for GoldenSectionSearch {
 /// Control strategy for when locomotives are located at both the front and back of the train.
 pub struct FrontAndBack;
 impl SerdeAPI for FrontAndBack {}
+impl Init for FrontAndBack {}
 impl SolvePower for FrontAndBack {
     fn solve_positive_traction(
         &mut self,

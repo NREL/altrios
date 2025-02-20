@@ -14,6 +14,14 @@ pub fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
     altrios_api::altrios_api(attr, item)
 }
 
+#[proc_macro_error]
+#[proc_macro_attribute]
+/// macro for creating appropriate setters and getters for pyo3 struct attributes
+/// and other, non-python API functionality
+pub fn altrios_enum_api(attr: TokenStream, item: TokenStream) -> TokenStream {
+    altrios_api::altrios_enum_api(attr, item)
+}
+
 #[proc_macro_derive(HistoryVec)]
 /// generate HistoryVec that acts like a vec of States but
 /// stores each field of state as a vec field.

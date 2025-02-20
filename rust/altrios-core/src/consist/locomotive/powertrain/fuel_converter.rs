@@ -88,12 +88,13 @@ impl Default for FuelConverter {
     }
 }
 
-impl SerdeAPI for FuelConverter {
+impl Init for FuelConverter {
     fn init(&mut self) -> anyhow::Result<()> {
         self.state.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for FuelConverter {}
 
 impl Mass for FuelConverter {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {

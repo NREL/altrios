@@ -89,13 +89,14 @@ impl Mass for BatteryElectricLoco {
     }
 }
 
-impl SerdeAPI for BatteryElectricLoco {
+impl Init for BatteryElectricLoco {
     fn init(&mut self) -> anyhow::Result<()> {
         self.res.init()?;
         self.edrv.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for BatteryElectricLoco {}
 
 impl LocoTrait for BatteryElectricLoco {
     fn set_cur_pwr_max_out(

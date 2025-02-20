@@ -120,13 +120,14 @@ impl ConsistSimulation {
     }
 }
 
-impl SerdeAPI for ConsistSimulation {
+impl Init for ConsistSimulation {
     fn init(&mut self) -> anyhow::Result<()> {
         self.loco_con.init()?;
         self.power_trace.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for ConsistSimulation {}
 
 impl Default for ConsistSimulation {
     fn default() -> Self {

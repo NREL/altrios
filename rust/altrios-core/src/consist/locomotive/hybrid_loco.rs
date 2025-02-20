@@ -44,7 +44,7 @@ pub struct HybridLoco {
     pub edrv: ElectricDrivetrain,
 }
 
-impl SerdeAPI for HybridLoco {
+impl Init for HybridLoco {
     fn init(&mut self) -> anyhow::Result<()> {
         self.fc.init()?;
         self.gen.init()?;
@@ -53,6 +53,7 @@ impl SerdeAPI for HybridLoco {
         Ok(())
     }
 }
+impl SerdeAPI for HybridLoco {}
 
 impl Default for HybridLoco {
     fn default() -> Self {
@@ -187,15 +188,11 @@ impl FCOnCauses {
     fn push(&mut self, new: FCOnCause) {
         self.0.push(new)
     }
-
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
 }
 
 // TODO: figure out why this is not appearing in the dataframe but is in the pydict
 #[altrios_api]
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec, SetCumulative)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
 #[non_exhaustive]
 #[serde(default)]
 pub struct HEVState {
@@ -207,9 +204,6 @@ pub struct HEVState {
     /// ends at same starting value, ensuring no net [ReversibleEnergyStorage] usage)
     pub soc_bal_iters: u32,
 }
-
-impl Init for HEVState {}
-impl SerdeAPI for HEVState {}
 
 // Custom serialization
 impl Serialize for FCOnCauses {
@@ -304,7 +298,7 @@ impl std::fmt::Display for FCOnCauses {
     }
 }
 
-#[fastsim_enum_api]
+#[altrios_enum_api]
 #[derive(
     Clone, Copy, Debug, Deserialize, Serialize, PartialEq, IsVariant, From, TryInto, FromStr,
 )]
@@ -491,60 +485,6 @@ impl HEVPowertrainControls {
     }
 }
 
-/// Determines whether power demand requires engine to be on.  Not needed during
-/// negative traction.
-fn handle_fc_on_causes_for_pwr_demand(
-    rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
-    pwr_out_req: si::Power,
-    em_state: &ElectricMachineState,
-    fc_state: &FuelConverterState,
-    hev_state: &mut HEVState,
-) -> Result<(), anyhow::Error> {
-    let frac_pwr_demand_fc_forced_on: si::Ratio = rgwdb
-        .frac_pwr_demand_fc_forced_on
-        .with_context(|| format_dbg!())?;
-    if pwr_out_req
-        > frac_pwr_demand_fc_forced_on * (em_state.pwr_mech_fwd_out_max + fc_state.pwr_out_max)
-    {
-        hev_state
-            .fc_on_causes
-            .push(FCOnCause::PropulsionPowerDemandSoft);
-    }
-    if pwr_out_req - em_state.pwr_mech_fwd_out_max >= si::Power::ZERO {
-        hev_state
-            .fc_on_causes
-            .push(FCOnCause::PropulsionPowerDemand);
-    }
-    Ok(())
-}
-
-/// Detemrines whether engine must be on to charge battery
-fn handle_fc_on_causes_for_low_soc(
-    res: &ReversibleEnergyStorage,
-    rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
-    hev_state: &mut HEVState,
-    veh_state: VehicleState,
-) -> anyhow::Result<()> {
-    rgwdb.state.soc_fc_on_buffer = {
-        let energy_delta_to_buffer_speed = 0.5
-            * veh_state.mass
-            * (rgwdb
-                .speed_soc_fc_on_buffer
-                .with_context(|| format_dbg!())?
-                .powi(typenum::P2::new())
-                - veh_state.speed_ach.powi(typenum::P2::new()));
-        energy_delta_to_buffer_speed.max(si::Energy::ZERO)
-            * rgwdb
-                .speed_soc_fc_on_buffer_coeff
-                .with_context(|| format_dbg!())?
-    } / res.energy_capacity_usable()
-        + res.min_soc;
-    if res.state.soc < rgwdb.state.soc_fc_on_buffer {
-        hev_state.fc_on_causes.push(FCOnCause::ChargingForLowSOC)
-    }
-    Ok(())
-}
-
 /// Determines whether enigne must be on for high speed
 fn handle_fc_on_causes_for_speed(
     veh_state: VehicleState,
@@ -555,25 +495,6 @@ fn handle_fc_on_causes_for_speed(
         hev_state.fc_on_causes.push(FCOnCause::VehicleSpeedTooHigh);
     }
     Ok(())
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default, IsVariant, From, TryInto)]
-pub enum HEVAuxControls {
-    /// If feasible, use [ReversibleEnergyStorage] to handle aux power demand
-    #[default]
-    AuxOnResPriority,
-    /// If feasible, use [FuelConverter] to handle aux power demand
-    AuxOnFcPriority,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, IsVariant, From, TryInto)]
-pub enum HEVPowertrainControls {
-    /// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge
-    /// and discharge power inside of static min and max SOC range.  Also, includes
-    /// buffer for forcing [FuelConverter] to be active/on.
-    RGWDB(Box<RESGreedyWithDynamicBuffers>),
-    /// place holder for future variants
-    Placeholder,
 }
 
 impl Default for HEVPowertrainControls {
@@ -713,68 +634,105 @@ impl HEVPowertrainControls {
     }
 }
 
-/// Determines whether power demand requires engine to be on.  Not needed during
-/// negative traction.
-fn handle_fc_on_causes_for_pwr_demand(
-    rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
-    pwr_out_req: si::Power,
-    em_state: &ElectricMachineState,
-    fc_state: &FuelConverterState,
-    hev_state: &mut HEVState,
-) -> Result<(), anyhow::Error> {
-    let frac_pwr_demand_fc_forced_on: si::Ratio = rgwdb
-        .frac_pwr_demand_fc_forced_on
-        .with_context(|| format_dbg!())?;
-    if pwr_out_req
-        > frac_pwr_demand_fc_forced_on * (em_state.pwr_mech_fwd_out_max + fc_state.pwr_out_max)
-    {
-        hev_state
-            .fc_on_causes
-            .push(FCOnCause::PropulsionPowerDemandSoft);
-    }
-    if pwr_out_req - em_state.pwr_mech_fwd_out_max >= si::Power::ZERO {
-        hev_state
-            .fc_on_causes
-            .push(FCOnCause::PropulsionPowerDemand);
-    }
-    Ok(())
+/// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge
+/// and discharge power inside of static min and max SOC range.  Also, includes
+/// buffer for forcing [FuelConverter] to be active/on. See [Self::init] for
+/// default values.
+#[altrios_api]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default)]
+#[non_exhaustive]
+pub struct RESGreedyWithDynamicBuffers {
+    /// RES energy delta from minimum SOC corresponding to kinetic energy of
+    /// vehicle at this speed that triggers ramp down in RES discharge.
+    pub speed_soc_disch_buffer: Option<si::Velocity>,
+    /// Coefficient for modifying amount of accel buffer
+    pub speed_soc_disch_buffer_coeff: Option<si::Ratio>,
+    /// RES energy delta from minimum SOC corresponding to kinetic energy of
+    /// vehicle at this speed that triggers FC to be forced on.
+    pub speed_soc_fc_on_buffer: Option<si::Velocity>,
+    /// Coefficient for modifying amount of [Self::speed_soc_fc_on_buffer]
+    pub speed_soc_fc_on_buffer_coeff: Option<si::Ratio>,
+    /// RES energy delta from maximum SOC corresponding to kinetic energy of
+    /// vehicle at current speed minus kinetic energy of vehicle at this speed
+    /// triggers ramp down in RES discharge
+    pub speed_soc_regen_buffer: Option<si::Velocity>,
+    /// Coefficient for modifying amount of regen buffer
+    pub speed_soc_regen_buffer_coeff: Option<si::Ratio>,
+    /// Minimum time engine must remain on if it was on during the previous
+    /// simulation time step.
+    pub fc_min_time_on: Option<si::Time>,
+    /// Speed at which [FuelConverter] is forced on.
+    pub speed_fc_forced_on: Option<si::Velocity>,
+    /// Fraction of total aux and powertrain rated power at which
+    /// [FuelConverter] is forced on.
+    pub frac_pwr_demand_fc_forced_on: Option<si::Ratio>,
+    /// Force engine, if on, to run at this fraction of power at which peak
+    /// efficiency occurs or the required power, whichever is greater. If SOC is
+    /// below min buffer or engine is otherwise forced on and battery has room
+    /// to receive charge, engine will run at this level and charge.
+    pub frac_of_most_eff_pwr_to_run_fc: Option<si::Ratio>,
+    /// Fraction of available charging capacity to use toward running the engine
+    /// efficiently.
+    // NOTE: this is inherited from fastsim-2 and has no effect here.  After
+    // further thought, either remove it or use it.
+    pub frac_res_chrg_for_fc: si::Ratio,
+    // TODO: put `save_interval` in here
+    // NOTE: this is inherited from fastsim-2 and has no effect here.  After
+    // further thought, either remove it or use it.
+    /// Fraction of available discharging capacity to use toward running the
+    /// engine efficiently.
+    pub frac_res_dschrg_for_fc: si::Ratio,
+    /// temperature at which engine is forced on to warm up
+    #[serde(default)]
+    pub temp_fc_forced_on: Option<si::Temperature>,
+    /// temperature at which engine is allowed to turn off due to being sufficiently warm
+    #[serde(default)]
+    pub temp_fc_allowed_off: Option<si::Temperature>,
+    /// current state of control variables
+    #[serde(default)]
+    pub state: RGWDBState,
+    #[serde(default, skip_serializing_if = "RGWDBStateHistoryVec::is_empty")]
+    /// history of current state
+    pub history: RGWDBStateHistoryVec,
 }
 
-/// Detemrines whether engine must be on to charge battery
-fn handle_fc_on_causes_for_low_soc(
-    res: &ReversibleEnergyStorage,
-    rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
-    hev_state: &mut HEVState,
-    veh_state: VehicleState,
-) -> anyhow::Result<()> {
-    rgwdb.state.soc_fc_on_buffer = {
-        let energy_delta_to_buffer_speed = 0.5
-            * veh_state.mass
-            * (rgwdb
-                .speed_soc_fc_on_buffer
-                .with_context(|| format_dbg!())?
-                .powi(typenum::P2::new())
-                - veh_state.speed_ach.powi(typenum::P2::new()));
-        energy_delta_to_buffer_speed.max(si::Energy::ZERO)
-            * rgwdb
-                .speed_soc_fc_on_buffer_coeff
-                .with_context(|| format_dbg!())?
-    } / res.energy_capacity_usable()
-        + res.min_soc;
-    if res.state.soc < rgwdb.state.soc_fc_on_buffer {
-        hev_state.fc_on_causes.push(FCOnCause::ChargingForLowSOC)
+impl Init for RESGreedyWithDynamicBuffers {
+    fn init(&mut self) -> anyhow::Result<()> {
+        // TODO: make sure these values propagate to the documented defaults above
+        self.speed_soc_disch_buffer = self.speed_soc_disch_buffer.or(Some(40.0 * uc::MPH));
+        self.speed_soc_disch_buffer_coeff = self.speed_soc_disch_buffer_coeff.or(Some(1.0 * uc::R));
+        self.speed_soc_fc_on_buffer = self
+            .speed_soc_fc_on_buffer
+            .or(Some(self.speed_soc_disch_buffer.unwrap() * 1.1));
+        self.speed_soc_fc_on_buffer_coeff = self.speed_soc_fc_on_buffer_coeff.or(Some(1.0 * uc::R));
+        self.speed_soc_regen_buffer = self.speed_soc_regen_buffer.or(Some(30. * uc::MPH));
+        self.speed_soc_regen_buffer_coeff = self.speed_soc_regen_buffer_coeff.or(Some(1.0 * uc::R));
+        self.fc_min_time_on = self.fc_min_time_on.or(Some(uc::S * 5.0));
+        self.speed_fc_forced_on = self.speed_fc_forced_on.or(Some(uc::MPH * 75.));
+        self.frac_pwr_demand_fc_forced_on =
+            self.frac_pwr_demand_fc_forced_on.or(Some(uc::R * 0.75));
+        self.frac_of_most_eff_pwr_to_run_fc =
+            self.frac_of_most_eff_pwr_to_run_fc.or(Some(1.0 * uc::R));
+        Ok(())
     }
-    Ok(())
+}
+impl SerdeAPI for RESGreedyWithDynamicBuffers {}
+
+#[fastsim_api]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec, SetCumulative)]
+#[serde(default)]
+/// State for [RESGreedyWithDynamicBuffers ]
+pub struct RGWDBState {
+    /// time step index
+    pub i: usize,
+    /// Vector of posssible reasons the fc is forced on
+    pub fc_on_causes: FCOnCauses,
+    /// Number of `walk` iterations required to achieve SOC balance (i.e. SOC
+    /// ends at same starting value, ensuring no net [ReversibleEnergyStorage] usage)
+    pub soc_bal_iters: u32,
+    /// buffer at which FC is forced on
+    pub soc_fc_on_buffer: si::Ratio,
 }
 
-/// Determines whether enigne must be on for high speed
-fn handle_fc_on_causes_for_speed(
-    veh_state: VehicleState,
-    rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
-    hev_state: &mut HEVState,
-) -> anyhow::Result<()> {
-    if veh_state.speed_ach > rgwdb.speed_fc_forced_on.with_context(|| format_dbg!())? {
-        hev_state.fc_on_causes.push(FCOnCause::VehicleSpeedTooHigh);
-    }
-    Ok(())
-}
+impl Init for RGWDBState {}
+impl SerdeAPI for RGWDBState {}

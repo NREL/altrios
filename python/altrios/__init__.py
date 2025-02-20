@@ -57,7 +57,7 @@ def to_pydict(self,
     # Arguments
     - `flatten`: if True, returns dict without any hierarchy
     - `data_fmt`: data format for intermediate conversion step
-    - `key_substrings_to_keep`: list of substrings to check for in object dictionary.
+    - `key_substrings_to_keep`: list of substrings or regular expressions to check for in object dictionary.
     """
     data_fmt = data_fmt.lower()
     assert data_fmt in data_formats, f"`data_fmt` must be one of {data_formats}"
@@ -119,7 +119,7 @@ def get_flattened(obj: Dict | List, hist_len: int, prepend_str: str = "", key_su
     # - `obj`: object to flatten
     # -  hist_len: length of any lists storing history data
     # - `prepend_str`: prepend this to all keys in the returned `flat` dict
-    # - `key_substrings_to_keep`: list of substrings to check for in object dictionary.
+    # - `key_substrings_to_keep`: list of substrings or regular expressions to check for in object dictionary.
     """
     flat: Dict = {}
     if isinstance(obj, dict):
@@ -128,7 +128,7 @@ def get_flattened(obj: Dict | List, hist_len: int, prepend_str: str = "", key_su
             if isinstance(v, dict) or (isinstance(v, list) and len(v) != hist_len):
                 flat.update(get_flattened(v, hist_len, prepend_str=new_key, key_substrings_to_keep=key_substrings_to_keep))
             else:
-                if key_substrings_to_keep is None or any(to_keep in new_key for to_keep in key_substrings_to_keep):
+                if key_substrings_to_keep is None or any(bool(re.search(to_keep, new_key)) for to_keep in key_substrings_to_keep):
                     flat[new_key] = v
     elif isinstance(obj, list):
         for (i, v) in enumerate(obj):
@@ -136,7 +136,7 @@ def get_flattened(obj: Dict | List, hist_len: int, prepend_str: str = "", key_su
             if isinstance(v, dict) or (isinstance(v, list) and len(v) != hist_len):
                 flat.update(get_flattened(v, hist_len, prepend_str=new_key, key_substrings_to_keep=key_substrings_to_keep))
             else:
-                if key_substrings_to_keep is None or any(to_keep in new_key for to_keep in key_substrings_to_keep):
+                if key_substrings_to_keep is None or any(bool(re.search(to_keep, new_key)) for to_keep in key_substrings_to_keep):
                     flat[new_key] = v
     else:
         raise TypeError("`obj` should be `dict` or `list`")
@@ -173,7 +173,7 @@ def to_dataframe(self,
     # Arguments
     - `pandas`: returns pandas dataframe if True; otherwise, returns polars dataframe by default
     - `allow_partial`: tries to return dataframe of length equal to solved time steps if simulation fails early
-    - `key_substrings_to_keep`: list of substrings to check for in object dictionary.
+    - `key_substrings_to_keep`: list of substrings or regular expressions to check for in object dictionary.
     """
     obj_dict = self.to_pydict(flatten=True, key_substrings_to_keep=key_substrings_to_keep)
     hist_len = get_hist_len(obj_dict)

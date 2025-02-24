@@ -48,18 +48,6 @@ impl<T: ObjState> ObjStateConst for T {
     }
 }
 
-impl<T> ObjState for Vec<T>
-where
-    [T]: ObjState,
-{
-    fn is_fake(&self) -> bool {
-        (**self).is_fake()
-    }
-    fn validate(&self) -> ValidationResults {
-        (**self).validate()
-    }
-}
-
 pub fn validate_slice_real<T>(errors: &mut ValidationErrors, slice: &[T], elem_name: &str)
 where
     T: ObjState,

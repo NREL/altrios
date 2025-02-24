@@ -285,15 +285,15 @@ impl ObjState for Link {
                 Some(max_abs_grade) => {
                     if max_abs_grade > max_allowed_abs_grade {
                         errors.push(anyhow!(
-                            "{}\nMax absolute grade ({}%) exceeds max allowed grade ({}%)",
+                            "\n{}\nMax absolute grade ({}%) exceeds max allowed grade ({}%)",
                             format_dbg!(),
-                            max_abs_grade.get::<si::ratio>() / 100.0,
-                            max_allowed_abs_grade.get::<si::ratio>() / 100.0
+                            max_abs_grade.get::<si::ratio>(),
+                            max_allowed_abs_grade.get::<si::ratio>()
                         ));
                     }
                 }
                 None => errors.push(anyhow!(
-                    "{}\nFailed to calculate max absolute grade.",
+                    "\n{}\nFailed to calculate max absolute grade.",
                     format_dbg!()
                 )),
             };
@@ -315,7 +315,7 @@ impl ObjState for Link {
                 Some(max_abs_curv) => {
                     if max_abs_curv > max_allowed_abs_curv {
                         errors.push(anyhow!(
-                        "{}\nMax curvature ({} degrees per 100 feet) exceeds max allowed curvature ({} degrees per 100 feet)",
+                        "\n{}\nMax curvature ({} degrees per 100 feet) exceeds max allowed curvature ({} degrees per 100 feet)",
                         format_dbg!(),
                         max_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0,
                         max_allowed_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0
@@ -406,7 +406,7 @@ impl SerdeAPI for Network {
     fn init(&mut self) -> Result<(), Error> {
         self.as_ref()
             .validate()
-            .map_err(|err| Error::InitError(format_dbg!(err)))
+            .map_err(|err| Error::InitError(format!("\n{}\n{err}", format_dbg!())))
     }
 }
 

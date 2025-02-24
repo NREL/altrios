@@ -111,7 +111,7 @@ impl Mass for ConventionalLoco {
 }
 
 impl SerdeAPI for ConventionalLoco {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.fc.init()?;
         self.gen.init()?;
         self.edrv.init()?;

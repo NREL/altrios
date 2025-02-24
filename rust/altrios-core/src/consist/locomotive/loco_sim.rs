@@ -282,7 +282,7 @@ impl LocomotiveSimulation {
 }
 
 impl SerdeAPI for LocomotiveSimulation {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.loco_unit.init()?;
         self.power_trace.init()?;
         Ok(())
@@ -310,7 +310,7 @@ impl Default for LocomotiveSimulation {
 pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
 
 impl SerdeAPI for LocomotiveSimulationVec {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.0.iter_mut().try_for_each(|l| l.init())?;
         Ok(())
     }

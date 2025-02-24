@@ -1,6 +1,6 @@
 use crate::imports::*;
 
-/// Standardizes conversion from smaller than usize types for indexing.
+///Standardizes conversion from smaller than usize types for indexing.
 pub trait Idx {
     fn idx(self) -> usize;
 }
@@ -113,7 +113,7 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     const ACCEPTED_STR_FORMATS: &'static [&'static str] = &["yaml", "json"];
 
     /// Specialized code to execute upon initialization
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         Ok(())
     }
 
@@ -309,7 +309,7 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
 }
 
 impl<T: SerdeAPI> SerdeAPI for Vec<T> {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         for val in self {
             val.init()?
         }

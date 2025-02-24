@@ -93,9 +93,8 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         /// Write (serialize) an object to a message pack
         #[cfg(feature = "msgpack")]
         #[pyo3(name = "to_msg_pack")]
-        // TODO: figure from Kyle out how to use `PyIOError`
-        pub fn to_msg_pack_py<'py>(&self, py: Python<'py>) -> anyhow::Result<Bound<'py, PyBytes>> {
-            Ok(PyBytes::new_bound(py, &self.to_msg_pack()?))
+        pub fn to_msg_pack_py(&self) -> PyResult<Vec<u8>> {
+            self.to_msg_pack().map_err(|e| PyIOError::new_err(format!("{:?}", e)))
         }
 
         /// Read (deserialize) an object from a message pack
@@ -106,12 +105,11 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[staticmethod]
         #[pyo3(name = "from_msg_pack")]
         #[pyo3(signature = (msg_pack, skip_init=None))]
-        // TODO: figure from Kyle out how to use `PyIOError`
-        pub fn from_msg_pack_py(msg_pack: &Bound<PyBytes>, skip_init: Option<bool>) -> anyhow::Result<Self> {
+        pub fn from_msg_pack_py(msg_pack: &Bound<PyBytes>, skip_init: Option<bool>) -> PyResult<Self> {
             Self::from_msg_pack(
-                msg_pack.as_bytes(),
+                msg_pack.as_bytes(), 
                 skip_init.unwrap_or_default()
-            )
+            ).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
         }
 
         /// See [SerdeAPI::to_bincode]
@@ -129,7 +127,7 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         #[pyo3(name = "init")]
         fn init_py(&mut self) -> PyResult<()> {
-            Ok(self.init()?)
+            self.init().map_err(|e| PyIOError::new_err(format!("{:?}", e)))
         }
 
         /// `__copy__` magic method that uses `clone`.

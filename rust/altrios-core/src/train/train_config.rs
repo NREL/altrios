@@ -118,10 +118,14 @@ pub struct TrainConfig {
 }
 
 impl SerdeAPI for TrainConfig {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         if let Some(dcv) = &self.cd_area_vec {
             // TODO: account for locomotive drag here, too
-            ensure!(dcv.len() as u32 == self.cars_total());
+            if dcv.len() as u32 != self.cars_total() {
+                return Err(Error::InitError(
+                    "`cd_area_vec` len and `cars_total()` do not match".into(),
+                ));
+            }
         };
         Ok(())
     }
@@ -1470,7 +1474,7 @@ impl SpeedLimitTrainSimVec {
 }
 
 impl SerdeAPI for SpeedLimitTrainSimVec {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.0.iter_mut().try_for_each(|ts| ts.init())?;
         Ok(())
     }

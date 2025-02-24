@@ -1,13 +1,17 @@
+//! Custom error types
+
 use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub enum AltriosError {
-    #[error("SerdeAPI::Init failed: {0}")]
-    Init(String),
-    #[error("Simulation failed: {0}")]
-    Simulation(String),
+#[derive(Error, Debug, Clone)]
+pub enum Error {
+    #[error("`Init::init` failed: {0}")]
+    InitError(String),
+    #[error("`SerdeAPI` failed {0}")]
+    SerdeError(String),
+    #[error("{0}")]
+    SimulationError(String),
+    // #[error(transparent)]
+    // NinterpError(#[from] ninterp::error::Error),
     #[error("{0}")]
     Other(String),
 }
-
-pub type AltriosResult<T> = Result<T, AltriosError>;

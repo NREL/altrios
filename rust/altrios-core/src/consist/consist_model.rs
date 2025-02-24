@@ -126,8 +126,10 @@ pub struct Consist {
 }
 
 impl SerdeAPI for Consist {
-    fn init(&mut self) -> anyhow::Result<()> {
-        let _mass = self.mass().with_context(|| format_dbg!())?;
+    fn init(&mut self) -> Result<(), Error> {
+        let _mass = self
+            .mass()
+            .map_err(|err| Error::InitError(format_dbg!(err)))?;
         self.set_pwr_dyn_brake_max();
         self.loco_vec.init()?;
         self.pdct.init()?;

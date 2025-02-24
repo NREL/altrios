@@ -696,7 +696,7 @@ impl SpeedLimitTrainSim {
 }
 
 impl SerdeAPI for SpeedLimitTrainSim {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.origs.init()?;
         self.dests.init()?;
         self.loco_con.init()?;

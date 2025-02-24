@@ -27,7 +27,7 @@ pub trait LocoTrait {
 pub struct Pyo3VecLocoWrapper(pub Vec<Locomotive>);
 
 impl SerdeAPI for Pyo3VecLocoWrapper {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.0.iter_mut().try_for_each(|l| l.init())?;
         Ok(())
     }

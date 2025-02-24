@@ -10,9 +10,11 @@ use crate::imports::*;
 /// An arbitrary unit of single track that does not include turnouts
 ///
 /// # Note:
-/// This struct is to be deprecated and superseded by [super::link_impl::Link].
+/// This struct is to be deprecated and superseded by [super::link_impl::Link],
+/// which includes either a train-type-independent `speed_set` or a
+/// train-type-dependent `speed_sets` HashMap, superseding [LinkOld]
 #[altrios_api()]
-pub struct LinkWithSpeedSets {
+pub struct LinkOld {
     pub elevs: Vec<Elev>,
     #[serde(default)]
     pub headings: Vec<Heading>,

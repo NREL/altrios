@@ -2,7 +2,7 @@ use super::cat_power::*;
 use super::elev::*;
 use super::heading::*;
 use super::link_idx::*;
-use super::link_with_speed_sets::LinkWithSpeedSets;
+use super::link_old::LinkOld;
 use super::speed::*;
 use crate::imports::*;
 
@@ -82,8 +82,8 @@ impl Link {
     }
 }
 
-impl From<LinkWithSpeedSets> for Link {
-    fn from(l: LinkWithSpeedSets) -> Self {
+impl From<LinkOld> for Link {
+    fn from(l: LinkOld) -> Self {
         let mut speed_sets: HashMap<TrainType, SpeedSet> = HashMap::new();
         for oss in l.speed_sets {
             speed_sets.insert(
@@ -381,9 +381,9 @@ impl SerdeAPI for Network {
         })?;
         let mut network = match Self::from_reader(&mut file, extension, skip_init) {
             Ok(network) => network,
-            Err(err) => NetworkWithSpeedSets::from_file(filepath, false)
+            Err(err) => NetworkOld::from_file(filepath, false)
                 .map_err(|old_err| {
-                    anyhow!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkWithSpeedSets`:\n{}", err, old_err)
+                    anyhow!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err)
                 })?
                 .into(),
         };
@@ -399,20 +399,22 @@ impl SerdeAPI for Network {
     }
 }
 
-impl From<NetworkWithSpeedSets> for Network {
-    fn from(old: NetworkWithSpeedSets) -> Self {
+impl From<NetworkOld> for Network {
+    fn from(old: NetworkOld) -> Self {
         Network(old.0.iter().map(|l| Link::from(l.clone())).collect())
     }
 }
 
 #[altrios_api]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
-/// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
+/// Struct that contains a `Vec<LinkOld>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
 ///
 /// # Note:
-/// This struct will be deprecated and superseded by [Network]
-pub struct NetworkWithSpeedSets(pub Vec<LinkWithSpeedSets>);
+/// This struct will be deprecated and superseded by [Network], which has the
+/// option for either a train-type-independent `speed_set` or a train-type-dependent
+/// `speed_sets` HashMap
+pub struct NetworkOld(pub Vec<LinkOld>);
 
 impl AsRef<[Link]> for Network {
     fn as_ref(&self) -> &[Link] {

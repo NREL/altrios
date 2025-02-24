@@ -3,7 +3,7 @@ mod elev;
 mod heading;
 pub(in super::super) mod link_idx;
 pub(in super::super) mod link_impl;
-pub(super) mod link_with_speed_sets;
+pub(super) mod link_old;
 mod location;
 mod speed;
 

@@ -4,9 +4,9 @@ pub(crate) use crate::track::{
     self,
     Link,
     LinkIdx,
-    LinkPoint,
     // used in test
-    LinkWithSpeedSets,
+    LinkOld,
+    LinkPoint,
     Location,
     Network,
 };

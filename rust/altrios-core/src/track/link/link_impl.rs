@@ -366,28 +366,39 @@ impl ObjState for Network {
 }
 
 impl SerdeAPI for Network {
-    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> anyhow::Result<Self> {
+    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> Result<Self, Error> {
         let filepath = filepath.as_ref();
         let extension = filepath
             .extension()
             .and_then(OsStr::to_str)
-            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        let mut file = File::open(filepath).with_context(|| {
-            if !filepath.exists() {
-                format!("File not found: {filepath:?}")
-            } else {
-                format!("Could not open file: {filepath:?}")
-            }
+            .ok_or_else(|| {
+                Error::SerdeError(format!("File extension could not be parsed: {filepath:?}"))
+            })?;
+        let mut file = File::open(filepath).map_err(|err| {
+            Error::SerdeError(format!(
+                "{err}\n{}",
+                if !filepath.exists() {
+                    format!("File not found: {filepath:?}")
+                } else {
+                    format!("Could not open file: {filepath:?}")
+                }
+            ))
         })?;
-        let mut network = match Self::from_reader(&mut file, extension, skip_init) {
+        let network = match Self::from_reader(&mut file, extension, skip_init) {
             Ok(network) => network,
-            Err(err) => NetworkOld::from_file(filepath, false)
-                .map_err(|old_err| {
-                    anyhow!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err)
-                })?
-                .into(),
+            Err(err) => match err {
+                Error::SerdeError(err) => {
+                    NetworkOld::from_file(filepath, false)
+                        .map_err(|old_err| {
+                            Error::SerdeError(format!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err))
+                        })?
+                        .into()
+                }
+                _ => return Err(err),
+            }
+
+
         };
-        network.init()?;
 
         Ok(network)
     }

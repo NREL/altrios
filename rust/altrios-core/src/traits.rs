@@ -150,18 +150,23 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     ///
     /// * `filepath`: The filepath from which to read the object
     ///
-    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> anyhow::Result<Self> {
+    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> Result<Self, Error> {
         let filepath = filepath.as_ref();
         let extension = filepath
             .extension()
             .and_then(OsStr::to_str)
-            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        let mut file = File::open(filepath).with_context(|| {
-            if !filepath.exists() {
-                format!("File not found: {filepath:?}")
-            } else {
-                format!("Could not open file: {filepath:?}")
-            }
+            .ok_or_else(|| {
+                Error::SerdeError(format!("File extension could not be parsed: {filepath:?}"))
+            })?;
+        let mut file = File::open(filepath).map_err(|err| {
+            Error::SerdeError(format!(
+                "{err}\n{}",
+                if !filepath.exists() {
+                    format!("File not found: {filepath:?}")
+                } else {
+                    format!("Could not open file: {filepath:?}")
+                }
+            ))
         })?;
         Self::from_reader(&mut file, extension, skip_init)
     }
@@ -214,17 +219,23 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
         rdr: &mut R,
         format: &str,
         skip_init: bool,
-    ) -> anyhow::Result<Self> {
-        let mut deserialized: Self = match format.trim_start_matches('.').to_lowercase().as_str() {
-            "yaml" | "yml" => serde_yaml::from_reader(rdr)?,
-            "json" => serde_json::from_reader(rdr)?,
-            #[cfg(feature = "msgpack")]
-            "msgpack" => rmp_serde::decode::from_read(rdr)?,
-            _ => bail!(
-                "Unsupported format {format:?}, must be one of {:?}",
-                Self::ACCEPTED_BYTE_FORMATS
-            ),
-        };
+    ) -> Result<Self, Error> {
+        let mut deserialized: Self =
+            match format.trim_start_matches('.').to_lowercase().as_str() {
+                "yaml" | "yml" => serde_yaml::from_reader(rdr)
+                    .map_err(|err| Error::SerdeError(format!("{err}")))?,
+                "json" => serde_json::from_reader(rdr)
+                    .map_err(|err| Error::SerdeError(format!("{err}")))?,
+                #[cfg(feature = "msgpack")]
+                "msgpack" => rmp_serde::decode::from_read(rdr)
+                    .map_err(|err| Error::SerdeError(format!("{err}")))?,
+                _ => {
+                    return Err(Error::SerdeError(format!(
+                        "Unsupported format {format:?}, must be one of {:?}",
+                        Self::ACCEPTED_BYTE_FORMATS
+                    )))
+                }
+            };
         if !skip_init {
             deserialized.init()?;
         }

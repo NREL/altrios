@@ -179,7 +179,10 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             #[pyo3(name = "from_file")]
             #[pyo3(signature = (filepath, skip_init=None))]
             pub fn from_file_py(filepath: &Bound<PyAny>, skip_init: Option<bool>) -> PyResult<Self> {
-                Ok(Self::from_file(PathBuf::extract_bound(filepath)?, skip_init.unwrap_or_default())?)
+                Self::from_file(
+                    PathBuf::extract_bound(filepath)?,
+                    skip_init.unwrap_or_default()
+                ).map_err(|err| PyIOError::new_err(format!("{:?}", err)))
             }
         }
     };

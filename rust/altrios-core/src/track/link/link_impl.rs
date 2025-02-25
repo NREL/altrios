@@ -158,6 +158,7 @@ impl ObjState for Link {
                 ));
             }
         } else {
+            // Link is real
             si_chk_num_gtz(&mut errors, &self.length, "Link length");
             validate_field_real(&mut errors, &self.elevs, "Elevations");
             if !self.headings.is_empty() {
@@ -388,16 +389,19 @@ impl SerdeAPI for Network {
             Ok(network) => network,
             Err(err) => match err {
                 Error::SerdeError(err) => {
-                    NetworkOld::from_file(filepath, false)
+                    let mut network: Self = NetworkOld::from_file(filepath, false)
                         .map_err(|old_err| {
                             Error::SerdeError(format!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err))
                         })?
-                        .into()
+                        .into();
+                    // init needs to happen after conversion
+                    if !skip_init {
+                        network.init()?;
+                    }
+                    network
                 }
                 _ => return Err(err),
-            }
-
-
+            },
         };
 
         Ok(network)
@@ -704,7 +708,14 @@ mod tests {
         let network_file_path = project_root::get_project_root()
             .unwrap()
             .join("../python/altrios/resources/networks/Taconite.yaml");
-        let network_speed_sets = Network::from_file(network_file_path, false).unwrap();
+        let network_speed_sets = {
+            let network = Network::from_file(network_file_path, false);
+            if let Err(err) = &network {
+                panic!("{err}");
+            }
+            network
+        }
+        .unwrap();
         let mut network_speed_set = network_speed_sets.clone();
         network_speed_set
             .set_speed_set_for_train_type(TrainType::Freight)

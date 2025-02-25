@@ -225,13 +225,17 @@ mod test_train_disp {
         let network_file_path = project_root::get_project_root()
             .unwrap()
             .join("../python/altrios/resources/networks/Taconite.yaml");
-        let network = Network::from_file(network_file_path, false);
-        if let Err(err) = &network {
-            panic!("{err}")
+        let network = {
+            let network = Network::from_file(network_file_path, false);
+            if let Err(err) = &network {
+                panic!("{err}");
+            }
+            network
         }
+        .unwrap();
 
         let speed_limit_train_sim = crate::train::speed_limit_train_sim_fwd();
-        let est_times = make_est_times(speed_limit_train_sim.clone(), network.unwrap(), None)
+        let est_times = make_est_times(speed_limit_train_sim.clone(), network, None)
             .unwrap()
             .0;
         TrainDisp::new(
@@ -253,7 +257,14 @@ mod test_train_disp {
         let network_file_path = project_root::get_project_root()
             .unwrap()
             .join("../python/altrios/resources/networks/Taconite.yaml");
-        let network = Network::from_file(network_file_path, false).unwrap();
+        let network = {
+            let network = Network::from_file(network_file_path, false);
+            if let Err(err) = &network {
+                panic!("{err}");
+            }
+            network
+        }
+        .unwrap();
 
         let speed_limit_train_sim = crate::train::speed_limit_train_sim_rev();
         let est_times = make_est_times(speed_limit_train_sim.clone(), network, None)

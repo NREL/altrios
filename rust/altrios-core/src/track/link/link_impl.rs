@@ -285,7 +285,7 @@ impl ObjState for Link {
                 Some(max_abs_grade) => {
                     if max_abs_grade > max_allowed_abs_grade {
                         errors.push(anyhow!(
-                            "\n{}\nMax absolute grade ({}%) exceeds max allowed grade ({}%)",
+                            "{} -- Max absolute grade ({}%) exceeds max allowed grade ({}%)",
                             format_dbg!(),
                             max_abs_grade.get::<si::ratio>(),
                             max_allowed_abs_grade.get::<si::ratio>()
@@ -293,7 +293,7 @@ impl ObjState for Link {
                     }
                 }
                 None => errors.push(anyhow!(
-                    "\n{}\nFailed to calculate max absolute grade.",
+                    "{} -- Failed to calculate max absolute grade.",
                     format_dbg!()
                 )),
             };
@@ -315,7 +315,7 @@ impl ObjState for Link {
                 Some(max_abs_curv) => {
                     if max_abs_curv > max_allowed_abs_curv {
                         errors.push(anyhow!(
-                        "\n{}\nMax curvature ({} degrees per 100 feet) exceeds max allowed curvature ({} degrees per 100 feet)",
+                        "{} -- Max curvature ({} degrees per 100 feet) exceeds max allowed curvature ({} degrees per 100 feet)",
                         format_dbg!(),
                         max_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0,
                         max_allowed_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0
@@ -323,7 +323,7 @@ impl ObjState for Link {
                     }
                 }
                 None => errors.push(anyhow!(
-                    "{}\nFailed to calculate max absolute curvature.",
+                    "{} -- Failed to calculate max absolute curvature.",
                     format_dbg!()
                 )),
             };

@@ -30,6 +30,7 @@ class LiftsState:
     CONTAINER_TAL: float = 8.6
     # CRANE_NUMBER = int(input("Enter the number of crane: "))
     CRANE_NUMBER: int = 2
+    CRANE_HYBRID_PERCENTAGE: float = 0.5
     CONTAINERS_PER_CRANE_MOVE_MEAN: float = 600   # crane movement speed mean value: 10ft/min = 600 ft/hr, crane speed
     CRANE_MOVE_DEV_TIME: float = 5/60 # crane movement speed deviation value: hr
 

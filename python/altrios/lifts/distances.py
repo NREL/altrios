@@ -7,7 +7,7 @@ M = 2 # decide the number of rows of parking blocks in the layout
 N = 2 # decide the number of columns of parking blocks in the layout
 n_t = 2 # decide the numbers of train side aisles per group
 n_p = 2 # decide the numbers of parking area aisles per group
-n_r = 5  # decide the number of spots within each parking block (10 * n_r = BL_l, the length of each parking block)
+n_r = 6  # decide the number of spots within each parking block (10 * n_r = BL_l, the length of each parking block)
 
 # Fixed yard parameters
 P = 10  # fixed aisle width

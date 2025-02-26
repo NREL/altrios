@@ -10,14 +10,13 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
     // println!("struct: {}", ast.ident.to_string());
 
     let mut py_impl_block = TokenStream2::default();
-    let mut impl_block = TokenStream2::default();
 
     py_impl_block.extend::<TokenStream2>(parse_ts_as_fn_defs(attr, vec![], false, vec![]));
 
     if let syn::Fields::Named(syn::FieldsNamed { named, .. }) = &mut ast.fields {
         process_named_field_structs(named, &mut py_impl_block);
     } else if let syn::Fields::Unnamed(syn::FieldsUnnamed { unnamed, .. }) = &mut ast.fields {
-        process_tuple_struct(unnamed, &mut py_impl_block, &mut impl_block, ident);
+        process_tuple_struct(unnamed, &mut py_impl_block);
     } else {
         abort_call_site!(
             "Invalid use of `altrios_api` macro.  Expected tuple struct or C-style struct."
@@ -191,7 +190,6 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[cfg_attr(feature="pyo3", pyclass(module="altrios_pyo3", subclass, eq))]
     });
     let mut output: TokenStream2 = ast.to_token_stream();
-    output.extend(impl_block);
     output.extend(py_impl_block);
     // println!("{}", output.to_string());
     final_output.extend::<TokenStream2>(output);
@@ -281,8 +279,6 @@ fn process_named_field_structs(
 fn process_tuple_struct(
     unnamed: &mut syn::punctuated::Punctuated<syn::Field, syn::token::Comma>,
     py_impl_block: &mut TokenStream2,
-    impl_block: &mut TokenStream2,
-    ident: &Ident,
 ) {
     // tuple struct
     assert!(unnamed.len() <= 2);
@@ -298,7 +294,6 @@ fn process_tuple_struct(
                     .to_string()
                     .parse()
                     .unwrap();
-                println!("{contained_dtype}");
                 py_impl_block.extend::<TokenStream2>(
                     quote! {
                         /// Rust-defined `__repr__` magic method for Python used exposed via PyO3.

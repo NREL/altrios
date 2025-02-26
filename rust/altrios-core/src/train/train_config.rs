@@ -293,7 +293,7 @@ impl Valid for TrainConfig {
             Ok(n) => n,
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network(n, None)
+                Network(n)
             }
         };
 
@@ -333,7 +333,7 @@ impl Valid for TrainConfig {
             Ok(n) => n,
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network(n, None)
+                Network(n)
             }
         };
 
@@ -810,7 +810,7 @@ pub fn run_speed_limit_train_sims(
             let n = network
                 .extract::<Vec<Link>>()
                 .map_err(|_| anyhow!("{}", format_dbg!()))?;
-            Network(n, None)
+            Network(n)
         }
     };
 
@@ -1416,6 +1416,10 @@ pub fn run_speed_limit_train_sims(
 pub struct SpeedLimitTrainSimVec(pub Vec<SpeedLimitTrainSim>);
 
 impl SpeedLimitTrainSimVec {
+    pub fn new(value: Vec<SpeedLimitTrainSim>) -> Self {
+        Self(value)
+    }
+
     pub fn get_energy_fuel(&self, annualize: bool) -> si::Energy {
         self.0
             .iter()

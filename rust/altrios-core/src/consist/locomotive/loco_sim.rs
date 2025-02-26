@@ -315,7 +315,6 @@ impl Default for LocomotiveSimulation {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
 impl LocomotiveSimulationVec {
-    /// Implement the non-Python `new` method.
     pub fn new(value: Vec<LocomotiveSimulation>) -> Self {
         Self(value)
     }

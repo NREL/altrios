@@ -272,7 +272,7 @@ pub fn run_dispatch_py(
             let n = network
                 .extract::<Vec<Link>>()
                 .map_err(|_| anyhow!("{}", format_dbg!()))?;
-            Network(n, None)
+            Network(n)
         }
     };
 

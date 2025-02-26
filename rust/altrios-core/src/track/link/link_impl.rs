@@ -350,11 +350,17 @@ impl ObjState for Link {
     }
 }
 
+#[altrios_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+/// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
+/// Python
+pub struct NetworkChecked(pub Vec<Link>, pub Option<f64>);
+
 #[altrios_api(
     #[new]
     /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
     fn __new__(v: Vec<Link>) -> Self {
-        Self(v, None)
+        Self(v)
     }
 
     #[pyo3(name = "set_speed_set_for_train_type")]
@@ -365,9 +371,13 @@ impl ObjState for Link {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 /// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
-pub struct Network(pub Vec<Link>, pub Option<f64>);
+pub struct Network(pub Vec<Link>);
 
 impl Network {
+    pub fn new(value: Vec<Link>) -> Self {
+        Self(value)
+    }
+
     /// Sets `self.speed_set` based on `self.speed_sets` value corresponding to `train_type` key for
     /// all links
     pub fn set_speed_set_for_train_type(&mut self, train_type: TrainType) -> anyhow::Result<()> {
@@ -407,26 +417,46 @@ impl SerdeAPI for Network {
                 }
             ))
         })?;
-        let network = match Self::from_reader(&mut file, extension, skip_init) {
-            Ok(network) => network,
-            Err(err) => match err {
-                Error::SerdeError(err) => {
-                    let mut network: Self = NetworkOld::from_file(filepath, false)
-                        .map_err(|old_err| {
-                            Error::SerdeError(format!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err))
-                        })?
-                        .into();
-                    // init needs to happen after conversion
-                    if !skip_init {
-                        network.init()?;
+        match Self::from_reader(&mut file, extension, skip_init) {
+            Ok(network) => {
+                // init already happened in `from_reader`
+                return Ok(network);
+            }
+            Err(err0) => match err0 {
+                // if the outer error `err0` is a SerdeError, try another network format
+                Error::SerdeError(_) => {
+                    match NetworkOld::from_reader(&mut file, extension, skip_init) {
+                        Err(err1) => {
+                            match err1 {
+                                // if the outer error `err1` is a SerdeError, try another network format
+                                Error::SerdeError(_) => {
+                                    match NetworkChecked::from_reader(
+                                        &mut file, extension, skip_init,
+                                    ) {
+                                        // no other network formats to try
+                                        Err(err2) => {
+                                            return Err(err2).map_err(|err2| {
+                                                Error::SerdeError(format!(
+                                                    "\n{err0}\n{err1}\n{err2}"
+                                                ))
+                                            })
+                                        }
+                                        Ok(network) => return Ok(network.into()),
+                                    }
+                                }
+                                _ => {
+                                    return Err(err1).map_err(|err1| {
+                                        Error::SerdeError(format!("\n{err0}\n{err1}"))
+                                    })
+                                }
+                            }
+                        }
+                        Ok(network) => return Ok(network.into()),
                     }
-                    network
                 }
-                _ => return Err(err),
+                _ => return Err(err0),
             },
-        };
-
-        Ok(network)
+        }
     }
 
     fn init(&mut self) -> Result<(), Error> {
@@ -438,17 +468,17 @@ impl SerdeAPI for Network {
 
 impl From<NetworkOld> for Network {
     fn from(old: NetworkOld) -> Self {
-        Network(old.0.iter().map(|l| Link::from(l.clone())).collect(), None)
+        Network(old.0.iter().map(|l| Link::from(l.clone())).collect())
     }
 }
 
-#[altrios_api(
-    #[new]
-    /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
-    fn __new__(v: Vec<LinkOld>) -> Self {
-        Self(v)
+impl From<NetworkChecked> for Network {
+    fn from(checked: NetworkChecked) -> Self {
+        Network(checked.0)
     }
-)]
+}
+
+#[altrios_api]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
 /// Struct that contains a `Vec<LinkOld>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
@@ -467,7 +497,7 @@ impl AsRef<[Link]> for Network {
 
 impl From<&Vec<Link>> for Network {
     fn from(value: &Vec<Link>) -> Self {
-        Self(value.to_vec(), None)
+        Self(value.to_vec())
     }
 }
 

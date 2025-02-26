@@ -33,6 +33,13 @@ impl LinkIdxTime {
 /// `Vec<LinkIdxTime>` in Python
 pub struct TimedLinkPath(pub Vec<LinkIdxTime>);
 
+impl TimedLinkPath {
+    /// Implement the non-Python `new` method.
+    pub fn new(value: Vec<LinkIdxTime>) -> Self {
+        Self(value)
+    }
+}
+
 impl AsRef<[LinkIdxTime]> for TimedLinkPath {
     fn as_ref(&self) -> &[LinkIdxTime] {
         &self.0
@@ -127,7 +134,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
             Ok(n) => n,
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network(n, None)
+                Network(n)
             }
         };
 

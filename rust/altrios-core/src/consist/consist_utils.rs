@@ -21,10 +21,21 @@ pub trait LocoTrait {
     fn get_energy_loss(&self) -> si::Energy;
 }
 
-#[altrios_api]
+#[altrios_api(
+    #[new]
+    /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
+    fn __new__(v: Vec<Locomotive>) -> Self {
+        Self(v)
+    }
+)]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
 /// Wrapper struct for `Vec<Locomotive>` to expose various methods to Python.
 pub struct Pyo3VecLocoWrapper(pub Vec<Locomotive>);
+impl Pyo3VecLocoWrapper {
+    pub fn new(value: Vec<Locomotive>) -> Self {
+        Self(value)
+    }
+}
 
 impl SerdeAPI for Pyo3VecLocoWrapper {
     fn init(&mut self) -> Result<(), Error> {

@@ -298,6 +298,12 @@ impl Default for LocomotiveSimulation {
 }
 
 #[altrios_api(
+    #[new]
+    /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
+    fn __new__(v: Vec<LocomotiveSimulation>) -> Self {
+        Self(v)
+    }
+
     #[pyo3(name="walk")]
     #[pyo3(signature = (b_parallelize=None))]
     /// Exposes `walk` to Python.
@@ -308,6 +314,12 @@ impl Default for LocomotiveSimulation {
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
+impl LocomotiveSimulationVec {
+    /// Implement the non-Python `new` method.
+    pub fn new(value: Vec<LocomotiveSimulation>) -> Self {
+        Self(value)
+    }
+}
 
 impl SerdeAPI for LocomotiveSimulationVec {
     fn init(&mut self) -> Result<(), Error> {

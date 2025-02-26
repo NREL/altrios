@@ -351,6 +351,12 @@ impl ObjState for Link {
 }
 
 #[altrios_api(
+    #[new]
+    /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
+    fn __new__(v: Vec<Link>) -> Self {
+        Self(v, None)
+    }
+
     #[pyo3(name = "set_speed_set_for_train_type")]
     fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> PyResult<()> {
         Ok(self.set_speed_set_for_train_type(train_type)?)
@@ -359,7 +365,7 @@ impl ObjState for Link {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 /// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
-pub struct Network(pub Vec<Link>);
+pub struct Network(pub Vec<Link>, pub Option<f64>);
 
 impl Network {
     /// Sets `self.speed_set` based on `self.speed_sets` value corresponding to `train_type` key for
@@ -432,11 +438,17 @@ impl SerdeAPI for Network {
 
 impl From<NetworkOld> for Network {
     fn from(old: NetworkOld) -> Self {
-        Network(old.0.iter().map(|l| Link::from(l.clone())).collect())
+        Network(old.0.iter().map(|l| Link::from(l.clone())).collect(), None)
     }
 }
 
-#[altrios_api]
+#[altrios_api(
+    #[new]
+    /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
+    fn __new__(v: Vec<LinkOld>) -> Self {
+        Self(v)
+    }
+)]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
 /// Struct that contains a `Vec<LinkOld>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
@@ -455,7 +467,7 @@ impl AsRef<[Link]> for Network {
 
 impl From<&Vec<Link>> for Network {
     fn from(value: &Vec<Link>) -> Self {
-        Self(value.to_vec())
+        Self(value.to_vec(), None)
     }
 }
 

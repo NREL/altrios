@@ -127,7 +127,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
             Ok(n) => n,
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network(n)
+                Network(n, None)
             }
         };
 

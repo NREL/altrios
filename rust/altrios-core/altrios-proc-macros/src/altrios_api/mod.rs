@@ -285,7 +285,7 @@ fn process_tuple_struct(
     ident: &Ident,
 ) {
     // tuple struct
-    assert!(unnamed.len() == 1);
+    assert!(unnamed.len() <= 2);
     let re = Regex::new(r"Vec < (.+) >").unwrap();
     for field in unnamed.iter() {
         let ftype = field.ty.clone();
@@ -298,13 +298,9 @@ fn process_tuple_struct(
                     .to_string()
                     .parse()
                     .unwrap();
+                println!("{contained_dtype}");
                 py_impl_block.extend::<TokenStream2>(
                     quote! {
-                        #[new]
-                        /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
-                        fn __new__(v: Vec<#contained_dtype>) -> Self {
-                            Self(v)
-                        }
                         /// Rust-defined `__repr__` magic method for Python used exposed via PyO3.
                         fn __repr__(&self) -> String {
                             format!("Pyo3Vec({:?})", self.0)
@@ -345,14 +341,6 @@ fn process_tuple_struct(
                         }
                     }
                 );
-                impl_block.extend::<TokenStream2>(quote! {
-                    impl #ident{
-                        /// Implement the non-Python `new` method.
-                        pub fn new(value: Vec<#contained_dtype>) -> Self {
-                            Self(value)
-                        }
-                    }
-                });
             }
         }
     }

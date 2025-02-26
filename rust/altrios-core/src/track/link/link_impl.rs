@@ -420,7 +420,7 @@ impl SerdeAPI for Network {
         match Self::from_reader(&mut file, extension, skip_init) {
             Ok(network) => {
                 // init already happened in `from_reader`
-                return Ok(network);
+                Ok(network)
             }
             Err(err0) => match err0 {
                 // if the outer error `err0` is a SerdeError, try another network format
@@ -434,27 +434,20 @@ impl SerdeAPI for Network {
                                         &mut file, extension, skip_init,
                                     ) {
                                         // no other network formats to try
-                                        Err(err2) => {
-                                            return Err(err2).map_err(|err2| {
-                                                Error::SerdeError(format!(
-                                                    "\n{err0}\n{err1}\n{err2}"
-                                                ))
-                                            })
-                                        }
-                                        Ok(network) => return Ok(network.into()),
+                                        Err(err2) => Err(err2).map_err(|err2| {
+                                            Error::SerdeError(format!("\n{err0}\n{err1}\n{err2}"))
+                                        }),
+                                        Ok(network) => Ok(network.into()),
                                     }
                                 }
-                                _ => {
-                                    return Err(err1).map_err(|err1| {
-                                        Error::SerdeError(format!("\n{err0}\n{err1}"))
-                                    })
-                                }
+                                _ => Err(err1)
+                                    .map_err(|err1| Error::SerdeError(format!("\n{err0}\n{err1}"))),
                             }
                         }
-                        Ok(network) => return Ok(network.into()),
+                        Ok(network) => Ok(network.into()),
                     }
                 }
-                _ => return Err(err0),
+                _ => Err(err0),
             },
         }
     }

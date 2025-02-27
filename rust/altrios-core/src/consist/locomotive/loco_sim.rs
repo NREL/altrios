@@ -281,13 +281,14 @@ impl LocomotiveSimulation {
     }
 }
 
-impl SerdeAPI for LocomotiveSimulation {
+impl Init for LocomotiveSimulation {
     fn init(&mut self) -> anyhow::Result<()> {
         self.loco_unit.init()?;
         self.power_trace.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for LocomotiveSimulation {}
 
 impl Default for LocomotiveSimulation {
     fn default() -> Self {
@@ -309,12 +310,13 @@ impl Default for LocomotiveSimulation {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
 
-impl SerdeAPI for LocomotiveSimulationVec {
+impl Init for LocomotiveSimulationVec {
     fn init(&mut self) -> anyhow::Result<()> {
         self.0.iter_mut().try_for_each(|l| l.init())?;
         Ok(())
     }
 }
+impl SerdeAPI for LocomotiveSimulationVec {}
 impl Default for LocomotiveSimulationVec {
     fn default() -> Self {
         Self(vec![LocomotiveSimulation::default(); 3])

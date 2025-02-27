@@ -416,20 +416,6 @@ fn add_serde_methods(py_impl_block: &mut TokenStream2) {
             Self::from_resource(PathBuf::extract_bound(filepath)?, skip_init.unwrap_or_default()).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
         }
 
-        /// Read (deserialize) an object from a resource file packaged with the `altrios-core` crate
-        ///
-        /// # Arguments:
-        ///
-        /// * `url`: `str` - URL from which to read the object
-        ///
-        #[cfg(feature = "web")]
-        #[staticmethod]
-        #[pyo3(name = "from_url")]
-        #[pyo3(signature = (url, skip_init=None))]
-        pub fn from_url_py(url: &str, skip_init: Option<bool>) -> PyResult<Self> {
-            Self::from_url(url, skip_init.unwrap_or_default()).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
-        }
-
         /// Write (serialize) an object to a file.
         /// Supported file extensions are listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`).
         /// Creates a new file if it does not already exist, otherwise truncates the existing file.

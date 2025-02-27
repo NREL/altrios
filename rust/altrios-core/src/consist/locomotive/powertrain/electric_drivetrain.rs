@@ -336,6 +336,8 @@ pub struct ElectricDrivetrainState {
     pub energy_loss: si::Energy,
 }
 
+impl Init for ElectricDrivetrainState {}
+impl SerdeAPI for ElectricDrivetrainState {}
 impl Default for ElectricDrivetrainState {
     fn default() -> Self {
         Self {

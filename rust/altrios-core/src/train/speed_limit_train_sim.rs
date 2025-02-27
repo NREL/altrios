@@ -695,7 +695,7 @@ impl SpeedLimitTrainSim {
     }
 }
 
-impl SerdeAPI for SpeedLimitTrainSim {
+impl Init for SpeedLimitTrainSim {
     fn init(&mut self) -> anyhow::Result<()> {
         self.origs.init()?;
         self.dests.init()?;
@@ -709,7 +709,7 @@ impl SerdeAPI for SpeedLimitTrainSim {
         Ok(())
     }
 }
-
+impl SerdeAPI for SpeedLimitTrainSim{}
 impl Default for SpeedLimitTrainSim {
     fn default() -> Self {
         let mut slts = Self {

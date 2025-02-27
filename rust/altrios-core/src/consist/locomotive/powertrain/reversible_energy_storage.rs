@@ -719,6 +719,11 @@ impl ReversibleEnergyStorage {
             bail!("`eta_range` ({:.3}) must be between 0.0 and 1.0", eta_range)
         }
     }
+
+    /// Usable energy capacity, accounting for SOC limits
+    pub fn energy_capacity_usable(&self) -> si::Energy {
+        self.energy_capacity * (self.max_soc - self.min_soc)
+    }
 }
 
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, HistoryVec)]
@@ -786,6 +791,9 @@ pub struct ReversibleEnergyStorageState {
     /// component temperature
     pub temperature_celsius: f64,
 }
+
+impl SerdeAPI for ReversibleEnergyStorageState {}
+impl Init for ReversibleEnergyStorageState {}
 
 impl Default for ReversibleEnergyStorageState {
     fn default() -> Self {

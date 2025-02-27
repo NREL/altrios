@@ -324,9 +324,6 @@ impl LocoTrait for DummyLoco {
         reversible_energy_storage,
         drivetrain,
         loco_params,
-        fuel_res_split=None,
-        fuel_res_ratio=None,
-        gss_interval=None,
         save_interval=None,
     ))]
     fn build_hybrid_loco(
@@ -335,9 +332,6 @@ impl LocoTrait for DummyLoco {
         reversible_energy_storage: ReversibleEnergyStorage,
         drivetrain: ElectricDrivetrain,
         loco_params: LocoParams,
-        fuel_res_split: Option<f64>,
-        fuel_res_ratio: Option<f64>,
-        gss_interval: Option<usize>,
         save_interval: Option<usize>,
     ) -> anyhow::Result<Self> {
         let mut loco = Self {
@@ -1294,6 +1288,8 @@ pub struct LocomotiveState {
     // pub force_max: si::Mass,
 }
 
+impl Init for LocomotiveState {}
+impl SerdeAPI for LocomotiveState {}
 impl Default for LocomotiveState {
     fn default() -> Self {
         Self {

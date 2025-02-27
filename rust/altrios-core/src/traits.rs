@@ -154,25 +154,6 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
         Self::from_reader(&mut file.contents(), extension, skip_init)
     }
 
-    /// Instantiates an object from a url.  Accepts yaml and json file types  
-    /// # Arguments  
-    /// - url: URL (either as a string or url type) to object  
-    ///
-    /// Note: The URL needs to be a URL pointing directly to a file, for example
-    /// a raw github URL.
-    #[cfg(feature = "web")]
-    fn from_url<S: AsRef<str>>(url: S, skip_init: bool) -> anyhow::Result<Self> {
-        let url = url::Url::parse(url.as_ref())?;
-        let format = url
-            .path_segments()
-            .and_then(|segments| segments.last())
-            .and_then(|filename| Path::new(filename).extension())
-            .and_then(OsStr::to_str)
-            .with_context(|| "Could not parse file format from URL: {url:?}")?;
-        let mut response = ureq::get(url.as_ref()).call()?.into_reader();
-        Self::from_reader(&mut response, format, skip_init)
-    }
-
     /// Write (serialize) an object to a file.
     /// Supported file extensions are listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`).
     /// Creates a new file if it does not already exist, otherwise truncates the existing file.

@@ -375,6 +375,9 @@ pub struct GeneratorState {
     pub energy_loss: si::Energy,
 }
 
+impl Init for GeneratorState {}
+impl SerdeAPI for GeneratorState {}
+
 impl Default for GeneratorState {
     fn default() -> Self {
         Self {

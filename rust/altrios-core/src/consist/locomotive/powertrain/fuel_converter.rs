@@ -69,6 +69,8 @@ pub struct FuelConverter {
     pub pwr_out_frac_interp: Vec<f64>,
     /// fuel converter efficiency array
     pub eta_interp: Vec<f64>,
+    /// pwr at which peak efficiency occurs
+    pub(crate) pwr_for_peak_eff: si::Power,
     /// idle fuel power to overcome internal friction (not including aux load)
     pub pwr_idle_fuel: si::Power,
     /// time step interval between saves. 1 is a good option. If None, no saving occurs.
@@ -90,6 +92,17 @@ impl Default for FuelConverter {
 
 impl Init for FuelConverter {
     fn init(&mut self) -> anyhow::Result<()> {
+        let eff_max = self.get_eta_max();
+        self.pwr_for_peak_eff = *self
+            .eta_interp
+            .get(
+                self.pwr_out_frac_interp
+                    .iter()
+                    .position(|&eff| eff == eff_max)
+                    .with_context(|| format_dbg!())?,
+            )
+            .with_context(|| format_dbg!())?
+            * self.pwr_out_max;
         self.state.init()?;
         Ok(())
     }
@@ -288,6 +301,8 @@ pub struct FuelConverterState {
     pub engine_on: bool,
 }
 
+impl Init for FuelConverterState {}
+impl SerdeAPI for FuelConverterState {}
 impl Default for FuelConverterState {
     fn default() -> Self {
         Self {

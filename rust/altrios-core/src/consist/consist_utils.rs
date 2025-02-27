@@ -207,46 +207,6 @@ impl SolvePower for Proportional {
     }
 }
 
-#[derive(PartialEq, Clone, Deserialize, Serialize, Debug, SerdeAPI)]
-/// Similar to `Proportional`, regenerates greedily, but during positive traction, minimizes
-/// cost function of `fuel_res_ratio` * fuel use + battery use at every `gss_interval`
-/// time step.
-pub struct GoldenSectionSearch {
-    /// Ratio of fuel cost (abstract cost for solver -- could be dollars, MJ, etc.) to battery energy cost.
-    pub fuel_res_ratio: f64,
-    /// Time step interval for exercising GoldenSectionSearch. A value of `1` means it is solved at every time step.
-    /// Solving the objective used by GoldenSectionSearch is computationlly expensive so care should be given when
-    /// selecting this value.
-    pub gss_interval: usize,
-}
-impl SolvePower for GoldenSectionSearch {
-    fn solve_positive_traction(
-        &mut self,
-        loco_vec: &[Locomotive],
-        state: &ConsistState,
-    ) -> anyhow::Result<Vec<si::Power>> {
-        if state.i == 1 || state.i % self.gss_interval == 0 {
-            todo!() // not needed urgently
-        } else {
-            // use the previous iteration
-            Ok(loco_vec.iter().map(|loco| loco.state.pwr_out).collect())
-        }
-    }
-
-    fn solve_negative_traction(
-        &mut self,
-        loco_vec: &[Locomotive],
-        state: &ConsistState,
-    ) -> anyhow::Result<Vec<si::Power>> {
-        if state.i == 1 || state.i % self.gss_interval == 0 {
-            todo!() // not needed urgently
-        } else {
-            // use the previous iteration
-            Ok(loco_vec.iter().map(|loco| loco.state.pwr_out).collect())
-        }
-    }
-}
-
 #[derive(PartialEq, Eq, Clone, Deserialize, Serialize, Debug)]
 /// Control strategy for when locomotives are located at both the front and back of the train.
 pub struct FrontAndBack;
@@ -276,7 +236,6 @@ impl SolvePower for FrontAndBack {
 pub enum PowerDistributionControlType {
     RESGreedy(RESGreedy),
     Proportional(Proportional),
-    GoldenSectionSearch(GoldenSectionSearch),
     FrontAndBack(FrontAndBack),
 }
 
@@ -289,7 +248,6 @@ impl SolvePower for PowerDistributionControlType {
         match self {
             Self::RESGreedy(res_greedy) => res_greedy.solve_negative_traction(loco_vec, state),
             Self::Proportional(prop) => prop.solve_negative_traction(loco_vec, state),
-            Self::GoldenSectionSearch(gss) => gss.solve_negative_traction(loco_vec, state),
             Self::FrontAndBack(fab) => fab.solve_negative_traction(loco_vec, state),
         }
     }
@@ -302,7 +260,6 @@ impl SolvePower for PowerDistributionControlType {
         match self {
             Self::RESGreedy(res_greedy) => res_greedy.solve_positive_traction(loco_vec, state),
             Self::Proportional(prop) => prop.solve_positive_traction(loco_vec, state),
-            Self::GoldenSectionSearch(gss) => gss.solve_positive_traction(loco_vec, state),
             Self::FrontAndBack(fab) => fab.solve_positive_traction(loco_vec, state),
         }
     }

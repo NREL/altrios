@@ -51,19 +51,12 @@ use super::*;
     fn set_pdct_resgreedy(&mut self) {
         self.pdct = PowerDistributionControlType::RESGreedy(RESGreedy);
     }
-    /// Set hct to PowerDistributionControlType::GoldenSectionSearch(fuel_res_ratio, gss_interval)
-    fn set_pdct_gss(&mut self, fuel_res_ratio: f64, gss_interval: usize) {
-        self.pdct = PowerDistributionControlType::GoldenSectionSearch(
-            GoldenSectionSearch{fuel_res_ratio, gss_interval}
-        );
-    }
 
     fn get_pdct(&self) -> String {
         // make a `describe` function
         match &self.pdct {
             PowerDistributionControlType::RESGreedy(val) => format!("{val:?}"),
             PowerDistributionControlType::Proportional(val) => format!("{val:?}"),
-            PowerDistributionControlType::GoldenSectionSearch(val) => format!("{val:?}"),
             PowerDistributionControlType::FrontAndBack(val) => format!("{val:?}"),
         }
     }
@@ -620,6 +613,9 @@ pub struct ConsistState {
     /// Time-integrated energy form of [pwr_fuel](Self::pwr_fuel)
     pub energy_fuel: si::Energy,
 }
+
+impl Init for ConsistState {}
+impl SerdeAPI for ConsistState {}
 
 impl Default for ConsistState {
     fn default() -> Self {

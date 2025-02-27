@@ -335,7 +335,8 @@ impl SerdeAPI for Network {
 
         Ok(network)
     }
-
+}
+impl Init for Network {
     fn init(&mut self) -> anyhow::Result<()> {
         Ok(self.as_ref().validate()?)
     }

@@ -464,7 +464,7 @@ impl SetSpeedTrainSim {
 }
 
 impl SerdeAPI for SetSpeedTrainSim {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.loco_con.init()?;
         self.speed_trace.init()?;
         self.train_res.init()?;

@@ -9,7 +9,7 @@ pub enum PowertrainType {
 }
 
 impl SerdeAPI for PowertrainType {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         match self {
             Self::ConventionalLoco(l) => l.init()?,
             Self::HybridLoco(l) => l.init()?,
@@ -655,8 +655,10 @@ impl Default for Locomotive {
 }
 
 impl SerdeAPI for Locomotive {
-    fn init(&mut self) -> anyhow::Result<()> {
-        let _mass = self.mass().with_context(|| format_dbg!())?;
+    fn init(&mut self) -> Result<(), Error> {
+        let _mass = self
+            .mass()
+            .map_err(|err| Error::InitError(format_dbg!(err)))?;
         self.loco_type.init()?;
         Ok(())
     }

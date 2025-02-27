@@ -2,7 +2,7 @@ use super::cat_power::*;
 use super::elev::*;
 use super::heading::*;
 use super::link_idx::*;
-use super::link_old::Link as LinkOld;
+use super::link_old::LinkOld;
 use super::speed::*;
 use crate::imports::*;
 
@@ -158,6 +158,7 @@ impl ObjState for Link {
                 ));
             }
         } else {
+            // Link is real
             si_chk_num_gtz(&mut errors, &self.length, "Link length");
             validate_field_real(&mut errors, &self.elevs, "Elevations");
             if !self.headings.is_empty() {
@@ -272,12 +273,90 @@ impl ObjState for Link {
                     ));
                 }
             }
+            let grades: Vec<si::Ratio> = self
+                .elevs
+                .windows(2)
+                .map(|w| (w[1].elev - w[0].elev) / (w[1].offset - w[0].offset))
+                .collect();
+            // TODO: parameterize this
+            let max_allowed_abs_grade: si::Ratio = 0.06 * uc::R;
+            match grades.iter().map(|g| g.abs()).reduce(si::Ratio::max) {
+                Some(max_abs_grade) => {
+                    if max_abs_grade > max_allowed_abs_grade {
+                        let idx_max_grade = grades
+                            .iter()
+                            .position(|&g| g.abs() == max_abs_grade)
+                            .with_context(|| format_dbg!())
+                            .unwrap(); // pretty sure this unwrap is safe
+                        errors.push(anyhow!(
+                            "{} -- Max absolute grade ({}%) exceeds max allowed grade ({}%) at offset: {} m",
+                            format_dbg!(),
+                            max_abs_grade.get::<si::ratio>(),
+                            max_allowed_abs_grade.get::<si::ratio>(),
+                            // Add 1 to the index because grades is 1 element longer
+                            self.elevs[idx_max_grade+ 1].offset.get::<si::meter>()
+                        ));
+                    }
+                }
+                None => errors.push(anyhow!(
+                    "{} -- Failed to calculate max absolute grade.",
+                    format_dbg!()
+                )),
+            };
+            // TODO: make sure that all headings are between 0 and 2 pi
+            let curves: Vec<si::Curvature> = self
+                .headings
+                .windows(2)
+                .map(|w| {
+                    // the 3.0 is to make sure heading changes that cross
+                    // through zero still result in positive numbers
+                    let dh: si::Angle = (w[1].heading - w[0].heading + 3.0 * uc::REV / 2.0)
+                        % uc::REV
+                        - uc::REV / 2.0;
+                    let dx: si::Length = w[1].offset - w[0].offset;
+                    (dh / dx).into()
+                })
+                .collect();
+            // TODO: parameterize this
+            // curvature cannot exceed 15 degrees per 100 feet
+            // really don't understand why `into` is needed here but it works!
+            let max_allowed_abs_curv: si::Curvature = (15.0 * uc::DEG / (100.0 * uc::FT)).into();
+            match curves.iter().map(|y| y.abs()).reduce(si::Curvature::max) {
+                Some(max_abs_curv) => {
+                    if max_abs_curv > max_allowed_abs_curv {
+                        let idx_max_curv = curves
+                            .iter()
+                            .position(|&c| c.abs() == max_abs_curv)
+                            .with_context(|| format_dbg!())
+                            .unwrap(); // pretty sure this unwrap is safe
+                        errors.push(anyhow!(
+                        "{} -- Max curvature ({} degrees per 100 feet) exceeds max allowed curvature ({} degrees per 100 feet) at offset: {} m",
+                        format_dbg!(),
+                        max_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0,
+                        max_allowed_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0,
+                        // Add 1 to the index because headings is 1 element longer
+                        self.headings[idx_max_curv + 1].offset.get::<si::meter>()
+                    ));
+                    }
+                }
+                None => errors.push(anyhow!(
+                    "{} -- Failed to calculate max absolute curvature.",
+                    format_dbg!()
+                )),
+            };
         }
+
         errors.make_err()
     }
 }
 
 #[altrios_api(
+    #[new]
+    /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
+    fn __new__(v: Vec<Link>) -> Self {
+        Self(v, None)
+    }
+
     #[pyo3(name = "set_speed_set_for_train_type")]
     fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> PyResult<()> {
         Ok(self.set_speed_set_for_train_type(train_type)?)
@@ -286,7 +365,7 @@ impl ObjState for Link {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 /// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
-pub struct Network(pub Vec<Link>);
+pub struct Network(pub Vec<Link>, pub Option<f64>);
 
 impl Network {
     /// Sets `self.speed_set` based on `self.speed_sets` value corresponding to `train_type` key for
@@ -310,50 +389,66 @@ impl ObjState for Network {
 }
 
 impl SerdeAPI for Network {
-    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> anyhow::Result<Self> {
+    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> Result<Self, Error> {
         let filepath = filepath.as_ref();
         let extension = filepath
             .extension()
             .and_then(OsStr::to_str)
-            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        let mut file = File::open(filepath).with_context(|| {
-            if !filepath.exists() {
-                format!("File not found: {filepath:?}")
-            } else {
-                format!("Could not open file: {filepath:?}")
-            }
+            .ok_or_else(|| {
+                Error::SerdeError(format!("File extension could not be parsed: {filepath:?}"))
+            })?;
+        let mut file = File::open(filepath).map_err(|err| {
+            Error::SerdeError(format!(
+                "{err}\n{}",
+                if !filepath.exists() {
+                    format!("File not found: {filepath:?}")
+                } else {
+                    format!("Could not open file: {filepath:?}")
+                }
+            ))
         })?;
-        let mut network = match Self::from_reader(&mut file, extension, skip_init) {
-            Ok(network) => network,
-            Err(err) => NetworkOld::from_file(filepath, false)
-                .map_err(|old_err| {
-                    anyhow!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err)
-                })?
-                .into(),
-        };
-        network.init()?;
-
-        Ok(network)
+        match Self::from_reader(&mut file, extension, skip_init) {
+            Ok(network) => {
+                // init already happened in `from_reader`
+                Ok(network)
+            }
+            Err(err0) => match err0 {
+                // if the outer error `err0` is a SerdeError, try another network format
+                Error::SerdeError(_) => {
+                    match NetworkOld::from_reader(&mut file, extension, skip_init) {
+                        Err(err1) => {
+                            Err(err1).map_err(|err1| Error::SerdeError(format!("\n{err0}\n{err1}")))
+                        }
+                        Ok(network) => Ok(network.into()),
+                    }
+                }
+                _ => Err(err0),
+            },
+        }
     }
 
-    fn init(&mut self) -> anyhow::Result<()> {
-        Ok(self.as_ref().validate()?)
+    fn init(&mut self) -> Result<(), Error> {
+        self.as_ref()
+            .validate()
+            .map_err(|err| Error::InitError(format!("\n{}\n{err}", format_dbg!())))
     }
 }
 
 impl From<NetworkOld> for Network {
     fn from(old: NetworkOld) -> Self {
-        Network(old.0.iter().map(|l| Link::from(l.clone())).collect())
+        Network(old.0.iter().map(|l| Link::from(l.clone())).collect(), None)
     }
 }
 
 #[altrios_api]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
-/// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
+/// Struct that contains a `Vec<LinkOld>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
 ///
 /// # Note:
-/// This struct will be deprecated and superseded by [Network]
+/// This struct will be deprecated and superseded by [Network], which has the
+/// option for either a train-type-independent `speed_set` or a train-type-dependent
+/// `speed_sets` HashMap
 pub struct NetworkOld(pub Vec<LinkOld>);
 
 impl AsRef<[Link]> for Network {
@@ -364,7 +459,7 @@ impl AsRef<[Link]> for Network {
 
 impl From<&Vec<Link>> for Network {
     fn from(value: &Vec<Link>) -> Self {
-        Self(value.to_vec())
+        Self(value.to_vec(), None)
     }
 }
 
@@ -384,7 +479,7 @@ impl ObjState for [Link] {
             return Err(errors);
         }
         validate_slice_fake(&mut errors, &self[..1], "Link");
-        validate_slice_real_shift(&mut errors, &self[1..], "Link", 0);
+        validate_slice_real_shift(&mut errors, &self[1..], "Link", 1);
         early_err!(errors, "Links");
 
         for (idx, link) in self.iter().enumerate().skip(1) {
@@ -477,6 +572,11 @@ impl ObjState for [Link] {
                 ));
             }
         }
+
+        // TODO: validate coincident data for adjoining links (e.g. elevation, heading, and maybe lat/lon)
+        // either in the above for loop or an equivalent loop below
+        // for (idx, link) in self.iter().enumerate().skip(1) {
+
         errors.make_err()
     }
 }
@@ -612,7 +712,6 @@ mod tests {
 
     #[test]
     fn test_to_and_from_file_for_links() {
-        // TODO: make use of `tempfile` or similar crate
         let links = Vec::<Link>::valid();
         let tempdir = tempfile::tempdir().unwrap();
         let temp_file_path = tempdir.path().join("links_test2.yaml");
@@ -629,7 +728,14 @@ mod tests {
         let network_file_path = project_root::get_project_root()
             .unwrap()
             .join("../python/altrios/resources/networks/Taconite.yaml");
-        let network_speed_sets = Network::from_file(network_file_path, false).unwrap();
+        let network_speed_sets = {
+            let network = Network::from_file(network_file_path, false);
+            if let Err(err) = &network {
+                panic!("{err}");
+            }
+            network
+        }
+        .unwrap();
         let mut network_speed_set = network_speed_sets.clone();
         network_speed_set
             .set_speed_set_for_train_type(TrainType::Freight)

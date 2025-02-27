@@ -218,16 +218,16 @@ impl PathTpc {
                         + (curr.heading - prev.heading + uc::REV / 2.0) % uc::REV)
                         .abs()
                         / length;
-                    let one_degree = uc::DEG / (uc::FT * 100.0);
+                    let one_degree_per_100ft = uc::DEG / (uc::FT * 100.0);
 
-                    let res_coeff = if curvature < one_degree {
+                    let res_coeff = if curvature < one_degree_per_100ft {
                         self.train_params.curve_coeff_0 * curvature
                     } else {
-                        self.train_params.curve_coeff_0 * one_degree
-                            + self.train_params.curve_coeff_1 * (curvature - one_degree)
+                        self.train_params.curve_coeff_0 * one_degree_per_100ft
+                            + self.train_params.curve_coeff_1 * (curvature - one_degree_per_100ft)
                             + self.train_params.curve_coeff_2
-                                * (curvature - one_degree)
-                                * (curvature - one_degree)
+                                * (curvature - one_degree_per_100ft)
+                                * (curvature - one_degree_per_100ft)
                                 / uc::RADPM
                     } / uc::RADPM;
                     let res_net = res_net_prev + res_coeff * length;

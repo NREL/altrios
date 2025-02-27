@@ -33,6 +33,15 @@ impl ObjState for Elev {
     }
 }
 
+impl ObjState for Vec<Elev> {
+    fn is_fake(&self) -> bool {
+        (**self).is_fake()
+    }
+    fn validate(&self) -> ValidationResults {
+        (**self).validate()
+    }
+}
+
 impl Valid for Vec<Elev> {
     fn valid() -> Self {
         let offset_end = uc::M * 10000.0;

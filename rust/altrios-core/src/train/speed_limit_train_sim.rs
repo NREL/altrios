@@ -33,6 +33,13 @@ impl LinkIdxTime {
 /// `Vec<LinkIdxTime>` in Python
 pub struct TimedLinkPath(pub Vec<LinkIdxTime>);
 
+impl TimedLinkPath {
+    /// Implement the non-Python `new` method.
+    pub fn new(value: Vec<LinkIdxTime>) -> Self {
+        Self(value)
+    }
+}
+
 impl AsRef<[LinkIdxTime]> for TimedLinkPath {
     fn as_ref(&self) -> &[LinkIdxTime] {
         &self.0
@@ -127,7 +134,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
             Ok(n) => n,
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network(n)
+                Network(n, None)
             }
         };
 
@@ -234,7 +241,7 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
-        let n_cars = self.get_cars_moved(annualize) as f64;
+        let n_cars = self.get_cars_moved(annualize);
         // Note: n_cars already includes an annualization scaling factor; no need to multiply twice.
         self.state.total_dist.get::<si::kilometer>() * n_cars
     }
@@ -326,6 +333,7 @@ impl SpeedLimitTrainSim {
         // calculate new resistance
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
+        set_link_and_offset(&mut self.state, &self.path_tpc)?;
         // solve the required power
         self.solve_required_pwr()?;
 
@@ -334,7 +342,6 @@ impl SpeedLimitTrainSim {
             self.state.dt,
             Some(true),
         )?;
-        set_link_and_offset(&mut self.state, &self.path_tpc)?;
         Ok(())
     }
 
@@ -419,6 +426,7 @@ impl SpeedLimitTrainSim {
         // of any braking), and if `self.state.res_net()` is negative and has
         // a higher magnitude than `self.fric_brake.force_max`, then the train
         // cannot slow down.
+        // TODO: dial this back to just show `self.state` via debug print
         ensure!(
             self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO,
             format!(
@@ -519,7 +527,6 @@ impl SpeedLimitTrainSim {
                     format!("pwr_pos_max / speed_target.min(v_max): {} N", (pwr_pos_max / speed_target.min(v_max)).get::<si::newton>().format_eng(Some(5))),
                     // pwr_pos_max
                     format!("pwr_pos_max: {} W", pwr_pos_max.get::<si::watt>().format_eng(Some(5)),
-                    
                 ),
                 // SOC across all RES-equipped locomotives
                 format!(
@@ -696,7 +703,7 @@ impl SpeedLimitTrainSim {
 }
 
 impl SerdeAPI for SpeedLimitTrainSim {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.origs.init()?;
         self.dests.init()?;
         self.loco_con.init()?;

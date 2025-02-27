@@ -10,14 +10,14 @@ pub type ValidationError = anyhow::Error;
 pub type ValidationErrors = ComboErrors<ValidationError>;
 pub type ValidationResults = Result<(), ValidationErrors>;
 
-///Generate valid default-like input for use in other objects
+/// Generate valid default-like input for use in other objects
 pub trait Valid: Sized + Default {
     fn valid() -> Self {
         Default::default()
     }
 }
 
-///Specify when an object is valid, real, and fake
+/// Specify when an object is valid, real, and fake
 pub trait ObjState {
     fn is_fake(&self) -> bool {
         false
@@ -45,18 +45,6 @@ impl<T: ObjState> ObjStateConst for T {
             return None;
         }
         Some(self)
-    }
-}
-
-impl<T> ObjState for Vec<T>
-where
-    [T]: ObjState,
-{
-    fn is_fake(&self) -> bool {
-        (**self).is_fake()
-    }
-    fn validate(&self) -> ValidationResults {
-        (**self).validate()
     }
 }
 

@@ -1,4 +1,4 @@
-use argmin::prelude::*;
+use argmin::prelude::{ArgminOp, Executor};
 use argmin::solver::goldensectionsearch::GoldenSectionSearch;
 
 use super::powertrain::electric_drivetrain::ElectricDrivetrain;
@@ -66,7 +66,7 @@ pub struct HybridLoco {
 }
 
 impl SerdeAPI for HybridLoco {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.fc.init()?;
         self.gen.init()?;
         self.res.init()?;

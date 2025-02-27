@@ -2,7 +2,7 @@ use super::super::disp_imports::*;
 
 #[readonly::make]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, SerdeAPI, PartialEq)]
-pub(super) struct EstJoinPath {
+pub struct EstJoinPath {
     pub link_idx_match: LinkIdx,
     pub est_idx_next: EstIdx,
 }
@@ -22,7 +22,7 @@ impl EstJoinPath {
 }
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, SerdeAPI)]
-pub(super) struct SimpleState {
+pub struct SimpleState {
     pub time: si::Time,
     pub offset: si::Length,
     pub speed: si::Velocity,

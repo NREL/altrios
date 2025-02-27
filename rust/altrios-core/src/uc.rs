@@ -31,6 +31,7 @@ unit_const!(RAD, Angle, 1.0);
 unit_const!(DEG, Angle, 1.745_329_251_994_329_5_E-2);
 unit_const!(REV, Angle, 6.283_185_307_179_586_E0);
 unit_const!(RADPM, Curvature, 1.0);
+unit_const!(DEGPM, Curvature, core::f64::consts::PI / 180.0);
 
 unit_const!(KG, Mass, 1.0);
 unit_const!(TON, Mass, 9.071_847_E2);

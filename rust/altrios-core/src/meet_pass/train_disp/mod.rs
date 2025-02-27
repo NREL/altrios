@@ -111,9 +111,11 @@ impl TrainDisp {
         dist_fixed_max: si::Length,
         acc_startup: si::Acceleration,
         est_time_net: EstTimeNet,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, Error> {
         if train_idx.is_none() {
-            bail!("Train disp cannot be created with train_idx=None!");
+            return Err(Error::Other(
+                "Train disp cannot be created with train_idx=None!".into(),
+            ));
         }
 
         let est_times = est_time_net.val;
@@ -145,7 +147,7 @@ impl TrainDisp {
             }
         }
         // Raise error if the dispatch path is too long
-        u16::try_from(disp_path.len())?;
+        u16::try_from(disp_path.len()).map_err(|err| Error::Other(format!("{err}")))?;
 
         // Initialize helper optimization objects for the dispatch path
         let disp_path_len_reserve = (disp_path.len() as f64 * 1.2).round() as usize;
@@ -223,7 +225,14 @@ mod test_train_disp {
         let network_file_path = project_root::get_project_root()
             .unwrap()
             .join("../python/altrios/resources/networks/Taconite.yaml");
-        let network = Network::from_file(network_file_path, false).unwrap();
+        let network = {
+            let network = Network::from_file(network_file_path, false);
+            if let Err(err) = &network {
+                panic!("{err}");
+            }
+            network
+        }
+        .unwrap();
 
         let speed_limit_train_sim = crate::train::speed_limit_train_sim_fwd();
         let est_times = make_est_times(speed_limit_train_sim.clone(), network, None)
@@ -248,7 +257,14 @@ mod test_train_disp {
         let network_file_path = project_root::get_project_root()
             .unwrap()
             .join("../python/altrios/resources/networks/Taconite.yaml");
-        let network = Network::from_file(network_file_path, false).unwrap();
+        let network = {
+            let network = Network::from_file(network_file_path, false);
+            if let Err(err) = &network {
+                panic!("{err}");
+            }
+            network
+        }
+        .unwrap();
 
         let speed_limit_train_sim = crate::train::speed_limit_train_sim_rev();
         let est_times = make_est_times(speed_limit_train_sim.clone(), network, None)

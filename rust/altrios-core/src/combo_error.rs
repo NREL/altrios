@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Display};
 use std::ops::{Deref, DerefMut};
 
-///Define a better trait bound for all error types!
+/// Define a better trait bound for all error types!
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ComboError<E: Display> {
     layer: usize,

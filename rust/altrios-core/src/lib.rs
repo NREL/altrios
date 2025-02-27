@@ -23,6 +23,7 @@ pub mod testing;
 
 pub mod combo_error;
 pub mod consist;
+pub mod error;
 pub mod imports;
 pub mod lin_search_hint;
 pub mod meet_pass;

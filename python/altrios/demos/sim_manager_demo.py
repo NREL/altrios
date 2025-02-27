@@ -76,6 +76,10 @@ speed_limit_train_sims.set_save_interval(100)
 )
 t1_train_sims = time.perf_counter()
 print(f"Elapsed time to run train sims: {t1_train_sims-t0_train_sims:.3g} s")
+t_train_time = sum([
+    sim.state.time_seconds for sim in sims.tolist()
+])
+print(f"Total train-seconds simulated: {t_train_time} s")
 
 # %%
 t0_summary_sims = time.perf_counter()

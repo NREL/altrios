@@ -90,7 +90,7 @@ impl Mass for BatteryElectricLoco {
 }
 
 impl SerdeAPI for BatteryElectricLoco {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.res.init()?;
         self.edrv.init()?;
         Ok(())

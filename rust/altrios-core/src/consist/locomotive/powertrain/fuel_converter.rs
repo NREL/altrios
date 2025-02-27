@@ -89,7 +89,7 @@ impl Default for FuelConverter {
 }
 
 impl SerdeAPI for FuelConverter {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.state.init()?;
         Ok(())
     }

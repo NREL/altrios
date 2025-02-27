@@ -350,17 +350,11 @@ impl ObjState for Link {
     }
 }
 
-#[altrios_api]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
-/// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
-/// Python
-pub struct NetworkChecked(pub Vec<Link>, pub Option<f64>);
-
 #[altrios_api(
     #[new]
     /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
     fn __new__(v: Vec<Link>) -> Self {
-        Self(v)
+        Self(v, None)
     }
 
     #[pyo3(name = "set_speed_set_for_train_type")]
@@ -371,13 +365,9 @@ pub struct NetworkChecked(pub Vec<Link>, pub Option<f64>);
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 /// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
-pub struct Network(pub Vec<Link>);
+pub struct Network(pub Vec<Link>, pub Option<f64>);
 
 impl Network {
-    pub fn new(value: Vec<Link>) -> Self {
-        Self(value)
-    }
-
     /// Sets `self.speed_set` based on `self.speed_sets` value corresponding to `train_type` key for
     /// all links
     pub fn set_speed_set_for_train_type(&mut self, train_type: TrainType) -> anyhow::Result<()> {
@@ -427,22 +417,7 @@ impl SerdeAPI for Network {
                 Error::SerdeError(_) => {
                     match NetworkOld::from_reader(&mut file, extension, skip_init) {
                         Err(err1) => {
-                            match err1 {
-                                // if the outer error `err1` is a SerdeError, try another network format
-                                Error::SerdeError(_) => {
-                                    match NetworkChecked::from_reader(
-                                        &mut file, extension, skip_init,
-                                    ) {
-                                        // no other network formats to try
-                                        Err(err2) => Err(err2).map_err(|err2| {
-                                            Error::SerdeError(format!("\n{err0}\n{err1}\n{err2}"))
-                                        }),
-                                        Ok(network) => Ok(network.into()),
-                                    }
-                                }
-                                _ => Err(err1)
-                                    .map_err(|err1| Error::SerdeError(format!("\n{err0}\n{err1}"))),
-                            }
+                            Err(err1).map_err(|err1| Error::SerdeError(format!("\n{err0}\n{err1}")))
                         }
                         Ok(network) => Ok(network.into()),
                     }
@@ -461,13 +436,7 @@ impl SerdeAPI for Network {
 
 impl From<NetworkOld> for Network {
     fn from(old: NetworkOld) -> Self {
-        Network(old.0.iter().map(|l| Link::from(l.clone())).collect())
-    }
-}
-
-impl From<NetworkChecked> for Network {
-    fn from(checked: NetworkChecked) -> Self {
-        Network(checked.0)
+        Network(old.0.iter().map(|l| Link::from(l.clone())).collect(), None)
     }
 }
 
@@ -490,7 +459,7 @@ impl AsRef<[Link]> for Network {
 
 impl From<&Vec<Link>> for Network {
     fn from(value: &Vec<Link>) -> Self {
-        Self(value.to_vec())
+        Self(value.to_vec(), None)
     }
 }
 

@@ -4,13 +4,26 @@ from enum import Enum
 
 def train_arrival_parameters(train_consist_plan, terminal):
     TRAIN_TIMETABLE = build_train_timetable(train_consist_plan, terminal, swap_arrive_depart = False, as_dicts = False)
-
     return TRAIN_TIMETABLE
-
 
 class loggingLevel(Enum):
     NONE = 1
     BASIC = 2
+
+@dataclass
+class container:
+    type: str = 'Outbound'
+    id: int = 0
+    train_id: int = 0
+    def to_string(self) -> str:
+        if self.type == 'Outbound':
+            prefix = 'OC'
+        elif self.type == 'Inbound':
+            prefix = 'IC'
+        else:
+            prefix = 'C'
+        return f"{prefix}-{self.id}-Train-{self.train_id}"
+        
 
 @dataclass
 class LiftsState:

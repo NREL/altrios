@@ -277,6 +277,7 @@ def generate_demand_trains(
                     .otherwise(pl.concat_str(pl.col("Train_Type").str.strip_suffix("_Loaded"), pl.lit("_Loaded"))),
               right_on=["Train_Type"], 
               how="left")
+        .drop(cs.ends_with("_right"))
         # Merge on cars_per_train_target if the user specified any
         .join(cars_per_train_target, 
               left_on = pl.when(pl.col("Train_Type").str.contains(pl.lit("_Empty")))
@@ -284,6 +285,7 @@ def generate_demand_trains(
                     .otherwise(pl.concat_str(pl.col("Train_Type").str.strip_suffix("_Loaded"), pl.lit("_Loaded"))),
               right_on=["Train_Type"], 
               how="left")
+        .drop(cs.ends_with("_right"))
         # Fill in defaults per train type wherever the user didn't specify OD-specific hp_per_ton
         .with_columns(
             pl.col("Cars_Per_Train_Min").fill_null(cars_per_train_min_default),

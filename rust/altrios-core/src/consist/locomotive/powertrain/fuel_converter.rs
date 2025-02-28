@@ -186,7 +186,83 @@ impl FuelConverter {
             .max(self.pwr_out_max_init);
         Ok(())
     }
+    pub fn solve(
+        &mut self,
+        pwr_out_req: si::Power,
+        fc_on: bool,
+        dt: si::Time,
+    ) -> anyhow::Result<()> {
+        self.state.fc_on = fc_on;
+        if fc_on {
+            self.state.time_on += dt;
+        } else {
+            self.state.time_on = si::Time::ZERO;
+        }
+        // NOTE: think about the possibility of engine braking, not urgent
+        ensure!(
+            pwr_out_req >= si::Power::ZERO,
+            format!(
+                "{}\n`pwr_out_req` must be >= 0",
+                format_dbg!(pwr_out_req >= si::Power::ZERO),
+            )
+        );
+        // if the engine is not on, `pwr_out_req` should be 0.0
+        ensure!(
+            fc_on || (pwr_out_req == si::Power::ZERO && self.state.pwr_aux == si::Power::ZERO),
+            format!(
+                "{}\nEngine is off but pwr_out_req + pwr_aux is non-zero\n`pwr_out_req`: {} kW\n`self.state.pwr_aux`: {} kW",
+                format_dbg!(
+                    fc_on
+                        || (pwr_out_req == si::Power::ZERO
+                            && self.state.pwr_aux == si::Power::ZERO)
+                ),
+               pwr_out_req.get::<si::kilowatt>(),
+               self.state.pwr_aux.get::<si::kilowatt>()
+            )
+        );
+        self.state.pwr_prop = pwr_out_req;
+        self.state.eff = if fc_on {
+            uc::R
+                * self
+                    .eff_interp_from_pwr_out
+                    .interpolate(&[
+                        ((pwr_out_req + self.state.pwr_aux) / self.pwr_out_max).get::<si::ratio>()
+                    ])
+                    .with_context(|| {
+                        anyhow!(
+                            "{}\n failed to calculate {}",
+                            format_dbg!(),
+                            stringify!(self.state.eff)
+                        )
+                    })?
+        } else {
+            si::Ratio::ZERO
+        } * self.thrml.temp_eff_coeff().unwrap_or(1.0 * uc::R);
+        ensure!(
+            (self.state.eff >= 0.0 * uc::R && self.state.eff <= 1.0 * uc::R),
+            format!(
+                "fc efficiency ({}) must be either between 0 and 1",
+                self.state.eff.get::<si::ratio>()
+            )
+        );
 
+        self.state.pwr_fuel = if self.state.fc_on {
+            ((pwr_out_req + self.state.pwr_aux) / self.state.eff).max(self.pwr_idle_fuel)
+        } else {
+            si::Power::ZERO
+        };
+        self.state.pwr_loss = self.state.pwr_fuel - self.state.pwr_prop;
+
+        // TODO: put this in `SetCumulative::set_custom_cumulative`
+        // ensure!(
+        //     self.state.energy_loss.get::<si::joule>() >= 0.0,
+        //     format!(
+        //         "{}\nEnergy loss must be non-negative",
+        //         format_dbg!(self.state.energy_loss.get::<si::joule>() >= 0.0)
+        //     )
+        // );
+        Ok(())
+    }
     /// Solve for fuel usage for a given required fuel converter power output
     pub fn solve_energy_consumption(
         &mut self,

@@ -75,7 +75,7 @@ impl LocoTrait for Box<HybridLoco> {
         &mut self,
         pwr_aux: Option<si::Power>,
         train_state: TrainState,
-        // amount of total train mass for this locomotive
+        // amount of assigned train mass for this locomotive
         mass_for_loco: si::Mass,
         dt: si::Time,
     ) -> anyhow::Result<()> {
@@ -92,6 +92,7 @@ impl LocoTrait for Box<HybridLoco> {
                     self.state.fc_on_causes.push(FCOnCause::OnTimeTooShort)
                 }
             }
+            // trying to picture a case that this actually can be triggered
             HybridPowertrainControls::Placeholder => {
                 todo!()
             }
@@ -115,6 +116,7 @@ impl LocoTrait for Box<HybridLoco> {
                 todo!()
             }
         };
+        // should we also use the mass for loco for the chrg_buffer as well?
         let chrg_buffer: si::Energy = match &self.pt_cntrl {
             HybridPowertrainControls::RGWDB(rgwb) => {
                 (0.5 * train_state.mass_compound().with_context(|| format_dbg!())?
@@ -173,6 +175,45 @@ impl LocoTrait for Box<HybridLoco> {
     }
 }
 
+fn solve(
+    &mut self,
+    pwr_out_req: si::Power,
+    veh_state: TrainState,
+    _enabled: bool,
+    dt: si::Time,
+) -> anyhow::Result<()> {
+    // TODO: address these concerns
+    // - add a transmission here
+    // - what happens when the fc is on and producing more power than the
+    //   transmission requires? It seems like the excess goes straight to the battery,
+    //   but it should probably go thourgh the em somehow.
+    let (fc_pwr_out_req, res_pwr_out_req) = self
+        .pt_cntrl
+        .get_pwr_fc_and_em(
+            pwr_out_req,
+            veh_state,
+            &self.state,
+            &self.fc,
+            &self.em.state,
+            &self.res,
+        )
+        .with_context(|| format_dbg!())?;
+    let fc_on: bool = !self.state.fc_on_causes.is_empty();
+
+    self.fc
+        .solve(fc_pwr_out_req, fc_on, dt)
+        .with_context(|| format_dbg!())?;
+    let res_pwr_out_req = self
+        .em
+        .get_pwr_in_req(res_pwr_out_req, dt)
+        .with_context(|| format_dbg!())?;
+    // TODO: `res_pwr_out_req` probably does not include charging from the engine
+    self.res
+        .solve(res_pwr_out_req, dt)
+        .with_context(|| format_dbg!())?;
+    Ok(())
+}
+
 impl HybridLoco {
     /// Solve fc and res energy consumption
     /// Arguments:
@@ -180,12 +221,34 @@ impl HybridLoco {
     /// - dt: time step size
     pub fn solve_energy_consumption(
         &mut self,
-        _pwr_out_req: si::Power,
+        pwr_out_req: si::Power,
         dt: si::Time,
         assert_limits: bool,
     ) -> anyhow::Result<()> {
         let engine_on: bool = !self.state.fc_on_causes.is_empty();
-        let fc_pwr_out_req = todo!("steal the logic for this from fastsim-3");
+        let fc_pwr_out_req
+         = todo!("steal the logic for this from fastsim-3");
+        let (fc_pwr_out_req, res_pwr_out_req) = self
+            .pt_cntrl
+            .get_pwr_fc_and_em(
+                pwr_out_req,
+                veh_state,
+                &mut self.state,
+                &self.fc,
+                &self.res.state,
+                &self.em_state,
+            )
+            .with_context(|| format_dbg!())?;
+        let fc_on: bool = !self.state.fc_on_causes.is_empty();
+
+        self.fc
+            .solve(fc_pwr_out_req, fc_on, dt)
+            .with_context(|| format_dbg!())?;
+
+        let res_pwr_out_req = self
+            .res
+            .get_pwr_in_req(res_pwr_out_req, dt)
+            .with_context(|| format_dbg!())?;
         self.fc
             .solve_energy_consumption(fc_pwr_out_req, dt, engine_on, assert_limits)?;
 
@@ -209,8 +272,14 @@ impl FCOnCauses {
         self.0.pop()
     }
 
+    /// Appends an element to the back of a collection.
     fn push(&mut self, new: FCOnCause) {
         self.0.push(new)
+    }
+
+    /// Returns true if the vector contains no elements
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
@@ -461,13 +530,13 @@ fn handle_fc_on_causes_for_speed(
 impl HybridPowertrainControls {
     /// Determines power split between engine and electric machine
     ///
-    /// # Arguments
-    /// - `pwr_prop_req`: tractive power required
-    /// - `veh_state`: vehicle state
-    /// - `hev_state`: HEV powertrain state
-    /// - `fc`: fuel converter
-    /// - `em_state`: electric machine state
-    /// - `res`: reversible energy storage (e.g. high voltage battery)
+    // / # Arguments
+    // / - `pwr_prop_req`: tractive power required
+    // / - `veh_state`: vehicle state
+    // / - `hev_state`: HEV powertrain state
+    // / - `fc`: fuel converter
+    // / - `em_state`: electric machine state
+    // / - `res`: reversible energy storage (e.g. high voltage battery)
     fn get_pwr_fc_and_em(
         &mut self,
         pwr_prop_req: si::Power,

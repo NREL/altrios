@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.stats import triang
+import math
 
 # Yard setting: optimal layout output
 YARD_TYPE = 'parallel'  # choose 'perpendicular' or 'parallel'
@@ -19,9 +20,15 @@ B = N * 80 + (N+1) * n_p * P # the horizontal length of the yard
 # Total length of yard lanes, used to estimate density (veh/ft)
 total_lane_length = A * (N + 1) + B * (M + 1)  # total distances of lanes
 
-def speed_density(count):
-    speed = 10 / count  # density-speed function: calculate the current speed of the vehicle
+def speed_density(count, vehicle_type):
+    if vehicle_type == 'hostler':
+        speed = 3.80 * math.e ** (-3.34 * count)
+    elif vehicle_type == 'truck':
+        speed = 10.22 * math.e ** (-10.98 * count)
+    else:
+        raise ValueError("Invalid vehicle type. Choose 'hostler' or 'truck'.")
     return speed
+
 
 def create_triang_distribution(min_val, avg_val, max_val):
     c = (avg_val - min_val) / (max_val - min_val)

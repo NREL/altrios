@@ -44,7 +44,7 @@ dependencies = [
     "typing_extensions",
     "pyyaml",
     "polars >= 1.20.0",
-    "pyarrow",
+    "pyarrow >= 16.0",
     "requests",
     "PyYAML==6.0.2",
     "simpy",

@@ -25,13 +25,23 @@ impl LocoTrait for PowertrainType {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        train_state: TrainState,
+        mass: si::Mass,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         match self {
-            PowertrainType::ConventionalLoco(conv) => conv.set_cur_pwr_max_out(pwr_aux, dt),
-            PowertrainType::HybridLoco(hel) => hel.set_cur_pwr_max_out(pwr_aux, dt),
-            PowertrainType::BatteryElectricLoco(bel) => bel.set_cur_pwr_max_out(pwr_aux, dt),
-            PowertrainType::DummyLoco(dummy) => dummy.set_cur_pwr_max_out(pwr_aux, dt),
+            PowertrainType::ConventionalLoco(conv) => {
+                conv.set_cur_pwr_max_out(pwr_aux, train_state, mass, dt)
+            }
+            PowertrainType::HybridLoco(hel) => {
+                hel.set_cur_pwr_max_out(pwr_aux, train_state, mass, dt)
+            }
+            PowertrainType::BatteryElectricLoco(bel) => {
+                bel.set_cur_pwr_max_out(pwr_aux, train_state, mass, dt)
+            }
+            PowertrainType::DummyLoco(dummy) => {
+                dummy.set_cur_pwr_max_out(pwr_aux, train_state, mass, dt)
+            }
         }
     }
 
@@ -233,6 +243,8 @@ impl LocoTrait for DummyLoco {
     fn set_cur_pwr_max_out(
         &mut self,
         _pwr_aux: Option<si::Power>,
+        train_state: TrainState,
+        mass: si::Mass,
         _dt: si::Time,
     ) -> anyhow::Result<()> {
         Ok(())
@@ -309,45 +321,6 @@ impl LocoTrait for DummyLoco {
             pwr_aux_offset: loco_params.pwr_aux_offset,
             pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
             force_max: loco_params.force_max,
-            ..Default::default()
-        };
-        // make sure save_interval is propagated
-        loco.set_save_interval(save_interval);
-        Ok(loco)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    #[staticmethod]
-    #[pyo3(signature = (
-        fuel_converter,
-        generator,
-        reversible_energy_storage,
-        drivetrain,
-        loco_params,
-        save_interval=None,
-    ))]
-    fn build_hybrid_loco(
-        fuel_converter: FuelConverter,
-        generator: Generator,
-        reversible_energy_storage: ReversibleEnergyStorage,
-        drivetrain: ElectricDrivetrain,
-        loco_params: LocoParams,
-        save_interval: Option<usize>,
-    ) -> anyhow::Result<Self> {
-        let mut loco = Self {
-            loco_type: PowertrainType::HybridLoco(Box::new(HybridLoco::new(
-                fuel_converter,
-                generator,
-                reversible_energy_storage,
-                drivetrain,
-            ))),
-            pwr_aux_offset: loco_params.pwr_aux_offset,
-            pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
-            force_max: loco_params.force_max,
-            state: Default::default(),
-            save_interval,
-            history: LocomotiveStateHistoryVec::new(),
-            assert_limits: true,
             ..Default::default()
         };
         // make sure save_interval is propagated
@@ -1226,6 +1199,8 @@ impl LocoTrait for Locomotive {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        train_state: TrainState,
+        mass: si::Mass,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         ensure!(
@@ -1238,7 +1213,7 @@ impl LocoTrait for Locomotive {
         );
 
         self.loco_type
-            .set_cur_pwr_max_out(Some(self.state.pwr_aux), dt)?;
+            .set_cur_pwr_max_out(Some(self.state.pwr_aux), train_state, mass, dt)?;
         match &self.loco_type {
             PowertrainType::ConventionalLoco(loco) => {
                 set_pwr_lims(&mut self.state, &loco.edrv);

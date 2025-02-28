@@ -78,21 +78,8 @@ def mock_hybrid_loco(
     if not res:
         res = mock_reversible_energy_storage(save_interval)
 
-    loco_unit = alt.Locomotive.build_hybrid_loco(
-        fuel_converter=fc,
-        generator=gen,
-        reversible_energy_storage=res,
-        drivetrain=edrv,
-        save_interval=save_interval,
-        fuel_res_split=fuel_res_split,
-        fuel_res_ratio=fuel_res_ratio,
-        gss_interval=gss_interval,
-        loco_params=alt.LocoParams(
-            pwr_aux_offset_watts=pwr_aux_offset_watts,
-            pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
-            force_max_newtons=force_max_newtons,
-        )
-    )
+    loco_unit = alt.Locomotive # TODO: use `from_pydict`
+
     return loco_unit
 
 

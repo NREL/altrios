@@ -20,6 +20,16 @@ pub struct HybridLoco {
     pub res: ReversibleEnergyStorage,
     #[has_state]
     pub edrv: ElectricDrivetrain,
+    /// control strategy for distributing power demand between `fc` and `res`
+    #[api(skip_get, skip_set)]
+    #[serde(default)]
+    pub pt_cntrl: HybridPowertrainControls,
+    /// field for tracking current state
+    #[serde(default)]
+    pub state: HELState,
+    /// vector of [Self::state]
+    #[serde(default, skip_serializing_if = "HELStateHistoryVec::is_empty")]
+    pub history: HELStateHistoryVec,
 }
 
 impl Init for HybridLoco {
@@ -64,14 +74,70 @@ impl LocoTrait for Box<HybridLoco> {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        train_state: TrainState,
+        // amount of total train mass for this locomotive
+        mass_for_loco: si::Mass,
         dt: si::Time,
     ) -> anyhow::Result<()> {
+        self.state.fc_on_causes.clear();
+        match &self.pt_cntrl {
+            HybridPowertrainControls::RGWDB(rgwb) => {
+                if self.fc.state.engine_on && self.fc.state.time_on
+                    < rgwb.fc_min_time_on.with_context(|| {
+                    anyhow!(
+                        "{}\n Expected `ResGreedyWithBuffers::init` to have been called beforehand.",
+                        format_dbg!()
+                    )
+                })? {
+                    self.state.fc_on_causes.push(FCOnCause::OnTimeTooShort)
+                }
+            }
+            HybridPowertrainControls::Placeholder => {
+                todo!()
+            }
+        };
+
+        self.fc.set_cur_pwr_out_max(dt)?;
+        let disch_buffer: si::Energy = match &self.pt_cntrl {
+            HybridPowertrainControls::RGWDB(rgwb) => {
+                (0.5 * mass_for_loco
+                    * (rgwb
+                        .speed_soc_disch_buffer
+                        .with_context(|| format_dbg!())?
+                        .powi(typenum::P2::new())
+                        - train_state.speed.powi(typenum::P2::new())))
+                .max(si::Energy::ZERO)
+                    * rgwb
+                        .speed_soc_disch_buffer_coeff
+                        .with_context(|| format_dbg!())?
+            }
+            HybridPowertrainControls::Placeholder => {
+                todo!()
+            }
+        };
+        let chrg_buffer: si::Energy = match &self.pt_cntrl {
+            HybridPowertrainControls::RGWDB(rgwb) => {
+                (0.5 * train_state.mass_compound().with_context(|| format_dbg!())?
+                    * (train_state.speed.powi(typenum::P2::new())
+                        - rgwb
+                            .speed_soc_regen_buffer
+                            .with_context(|| format_dbg!())?
+                            .powi(typenum::P2::new())))
+                .max(si::Energy::ZERO)
+                    * rgwb
+                        .speed_soc_regen_buffer_coeff
+                        .with_context(|| format_dbg!())?
+            }
+            HybridPowertrainControls::Placeholder => {
+                todo!()
+            }
+        };
+
         self.res.set_cur_pwr_out_max(
             pwr_aux.with_context(|| anyhow!(format_dbg!("`pwr_aux` not provided")))?,
             None,
             None,
         )?;
-        self.fc.set_cur_pwr_out_max(dt)?;
 
         self.gen
             .set_cur_pwr_max_out(self.fc.state.pwr_out_max, pwr_aux)?;
@@ -108,20 +174,6 @@ impl LocoTrait for Box<HybridLoco> {
 }
 
 impl HybridLoco {
-    pub fn new(
-        fuel_converter: FuelConverter,
-        generator: Generator,
-        reversible_energy_storage: ReversibleEnergyStorage,
-        electric_drivetrain: ElectricDrivetrain,
-    ) -> Self {
-        Self {
-            fc: fuel_converter,
-            gen: generator,
-            res: reversible_energy_storage,
-            edrv: electric_drivetrain,
-        }
-    }
-
     /// Solve fc and res energy consumption
     /// Arguments:
     /// - pwr_out_req: tractive power require
@@ -129,9 +181,14 @@ impl HybridLoco {
     pub fn solve_energy_consumption(
         &mut self,
         _pwr_out_req: si::Power,
-        _dt: si::Time,
-        _assert_limits: bool,
+        dt: si::Time,
+        assert_limits: bool,
     ) -> anyhow::Result<()> {
+        let engine_on: bool = !self.state.fc_on_causes.is_empty();
+        let fc_pwr_out_req = todo!("steal the logic for this from fastsim-3");
+        self.fc
+            .solve_energy_consumption(fc_pwr_out_req, dt, engine_on, assert_limits)?;
+
         Ok(())
     }
 }
@@ -161,7 +218,7 @@ impl FCOnCauses {
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
 #[non_exhaustive]
 #[serde(default)]
-pub struct HEVState {
+pub struct HELState {
     /// time step index
     pub i: usize,
     /// Vector of posssible reasons the fc is forced on
@@ -171,8 +228,8 @@ pub struct HEVState {
     pub soc_bal_iters: u32,
 }
 
-impl Init for HEVState {}
-impl SerdeAPI for HEVState {}
+impl Init for HELState {}
+impl SerdeAPI for HELState {}
 
 // Custom serialization
 impl Serialize for FCOnCauses {
@@ -308,7 +365,7 @@ pub enum HEVAuxControls {
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, IsVariant, From, TryInto)]
-pub enum HEVPowertrainControls {
+pub enum HybridPowertrainControls {
     /// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge
     /// and discharge power inside of static min and max SOC range.  Also, includes
     /// buffer for forcing [FuelConverter] to be active/on.
@@ -317,13 +374,13 @@ pub enum HEVPowertrainControls {
     Placeholder,
 }
 
-impl Default for HEVPowertrainControls {
+impl Default for HybridPowertrainControls {
     fn default() -> Self {
         Self::RGWDB(Default::default())
     }
 }
 
-impl Init for HEVPowertrainControls {
+impl Init for HybridPowertrainControls {
     fn init(&mut self) -> anyhow::Result<()> {
         match self {
             Self::RGWDB(rgwb) => rgwb.init()?,
@@ -339,7 +396,7 @@ impl Init for HEVPowertrainControls {
 fn handle_fc_on_causes_for_low_soc(
     res: &ReversibleEnergyStorage,
     rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
-    hev_state: &mut HEVState,
+    hev_state: &mut HELState,
     train_state: TrainState,
 ) -> anyhow::Result<()> {
     rgwdb.state.soc_fc_on_buffer = {
@@ -369,7 +426,7 @@ fn handle_fc_on_causes_for_pwr_demand(
     pwr_out_req: si::Power,
     em_state: &ElectricDrivetrainState,
     fc_state: &FuelConverterState,
-    hev_state: &mut HEVState,
+    hev_state: &mut HELState,
 ) -> Result<(), anyhow::Error> {
     let frac_pwr_demand_fc_forced_on: si::Ratio = rgwdb
         .frac_pwr_demand_fc_forced_on
@@ -393,7 +450,7 @@ fn handle_fc_on_causes_for_pwr_demand(
 fn handle_fc_on_causes_for_speed(
     train_state: TrainState,
     rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
-    hev_state: &mut HEVState,
+    hev_state: &mut HELState,
 ) -> anyhow::Result<()> {
     if train_state.speed > rgwdb.speed_fc_forced_on.with_context(|| format_dbg!())? {
         hev_state.fc_on_causes.push(FCOnCause::VehicleSpeedTooHigh);
@@ -401,7 +458,7 @@ fn handle_fc_on_causes_for_speed(
     Ok(())
 }
 
-impl HEVPowertrainControls {
+impl HybridPowertrainControls {
     /// Determines power split between engine and electric machine
     ///
     /// # Arguments
@@ -418,7 +475,7 @@ impl HEVPowertrainControls {
         // locomotive is reponsible for the total train weight (and maybe factor in
         // elevation delta somehow) per count of locomotives
         train_state: TrainState,
-        hev_state: &mut HEVState,
+        hev_state: &mut HELState,
         fc: &FuelConverter,
         em_state: &ElectricDrivetrainState,
         res: &ReversibleEnergyStorage,

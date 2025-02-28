@@ -12,7 +12,8 @@ fn test_conv_loco() {
     assert_eq!(loco.state.pwr_out_max, si::Power::ZERO);
     assert_eq!(loco.state.pwr_rate_out_max, si::PowerRate::ZERO);
     assert_eq!(loco.state.pwr_regen_max, si::Power::ZERO);
-    loco.set_cur_pwr_max_out(None, 1.0 * uc::S).unwrap();
+    loco.set_cur_pwr_max_out(None, todo!(), todo!(), 1.0 * uc::S)
+        .unwrap();
     assert!(loco.state.pwr_out_max > si::Power::ZERO);
     assert!(loco.state.pwr_rate_out_max > si::PowerRate::ZERO);
     assert!(loco.state.pwr_regen_max == si::Power::ZERO);
@@ -38,7 +39,8 @@ fn test_hybrid_loco() {
     assert_eq!(loco.state.pwr_out_max, si::Power::ZERO);
     assert_eq!(loco.state.pwr_rate_out_max, si::PowerRate::ZERO);
     assert_eq!(loco.state.pwr_regen_max, si::Power::ZERO);
-    loco.set_cur_pwr_max_out(None, 1.0 * uc::S).unwrap();
+    loco.set_cur_pwr_max_out(None, todo!(), todo!(), 1.0 * uc::S)
+        .unwrap();
     assert!(loco.state.pwr_out_max > si::Power::ZERO);
     assert!(loco.state.pwr_rate_out_max > si::PowerRate::ZERO);
     assert!(loco.state.pwr_regen_max == si::Power::ZERO);
@@ -56,7 +58,8 @@ fn test_battery_electric_loco() {
     assert_eq!(loco.state.pwr_out_max, si::Power::ZERO);
     assert_eq!(loco.state.pwr_rate_out_max, si::PowerRate::ZERO);
     assert_eq!(loco.state.pwr_regen_max, si::Power::ZERO);
-    loco.set_cur_pwr_max_out(None, 1.0 * uc::S).unwrap();
+    loco.set_cur_pwr_max_out(None, todo!(), todo!(), 1.0 * uc::S)
+        .unwrap();
     assert!(loco.state.pwr_out_max > si::Power::ZERO);
     assert!(loco.state.pwr_rate_out_max > si::PowerRate::ZERO);
     assert!(loco.state.pwr_regen_max == si::Power::ZERO);

@@ -2,11 +2,18 @@ use super::*;
 
 /// Trait for ensuring consistency among locomotives and consists
 pub trait LocoTrait {
-    /// returns current max power, current max power rate, and current max regen
+    /// Sets current max power, current max power rate, and current max regen
     /// power that can be absorbed by the RES/battery
+    ///
+    /// # Arguments:
+    /// - `pwr_aux`: aux power
+    /// - `mass`: portion of total train mass handled by `self`
+    /// - `dt`: time step size
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        train_state: TrainState,
+        mass: si::Mass,
         dt: si::Time,
     ) -> anyhow::Result<()>;
     /// Save current state

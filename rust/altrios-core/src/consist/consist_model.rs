@@ -423,6 +423,8 @@ impl LocoTrait for Consist {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        train_state: TrainState,
+        train_mass: si::Mass,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         // TODO: this will need to account for catenary power
@@ -431,14 +433,35 @@ impl LocoTrait for Consist {
         // is operating with the same catenary power availability at the train position for which this
         // method is called
         ensure!(pwr_aux.is_none(), format_dbg!(pwr_aux.is_none()));
-        for (i, loco) in self.loco_vec.iter_mut().enumerate() {
-            loco.set_cur_pwr_max_out(None, dt).map_err(|err| {
-                err.context(format!(
-                    "loco idx: {} loco type: {}",
-                    i,
-                    loco.loco_type.to_string()
-                ))
-            })?;
+        // calculate mass assigned to each locomotive such that the buffer
+        // calculations can be based on mass weighted proportionally to the battery
+        // capacity
+        let res_total_usable_energy = self.loco_vec.iter().fold(si::Energy::ZERO, |m_tot, l| {
+            m_tot
+                + l.reversible_energy_storage()
+                    .map(|res| res.energy_capacity_usable())
+                    .unwrap_or(si::Energy::ZERO)
+        });
+        let mass_for_each_loco: Vec<si::Mass> = self
+            .loco_vec
+            .iter()
+            .map(|l| {
+                l.reversible_energy_storage()
+                    .map(|res| res.energy_capacity_usable())
+                    .unwrap_or(si::Energy::ZERO)
+                    / res_total_usable_energy
+                    * train_mass
+            })
+            .collect();
+        for ((i, loco), mass) in self.loco_vec.iter_mut().enumerate().zip(mass_for_each_loco) {
+            loco.set_cur_pwr_max_out(None, train_state, mass, dt)
+                .map_err(|err| {
+                    err.context(format!(
+                        "loco idx: {} loco type: {}",
+                        i,
+                        loco.loco_type.to_string()
+                    ))
+                })?;
         }
         self.state.pwr_out_max = self
             .loco_vec

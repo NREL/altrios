@@ -1,6 +1,7 @@
 use super::powertrain::electric_drivetrain::ElectricDrivetrain;
 use super::powertrain::reversible_energy_storage::ReversibleEnergyStorage;
 use super::powertrain::ElectricMachine;
+use super::*;
 use super::{LocoTrait, Mass, MassSideEffect};
 use crate::imports::*;
 
@@ -102,6 +103,8 @@ impl LocoTrait for BatteryElectricLoco {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        train_state: TrainState,
+        mass: si::Mass,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         self.res.set_cur_pwr_out_max(

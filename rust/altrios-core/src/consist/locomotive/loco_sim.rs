@@ -226,7 +226,7 @@ impl LocomotiveSimulation {
         let engine_on = self.power_trace.engine_on[self.i];
         self.loco_unit.set_pwr_aux(engine_on);
         self.loco_unit
-            .set_cur_pwr_max_out(None, self.power_trace.dt(self.i))?;
+            .set_cur_pwr_max_out(None, todo!(), todo!(), self.power_trace.dt(self.i))?;
         self.solve_energy_consumption(
             self.power_trace.pwr[self.i],
             self.power_trace.dt(self.i),

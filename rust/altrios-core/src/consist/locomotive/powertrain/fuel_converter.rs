@@ -195,6 +195,12 @@ impl FuelConverter {
         engine_on: bool,
         assert_limits: bool,
     ) -> anyhow::Result<()> {
+        if engine_on {
+            self.state.time_on += dt;
+        } else {
+            self.state.time_on = si::Time::ZERO;
+        }
+
         if assert_limits {
             ensure!(
                 utils::almost_le_uom(&pwr_out_req, &self.pwr_out_max, Some(TOL)),
@@ -299,6 +305,8 @@ pub struct FuelConverterState {
     pub energy_idle_fuel: si::Energy,
     /// If true, engine is on, and if false, off (no idle)
     pub engine_on: bool,
+    /// elapsed time since engine was turned on
+    pub time_on: si::Time,
 }
 
 impl Init for FuelConverterState {}
@@ -318,6 +326,7 @@ impl Default for FuelConverterState {
             energy_loss: Default::default(),
             energy_idle_fuel: Default::default(),
             engine_on: true,
+            time_on: si::Time::ZERO,
         }
     }
 }

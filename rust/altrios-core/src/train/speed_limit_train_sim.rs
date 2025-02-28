@@ -322,7 +322,7 @@ impl SpeedLimitTrainSim {
         // set aux power for the consist
         self.loco_con.set_pwr_aux(Some(true))?;
         // set the maximum power out based on dt.
-        self.loco_con.set_cur_pwr_max_out(None, self.state.dt)?;
+        self.loco_con.set_cur_pwr_max_out(None, self.state, self.state.mass_compound()?, self.state.dt)?;
         // calculate new resistance
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;

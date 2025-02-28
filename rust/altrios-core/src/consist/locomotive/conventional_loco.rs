@@ -3,6 +3,7 @@ use super::powertrain::fuel_converter::FuelConverter;
 use super::powertrain::generator::Generator;
 use super::powertrain::{ElectricMachine, Mass, MassSideEffect};
 use super::LocoTrait;
+use super::*;
 use crate::imports::*;
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods)]
@@ -126,6 +127,8 @@ impl LocoTrait for ConventionalLoco {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        train_state: TrainState,
+        mass: si::Mass,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         self.fc.set_cur_pwr_out_max(dt)?;

@@ -442,6 +442,8 @@ impl LocoTrait for Consist {
                     .map(|res| res.energy_capacity_usable())
                     .unwrap_or(si::Energy::ZERO)
         });
+        // allocate respective mass portion to each locomotive that has res
+        // Seems misleading if we have mixed consist with res and conventional and res cannot provide all the tractive effort
         let mass_for_each_loco: Vec<si::Mass> = self
             .loco_vec
             .iter()

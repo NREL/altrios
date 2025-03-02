@@ -127,8 +127,8 @@ impl LocoTrait for ConventionalLoco {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
-        train_state: TrainState,
-        mass: si::Mass,
+        _train_mass: Option<si::Mass>,
+        _train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         self.fc.set_cur_pwr_out_max(dt)?;

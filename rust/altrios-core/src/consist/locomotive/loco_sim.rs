@@ -35,6 +35,11 @@ pub struct PowerTrace {
     pub pwr: Vec<si::Power>,
     /// Whether engine is on
     pub engine_on: Vec<Option<bool>>,
+    /// Speed, needed only if simulating [HybridElectricLocomotive]  
+    pub train_speed: Vec<si::Velocity>,
+    /// Train mass, needed only if simulating [HybridElectricLocomotive]
+    #[api(skip_get, skip_set)]
+    pub train_mass: Option<si::Mass>,
 }
 
 impl PowerTrace {
@@ -43,6 +48,8 @@ impl PowerTrace {
             time: time_s.iter().map(|x| uc::S * (*x)).collect(),
             pwr: pwr_watts.iter().map(|x| uc::W * (*x)).collect(),
             engine_on,
+            train_speed: Vec::new(),
+            train_mass: None,
         }
     }
 
@@ -51,6 +58,8 @@ impl PowerTrace {
             time: Vec::new(),
             pwr: Vec::new(),
             engine_on: Vec::new(),
+            train_speed: Vec::new(),
+            train_mass: None,
         }
     }
 
@@ -227,10 +236,14 @@ impl LocomotiveSimulation {
         self.loco_unit.set_pwr_aux(engine_on);
         self.loco_unit
             .set_cur_pwr_max_out(None, todo!(), todo!(), self.power_trace.dt(self.i))?;
+        let train_mass: Option<si::Mass> = todo!();
+        let train_speed: Option<si::Velocity> = todo!();
         self.solve_energy_consumption(
             self.power_trace.pwr[self.i],
             self.power_trace.dt(self.i),
             engine_on,
+            train_mass,
+            train_speed,
         )?;
         ensure!(
             utils::almost_eq_uom(
@@ -274,9 +287,16 @@ impl LocomotiveSimulation {
         pwr_out_req: si::Power,
         dt: si::Time,
         engine_on: Option<bool>,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<()> {
-        self.loco_unit
-            .solve_energy_consumption(pwr_out_req, dt, engine_on)?;
+        self.loco_unit.solve_energy_consumption(
+            pwr_out_req,
+            dt,
+            engine_on,
+            train_mass,
+            train_speed,
+        )?;
         Ok(())
     }
 }

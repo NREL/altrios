@@ -20,7 +20,7 @@ fn test_consist() {
     assert_eq!(consist.state.energy_fuel, si::Energy::ZERO);
     assert_eq!(consist.state.energy_res, si::Energy::ZERO);
     consist
-        .solve_energy_consumption(uc::W * 1e6, uc::S * 1.0, Some(true))
+        .solve_energy_consumption(uc::W * 1e6, todo!(), todo!(), uc::S * 1.0, Some(true))
         .unwrap();
     assert!(consist.state.energy_out > si::Energy::ZERO);
     assert!(consist.state.energy_fuel > si::Energy::ZERO);

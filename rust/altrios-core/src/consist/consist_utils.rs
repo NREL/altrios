@@ -7,13 +7,14 @@ pub trait LocoTrait {
     ///
     /// # Arguments:
     /// - `pwr_aux`: aux power
-    /// - `mass`: portion of total train mass handled by `self`
+    /// - `train_speed`: current train speed
+    /// - `train_mass`: portion of total train mass handled by `self`
     /// - `dt`: time step size
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
-        train_state: TrainState,
-        mass: si::Mass,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()>;
     /// Save current state
@@ -47,11 +48,15 @@ pub trait SolvePower {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>>;
     fn solve_negative_traction(
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>>;
 }
 
@@ -65,6 +70,8 @@ impl SolvePower for RESGreedy {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         let loco_pwr_out_vec: Vec<si::Power> = if state.pwr_out_deficit == si::Power::ZERO {
             // draw all power from RES-equipped locomotives
@@ -112,8 +119,10 @@ impl SolvePower for RESGreedy {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
-        solve_negative_traction(loco_vec, state)
+        solve_negative_traction(loco_vec, state, train_mass, train_speed)
     }
 }
 
@@ -137,6 +146,8 @@ fn get_pwr_regen_vec(loco_vec: &[Locomotive], regen_frac: si::Ratio) -> Vec<si::
 fn solve_negative_traction(
     loco_vec: &[Locomotive],
     consist_state: &ConsistState,
+    train_mass: Option<si::Mass>,
+    train_speed: Option<si::Velocity>,
 ) -> anyhow::Result<Vec<si::Power>> {
     // positive during any kind of negative traction event
     let pwr_brake_req = -consist_state.pwr_out_req;
@@ -195,6 +206,8 @@ impl SolvePower for Proportional {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         Ok(loco_vec
             .iter()
@@ -209,8 +222,10 @@ impl SolvePower for Proportional {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
-        solve_negative_traction(loco_vec, state)
+        solve_negative_traction(loco_vec, state, train_mass, train_speed)
     }
 }
 
@@ -224,6 +239,8 @@ impl SolvePower for FrontAndBack {
         &mut self,
         _loco_vec: &[Locomotive],
         _state: &ConsistState,
+        _train_mass: Option<si::Mass>,
+        _train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         todo!() // not needed urgently
     }
@@ -232,6 +249,8 @@ impl SolvePower for FrontAndBack {
         &mut self,
         _loco_vec: &[Locomotive],
         _state: &ConsistState,
+        _train_mass: Option<si::Mass>,
+        _train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         todo!() // not needed urgently
     }
@@ -251,11 +270,19 @@ impl SolvePower for PowerDistributionControlType {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         match self {
-            Self::RESGreedy(res_greedy) => res_greedy.solve_negative_traction(loco_vec, state),
-            Self::Proportional(prop) => prop.solve_negative_traction(loco_vec, state),
-            Self::FrontAndBack(fab) => fab.solve_negative_traction(loco_vec, state),
+            Self::RESGreedy(res_greedy) => {
+                res_greedy.solve_negative_traction(loco_vec, state, train_mass, train_speed)
+            }
+            Self::Proportional(prop) => {
+                prop.solve_negative_traction(loco_vec, state, train_mass, train_speed)
+            }
+            Self::FrontAndBack(fab) => {
+                fab.solve_negative_traction(loco_vec, state, train_mass, train_speed)
+            }
         }
     }
 
@@ -263,11 +290,19 @@ impl SolvePower for PowerDistributionControlType {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         match self {
-            Self::RESGreedy(res_greedy) => res_greedy.solve_positive_traction(loco_vec, state),
-            Self::Proportional(prop) => prop.solve_positive_traction(loco_vec, state),
-            Self::FrontAndBack(fab) => fab.solve_positive_traction(loco_vec, state),
+            Self::RESGreedy(res_greedy) => {
+                res_greedy.solve_positive_traction(loco_vec, state, train_mass, train_speed)
+            }
+            Self::Proportional(prop) => {
+                prop.solve_positive_traction(loco_vec, state, train_mass, train_speed)
+            }
+            Self::FrontAndBack(fab) => {
+                fab.solve_positive_traction(loco_vec, state, train_mass, train_speed)
+            }
         }
     }
 }

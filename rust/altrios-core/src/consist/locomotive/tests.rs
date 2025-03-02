@@ -19,13 +19,13 @@ fn test_conv_loco() {
     assert!(loco.state.pwr_regen_max == si::Power::ZERO);
 
     assert_eq!(loco.state.energy_out, si::Energy::ZERO);
-    loco.solve_energy_consumption(uc::W * 200e3, uc::S * 1.0, Some(true))
+    loco.solve_energy_consumption(uc::W * 200e3, uc::S * 1.0, Some(true), None, None)
         .unwrap();
     assert!(loco.state.energy_out > si::Energy::ZERO);
     if let PowertrainType::ConventionalLoco(lt) = &loco.loco_type {
         assert!(lt.edrv.state.energy_elec_dyn_brake == si::Energy::ZERO);
     }
-    loco.solve_energy_consumption(uc::W * -200e3, uc::S * 1.0, Some(true))
+    loco.solve_energy_consumption(uc::W * -200e3, uc::S * 1.0, Some(true), None, None)
         .unwrap();
     if let PowertrainType::ConventionalLoco(lt) = loco.loco_type {
         assert!(lt.edrv.state.energy_elec_dyn_brake > si::Energy::ZERO);
@@ -46,8 +46,14 @@ fn test_hybrid_loco() {
     assert!(loco.state.pwr_regen_max == si::Power::ZERO);
 
     assert_eq!(loco.state.energy_out, si::Energy::ZERO);
-    loco.solve_energy_consumption(uc::W * 1e6, uc::S * 1.0, Some(true))
-        .unwrap();
+    loco.solve_energy_consumption(
+        uc::W * 1e6,
+        uc::S * 1.0,
+        Some(true),
+        Some(uc::LB * 1e6),
+        Some(uc::MPH * 10.0),
+    )
+    .unwrap();
     assert!(loco.state.energy_out > si::Energy::ZERO);
 }
 
@@ -65,7 +71,7 @@ fn test_battery_electric_loco() {
     assert!(loco.state.pwr_regen_max == si::Power::ZERO);
 
     assert_eq!(loco.state.energy_out, si::Energy::ZERO);
-    loco.solve_energy_consumption(uc::W * 1e6, uc::S * 1.0, Some(true))
+    loco.solve_energy_consumption(uc::W * 1e6, uc::S * 1.0, Some(true), None, None)
         .unwrap();
     assert!(loco.state.energy_out > si::Energy::ZERO);
 }

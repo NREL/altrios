@@ -259,6 +259,8 @@ impl Consist {
     pub fn solve_energy_consumption(
         &mut self,
         pwr_out_req: si::Power,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
         dt: si::Time,
         engine_on: Option<bool>,
     ) -> anyhow::Result<()> {
@@ -297,12 +299,20 @@ impl Consist {
 
         let pwr_out_vec: Vec<si::Power> = if pwr_out_req > si::Power::ZERO {
             // positive tractive power `pwr_out_vec`
-            self.pdct
-                .solve_positive_traction(&self.loco_vec, &self.state)?
+            self.pdct.solve_positive_traction(
+                &self.loco_vec,
+                &self.state,
+                train_mass,
+                train_speed,
+            )?
         } else if pwr_out_req < si::Power::ZERO {
             // negative tractive power `pwr_out_vec`
-            self.pdct
-                .solve_negative_traction(&self.loco_vec, &self.state)?
+            self.pdct.solve_negative_traction(
+                &self.loco_vec,
+                &self.state,
+                train_mass,
+                train_speed,
+            )?
         } else {
             // zero tractive power `pwr_out_vec`
             vec![si::Power::ZERO; self.loco_vec.len()]
@@ -333,7 +343,7 @@ impl Consist {
         // maybe put logic for toggling `engine_on` here
 
         for (i, (loco, pwr_out)) in self.loco_vec.iter_mut().zip(pwr_out_vec.iter()).enumerate() {
-            loco.solve_energy_consumption(*pwr_out, dt, engine_on)
+            loco.solve_energy_consumption(*pwr_out, dt, engine_on, train_mass, train_speed)
                 .map_err(|err| {
                     err.context(format!(
                         "loco idx: {}, loco type: {}",
@@ -423,8 +433,8 @@ impl LocoTrait for Consist {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
-        train_state: TrainState,
-        train_mass: si::Mass,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         // TODO: this will need to account for catenary power
@@ -442,19 +452,16 @@ impl LocoTrait for Consist {
                     .map(|res| res.energy_capacity_usable())
                     .unwrap_or(si::Energy::ZERO)
         });
-        let mass_for_each_loco: Vec<si::Mass> = self
-            .loco_vec
-            .iter()
-            .map(|l| {
-                l.reversible_energy_storage()
+        for (i, loco) in self.loco_vec.iter_mut().enumerate() {
+            // assign locomotive specific mass for hybrid controls
+            let mass: Option<si::Mass> = train_mass.map(|tm| {
+                loco.reversible_energy_storage()
                     .map(|res| res.energy_capacity_usable())
                     .unwrap_or(si::Energy::ZERO)
                     / res_total_usable_energy
-                    * train_mass
-            })
-            .collect();
-        for ((i, loco), mass) in self.loco_vec.iter_mut().enumerate().zip(mass_for_each_loco) {
-            loco.set_cur_pwr_max_out(None, train_state, mass, dt)
+                    * tm
+            });
+            loco.set_cur_pwr_max_out(None, mass, train_speed, dt)
                 .map_err(|err| {
                     err.context(format!(
                         "loco idx: {} loco type: {}",

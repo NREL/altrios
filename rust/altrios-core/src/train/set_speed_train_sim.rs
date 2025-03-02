@@ -370,11 +370,12 @@ impl SetSpeedTrainSim {
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
         // set aux power loads.  this will be calculated in the locomotive model and be loco type dependent.
         self.loco_con.set_pwr_aux(Some(true))?;
+        let train_mass = Some(self.state.mass_compound().with_context(|| format_dbg!())?);
         // set the max power out for the consist based on calculation of each loco state
         self.loco_con.set_cur_pwr_max_out(
             None,
-            self.state,
-            self.state.mass_compound()?,
+            train_mass,
+            Some(self.state.speed),
             self.speed_trace.dt(self.state.i),
         )?;
         // calculate the train resistance for current time steps.  Based on train config and calculated in train model.
@@ -384,6 +385,8 @@ impl SetSpeedTrainSim {
         self.solve_required_pwr(self.speed_trace.dt(self.state.i))?;
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
+            train_mass,
+            Some(self.speed_trace.speed[self.state.i]),
             self.speed_trace.dt(self.state.i),
             Some(true),
         )?;

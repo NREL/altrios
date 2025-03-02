@@ -70,6 +70,8 @@ pub struct FuelConverter {
     /// fuel converter efficiency array
     pub eta_interp: Vec<f64>,
     /// pwr at which peak efficiency occurs
+    #[serde(skip)]
+    #[api(skip_get)]
     pub(crate) pwr_for_peak_eff: si::Power,
     /// idle fuel power to overcome internal friction (not including aux load)
     pub pwr_idle_fuel: si::Power,

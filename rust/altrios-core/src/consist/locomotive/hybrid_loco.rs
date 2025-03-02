@@ -196,12 +196,13 @@ impl HybridLoco {
         train_mass: si::Mass,
         train_speed: si::Velocity,
         dt: si::Time,
+        pwr_aux: si::Power,
         assert_limits: bool,
     ) -> anyhow::Result<()> {
-        let engine_on: bool = !self.state.fc_on_causes.is_empty();
+        let fc_on: bool = !self.state.fc_on_causes.is_empty();
         let (fc_pwr_out_req, res_pwr_out_req) = self
             .pt_cntrl
-            .get_pwr_fc_and_em(
+            .get_pwr_gen_and_res(
                 pwr_out_req,
                 train_mass,
                 train_speed,
@@ -211,10 +212,9 @@ impl HybridLoco {
                 &self.res,
             )
             .with_context(|| format_dbg!())?;
-        let fc_on: bool = !self.state.fc_on_causes.is_empty();
 
         self.fc
-            .solve_energy_consumption(fc_pwr_out_req, dt, engine_on, assert_limits)
+            .solve_energy_consumption(fc_pwr_out_req, dt, fc_on, assert_limits)
             .with_context(|| format_dbg!())?;
 
         let res_pwr_out_req = self
@@ -493,7 +493,7 @@ fn handle_fc_on_causes_for_speed(
 }
 
 impl HybridPowertrainControls {
-    /// Determines power split between engine and electric machine
+    /// Determines power split between engine/generator and battery
     ///
     /// # Arguments
     /// - `pwr_prop_req`: tractive power required
@@ -502,7 +502,7 @@ impl HybridPowertrainControls {
     /// - `fc`: fuel converter
     /// - `em_state`: electric machine state
     /// - `res`: reversible energy storage (e.g. high voltage battery)
-    fn get_pwr_fc_and_em(
+    fn get_pwr_gen_and_res(
         &mut self,
         pwr_prop_req: si::Power,
         train_mass: si::Mass,
@@ -532,13 +532,8 @@ impl HybridPowertrainControls {
             res.state.soc.get::<si::ratio>()
         );
 
-        // # Brain dump for thermal stuff
-        // TODO: engine on/off w.r.t. thermal stuff should not come into play
-        // if there is no component (e.g. cabin) demanding heat from the engine.  My 2019
-        // Hyundai Ioniq will turn the engine off if there is no heat demand regardless of
-        // the coolant temperature
         // TODO: make sure idle fuel gets converted to heat correctly
-        let (fc_pwr, em_pwr) = match self {
+        let (gen_pwr, res_pwr) = match self {
             Self::RGWDB(ref mut rgwdb) => {
                 // handle_fc_on_causes_for_temp(fc, rgwdb, hev_state)?;
                 handle_fc_on_causes_for_speed(train_speed, rgwdb, hel_state)?;
@@ -556,13 +551,13 @@ impl HybridPowertrainControls {
                 // split, cannot exceed ElectricMachine max output power.
                 // Excess demand will be handled by `fc`.  Favors drawing
                 // power from `em` before engine
-                let em_pwr = pwr_prop_req
+                let edrv_pwr = pwr_prop_req
                     .min(em_state.pwr_mech_out_max)
                     .max(-em_state.pwr_mech_regen_max);
                 // tractive power handled by fc
                 if hel_state.fc_on_causes.is_empty() {
                     // engine is off, and `em_pwr` has already been limited within bounds
-                    (si::Power::ZERO, em_pwr)
+                    (si::Power::ZERO, edrv_pwr)
                 } else {
                     // engine has been forced on
                     let frac_of_pwr_for_peak_eff: si::Ratio = rgwdb
@@ -578,15 +573,16 @@ impl HybridPowertrainControls {
                             .max(si::Power::ZERO)
                     } else {
                         // positive tractive power
-                        if pwr_prop_req - em_pwr > fc.pwr_for_peak_eff * frac_of_pwr_for_peak_eff {
+                        if pwr_prop_req - edrv_pwr > fc.pwr_for_peak_eff * frac_of_pwr_for_peak_eff
+                        {
                             // engine needs to run higher than peak efficiency point
-                            pwr_prop_req - em_pwr
+                            pwr_prop_req - edrv_pwr
                         } else {
                             // engine does not need to run higher than peak
                             // efficiency point to make tractive demand
 
                             // fc handles all power not covered by em
-                            (pwr_prop_req - em_pwr)
+                            (pwr_prop_req - edrv_pwr)
                                 // and if that's less than the
                                 // efficiency-focused value, then operate at
                                 // that value
@@ -608,7 +604,7 @@ impl HybridPowertrainControls {
             Self::Placeholder => todo!(),
         };
 
-        Ok((fc_pwr, em_pwr))
+        Ok((gen_pwr, res_pwr))
     }
 }
 

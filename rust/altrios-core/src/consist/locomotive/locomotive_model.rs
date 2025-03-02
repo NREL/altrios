@@ -1149,8 +1149,11 @@ impl Locomotive {
         Ok(())
     }
 
-    pub fn set_pwr_aux(&mut self, engine_on: Option<bool>) {
-        self.state.pwr_aux = if engine_on.unwrap_or(true) {
+    /// Sets aux power for locomotive
+    /// # Arguments
+    /// - `loco_on` whether this locomotive is active or just dead weight
+    pub fn set_pwr_aux(&mut self, loco_on: Option<bool>) {
+        self.state.pwr_aux = if loco_on.unwrap_or(true) {
             // TODO: make this optionally asymmetrical to allow for locomotives that
             // do not have an aux penalty related to dynamic braking
             self.pwr_aux_offset + self.pwr_aux_traction_coeff * self.state.pwr_out.abs()

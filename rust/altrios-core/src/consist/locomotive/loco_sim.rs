@@ -35,6 +35,7 @@ pub struct PowerTrace {
     pub pwr: Vec<si::Power>,
     /// Whether engine is on
     pub engine_on: Vec<Option<bool>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     /// Speed, needed only if simulating [HybridElectricLocomotive]  
     pub train_speed: Vec<si::Velocity>,
     /// Train mass, needed only if simulating [HybridElectricLocomotive]
@@ -79,6 +80,9 @@ impl PowerTrace {
         self.time.push(pt_element.time);
         self.pwr.push(pt_element.pwr);
         self.engine_on.push(pt_element.engine_on);
+        if let Some(train_speed) = pt_element.train_speed {
+            self.train_speed.push(train_speed);
+        }
     }
 
     pub fn trim(&mut self, start_idx: Option<usize>, end_idx: Option<usize>) -> anyhow::Result<()> {
@@ -137,6 +141,8 @@ pub struct PowerTraceElement {
     pwr: si::Power,
     /// Whether engine is on
     engine_on: Option<bool>,
+    /// speed at time step
+    train_speed: Option<si::Velocity>,
 }
 
 #[altrios_api(
@@ -234,10 +240,18 @@ impl LocomotiveSimulation {
         // linear aux model
         let engine_on = self.power_trace.engine_on[self.i];
         self.loco_unit.set_pwr_aux(engine_on);
-        self.loco_unit
-            .set_cur_pwr_max_out(None, todo!(), todo!(), self.power_trace.dt(self.i))?;
-        let train_mass: Option<si::Mass> = todo!();
-        let train_speed: Option<si::Velocity> = todo!();
+        let train_mass = self.power_trace.train_mass;
+        let train_speed = if !self.power_trace.train_speed.is_empty() {
+            Some(self.power_trace.train_speed[self.i])
+        } else {
+            None
+        };
+        self.loco_unit.set_cur_pwr_max_out(
+            None,
+            train_mass,
+            train_speed,
+            self.power_trace.dt(self.i),
+        )?;
         self.solve_energy_consumption(
             self.power_trace.pwr[self.i],
             self.power_trace.dt(self.i),

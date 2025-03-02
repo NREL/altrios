@@ -322,7 +322,7 @@ impl SpeedLimitTrainSim {
         // set aux power for the consist
         self.loco_con.set_pwr_aux(Some(true))?;
         // set the maximum power out based on dt.
-        self.loco_con.set_cur_pwr_max_out(None, self.state.dt)?;
+        self.loco_con.set_cur_pwr_max_out(None,  Some(self.state.mass_compound()?), Some(self.state.speed), self.state.dt)?;
         // calculate new resistance
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
@@ -331,6 +331,8 @@ impl SpeedLimitTrainSim {
 
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
+            Some(self.state.mass_compound()?),
+            Some(self.state.speed),
             self.state.dt,
             Some(true),
         )?;
@@ -695,7 +697,7 @@ impl SpeedLimitTrainSim {
     }
 }
 
-impl SerdeAPI for SpeedLimitTrainSim {
+impl Init for SpeedLimitTrainSim {
     fn init(&mut self) -> anyhow::Result<()> {
         self.origs.init()?;
         self.dests.init()?;
@@ -709,7 +711,7 @@ impl SerdeAPI for SpeedLimitTrainSim {
         Ok(())
     }
 }
-
+impl SerdeAPI for SpeedLimitTrainSim{}
 impl Default for SpeedLimitTrainSim {
     fn default() -> Self {
         let mut slts = Self {

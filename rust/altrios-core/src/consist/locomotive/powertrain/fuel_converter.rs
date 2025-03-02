@@ -69,6 +69,8 @@ pub struct FuelConverter {
     pub pwr_out_frac_interp: Vec<f64>,
     /// fuel converter efficiency array
     pub eta_interp: Vec<f64>,
+    /// pwr at which peak efficiency occurs
+    pub(crate) pwr_for_peak_eff: si::Power,
     /// idle fuel power to overcome internal friction (not including aux load)
     pub pwr_idle_fuel: si::Power,
     /// time step interval between saves. 1 is a good option. If None, no saving occurs.
@@ -88,12 +90,24 @@ impl Default for FuelConverter {
     }
 }
 
-impl SerdeAPI for FuelConverter {
+impl Init for FuelConverter {
     fn init(&mut self) -> anyhow::Result<()> {
+        let eff_max = self.get_eta_max();
+        self.pwr_for_peak_eff = *self
+            .eta_interp
+            .get(
+                self.pwr_out_frac_interp
+                    .iter()
+                    .position(|&eff| eff == eff_max)
+                    .with_context(|| format_dbg!())?,
+            )
+            .with_context(|| format_dbg!())?
+            * self.pwr_out_max;
         self.state.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for FuelConverter {}
 
 impl Mass for FuelConverter {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
@@ -181,6 +195,12 @@ impl FuelConverter {
         engine_on: bool,
         assert_limits: bool,
     ) -> anyhow::Result<()> {
+        if engine_on {
+            self.state.time_on += dt;
+        } else {
+            self.state.time_on = si::Time::ZERO;
+        }
+
         if assert_limits {
             ensure!(
                 utils::almost_le_uom(&pwr_out_req, &self.pwr_out_max, Some(TOL)),
@@ -285,8 +305,12 @@ pub struct FuelConverterState {
     pub energy_idle_fuel: si::Energy,
     /// If true, engine is on, and if false, off (no idle)
     pub engine_on: bool,
+    /// elapsed time since engine was turned on
+    pub time_on: si::Time,
 }
 
+impl Init for FuelConverterState {}
+impl SerdeAPI for FuelConverterState {}
 impl Default for FuelConverterState {
     fn default() -> Self {
         Self {
@@ -302,6 +326,7 @@ impl Default for FuelConverterState {
             energy_loss: Default::default(),
             energy_idle_fuel: Default::default(),
             engine_on: true,
+            time_on: si::Time::ZERO,
         }
     }
 }

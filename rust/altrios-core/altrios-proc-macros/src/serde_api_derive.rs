@@ -12,6 +12,7 @@ pub(crate) fn serde_api_derive(input: TokenStream) -> TokenStream {
 
     impl_block.extend::<TokenStream2>(quote! {
         impl SerdeAPI for #ident { }
+        impl Init for #ident { }
     });
 
     impl_block.into()

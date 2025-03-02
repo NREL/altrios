@@ -1,6 +1,7 @@
 use super::powertrain::electric_drivetrain::ElectricDrivetrain;
 use super::powertrain::reversible_energy_storage::ReversibleEnergyStorage;
 use super::powertrain::ElectricMachine;
+use super::*;
 use super::{LocoTrait, Mass, MassSideEffect};
 use crate::imports::*;
 
@@ -89,18 +90,21 @@ impl Mass for BatteryElectricLoco {
     }
 }
 
-impl SerdeAPI for BatteryElectricLoco {
+impl Init for BatteryElectricLoco {
     fn init(&mut self) -> anyhow::Result<()> {
         self.res.init()?;
         self.edrv.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for BatteryElectricLoco {}
 
 impl LocoTrait for BatteryElectricLoco {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        _train_mass: Option<si::Mass>,
+        _train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         self.res.set_cur_pwr_out_max(

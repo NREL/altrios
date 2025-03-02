@@ -3,6 +3,7 @@ use super::powertrain::fuel_converter::FuelConverter;
 use super::powertrain::generator::Generator;
 use super::powertrain::{ElectricMachine, Mass, MassSideEffect};
 use super::LocoTrait;
+use super::*;
 use crate::imports::*;
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods)]
@@ -48,22 +49,23 @@ impl ConventionalLoco {
     /// # Arguments
     /// - `pwr_out_req`: power required at the wheel/rail interface
     /// - `dt`: time step size
-    /// - `engine_on`: whether engine is on (i.e. rotating and consuming at least idle fuel)
+    /// - `loco_on`: whether engine is on (i.e. rotating and consuming at least idle fuel)
     /// - `pwr_aux`: power demand for auxilliary systems
     /// - `assert_limits`: whether to fail when powertrain capabilities are exceeded
     pub fn solve_energy_consumption(
         &mut self,
         pwr_out_req: si::Power,
         dt: si::Time,
-        engine_on: bool,
+        loco_on: bool,
         pwr_aux: si::Power,
         assert_limits: bool,
     ) -> anyhow::Result<()> {
         self.edrv.set_pwr_in_req(pwr_out_req, dt)?;
 
         self.gen.set_pwr_in_req(
+            // TODO: maybe this should be zero if not loco_on
             self.edrv.state.pwr_elec_prop_in,
-            if engine_on { pwr_aux } else { si::Power::ZERO },
+            if loco_on { pwr_aux } else { si::Power::ZERO },
             dt,
         )?;
 
@@ -74,12 +76,8 @@ impl ConventionalLoco {
                 format_dbg!(self.gen.state.pwr_mech_in >= si::Power::ZERO)
             ),
         );
-        self.fc.solve_energy_consumption(
-            self.gen.state.pwr_mech_in,
-            dt,
-            engine_on,
-            assert_limits,
-        )?;
+        self.fc
+            .solve_energy_consumption(self.gen.state.pwr_mech_in, dt, loco_on, assert_limits)?;
         Ok(())
     }
 }
@@ -110,7 +108,7 @@ impl Mass for ConventionalLoco {
     }
 }
 
-impl SerdeAPI for ConventionalLoco {
+impl Init for ConventionalLoco {
     fn init(&mut self) -> anyhow::Result<()> {
         self.fc.init()?;
         self.gen.init()?;
@@ -118,6 +116,7 @@ impl SerdeAPI for ConventionalLoco {
         Ok(())
     }
 }
+impl SerdeAPI for ConventionalLoco {}
 
 impl LocoTrait for ConventionalLoco {
     /// returns current max power, current max power rate, and current max regen
@@ -125,6 +124,8 @@ impl LocoTrait for ConventionalLoco {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        _train_mass: Option<si::Mass>,
+        _train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         self.fc.set_cur_pwr_out_max(dt)?;

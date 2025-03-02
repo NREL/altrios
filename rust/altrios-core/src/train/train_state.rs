@@ -28,6 +28,9 @@ pub struct InitTrainState {
     pub speed: si::Velocity,
 }
 
+impl Init for InitTrainState {}
+impl SerdeAPI for InitTrainState {}
+
 impl Default for InitTrainState {
     fn default() -> Self {
         Self {
@@ -160,6 +163,9 @@ pub struct TrainState {
     /// Energy out during negative traction (positive value means negative traction)
     pub energy_whl_out_neg: si::Energy,
 }
+
+impl Init for TrainState {}
+impl SerdeAPI for TrainState {}
 
 impl Default for TrainState {
     fn default() -> Self {

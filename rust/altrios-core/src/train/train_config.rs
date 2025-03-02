@@ -117,7 +117,7 @@ pub struct TrainConfig {
     pub cd_area_vec: Option<Vec<si::Area>>,
 }
 
-impl SerdeAPI for TrainConfig {
+impl Init for TrainConfig {
     fn init(&mut self) -> anyhow::Result<()> {
         if let Some(dcv) = &self.cd_area_vec {
             // TODO: account for locomotive drag here, too
@@ -126,6 +126,7 @@ impl SerdeAPI for TrainConfig {
         Ok(())
     }
 }
+impl SerdeAPI for TrainConfig {}
 
 impl TrainConfig {
     pub fn new(
@@ -1469,9 +1470,10 @@ impl SpeedLimitTrainSimVec {
     }
 }
 
-impl SerdeAPI for SpeedLimitTrainSimVec {
+impl Init for SpeedLimitTrainSimVec {
     fn init(&mut self) -> anyhow::Result<()> {
         self.0.iter_mut().try_for_each(|ts| ts.init())?;
         Ok(())
     }
 }
+impl SerdeAPI for SpeedLimitTrainSimVec {}

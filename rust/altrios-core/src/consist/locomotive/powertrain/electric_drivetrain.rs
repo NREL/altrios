@@ -239,12 +239,13 @@ impl ElectricDrivetrain {
 //     "/src/consist/locomotive/powertrain/electric_drivetrain.default.yaml"
 // ));
 
-impl SerdeAPI for ElectricDrivetrain {
+impl Init for ElectricDrivetrain {
     fn init(&mut self) -> anyhow::Result<()> {
         self.state.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for ElectricDrivetrain {}
 
 impl Default for ElectricDrivetrain {
     fn default() -> Self {
@@ -335,6 +336,8 @@ pub struct ElectricDrivetrainState {
     pub energy_loss: si::Energy,
 }
 
+impl Init for ElectricDrivetrainState {}
+impl SerdeAPI for ElectricDrivetrainState {}
 impl Default for ElectricDrivetrainState {
     fn default() -> Self {
         Self {

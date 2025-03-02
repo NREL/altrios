@@ -2,11 +2,19 @@ use super::*;
 
 /// Trait for ensuring consistency among locomotives and consists
 pub trait LocoTrait {
-    /// returns current max power, current max power rate, and current max regen
+    /// Sets current max power, current max power rate, and current max regen
     /// power that can be absorbed by the RES/battery
+    ///
+    /// # Arguments:
+    /// - `pwr_aux`: aux power
+    /// - `train_speed`: current train speed
+    /// - `train_mass`: portion of total train mass handled by `self`
+    /// - `dt`: time step size
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()>;
     /// Save current state
@@ -26,12 +34,13 @@ pub trait LocoTrait {
 /// Wrapper struct for `Vec<Locomotive>` to expose various methods to Python.
 pub struct Pyo3VecLocoWrapper(pub Vec<Locomotive>);
 
-impl SerdeAPI for Pyo3VecLocoWrapper {
+impl Init for Pyo3VecLocoWrapper {
     fn init(&mut self) -> anyhow::Result<()> {
         self.0.iter_mut().try_for_each(|l| l.init())?;
         Ok(())
     }
 }
+impl SerdeAPI for Pyo3VecLocoWrapper {}
 
 pub trait SolvePower {
     /// Returns vector of locomotive tractive powers during positive traction events
@@ -39,11 +48,15 @@ pub trait SolvePower {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>>;
     fn solve_negative_traction(
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>>;
 }
 
@@ -57,6 +70,8 @@ impl SolvePower for RESGreedy {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         let loco_pwr_out_vec: Vec<si::Power> = if state.pwr_out_deficit == si::Power::ZERO {
             // draw all power from RES-equipped locomotives
@@ -104,8 +119,10 @@ impl SolvePower for RESGreedy {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
-        solve_negative_traction(loco_vec, state)
+        solve_negative_traction(loco_vec, state, train_mass, train_speed)
     }
 }
 
@@ -129,6 +146,8 @@ fn get_pwr_regen_vec(loco_vec: &[Locomotive], regen_frac: si::Ratio) -> Vec<si::
 fn solve_negative_traction(
     loco_vec: &[Locomotive],
     consist_state: &ConsistState,
+    train_mass: Option<si::Mass>,
+    train_speed: Option<si::Velocity>,
 ) -> anyhow::Result<Vec<si::Power>> {
     // positive during any kind of negative traction event
     let pwr_brake_req = -consist_state.pwr_out_req;
@@ -187,6 +206,8 @@ impl SolvePower for Proportional {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         Ok(loco_vec
             .iter()
@@ -201,48 +222,10 @@ impl SolvePower for Proportional {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
-        solve_negative_traction(loco_vec, state)
-    }
-}
-
-#[derive(PartialEq, Clone, Deserialize, Serialize, Debug, SerdeAPI)]
-/// Similar to `Proportional`, regenerates greedily, but during positive traction, minimizes
-/// cost function of `fuel_res_ratio` * fuel use + battery use at every `gss_interval`
-/// time step.
-pub struct GoldenSectionSearch {
-    /// Ratio of fuel cost (abstract cost for solver -- could be dollars, MJ, etc.) to battery energy cost.
-    pub fuel_res_ratio: f64,
-    /// Time step interval for exercising GoldenSectionSearch. A value of `1` means it is solved at every time step.
-    /// Solving the objective used by GoldenSectionSearch is computationlly expensive so care should be given when
-    /// selecting this value.
-    pub gss_interval: usize,
-}
-impl SolvePower for GoldenSectionSearch {
-    fn solve_positive_traction(
-        &mut self,
-        loco_vec: &[Locomotive],
-        state: &ConsistState,
-    ) -> anyhow::Result<Vec<si::Power>> {
-        if state.i == 1 || state.i % self.gss_interval == 0 {
-            todo!() // not needed urgently
-        } else {
-            // use the previous iteration
-            Ok(loco_vec.iter().map(|loco| loco.state.pwr_out).collect())
-        }
-    }
-
-    fn solve_negative_traction(
-        &mut self,
-        loco_vec: &[Locomotive],
-        state: &ConsistState,
-    ) -> anyhow::Result<Vec<si::Power>> {
-        if state.i == 1 || state.i % self.gss_interval == 0 {
-            todo!() // not needed urgently
-        } else {
-            // use the previous iteration
-            Ok(loco_vec.iter().map(|loco| loco.state.pwr_out).collect())
-        }
+        solve_negative_traction(loco_vec, state, train_mass, train_speed)
     }
 }
 
@@ -250,11 +233,14 @@ impl SolvePower for GoldenSectionSearch {
 /// Control strategy for when locomotives are located at both the front and back of the train.
 pub struct FrontAndBack;
 impl SerdeAPI for FrontAndBack {}
+impl Init for FrontAndBack {}
 impl SolvePower for FrontAndBack {
     fn solve_positive_traction(
         &mut self,
         _loco_vec: &[Locomotive],
         _state: &ConsistState,
+        _train_mass: Option<si::Mass>,
+        _train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         todo!() // not needed urgently
     }
@@ -263,6 +249,8 @@ impl SolvePower for FrontAndBack {
         &mut self,
         _loco_vec: &[Locomotive],
         _state: &ConsistState,
+        _train_mass: Option<si::Mass>,
+        _train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         todo!() // not needed urgently
     }
@@ -274,7 +262,6 @@ impl SolvePower for FrontAndBack {
 pub enum PowerDistributionControlType {
     RESGreedy(RESGreedy),
     Proportional(Proportional),
-    GoldenSectionSearch(GoldenSectionSearch),
     FrontAndBack(FrontAndBack),
 }
 
@@ -283,12 +270,19 @@ impl SolvePower for PowerDistributionControlType {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         match self {
-            Self::RESGreedy(res_greedy) => res_greedy.solve_negative_traction(loco_vec, state),
-            Self::Proportional(prop) => prop.solve_negative_traction(loco_vec, state),
-            Self::GoldenSectionSearch(gss) => gss.solve_negative_traction(loco_vec, state),
-            Self::FrontAndBack(fab) => fab.solve_negative_traction(loco_vec, state),
+            Self::RESGreedy(res_greedy) => {
+                res_greedy.solve_negative_traction(loco_vec, state, train_mass, train_speed)
+            }
+            Self::Proportional(prop) => {
+                prop.solve_negative_traction(loco_vec, state, train_mass, train_speed)
+            }
+            Self::FrontAndBack(fab) => {
+                fab.solve_negative_traction(loco_vec, state, train_mass, train_speed)
+            }
         }
     }
 
@@ -296,12 +290,19 @@ impl SolvePower for PowerDistributionControlType {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         match self {
-            Self::RESGreedy(res_greedy) => res_greedy.solve_positive_traction(loco_vec, state),
-            Self::Proportional(prop) => prop.solve_positive_traction(loco_vec, state),
-            Self::GoldenSectionSearch(gss) => gss.solve_positive_traction(loco_vec, state),
-            Self::FrontAndBack(fab) => fab.solve_positive_traction(loco_vec, state),
+            Self::RESGreedy(res_greedy) => {
+                res_greedy.solve_positive_traction(loco_vec, state, train_mass, train_speed)
+            }
+            Self::Proportional(prop) => {
+                prop.solve_positive_traction(loco_vec, state, train_mass, train_speed)
+            }
+            Self::FrontAndBack(fab) => {
+                fab.solve_positive_traction(loco_vec, state, train_mass, train_speed)
+            }
         }
     }
 }

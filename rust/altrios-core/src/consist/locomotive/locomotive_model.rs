@@ -8,7 +8,7 @@ pub enum PowertrainType {
     DummyLoco(DummyLoco),
 }
 
-impl SerdeAPI for PowertrainType {
+impl Init for PowertrainType {
     fn init(&mut self) -> anyhow::Result<()> {
         match self {
             Self::ConventionalLoco(l) => l.init()?,
@@ -19,18 +19,29 @@ impl SerdeAPI for PowertrainType {
         Ok(())
     }
 }
+impl SerdeAPI for PowertrainType {}
 
 impl LocoTrait for PowertrainType {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        train_mass_for_loco: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         match self {
-            PowertrainType::ConventionalLoco(conv) => conv.set_cur_pwr_max_out(pwr_aux, dt),
-            PowertrainType::HybridLoco(hel) => hel.set_cur_pwr_max_out(pwr_aux, dt),
-            PowertrainType::BatteryElectricLoco(bel) => bel.set_cur_pwr_max_out(pwr_aux, dt),
-            PowertrainType::DummyLoco(dummy) => dummy.set_cur_pwr_max_out(pwr_aux, dt),
+            PowertrainType::ConventionalLoco(conv) => {
+                conv.set_cur_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
+            }
+            PowertrainType::HybridLoco(hel) => {
+                hel.set_cur_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
+            }
+            PowertrainType::BatteryElectricLoco(bel) => {
+                bel.set_cur_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
+            }
+            PowertrainType::DummyLoco(dummy) => {
+                dummy.set_cur_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
+            }
         }
     }
 
@@ -232,6 +243,8 @@ impl LocoTrait for DummyLoco {
     fn set_cur_pwr_max_out(
         &mut self,
         _pwr_aux: Option<si::Power>,
+        _train_mass: Option<si::Mass>,
+        _train_speed: Option<si::Velocity>,
         _dt: si::Time,
     ) -> anyhow::Result<()> {
         Ok(())
@@ -315,54 +328,6 @@ impl LocoTrait for DummyLoco {
         Ok(loco)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    #[staticmethod]
-    #[pyo3(signature = (
-        fuel_converter,
-        generator,
-        reversible_energy_storage,
-        drivetrain,
-        loco_params,
-        fuel_res_split=None,
-        fuel_res_ratio=None,
-        gss_interval=None,
-        save_interval=None,
-    ))]
-    fn build_hybrid_loco(
-        fuel_converter: FuelConverter,
-        generator: Generator,
-        reversible_energy_storage: ReversibleEnergyStorage,
-        drivetrain: ElectricDrivetrain,
-        loco_params: LocoParams,
-        fuel_res_split: Option<f64>,
-        fuel_res_ratio: Option<f64>,
-        gss_interval: Option<usize>,
-        save_interval: Option<usize>,
-    ) -> anyhow::Result<Self> {
-        let mut loco = Self {
-            loco_type: PowertrainType::HybridLoco(Box::new(HybridLoco::new(
-                fuel_converter,
-                generator,
-                reversible_energy_storage,
-                drivetrain,
-                fuel_res_split,
-                fuel_res_ratio,
-                gss_interval,
-            ))),
-            pwr_aux_offset: loco_params.pwr_aux_offset,
-            pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
-            force_max: loco_params.force_max,
-            state: Default::default(),
-            save_interval,
-            history: LocomotiveStateHistoryVec::new(),
-            assert_limits: true,
-            ..Default::default()
-        };
-        // make sure save_interval is propagated
-        loco.set_save_interval(save_interval);
-        Ok(loco)
-    }
-
     #[staticmethod]
     #[pyo3(name = "default_battery_electric_loco")]
     fn default_battery_electric_loco_py () -> anyhow::Result<Self> {
@@ -412,22 +377,6 @@ impl LocoTrait for DummyLoco {
         };
         dummy.set_mass(None, MassSideEffect::None).unwrap();
         dummy
-    }
-
-    #[getter]
-    fn get_fuel_res_split(&self) -> anyhow::Result<Option<f64>> {
-        match &self.loco_type {
-            PowertrainType::HybridLoco(loco) => Ok(Some(loco.fuel_res_split)),
-            _ => Ok(None),
-        }
-    }
-
-    #[getter]
-    fn get_fuel_res_ratio(&self) -> anyhow::Result<Option<f64>> {
-        match &self.loco_type {
-            PowertrainType::HybridLoco(loco) => Ok(loco.fuel_res_ratio),
-            _ => Ok(None),
-        }
     }
 
     #[pyo3(name = "set_save_interval")]
@@ -654,13 +603,14 @@ impl Default for Locomotive {
     }
 }
 
-impl SerdeAPI for Locomotive {
+impl Init for Locomotive {
     fn init(&mut self) -> anyhow::Result<()> {
         let _mass = self.mass().with_context(|| format_dbg!())?;
         self.loco_type.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for Locomotive {}
 
 impl Mass for Locomotive {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
@@ -1138,14 +1088,18 @@ impl Locomotive {
     /// Given required power output and time step, solves for energy
     /// consumption Arguments:
     /// ----------
-    /// pwr_out_req: float, output brake power required from fuel
-    /// converter. dt: current time step size engine_on: whether or not
-    /// locomotive is active
+    /// - `pwr_out_req:` float, output brake power required from fuel
+    ///   converter
+    /// - `train_speed`: current train speed
+    /// - `dt:` current time step size engine_on whether or not
+    ///   locomotive is active
     pub fn solve_energy_consumption(
         &mut self,
         pwr_out_req: si::Power,
         dt: si::Time,
         engine_on: Option<bool>,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<()> {
         // maybe put logic for toggling `engine_on` here
 
@@ -1163,7 +1117,19 @@ impl Locomotive {
                     loco.edrv.state.pwr_mech_prop_out - loco.edrv.state.pwr_mech_dyn_brake;
             }
             PowertrainType::HybridLoco(loco) => {
-                loco.solve_energy_consumption(pwr_out_req, dt, self.assert_limits)?;
+                loco.solve_energy_consumption(
+                    pwr_out_req,
+                    train_mass.with_context(|| format!(
+                        "{}\n`train_mass` must be provided in `SpeedTrace` or `PowerTrace` if simulating at the consist level or below"
+                        , format_dbg!()
+                    ))?,
+                    train_speed.with_context(|| format!(
+                        "{}\n`train_speed` must be provided in `SpeedTrace` or `PowerTrace` if simulating at the consist level or below"
+                        , format_dbg!()
+                    ))?,
+                    dt,
+                    self.assert_limits,
+                )?;
                 // TODO: add `engine_on` and `pwr_aux` here as inputs
                 self.state.pwr_out =
                     loco.edrv.state.pwr_mech_prop_out - loco.edrv.state.pwr_mech_dyn_brake;
@@ -1183,8 +1149,11 @@ impl Locomotive {
         Ok(())
     }
 
-    pub fn set_pwr_aux(&mut self, engine_on: Option<bool>) {
-        self.state.pwr_aux = if engine_on.unwrap_or(true) {
+    /// Sets aux power for locomotive
+    /// # Arguments
+    /// - `loco_on` whether this locomotive is active or just dead weight
+    pub fn set_pwr_aux(&mut self, loco_on: Option<bool>) {
+        self.state.pwr_aux = if loco_on.unwrap_or(true) {
             // TODO: make this optionally asymmetrical to allow for locomotives that
             // do not have an aux penalty related to dynamic braking
             self.pwr_aux_offset + self.pwr_aux_traction_coeff * self.state.pwr_out.abs()
@@ -1249,6 +1218,8 @@ impl LocoTrait for Locomotive {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        train_mass_for_loco: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         ensure!(
@@ -1260,8 +1231,12 @@ impl LocoTrait for Locomotive {
             )
         );
 
-        self.loco_type
-            .set_cur_pwr_max_out(Some(self.state.pwr_aux), dt)?;
+        self.loco_type.set_cur_pwr_max_out(
+            Some(self.state.pwr_aux),
+            train_mass_for_loco,
+            train_speed,
+            dt,
+        )?;
         match &self.loco_type {
             PowertrainType::ConventionalLoco(loco) => {
                 set_pwr_lims(&mut self.state, &loco.edrv);
@@ -1311,6 +1286,8 @@ pub struct LocomotiveState {
     // pub force_max: si::Mass,
 }
 
+impl Init for LocomotiveState {}
+impl SerdeAPI for LocomotiveState {}
 impl Default for LocomotiveState {
     fn default() -> Self {
         Self {

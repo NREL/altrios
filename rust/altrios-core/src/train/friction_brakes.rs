@@ -117,6 +117,9 @@ pub struct FricBrakeState {
     // pressure: si::Pressure,
 }
 
+impl SerdeAPI for FricBrakeState {}
+impl Init for FricBrakeState {}
+
 impl FricBrakeState {
     /// TODO: this method needs to accept arguments
     pub fn new() -> Self {

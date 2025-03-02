@@ -1128,6 +1128,7 @@ impl Locomotive {
                         , format_dbg!()
                     ))?,
                     dt,
+                    self.state.pwr_aux,
                     self.assert_limits,
                 )?;
                 // TODO: add `engine_on` and `pwr_aux` here as inputs

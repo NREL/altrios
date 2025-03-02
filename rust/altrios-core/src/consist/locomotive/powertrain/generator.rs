@@ -292,6 +292,13 @@ impl Generator {
 
         self.state.pwr_mech_in =
             (self.state.pwr_elec_prop_out + self.state.pwr_elec_aux) / self.state.eta;
+        ensure!(
+            self.state.pwr_mech_in >= si::Power::ZERO,
+            format!(
+                "{}\nfc can only produce positive power",
+                format_dbg!(self.state.pwr_mech_in >= si::Power::ZERO)
+            ),
+        );
         self.state.energy_mech_in += self.state.pwr_mech_in * dt;
 
         self.state.pwr_loss =

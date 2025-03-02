@@ -186,10 +186,17 @@ impl LocoTrait for Box<HybridLoco> {
 
 impl HybridLoco {
     /// Solve fc and res energy consumption
-    /// Arguments:
+    /// # Arguments:
     /// - `pwr_out_req`: tractive power require
     /// - `train_speed`: current train speed
     /// - `dt`: time step size
+    ///
+    /// # Diagram
+    ///           +--> alternator --> engine
+    /// `edrv` --/
+    ///          \+--> battery
+    ///
+    /// Controls decide the split between the alternator and the battery
     pub fn solve_energy_consumption(
         &mut self,
         pwr_out_req: si::Power,
@@ -200,10 +207,11 @@ impl HybridLoco {
         assert_limits: bool,
     ) -> anyhow::Result<()> {
         let fc_on: bool = !self.state.fc_on_causes.is_empty();
-        let (fc_pwr_out_req, res_pwr_out_req) = self
+        self.edrv.set_pwr_in_req(pwr_out_req, dt)?;
+        let (gen_pwr_out_req, res_pwr_out_req) = self
             .pt_cntrl
             .get_pwr_gen_and_res(
-                pwr_out_req,
+                self.edrv.state.pwr_elec_prop_in,
                 train_mass,
                 train_speed,
                 &mut self.state,
@@ -213,13 +221,23 @@ impl HybridLoco {
             )
             .with_context(|| format_dbg!())?;
 
+        self.gen.set_pwr_in_req(
+            // TODO: maybe this should be zero if not loco_on
+            gen_pwr_out_req,
+            if fc_on { pwr_aux } else { si::Power::ZERO },
+            dt,
+        )?;
+
         self.fc
-            .solve_energy_consumption(fc_pwr_out_req, dt, fc_on, assert_limits)
+            .solve_energy_consumption(self.gen.state.pwr_mech_in, dt, fc_on, assert_limits)
             .with_context(|| format_dbg!())?;
 
-        let res_pwr_out_req = self
-            .res
-            .solve_energy_consumption(res_pwr_out_req, pwr_aux_req, dt)
+        self.res
+            .solve_energy_consumption(
+                res_pwr_out_req,
+                if !fc_on { pwr_aux } else { si::Power::ZERO },
+                dt,
+            )
             .with_context(|| format_dbg!())?;
 
         Ok(())

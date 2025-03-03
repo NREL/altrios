@@ -1313,3 +1313,48 @@ impl TryFrom<String> for ForceMaxSideEffect {
         Ok(mass_side_effect)
     }
 }
+
+/// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge
+/// and discharge power inside of static min and max SOC range.  Also, includes
+/// buffer for forcing [FuelConverter] to be active/on. See [Self::init] for
+/// default values.
+#[altrios_api]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default, HistoryMethods)]
+#[non_exhaustive]
+pub struct RESGreedyWithDynamicBuffers {
+    /// RES energy delta from minimum SOC corresponding to kinetic energy of
+    /// vehicle at this speed that triggers ramp down in RES discharge.
+    #[api(skip_get, skip_set)]
+    pub speed_soc_disch_buffer: Option<si::Velocity>,
+    /// Coefficient for modifying amount of accel buffer
+    #[api(skip_get, skip_set)]
+    pub speed_soc_disch_buffer_coeff: Option<si::Ratio>,
+    /// RES energy delta from maximum SOC corresponding to kinetic energy of
+    /// vehicle at current speed minus kinetic energy of vehicle at this speed
+    /// triggers ramp down in RES discharge
+    #[api(skip_get, skip_set)]
+    pub speed_soc_regen_buffer: Option<si::Velocity>,
+    /// Coefficient for modifying amount of regen buffer
+    #[api(skip_get, skip_set)]
+    pub speed_soc_regen_buffer_coeff: Option<si::Ratio>,
+    #[serde(default)]
+    pub state: RGWDBState,
+    #[serde(default, skip_serializing_if = "RGWDBStateHistoryVec::is_empty")]
+    /// history of current state
+    pub history: RGWDBStateHistoryVec,
+}
+
+impl Init for RESGreedyWithDynamicBuffers {}
+impl SerdeAPI for RESGreedyWithDynamicBuffers {}
+
+#[altrios_api]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
+#[serde(default)]
+/// State for [RESGreedyWithDynamicBuffers ]
+pub struct RGWDBState {
+    /// time step index
+    pub i: usize,
+}
+
+impl Init for RGWDBState {}
+impl SerdeAPI for RGWDBState {}

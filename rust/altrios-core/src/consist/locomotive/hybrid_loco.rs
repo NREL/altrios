@@ -145,8 +145,12 @@ impl LocoTrait for Box<HybridLoco> {
             }
         };
 
-        self.res
-            .set_curr_pwr_out_max(dt, pwr_aux, disch_buffer, chrg_buffer)?;
+        self.res.set_curr_pwr_out_max(
+            dt,
+            pwr_aux.unwrap_or_default(),
+            disch_buffer,
+            chrg_buffer,
+        )?;
 
         self.gen
             .set_cur_pwr_max_out(self.fc.state.pwr_out_max, pwr_aux)?;

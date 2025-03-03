@@ -14,15 +14,16 @@ pub struct BatteryElectricLoco {
     #[has_state]
     pub edrv: ElectricDrivetrain,
     /// control strategy for distributing power demand between `fc` and `res`
+    #[has_state]
     #[api(skip_get, skip_set)]
     #[serde(default)]
-    pub pt_cntrl: HybridPowertrainControls,
-    /// field for tracking current state
-    #[serde(default)]
-    pub state: BELState,
-    /// vector of [Self::state]
-    #[serde(default, skip_serializing_if = "BELStateHistoryVec::is_empty")]
-    pub history: BELStateHistoryVec,
+    pub pt_cntrl: BatteryPowertrainControls,
+    // /// field for tracking current state
+    // #[serde(default)]
+    // pub state: BELState,
+    // /// vector of [Self::state]
+    // #[serde(default, skip_serializing_if = "BELStateHistoryVec::is_empty")]
+    // pub history: BELStateHistoryVec,
 }
 
 impl BatteryElectricLoco {
@@ -140,14 +141,62 @@ thing at the consist level"
     }
 }
 
-#[altrios_api]
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
-#[non_exhaustive]
-#[serde(default)]
-pub struct BELState {
-    /// time step index
-    pub i: usize,
+// #[altrios_api]
+// #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
+// #[non_exhaustive]
+// #[serde(default)]
+// pub struct BELState {
+//     /// time step index
+//     pub i: usize,
+// }
+
+// impl Init for BELState {}
+// impl SerdeAPI for BELState {}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, IsVariant, From, TryInto)]
+pub enum BatteryPowertrainControls {
+    /// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge
+    /// and discharge power inside of static min and max SOC range.  Also, includes
+    /// buffer for forcing [FuelConverter] to be active/on.
+    RGWDB(Box<RESGreedyWithDynamicBuffers>),
+    /// place holder for future variants
+    Placeholder,
 }
 
-impl Init for BELState {}
-impl SerdeAPI for BELState {}
+impl Default for BatteryPowertrainControls {
+    fn default() -> Self {
+        Self::RGWDB(Default::default())
+    }
+}
+
+impl Init for BatteryPowertrainControls {
+    fn init(&mut self) -> anyhow::Result<()> {
+        match self {
+            Self::RGWDB(rgwb) => rgwb.init()?,
+            Self::Placeholder => {
+                todo!()
+            }
+        }
+        Ok(())
+    }
+}
+
+impl BatteryPowertrainControls {
+    fn step(&mut self) {
+        match self {
+            Self::RGWDB(rgwdb) => rgwdb.step(),
+            Self::Placeholder => {
+                todo!()
+            }
+        }
+    }
+
+    fn save_state(&mut self) {
+        match self {
+            Self::RGWDB(rgwdb) => rgwdb.save_state(),
+            Self::Placeholder => {
+                todo!()
+            }
+        }
+    }
+}

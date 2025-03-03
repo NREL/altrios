@@ -37,6 +37,7 @@ impl Init for HybridLoco {
         self.gen.init()?;
         self.res.init()?;
         self.edrv.init()?;
+        self.pt_cntrl.init()?;
         Ok(())
     }
 }
@@ -70,7 +71,7 @@ impl Mass for HybridLoco {
 }
 
 impl LocoTrait for Box<HybridLoco> {
-    fn set_cur_pwr_max_out(
+    fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
         // amount of assigned train mass for this locomotive
@@ -144,22 +145,19 @@ impl LocoTrait for Box<HybridLoco> {
             }
         };
 
-        self.res.set_cur_pwr_out_max(
-            pwr_aux.with_context(|| anyhow!(format_dbg!("`pwr_aux` not provided")))?,
-            None,
-            None,
-        )?;
+        self.res
+            .set_curr_pwr_out_max(dt, pwr_aux, disch_buffer, chrg_buffer)?;
 
         self.gen
             .set_cur_pwr_max_out(self.fc.state.pwr_out_max, pwr_aux)?;
 
         self.edrv.set_cur_pwr_max_out(
-            self.gen.state.pwr_elec_prop_out_max + self.res.state.pwr_prop_out_max,
+            self.gen.state.pwr_elec_prop_out_max + self.res.state.pwr_prop_max,
             None,
         )?;
 
         self.edrv
-            .set_cur_pwr_regen_max(self.res.state.pwr_regen_out_max)?;
+            .set_cur_pwr_regen_max(self.res.state.pwr_charge_max)?;
 
         self.gen
             .set_pwr_rate_out_max(self.fc.pwr_out_max / self.fc.pwr_ramp_lag);
@@ -274,9 +272,6 @@ pub struct HELState {
     pub i: usize,
     /// Vector of posssible reasons the fc is forced on
     pub fc_on_causes: FCOnCauses,
-    /// Number of `walk` iterations required to achieve SOC balance (i.e. SOC
-    /// ends at same starting value, ensuring no net [ReversibleEnergyStorage] usage)
-    pub soc_bal_iters: u32,
 }
 
 impl Init for HELState {}

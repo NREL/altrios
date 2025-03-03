@@ -246,7 +246,7 @@ impl LocomotiveSimulation {
         } else {
             None
         };
-        self.loco_unit.set_cur_pwr_max_out(
+        self.loco_unit.set_curr_pwr_max_out(
             None,
             train_mass,
             train_speed,

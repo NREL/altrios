@@ -1,6 +1,6 @@
 use super::{braking_point::BrakingPoints, friction_brakes::*, train_imports::*};
 use crate::imports::*;
-use crate::track::link::link_impl::Network;
+use crate::track::link::network::Network;
 use crate::track::{LinkPoint, Location};
 
 #[altrios_api(
@@ -322,7 +322,7 @@ impl SpeedLimitTrainSim {
         // set aux power for the consist
         self.loco_con.set_pwr_aux(Some(true))?;
         // set the maximum power out based on dt.
-        self.loco_con.set_cur_pwr_max_out(None,  Some(self.state.mass_compound()?), Some(self.state.speed), self.state.dt)?;
+        self.loco_con.set_curr_pwr_max_out(None,  Some(self.state.mass_compound()?), Some(self.state.speed), self.state.dt)?;
         // calculate new resistance
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
@@ -545,7 +545,7 @@ impl SpeedLimitTrainSim {
                         .iter()
                         .map(|loco| {
                             loco.reversible_energy_storage()
-                                .map(|res| res.state.min_soc.get::<si::ratio>().format_eng(Some(5)))
+                                .map(|res| res.min_soc.get::<si::ratio>().format_eng(Some(5)))
                                 .unwrap_or_else(|| "N/A".into())
                         })
                         .collect::<Vec<String>>()

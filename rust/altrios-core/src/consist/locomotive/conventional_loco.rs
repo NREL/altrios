@@ -1,7 +1,7 @@
 use super::powertrain::electric_drivetrain::ElectricDrivetrain;
 use super::powertrain::fuel_converter::FuelConverter;
 use super::powertrain::generator::Generator;
-use super::powertrain::{ElectricMachine, Mass, MassSideEffect};
+use super::powertrain::ElectricMachine;
 use super::LocoTrait;
 use super::*;
 use crate::imports::*;
@@ -114,7 +114,7 @@ impl SerdeAPI for ConventionalLoco {}
 impl LocoTrait for ConventionalLoco {
     /// returns current max power, current max power rate, and current max regen
     /// power that can be absorbed by the RES/battery
-    fn set_cur_pwr_max_out(
+    fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
         _train_mass: Option<si::Mass>,

@@ -9,7 +9,7 @@ use super::{
     SetSpeedTrainSim, SpeedLimitTrainSim, SpeedTrace, TrainState,
 };
 use crate::track::link::link_idx::LinkPath;
-use crate::track::link::link_impl::Network;
+use crate::track::link::network::Network;
 use crate::track::LocationMap;
 
 use polars::prelude::*;

@@ -360,14 +360,6 @@ class Locomotive(SerdeAPI):
         loco_type: Union[ConventionalLoco, HybridLoco, BatteryElectricLoco, DummyLoco],
         loco_params: LocoParams,
         ): ...
-    @classmethod
-    def build_battery_electric_loco(
-        cls,
-        reversible_energy_storage: ReversibleEnergyStorage,
-        drivetrain: ElectricDrivetrain,
-        loco_params: LocoParams,
-        save_interval: Optional[int]
-    ) -> Self: ...
 
     @classmethod
     def default_battery_electric_loco(cls) -> Locomotive: ...

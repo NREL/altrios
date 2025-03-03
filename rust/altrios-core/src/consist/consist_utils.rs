@@ -10,7 +10,7 @@ pub trait LocoTrait {
     /// - `train_speed`: current train speed
     /// - `train_mass`: portion of total train mass handled by `self`
     /// - `dt`: time step size
-    fn set_cur_pwr_max_out(
+    fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
         train_mass: Option<si::Mass>,

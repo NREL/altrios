@@ -372,7 +372,7 @@ impl SetSpeedTrainSim {
         self.loco_con.set_pwr_aux(Some(true))?;
         let train_mass = Some(self.state.mass_compound().with_context(|| format_dbg!())?);
         // set the max power out for the consist based on calculation of each loco state
-        self.loco_con.set_cur_pwr_max_out(
+        self.loco_con.set_curr_pwr_max_out(
             None,
             train_mass,
             Some(self.state.speed),

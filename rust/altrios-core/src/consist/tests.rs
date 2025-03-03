@@ -10,7 +10,7 @@ fn test_consist() {
     assert_eq!(consist.state.pwr_rate_out_max, si::PowerRate::ZERO);
     assert_eq!(consist.state.pwr_regen_max, si::Power::ZERO);
     consist
-        .set_cur_pwr_max_out(None, Some(5e6 * uc::LB), Some(10.0 * uc::MPH), 1.0 * uc::S)
+        .set_curr_pwr_max_out(None, Some(5e6 * uc::LB), Some(10.0 * uc::MPH), 1.0 * uc::S)
         .unwrap();
     assert!(consist.state.pwr_out_max > si::Power::ZERO);
     assert!(consist.state.pwr_rate_out_max > si::PowerRate::ZERO);

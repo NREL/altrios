@@ -22,7 +22,7 @@ impl Init for PowertrainType {
 impl SerdeAPI for PowertrainType {}
 
 impl LocoTrait for PowertrainType {
-    fn set_cur_pwr_max_out(
+    fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
         train_mass_for_loco: Option<si::Mass>,
@@ -31,16 +31,16 @@ impl LocoTrait for PowertrainType {
     ) -> anyhow::Result<()> {
         match self {
             PowertrainType::ConventionalLoco(conv) => {
-                conv.set_cur_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
+                conv.set_curr_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
             }
             PowertrainType::HybridLoco(hel) => {
-                hel.set_cur_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
+                hel.set_curr_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
             }
             PowertrainType::BatteryElectricLoco(bel) => {
-                bel.set_cur_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
+                bel.set_curr_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
             }
             PowertrainType::DummyLoco(dummy) => {
-                dummy.set_cur_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
+                dummy.set_curr_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
             }
         }
     }
@@ -240,7 +240,7 @@ impl Default for LocoParams {
 pub struct DummyLoco {}
 
 impl LocoTrait for DummyLoco {
-    fn set_cur_pwr_max_out(
+    fn set_curr_pwr_max_out(
         &mut self,
         _pwr_aux: Option<si::Power>,
         _train_mass: Option<si::Mass>,
@@ -340,27 +340,6 @@ impl LocoTrait for DummyLoco {
         Ok(Self::default_hybrid_electric_loco())
     }
 
-    #[staticmethod]
-    #[pyo3(name = "build_battery_electric_loco")]
-    #[pyo3(signature = (
-        reversible_energy_storage,
-        drivetrain,
-        loco_params,
-        save_interval=None,
-    ))]
-    fn build_battery_electric_loco_py (
-        reversible_energy_storage: ReversibleEnergyStorage,
-        drivetrain: ElectricDrivetrain,
-        loco_params: LocoParams,
-        save_interval: Option<usize>,
-    ) -> anyhow::Result<Self> {
-        Self::build_battery_electric_loco(
-            reversible_energy_storage,
-            drivetrain,
-            loco_params,
-            save_interval
-        )
-    }
 
     #[staticmethod]
     fn build_dummy_loco() -> Self {
@@ -756,31 +735,6 @@ impl Locomotive {
             );
         }
         Ok(())
-    }
-
-    pub fn build_battery_electric_loco(
-        reversible_energy_storage: ReversibleEnergyStorage,
-        drivetrain: ElectricDrivetrain,
-        loco_params: LocoParams,
-        save_interval: Option<usize>,
-    ) -> anyhow::Result<Self> {
-        let mut loco = Self {
-            loco_type: PowertrainType::BatteryElectricLoco(BatteryElectricLoco::new(
-                reversible_energy_storage,
-                drivetrain,
-            )),
-            state: Default::default(),
-            save_interval,
-            history: LocomotiveStateHistoryVec::new(),
-            assert_limits: true,
-            pwr_aux_offset: loco_params.pwr_aux_offset,
-            pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
-            force_max: loco_params.force_max,
-            ..Default::default()
-        };
-        // make sure save_interval is propagated
-        loco.set_save_interval(save_interval);
-        Ok(loco)
     }
 
     pub fn default_battery_electric_loco() -> Self {
@@ -1216,7 +1170,7 @@ impl LocoTrait for Locomotive {
         self.loco_type.get_energy_loss()
     }
 
-    fn set_cur_pwr_max_out(
+    fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
         train_mass_for_loco: Option<si::Mass>,
@@ -1232,7 +1186,7 @@ impl LocoTrait for Locomotive {
             )
         );
 
-        self.loco_type.set_cur_pwr_max_out(
+        self.loco_type.set_curr_pwr_max_out(
             Some(self.state.pwr_aux),
             train_mass_for_loco,
             train_speed,

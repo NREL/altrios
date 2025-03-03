@@ -430,7 +430,7 @@ impl Default for Consist {
 }
 
 impl LocoTrait for Consist {
-    fn set_cur_pwr_max_out(
+    fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
         train_mass: Option<si::Mass>,
@@ -461,7 +461,7 @@ impl LocoTrait for Consist {
                     / res_total_usable_energy
                     * tm
             });
-            loco.set_cur_pwr_max_out(None, mass, train_speed, dt)
+            loco.set_curr_pwr_max_out(None, mass, train_speed, dt)
                 .map_err(|err| {
                     err.context(format!(
                         "loco idx: {} loco type: {}",

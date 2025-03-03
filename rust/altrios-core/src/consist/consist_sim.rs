@@ -91,7 +91,7 @@ impl ConsistSimulation {
         } else {
             None
         };
-        self.loco_con.set_cur_pwr_max_out(
+        self.loco_con.set_curr_pwr_max_out(
             None,
             train_mass,
             train_speed,

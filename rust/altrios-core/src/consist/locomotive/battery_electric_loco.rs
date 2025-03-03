@@ -6,34 +6,26 @@ use super::{LocoTrait, Mass, MassSideEffect};
 use crate::imports::*;
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods)]
-#[altrios_api(
-    #[new]
-    fn __new__(
-        res: ReversibleEnergyStorage,
-        edrv: ElectricDrivetrain,
-    ) -> Self {
-        Self { res, edrv }
-    }
-)]
+#[altrios_api]
 /// Battery electric locomotive
 pub struct BatteryElectricLoco {
     #[has_state]
     pub res: ReversibleEnergyStorage,
     #[has_state]
     pub edrv: ElectricDrivetrain,
+    /// control strategy for distributing power demand between `fc` and `res`
+    #[api(skip_get, skip_set)]
+    #[serde(default)]
+    pub pt_cntrl: HybridPowertrainControls,
+    /// field for tracking current state
+    #[serde(default)]
+    pub state: BELState,
+    /// vector of [Self::state]
+    #[serde(default, skip_serializing_if = "BELStateHistoryVec::is_empty")]
+    pub history: BELStateHistoryVec,
 }
 
 impl BatteryElectricLoco {
-    pub fn new(
-        reversible_energy_storage: ReversibleEnergyStorage,
-        electric_drivetrain: ElectricDrivetrain,
-    ) -> Self {
-        Self {
-            res: reversible_energy_storage,
-            edrv: electric_drivetrain,
-        }
-    }
-
     /// Solve energy consumption for the current power output required
     /// Arguments:
     /// - pwr_out_req: tractive power required
@@ -56,7 +48,7 @@ impl BatteryElectricLoco {
                 // limit aux power to whatever is actually available
                 pwr_aux
                     // whatever power is available from regen plus normal
-                    .min(self.res.state.pwr_prop_out_max - self.edrv.state.pwr_elec_prop_in)
+                    .min(self.res.state.pwr_prop_max - self.edrv.state.pwr_elec_prop_in)
                     .max(si::Power::ZERO),
                 dt,
             )?;
@@ -94,28 +86,38 @@ impl Init for BatteryElectricLoco {
     fn init(&mut self) -> anyhow::Result<()> {
         self.res.init()?;
         self.edrv.init()?;
+        self.pt_cntrl.init()?;
         Ok(())
     }
 }
 impl SerdeAPI for BatteryElectricLoco {}
 
 impl LocoTrait for BatteryElectricLoco {
-    fn set_cur_pwr_max_out(
+    fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
         _train_mass: Option<si::Mass>,
         _train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
-        self.res.set_cur_pwr_out_max(
+        let disch_buffer: si::Energy = todo!(
+            "Calculate buffers similarly to the `HybridPowertrainControls`, but
+make a `BatteryPowertrainControls` for the BEL and/or a `HybridConsistControls`
+thing at the consist level"
+        );
+        let chrg_buffer: si::Energy = todo!();
+
+        self.res.set_curr_pwr_out_max(
+            dt,
             pwr_aux.with_context(|| anyhow!(format_dbg!("`pwr_aux` not provided")))?,
-            None,
-            None,
+            /// TODO: calculate buffers similarly to the `HybridPowertrainControls`, but make a `HybridConsistControls` things at the consist level
+            disch_buffer,
+            chrg_buffer,
         )?;
         self.edrv
-            .set_cur_pwr_max_out(self.res.state.pwr_prop_out_max, None)?;
+            .set_cur_pwr_max_out(self.res.state.pwr_prop_max, None)?;
         self.edrv
-            .set_cur_pwr_regen_max(self.res.state.pwr_regen_out_max)?;
+            .set_cur_pwr_regen_max(self.res.state.pwr_charge_max)?;
 
         // power rate is never limiting in BEL, but assuming dt will be same
         // in next time step, we can synthesize a rate
@@ -137,3 +139,15 @@ impl LocoTrait for BatteryElectricLoco {
         self.res.state.energy_loss + self.edrv.state.energy_loss
     }
 }
+
+#[altrios_api]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
+#[non_exhaustive]
+#[serde(default)]
+pub struct BELState {
+    /// time step index
+    pub i: usize,
+}
+
+impl Init for BELState {}
+impl SerdeAPI for BELState {}

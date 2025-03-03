@@ -20,4 +20,3 @@ pub mod tests;
 
 use self::locomotive::BatteryElectricLoco;
 use crate::consist::locomotive::{Locomotive, PowertrainType};
-use crate::train::TrainState;

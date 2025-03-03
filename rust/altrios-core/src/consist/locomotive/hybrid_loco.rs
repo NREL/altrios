@@ -520,9 +520,11 @@ impl HybridPowertrainControls {
     /// - `fc`: fuel converter
     /// - `em_state`: electric machine state
     /// - `res`: reversible energy storage (e.g. high voltage battery)
+    #[allow(clippy::too_many_arguments)]
     fn get_pwr_gen_and_res(
         &mut self,
         pwr_prop_req: si::Power,
+        // TODO: make a `TrainMomentum` object to pass both mass and speed
         train_mass: si::Mass,
         train_speed: si::Velocity,
         hel_state: &mut HELState,

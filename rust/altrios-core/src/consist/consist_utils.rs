@@ -70,8 +70,8 @@ impl SolvePower for RESGreedy {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
-        train_mass: Option<si::Mass>,
-        train_speed: Option<si::Velocity>,
+        _train_mass: Option<si::Mass>,
+        _train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         let loco_pwr_out_vec: Vec<si::Power> = if state.pwr_out_deficit == si::Power::ZERO {
             // draw all power from RES-equipped locomotives
@@ -146,8 +146,8 @@ fn get_pwr_regen_vec(loco_vec: &[Locomotive], regen_frac: si::Ratio) -> Vec<si::
 fn solve_negative_traction(
     loco_vec: &[Locomotive],
     consist_state: &ConsistState,
-    train_mass: Option<si::Mass>,
-    train_speed: Option<si::Velocity>,
+    _train_mass: Option<si::Mass>,
+    _train_speed: Option<si::Velocity>,
 ) -> anyhow::Result<Vec<si::Power>> {
     // positive during any kind of negative traction event
     let pwr_brake_req = -consist_state.pwr_out_req;
@@ -206,8 +206,8 @@ impl SolvePower for Proportional {
         &mut self,
         loco_vec: &[Locomotive],
         state: &ConsistState,
-        train_mass: Option<si::Mass>,
-        train_speed: Option<si::Velocity>,
+        _train_mass: Option<si::Mass>,
+        _train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         Ok(loco_vec
             .iter()

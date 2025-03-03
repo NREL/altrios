@@ -98,10 +98,10 @@ impl Init for FuelConverter {
         self.pwr_for_peak_eff = *self
             .eta_interp
             .get(
-                self.pwr_out_frac_interp
+                self.eta_interp
                     .iter()
                     .position(|&eff| eff == eff_max)
-                    .with_context(|| format_dbg!())?,
+                    .with_context(|| format!("{}\n`eff_max`: {eff_max}", format_dbg!()))?,
             )
             .with_context(|| format_dbg!())?
             * self.pwr_out_max;

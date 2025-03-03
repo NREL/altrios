@@ -234,7 +234,7 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
-        let n_cars = self.get_cars_moved(annualize) as f64;
+        let n_cars = self.get_cars_moved(annualize);
         // Note: n_cars already includes an annualization scaling factor; no need to multiply twice.
         self.state.total_dist.get::<si::kilometer>() * n_cars
     }

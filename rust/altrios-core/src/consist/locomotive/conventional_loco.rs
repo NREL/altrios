@@ -69,13 +69,6 @@ impl ConventionalLoco {
             dt,
         )?;
 
-        ensure!(
-            self.gen.state.pwr_mech_in >= si::Power::ZERO,
-            format!(
-                "{}\nfc can only produce positive power",
-                format_dbg!(self.gen.state.pwr_mech_in >= si::Power::ZERO)
-            ),
-        );
         self.fc
             .solve_energy_consumption(self.gen.state.pwr_mech_in, dt, loco_on, assert_limits)?;
         Ok(())

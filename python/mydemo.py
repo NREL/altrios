@@ -417,8 +417,7 @@ def crane_load_process(env, terminal, load_time, start_load_event, end_load_even
     yield start_load_event
     print(f"Time {env.now}: Starting loading process onto the train.")
 
-    while len([item for item in terminal.chassis.items if
-               isinstance(item, str) and "OC" in item]) > 0:  # if there still has OC on chassis
+    while len([item for item in terminal.chassis.items if isinstance(item, str) and "OC" in item]) > 0:  # if there still has OC on chassis
         crane_item = terminal.cranes.get(lambda x: x[2] == track_id)
         oc = yield terminal.chassis.get(lambda x: x.type=='Outbound' and x.train_id == train_schedule['train_id'])  # obtain an OC from chassis
         print("line 364 chassis:", terminal.chassis.items)

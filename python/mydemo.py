@@ -26,6 +26,7 @@ class Terminal:
         self.train_ic_unload_events = {}
         self.train_ic_unload_count = {}     # condition for train_ic_picked
         self.train_ic_picked_events = {}    # condition 1 for crane loading
+        self.train_oc_prepared = {}
 
         self.IC_COUNT = {}
         self.OC_COUNT = {}
@@ -162,6 +163,13 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
     yield env.timeout(state.TRUCK_TO_PARKING)  # truck travel time of placing OC at parking slot (demo_parameters.TRUCK_TO_PARKING)
     all_trucks_arrived_event.succeed()  # if all_trucks_arrived_event is triggered, train is allowed to enter
 
+def check_ic_picked_complete(env, terminal, train_schedule):
+    inbound_count = sum(getattr(item, 'type', None) == 'Inbound' for item in terminal.chassis.items)
+    print(f"ic for train-{train_schedule['train_id']} on chassis:", inbound_count )
+    if inbound_count == 0 and terminal.train_ic_unload_events[train_schedule['train_id']].triggered and \
+        terminal.train_ic_unload_events[train_schedule['train_id']].triggered:
+        terminal.train_ic_picked_events[train_schedule['train_id']].succeed()
+        print(f"Time {env.now}: All ICs for {train_schedule['train_id']} are picked up by hostlers.")
 
 def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_needed, total_ic, all_ic_picked, track_id):
     global state
@@ -199,6 +207,7 @@ def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_need
             # all_ic_unload_event.succeed()
             terminal.train_ic_unload_events[train_schedule['train_id']].succeed()
             print(f"Time {env.now}: All ICs from Train-{train_schedule['train_id']} have been unloaded onto the chassis.")
+            check_ic_picked_complete(env, terminal, train_schedule)
 
 
 def container_process(env, terminal, train_schedule, all_oc_prepared, oc_needed, all_ic_picked):
@@ -236,17 +245,9 @@ def container_process(env, terminal, train_schedule, all_oc_prepared, oc_needed,
 
     print(f"check if there has IC {terminal.train_ic_stores[train_schedule['train_id']].items} for train {train_schedule['train_id']} ")
 
-    # Prepare for crane loading: if hostlers picked up all ic and all ic are unloaded => trigger all_ic_picked
-    print(f"there remains ic on train {train_schedule['train_id']} :", sum(item.type=='Inbound' for item in terminal.train_ic_stores[train_schedule['train_id']].items))
-
     # if sum(item.type=='Inbound' for item in terminal.train_ic_stores[train_schedule['train_id']].items) == 0 and terminal.train_ic_unload_events[train_schedule['train_id']].triggered:
         # all_ic_picked.succeed()
-    inbound_count = sum(getattr(item, 'type', None) == 'Inbound' for item in terminal.chassis.items)
-    print(f"ic for train-{train_schedule['train_id']} on chassis:", inbound_count )
-
-    if inbound_count == 0 and terminal.train_ic_unload_events[train_schedule['train_id']].triggered:
-        terminal.train_ic_picked_events[train_schedule['train_id']].succeed()
-        print(f"Time {env.now}: All ICs for {train_schedule['train_id']} are picked up by hostlers.")
+    check_ic_picked_complete(env, terminal, train_schedule)
 
     # Test: status for chassis
     print("Containers on chassis (hostler picking-up IC):", terminal.chassis.items)
@@ -280,7 +281,7 @@ def container_process(env, terminal, train_schedule, all_oc_prepared, oc_needed,
 
     # Assign a hostler to pick up an OC
     if len(terminal.oc_store.items) > 0:
-        oc = yield terminal.oc_store.get()
+        oc = yield terminal.oc_store.get(lambda x: x.train_id == train_schedule['train_id'])
         print(f"Time {env.now}: Hostler {hostler_id} is going to pick up OC {oc}")
 
         # Test: OC remaining before hostlers pick up OCs

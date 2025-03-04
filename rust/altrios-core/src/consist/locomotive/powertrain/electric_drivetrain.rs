@@ -251,7 +251,9 @@ impl Default for ElectricDrivetrain {
     fn default() -> Self {
         // let file_contents = include_str!(EDRV_DEFAULT_PATH_STR);
         let file_contents = include_str!("electric_drivetrain.default.yaml");
-        Self::from_yaml(file_contents, false).unwrap()
+        let mut edrv = Self::from_yaml(file_contents, false).unwrap();
+        edrv.init().unwrap();
+        edrv
     }
 }
 

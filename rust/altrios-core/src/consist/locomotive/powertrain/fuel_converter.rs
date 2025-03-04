@@ -88,7 +88,9 @@ pub struct FuelConverter {
 impl Default for FuelConverter {
     fn default() -> Self {
         let file_contents = include_str!("fuel_converter.default.yaml");
-        Self::from_yaml(file_contents, false).unwrap()
+        let mut fc = Self::from_yaml(file_contents, false).unwrap();
+        fc.init().unwrap();
+        fc
     }
 }
 

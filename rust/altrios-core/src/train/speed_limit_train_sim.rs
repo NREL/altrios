@@ -731,6 +731,7 @@ impl Default for SpeedLimitTrainSim {
             scenario_year: None,
         };
         slts.set_save_interval(None);
+        slts.init().unwrap();
         slts
     }
 }

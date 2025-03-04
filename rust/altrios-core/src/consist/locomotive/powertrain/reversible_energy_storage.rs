@@ -170,6 +170,7 @@ impl Default for ReversibleEnergyStorage {
         let file_contents = include_str!("reversible_energy_storage.default.yaml");
         let mut res = Self::from_yaml(file_contents, false).unwrap();
         res.state.soc = res.max_soc;
+        res.init().unwrap();
         res
     }
 }
@@ -430,8 +431,8 @@ impl ReversibleEnergyStorage {
         disch_buffer: si::Energy,
         chrg_buffer: si::Energy,
     ) -> anyhow::Result<()> {
-        self.set_pwr_disch_max(pwr_aux, dt, disch_buffer)?;
         self.set_pwr_charge_max(pwr_aux, dt, chrg_buffer)?;
+        self.set_pwr_disch_max(pwr_aux, dt, disch_buffer)?;
 
         Ok(())
     }
@@ -511,7 +512,7 @@ impl ReversibleEnergyStorage {
             format_dbg!(soc_buffer_delta)
         );
 
-        self.state.pwr_prop_max = self.state.pwr_charge_max - pwr_aux;
+        self.state.pwr_prop_max = self.state.pwr_disch_max - pwr_aux;
 
         Ok(())
     }
@@ -779,9 +780,9 @@ pub struct ReversibleEnergyStorageState {
     pub pwr_prop_max: si::Power,
     /// max regen power for propulsion during negative traction
     pub pwr_regen_max: si::Power,
-    /// max discharge power total
+    /// max discharge power at the battery terminals
     pub pwr_disch_max: si::Power,
-    /// max charge power on the output side
+    /// max charge power at the battery terminals
     pub pwr_charge_max: si::Power,
 
     /// simulation step

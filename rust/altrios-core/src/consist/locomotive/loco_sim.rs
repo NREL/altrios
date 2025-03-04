@@ -7,15 +7,6 @@ use crate::consist::LocoTrait;
 use crate::imports::*;
 
 #[altrios_api(
-    #[new]
-    fn __new__(
-        time_seconds: Vec<f64>,
-        pwr_watts: Vec<f64>,
-        engine_on: Vec<Option<bool>>,
-    ) -> anyhow::Result<Self> {
-        Ok(Self::new(time_seconds, pwr_watts, engine_on))
-    }
-
     #[staticmethod]
     #[pyo3(name = "from_csv_file")]
     fn from_csv_file_py(pathstr: String) -> anyhow::Result<Self> {
@@ -44,16 +35,6 @@ pub struct PowerTrace {
 }
 
 impl PowerTrace {
-    pub fn new(time_s: Vec<f64>, pwr_watts: Vec<f64>, engine_on: Vec<Option<bool>>) -> Self {
-        Self {
-            time: time_s.iter().map(|x| uc::S * (*x)).collect(),
-            pwr: pwr_watts.iter().map(|x| uc::W * (*x)).collect(),
-            engine_on,
-            train_speed: Vec::new(),
-            train_mass: None,
-        }
-    }
-
     pub fn empty() -> Self {
         Self {
             time: Vec::new(),
@@ -128,7 +109,15 @@ impl Default for PowerTrace {
         pwr_watts.append(&mut pwr_watts_ramp.iter().rev().copied().collect());
         let time_s: Vec<f64> = (0..pwr_watts.len()).map(|x| x as f64).collect();
         let time_len = time_s.len();
-        Self::new(time_s, pwr_watts, vec![Some(true); time_len])
+        let mut pt = Self {
+            time: time_s.iter().map(|t| *t * uc::S).collect(),
+            pwr: pwr_watts.iter().map(|p| *p * uc::W).collect(),
+            engine_on: vec![Some(true); time_len],
+            train_speed: vec![10.0 * uc::MPH; time_len],
+            train_mass: Some(1e6 * uc::LB),
+        };
+        pt.init().unwrap();
+        pt
     }
 }
 
@@ -328,7 +317,9 @@ impl Default for LocomotiveSimulation {
     fn default() -> Self {
         let power_trace = PowerTrace::default();
         let loco_unit = Locomotive::default();
-        Self::new(loco_unit, power_trace, None)
+        let mut ls = Self::new(loco_unit, power_trace, None);
+        ls.init().unwrap();
+        ls
     }
 }
 

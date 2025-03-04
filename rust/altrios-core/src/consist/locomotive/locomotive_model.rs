@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, From, IsVariant)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, From, IsVariant, TryInto)]
 pub enum PowertrainType {
     ConventionalLoco(ConventionalLoco),
     HybridLoco(Box<HybridLoco>),
@@ -565,7 +565,7 @@ impl Default for Locomotive {
     /// Returns locomotive with defaults for Tier 4 [ConventionalLoco]
     fn default() -> Self {
         let loco_params = LocoParams::default();
-        Self {
+        let mut loco = Self {
             loco_type: PowertrainType::ConventionalLoco(ConventionalLoco::default()),
             pwr_aux_offset: loco_params.pwr_aux_offset,
             pwr_aux_traction_coeff: loco_params.pwr_aux_traction_coeff,
@@ -578,7 +578,9 @@ impl Default for Locomotive {
             history: Default::default(),
             assert_limits: true,
             mu: Default::default(),
-        }
+        };
+        loco.init().unwrap();
+        loco
     }
 }
 
@@ -738,28 +740,33 @@ impl Locomotive {
     }
 
     pub fn default_battery_electric_loco() -> Self {
-        Locomotive::build_battery_electric_loco(
-            ReversibleEnergyStorage::default(),
-            ElectricDrivetrain::default(),
-            LocoParams {
-                // source: https://www.wabteccorp.com/media/466/download?inline
-                mass: Some(194.6e3 * uc::KG),
-                pwr_aux_offset: 8.55e3 * uc::W,
-                pwr_aux_traction_coeff: 540e-6 * uc::R,
-                force_max: 667.2e3 * uc::N,
-            },
-            Some(1),
-        )
-        .unwrap()
+        let mut loco = Locomotive {
+            loco_type: PowertrainType::BatteryElectricLoco(Default::default()),
+            mass: Some(194.6e3 * uc::KG),
+            ballast_mass: None,
+            baseline_mass: None,
+            force_max: 667.2e3 * uc::N,
+            pwr_aux_offset: 8.55e3 * uc::W,
+            pwr_aux_traction_coeff: 540e-6 * uc::R,
+            mu: None,
+            state: Default::default(),
+            history: Default::default(),
+            save_interval: Some(1),
+            assert_limits: true,
+        };
+        loco.init().unwrap();
+        loco
     }
 
     pub fn default_hybrid_electric_loco() -> Self {
         // TODO: add `pwr_aux_offset` and `pwr_aux_traction_coeff` based on calibration
         let hel_type = PowertrainType::HybridLoco(Box::default());
-        Locomotive {
+        let mut loco = Locomotive {
             loco_type: hel_type,
             ..Default::default()
-        }
+        };
+        loco.init().unwrap();
+        loco
     }
 
     pub fn get_pwr_rated(&self) -> si::Power {
@@ -1313,48 +1320,3 @@ impl TryFrom<String> for ForceMaxSideEffect {
         Ok(mass_side_effect)
     }
 }
-
-/// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge
-/// and discharge power inside of static min and max SOC range.  Also, includes
-/// buffer for forcing [FuelConverter] to be active/on. See [Self::init] for
-/// default values.
-#[altrios_api]
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default, HistoryMethods)]
-#[non_exhaustive]
-pub struct RESGreedyWithDynamicBuffers {
-    /// RES energy delta from minimum SOC corresponding to kinetic energy of
-    /// vehicle at this speed that triggers ramp down in RES discharge.
-    #[api(skip_get, skip_set)]
-    pub speed_soc_disch_buffer: Option<si::Velocity>,
-    /// Coefficient for modifying amount of accel buffer
-    #[api(skip_get, skip_set)]
-    pub speed_soc_disch_buffer_coeff: Option<si::Ratio>,
-    /// RES energy delta from maximum SOC corresponding to kinetic energy of
-    /// vehicle at current speed minus kinetic energy of vehicle at this speed
-    /// triggers ramp down in RES discharge
-    #[api(skip_get, skip_set)]
-    pub speed_soc_regen_buffer: Option<si::Velocity>,
-    /// Coefficient for modifying amount of regen buffer
-    #[api(skip_get, skip_set)]
-    pub speed_soc_regen_buffer_coeff: Option<si::Ratio>,
-    #[serde(default)]
-    pub state: RGWDBState,
-    #[serde(default, skip_serializing_if = "RGWDBStateHistoryVec::is_empty")]
-    /// history of current state
-    pub history: RGWDBStateHistoryVec,
-}
-
-impl Init for RESGreedyWithDynamicBuffers {}
-impl SerdeAPI for RESGreedyWithDynamicBuffers {}
-
-#[altrios_api]
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
-#[serde(default)]
-/// State for [RESGreedyWithDynamicBuffers ]
-pub struct RGWDBState {
-    /// time step index
-    pub i: usize,
-}
-
-impl Init for RGWDBState {}
-impl SerdeAPI for RGWDBState {}

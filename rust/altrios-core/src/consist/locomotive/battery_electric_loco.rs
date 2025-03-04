@@ -97,21 +97,61 @@ impl LocoTrait for BatteryElectricLoco {
     fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
-        _train_mass: Option<si::Mass>,
-        _train_speed: Option<si::Velocity>,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
-        let disch_buffer: si::Energy = todo!(
-            "Calculate buffers similarly to the `HybridPowertrainControls`, but
-make a `BatteryPowertrainControls` for the BEL and/or a `HybridConsistControls`
-thing at the consist level"
-        );
-        let chrg_buffer: si::Energy = todo!();
+        let mass_for_loco: si::Mass = train_mass.with_context(|| {
+            format!(
+                "{}\n`train_mass_for_loco` must be provided for `BatteryElectricLoco` ",
+                format_dbg!()
+            )
+        })?;
+        let train_speed: si::Velocity = train_speed.with_context(|| {
+            format!(
+                "{}\n`train_speed` must be provided for `BatteryElectricLoco` ",
+                format_dbg!()
+            )
+        })?;
+
+        let disch_buffer: si::Energy = match &self.pt_cntrl {
+            BatteryPowertrainControls::RGWDB(rgwb) => {
+                (0.5 * mass_for_loco
+                    * (rgwb
+                        .speed_soc_disch_buffer
+                        .with_context(|| format_dbg!())?
+                        .powi(typenum::P2::new())
+                        - train_speed.powi(typenum::P2::new())))
+                .max(si::Energy::ZERO)
+                    * rgwb
+                        .speed_soc_disch_buffer_coeff
+                        .with_context(|| format_dbg!())?
+            }
+            BatteryPowertrainControls::Placeholder => {
+                todo!()
+            }
+        };
+        let chrg_buffer: si::Energy = match &self.pt_cntrl {
+            BatteryPowertrainControls::RGWDB(rgwb) => {
+                (0.5 * mass_for_loco
+                    * (train_speed.powi(typenum::P2::new())
+                        - rgwb
+                            .speed_soc_regen_buffer
+                            .with_context(|| format_dbg!())?
+                            .powi(typenum::P2::new())))
+                .max(si::Energy::ZERO)
+                    * rgwb
+                        .speed_soc_regen_buffer_coeff
+                        .with_context(|| format_dbg!())?
+            }
+            BatteryPowertrainControls::Placeholder => {
+                todo!()
+            }
+        };
 
         self.res.set_curr_pwr_out_max(
             dt,
             pwr_aux.with_context(|| anyhow!(format_dbg!("`pwr_aux` not provided")))?,
-            /// TODO: calculate buffers similarly to the `HybridPowertrainControls`, but make a `HybridConsistControls` things at the consist level
             disch_buffer,
             chrg_buffer,
         )?;
@@ -158,7 +198,7 @@ pub enum BatteryPowertrainControls {
     /// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge
     /// and discharge power inside of static min and max SOC range.  Also, includes
     /// buffer for forcing [FuelConverter] to be active/on.
-    RGWDB(Box<RESGreedyWithDynamicBuffers>),
+    RGWDB(Box<RESGreedyWithDynamicBuffersBEL>),
     /// place holder for future variants
     Placeholder,
 }
@@ -200,3 +240,56 @@ impl BatteryPowertrainControls {
         }
     }
 }
+
+/// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge
+/// and discharge power inside of static min and max SOC range.  Also, includes
+/// buffer for forcing [FuelConverter] to be active/on. See [Self::init] for
+/// default values.
+#[altrios_api]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default, HistoryMethods)]
+#[non_exhaustive]
+pub struct RESGreedyWithDynamicBuffersBEL {
+    /// RES energy delta from minimum SOC corresponding to kinetic energy of
+    /// vehicle at this speed that triggers ramp down in RES discharge.
+    #[api(skip_get, skip_set)]
+    pub speed_soc_disch_buffer: Option<si::Velocity>,
+    /// Coefficient for modifying amount of accel buffer
+    #[api(skip_get, skip_set)]
+    pub speed_soc_disch_buffer_coeff: Option<si::Ratio>,
+    /// RES energy delta from maximum SOC corresponding to kinetic energy of
+    /// vehicle at current speed minus kinetic energy of vehicle at this speed
+    /// triggers ramp down in RES discharge
+    #[api(skip_get, skip_set)]
+    pub speed_soc_regen_buffer: Option<si::Velocity>,
+    /// Coefficient for modifying amount of regen buffer
+    #[api(skip_get, skip_set)]
+    pub speed_soc_regen_buffer_coeff: Option<si::Ratio>,
+    #[serde(default)]
+    pub state: RGWDBStateBEL,
+    #[serde(default, skip_serializing_if = "RGWDBStateBELHistoryVec::is_empty")]
+    /// history of current state
+    pub history: RGWDBStateBELHistoryVec,
+}
+
+impl Init for RESGreedyWithDynamicBuffersBEL {
+    fn init(&mut self) -> anyhow::Result<()> {
+        self.speed_soc_disch_buffer = self.speed_soc_disch_buffer.or(Some(40.0 * uc::MPH));
+        self.speed_soc_disch_buffer_coeff = self.speed_soc_disch_buffer_coeff.or(Some(1.0 * uc::R));
+        self.speed_soc_regen_buffer = self.speed_soc_regen_buffer.or(Some(20. * uc::MPH));
+        self.speed_soc_regen_buffer_coeff = self.speed_soc_regen_buffer_coeff.or(Some(1.0 * uc::R));
+        Ok(())
+    }
+}
+impl SerdeAPI for RESGreedyWithDynamicBuffersBEL {}
+
+#[altrios_api]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
+#[serde(default)]
+/// State for [RESGreedyWithDynamicBuffers ]
+pub struct RGWDBStateBEL {
+    /// time step index
+    pub i: usize,
+}
+
+impl Init for RGWDBStateBEL {}
+impl SerdeAPI for RGWDBStateBEL {}

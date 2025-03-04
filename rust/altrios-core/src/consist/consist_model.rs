@@ -425,6 +425,7 @@ impl Default for Consist {
         // ensure propagation to nested components
         consist.set_save_interval(Some(1));
         let _mass = consist.mass().unwrap();
+        consist.init().unwrap();
         consist
     }
 }

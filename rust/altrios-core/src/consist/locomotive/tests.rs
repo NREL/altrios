@@ -47,7 +47,7 @@ fn test_hybrid_loco() {
 
     assert_eq!(loco.state.energy_out, si::Energy::ZERO);
     loco.solve_energy_consumption(
-        uc::W * 1e6,
+        uc::W * 5e3,
         uc::S * 1.0,
         Some(true),
         Some(uc::LB * 1e6),
@@ -66,7 +66,52 @@ fn test_battery_electric_loco() {
     assert_eq!(loco.state.pwr_regen_max, si::Power::ZERO);
     loco.set_curr_pwr_max_out(None, Some(uc::LB * 1e6), Some(uc::MPH * 10.0), 1.0 * uc::S)
         .unwrap();
-    assert!(loco.state.pwr_out_max > si::Power::ZERO);
+
+    assert!(
+        loco.reversible_energy_storage().unwrap().state.pwr_prop_max > si::Power::ZERO,
+        "loco.reversible_energy_storage().unwrap().state.pwr_prop_max: {:?}
+        loco.reversible_energy_storage().unwrap().state.pwr_disch_max: {:?}
+        loco.reversible_energy_storage().unwrap().state.pwr_charge_max: {:?}
+soc_disch_buffer: {:?}
+soc_chrg_buffer: {:?}
+soc: {:?}",
+        loco.reversible_energy_storage().unwrap().state.pwr_prop_max,
+        loco.reversible_energy_storage()
+            .unwrap()
+            .state
+            .pwr_disch_max,
+        loco.reversible_energy_storage()
+            .unwrap()
+            .state
+            .pwr_charge_max,
+        loco.reversible_energy_storage()
+            .unwrap()
+            .state
+            .soc_disch_buffer,
+        loco.reversible_energy_storage()
+            .unwrap()
+            .state
+            .soc_chrg_buffer,
+        loco.reversible_energy_storage().unwrap().state.soc
+    );
+
+    assert!(
+        loco.state.pwr_out_max > si::Power::ZERO,
+        "loco.state.pwr_out_max: {:?}
+soc_disch_buffer: {:?}
+soc_chrg_buffer: {:?}
+soc: {:?}",
+        loco.state.pwr_out_max,
+        loco.reversible_energy_storage()
+            .unwrap()
+            .state
+            .soc_disch_buffer,
+        loco.reversible_energy_storage()
+            .unwrap()
+            .state
+            .soc_chrg_buffer,
+        loco.reversible_energy_storage().unwrap().state.soc
+    );
     assert!(loco.state.pwr_rate_out_max > si::PowerRate::ZERO);
     assert!(loco.state.pwr_regen_max == si::Power::ZERO);
 

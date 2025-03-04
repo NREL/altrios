@@ -153,7 +153,9 @@ impl SerdeAPI for ConsistSimulation {}
 
 impl Default for ConsistSimulation {
     fn default() -> Self {
-        Self::new(Consist::default(), PowerTrace::default(), Some(1))
+        let mut consist_sim = Self::new(Consist::default(), PowerTrace::default(), Some(1));
+        consist_sim.init().unwrap();
+        consist_sim
     }
 }
 

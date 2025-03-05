@@ -8,7 +8,6 @@ from altrios.lifts.dictionary import *
 from altrios.lifts.schedule import *
 from altrios.lifts.vehicle_performance import record_vehicle_event, save_average_times, save_vehicle_logs
 
-
 class Terminal:
     def __init__(self, env, truck_capacity, chassis_count):
         self.env = env
@@ -86,7 +85,7 @@ def truck_entry(env, terminal, truck_id, oc, train_schedule):
     global state
     with terminal.in_gates.request() as gate_request:
         yield gate_request
-        if state.log_level == loggingLevel.BASIC:
+        if state.log_level > loggingLevel.NONE:
             print(f"Time {env.now}: Truck {truck_id} passed the in-gate and is entering the terminal")
         truck_travel_time = state.TRUCK_INGATE_TIME + random.uniform(0, state.TRUCK_INGATE_TIME_DEV)
         yield env.timeout(truck_travel_time)  # truck passing gate time: 1 sec (demo_parameters.TRUCK_INGATE_TIME and TRUCK_INGATE_TIME_DEV)
@@ -95,7 +94,7 @@ def truck_entry(env, terminal, truck_id, oc, train_schedule):
 
         # Assume each truck takes 1 OC, and drop OC to the closest parking lot according to triangular distribution
         # Assign IDs for OCs
-        if state.log_level == loggingLevel.BASIC:
+        if state.log_level > loggingLevel.NONE:
             print(f"Time {env.now}: Truck {truck_id} placed OC {oc.id} at parking slot.")
         record_container_event(oc, 'truck_arrival', env.now)
 
@@ -117,7 +116,7 @@ def empty_truck(env, terminal, truck_id):
     global state
     with terminal.in_gates.request() as gate_request:
         yield gate_request
-        if state.log_level == loggingLevel.BASIC:
+        if state.log_level > loggingLevel.NONE:
             print(f"Time {env.now}: Truck {truck_id} passed the in-gate and is entering the terminal with empty loading")
         truck_travel_time = state.TRUCK_INGATE_TIME + random.uniform(0, state.TRUCK_INGATE_TIME_DEV)
         yield env.timeout(truck_travel_time)  # truck passing gate time: 1 sec (demo_parameters.TRUCK_INGATE_TIME and TRUCK_INGATE_TIME_DEV)

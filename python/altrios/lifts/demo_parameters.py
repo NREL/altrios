@@ -1,14 +1,15 @@
 from dataclasses import dataclass, field
 from altrios.lifts.schedule import *
-from enum import Enum
+from enum import IntEnum
 
 def train_arrival_parameters(train_consist_plan, terminal):
     TRAIN_TIMETABLE = build_train_timetable(train_consist_plan, terminal, swap_arrive_depart = False, as_dicts = False)
     return TRAIN_TIMETABLE
 
-class loggingLevel(Enum):
+class loggingLevel(IntEnum):
     NONE = 1
     BASIC = 2
+    DEBUG = 3
 
 @dataclass
 class container:
@@ -28,7 +29,7 @@ class container:
 @dataclass
 class LiftsState:
     # Fixed: Simulation files and hyperparameters
-    log_level: loggingLevel = loggingLevel.BASIC
+    log_level: loggingLevel = loggingLevel.DEBUG
     random_seed: int = 42
     sim_time: int = 1100
     terminal: str = 'Allouez'    # Choose 'Hibbing' or 'Allouez'

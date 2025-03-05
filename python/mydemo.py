@@ -23,9 +23,9 @@ class Terminal:
 
         self.train_ic_stores = {}
         self.train_ic_unload_events = {}
-        self.train_ic_unload_count = {}     # condition for train_ic_picked
-        self.train_ic_picked_events = {}    # condition 1 for crane loading
-        self.train_oc_prepared_events = {}         # condition 2 for crane loading
+        self.train_ic_unload_count = {}      # condition for train_ic_picked
+        self.train_ic_picked_events = {}     # condition 1 for crane loading
+        self.train_oc_prepared_events = {}   # condition 2 for crane loading
         self.train_start_load_events = {}    # condition 1 for train departure
         self.train_end_load_events = {}      # condition 2 for train departure
 
@@ -174,7 +174,7 @@ def check_ic_picked_complete(env, terminal, train_schedule):
         terminal.train_ic_picked_events[train_schedule['train_id']].succeed()
         print(f"Time {env.now}: All ICs for {train_schedule['train_id']} are picked up by hostlers.")
 
-def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_needed, total_ic, all_ic_picked, track_id):
+def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_needed, track_id):
     global state
     # ic_unloaded_count = 0
     terminal.train_ic_unload_count[train_schedule['train_id']] = 0
@@ -202,7 +202,7 @@ def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_need
         # ic_unloaded_count += 1
         terminal.train_ic_unload_count[train_schedule['train_id']] += 1
         print(f"        Train {train_schedule['train_id']} ic unload count: {terminal.train_ic_unload_count[train_schedule['train_id']]}")
-        env.process(container_process(env, terminal, train_schedule, all_oc_prepared, oc_needed, all_ic_picked))
+        env.process(container_process(env, terminal, train_schedule))
 
         if terminal.train_ic_unload_count[train_schedule['train_id']] == terminal.total_ic[train_schedule['train_id']]:
         # if ic_unloaded_count == total_ic:
@@ -212,7 +212,7 @@ def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_need
             check_ic_picked_complete(env, terminal, train_schedule)
 
 
-def container_process(env, terminal, train_schedule, all_oc_prepared, oc_needed, all_ic_picked):
+def container_process(env, terminal, train_schedule):
     global state
     '''
     It is designed to transfer both inbound and outbound containers.
@@ -394,13 +394,10 @@ def container_process(env, terminal, train_schedule, all_oc_prepared, oc_needed,
             record_vehicle_event('hostler', hostler_id, f'dropoff_OC_{oc}', 'loaded',
                                  emissions, 'end', env.now)
 
-            print("chassis (oc_remaining):", terminal.chassis.items)
-            print(f"hostler (oc_remaining): {terminal.hostlers.items}")
-            if sum(1 for item in terminal.chassis.items if isinstance(item, str) and "OC-" in str(item)) == oc_needed:
-                all_oc_prepared.succeed()
-                print("chassis (all_oc_prepared):", terminal.chassis.items)
-                print(f"hostler (all_oc_prepared): {terminal.hostlers.items}")
-                print("# of OC on chassis:", sum(1 for item in terminal.chassis.items if "OC-" in str(item)))
+            # if sum(1 for item in terminal.chassis.items if isinstance(item, str) and "OC-" in str(item)) == oc_needed:
+            if [item for item in terminal.chassis.items[0].resource.items if item.type == 'Inbound' and item.train_id == 19] == train_schedule['oc_number']:
+                terminal.train_oc_prepared_events[train_schedule['train_id']].succeed()
+                # all_oc_prepared.succeed()
                 print(f"Time {env.now}: All OCs are ready on chassis.")
             i += 1
 
@@ -420,7 +417,7 @@ def truck_exit(env, terminal, truck_id, ic, train_schedule):
     yield terminal.truck_store.put(truck_id)
 
 
-def crane_load_process(env, terminal, load_time, start_load_event, end_load_event, track_id, train_schedule):
+def crane_load_process(env, terminal, load_time, track_id, train_schedule):
     global state
     # yield start_load_event
     yield terminal.train_start_load_events[train_schedule['train_id']]
@@ -454,15 +451,8 @@ def process_train_arrival(env, terminal, train_schedule):
     oc_needed = train_schedule["oc_number"]
     total_ic = train_schedule["full_cars"]
 
-    print(f"------------------- The current train is {train_id}: scheduled arrival time {arrival_time}, OC {oc_needed}, IC {total_ic} -------------------")
-
-    # create events as processing conditions
+    # Create events as processing conditions
     all_trucks_arrived_event = env.event()  # condition for train arrival
-    # all_ic_unload_event = env.event()  # condition for all ic picked
-    all_ic_picked = env.event()  # condition 1 for crane loading
-    all_oc_prepared = env.event()  # condition 2 for crane loading
-    start_load_event = env.event()  # condition 1 for train departure
-    end_load_event = env.event()  # condition 2 for train departure
 
     # Initialize dictionary
     delay_list = {}
@@ -518,7 +508,7 @@ def process_train_arrival(env, terminal, train_schedule):
     terminal.train_start_load_events[train_schedule['train_id']] = env.event()
     terminal.train_end_load_events[train_schedule['train_id']] = env.event()
 
-    env.process(crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_needed, total_ic, all_ic_picked, track_id))
+    env.process(crane_unload_process(env, terminal, train_schedule, oc_needed, total_ic, track_id))
 
     # prepare all OC and pick up all IC before crane loading
     # yield all_ic_picked & all_oc_prepared
@@ -529,10 +519,13 @@ def process_train_arrival(env, terminal, train_schedule):
     terminal.train_start_load_events[train_schedule['train_id']].succeed()
 
     # crane loading process
-    env.process(crane_load_process(env, terminal, load_time=2, start_load_event=start_load_event,
-                                   end_load_event=end_load_event, track_id=track_id, train_schedule=train_schedule))
+    # env.process(crane_load_process(env, terminal, load_time=2, start_load_event=start_load_event,
+    #                                end_load_event=end_load_event, track_id=track_id, train_schedule=train_schedule))
+    #
+    # yield end_load_event
 
-    yield end_load_event
+    env.process(crane_load_process(env, terminal, load_time=2, track_id=track_id, train_schedule=train_schedule))
+    yield terminal.train_end_load_events[train_schedule['train_id']]
 
     # train departs
     if env.now <= departure_time:

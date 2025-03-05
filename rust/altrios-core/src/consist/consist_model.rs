@@ -455,13 +455,17 @@ impl LocoTrait for Consist {
         });
         for (i, loco) in self.loco_vec.iter_mut().enumerate() {
             // assign locomotive specific mass for hybrid controls
-            let mass: Option<si::Mass> = train_mass.map(|tm| {
-                loco.reversible_energy_storage()
-                    .map(|res| res.energy_capacity_usable())
-                    .unwrap_or(si::Energy::ZERO)
-                    / res_total_usable_energy
-                    * tm
-            });
+            let mass: Option<si::Mass> = if res_total_usable_energy > si::Energy::ZERO {
+                train_mass.map(|tm| {
+                    loco.reversible_energy_storage()
+                        .map(|res| res.energy_capacity_usable())
+                        .unwrap_or(si::Energy::ZERO)
+                        / res_total_usable_energy
+                        * tm
+                })
+            } else {
+                None
+            };
             loco.set_curr_pwr_max_out(None, mass, train_speed, dt)
                 .map_err(|err| {
                     err.context(format!(

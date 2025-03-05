@@ -44,7 +44,7 @@ class Terminal:
         self.in_gates = simpy.Resource(env, state.IN_GATE_NUMBERS)
         self.out_gates = simpy.Resource(env, state.OUT_GATE_NUMBERS)
         self.oc_store = simpy.FilterStore(env)
-        self.chassis = simpy.FilterStore(env, capacity=chassis_count)
+        self.chassis = simpy.FilterStore(env, capacity=9999)
         self.hostlers = simpy.Store(env, capacity=state.HOSTLER_NUMBER)
         self.truck_store = simpy.Store(env, capacity=truck_capacity)
         # Hostler setup

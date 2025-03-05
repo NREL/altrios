@@ -193,11 +193,6 @@ impl HybridLoco {
     /// - `train_speed`: current train speed
     /// - `dt`: time step size
     ///
-    /// # Diagram
-    ///           +--> alternator --> engine
-    /// `edrv` --/
-    ///          \+--> battery
-    ///
     /// Controls decide the split between the alternator and the battery
     pub fn solve_energy_consumption(
         &mut self,

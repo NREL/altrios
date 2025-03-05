@@ -27,6 +27,8 @@ class SerdeAPI(object):
 
 
 class Consist(SerdeAPI):
+    def __init__(self, loco_vec: List[Locomotive]):
+        ...
     assert_limits: bool
     history: ConsistStateHistoryVec
     loco_vec: list[Locomotive]
@@ -299,11 +301,11 @@ class GeneratorStateHistoryVec(SerdeAPI):
 
 
 @dataclass
-class LocoParams:
+class LocoParams(SerdeAPI):
     pwr_aux_offset_watts: float
     pwr_aux_traction_coeff_ratio: float
     force_max_newtons: float
-    mass_kilograms: Optional[float]
+    mass_kilograms: Optional[float] = 0.0
 
     @classmethod
     def from_dict(cls, param_dict: Dict[str, float]) -> Self:

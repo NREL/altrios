@@ -59,8 +59,11 @@ bel: alt.Locomotive = alt.Locomotive.from_pydict({
     "save_interval": SAVE_INTERVAL,
 })
 
+hel: alt.Locomotive = alt.Locomotive.default_hybrid_electric_loco()
+
 # construct a vector of one BEL and several conventional locomotives
-loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7
+loco_vec = [bel.clone()] + [hel.clone()] + [alt.Locomotive.default()] * 7 
+
 # instantiate consist
 loco_con = alt.Consist(
     loco_vec

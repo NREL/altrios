@@ -444,9 +444,10 @@ impl LocoTrait for Consist {
         // is operating with the same catenary power availability at the train position for which this
         // method is called
         ensure!(pwr_aux.is_none(), format_dbg!(pwr_aux.is_none()));
+
         // calculate mass assigned to each locomotive such that the buffer
-        // calculations can be based on mass weighted proportionally to the battery
-        // capacity
+        // calculations can be based on mass weighted proportionally to the
+        // relative battery capacity
         let res_total_usable_energy = self.loco_vec.iter().fold(si::Energy::ZERO, |m_tot, l| {
             m_tot
                 + l.reversible_energy_storage()
@@ -454,7 +455,7 @@ impl LocoTrait for Consist {
                     .unwrap_or(si::Energy::ZERO)
         });
         for (i, loco) in self.loco_vec.iter_mut().enumerate() {
-            // assign locomotive specific mass for hybrid controls
+            // assign locomotive-specific mass for hybrid controls
             let mass: Option<si::Mass> = if res_total_usable_energy > si::Energy::ZERO {
                 train_mass.map(|tm| {
                     loco.reversible_energy_storage()

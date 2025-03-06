@@ -1,15 +1,15 @@
 use super::powertrain::electric_drivetrain::{ElectricDrivetrain, ElectricDrivetrainState};
-use super::powertrain::fuel_converter::{FuelConverter, FuelConverterState};
-use super::powertrain::generator::Generator;
+use super::powertrain::fuel_converter::FuelConverter;
+use super::powertrain::generator::{Generator, GeneratorState};
 use super::powertrain::reversible_energy_storage::ReversibleEnergyStorage;
 use super::powertrain::ElectricMachine;
 use super::{LocoTrait, Mass, MassSideEffect};
 use crate::imports::*;
 
-#[derive(Clone, Default, Debug, PartialEq, Deserialize, Serialize, HistoryMethods)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, HistoryMethods)]
 #[altrios_api]
 /// Hybrid locomotive with both engine and reversible energy storage (aka battery)  
-/// This type of locomotive is not likely to be widely prevalent due to modularity of consists.  
+/// This type of locomotive is not likely to be widely prevalent due to modularity of consists.
 pub struct HybridLoco {
     #[has_state]
     pub fc: FuelConverter,
@@ -29,6 +29,31 @@ pub struct HybridLoco {
     /// vector of [Self::state]
     #[serde(default, skip_serializing_if = "HELStateHistoryVec::is_empty")]
     pub history: HELStateHistoryVec,
+}
+
+impl Default for HybridLoco {
+    fn default() -> Self {
+        Self {
+            fc: {
+                let mut fc: FuelConverter = Default::default();
+                // dial it back for Hybrid
+                fc.pwr_out_max /= 2.0;
+                fc
+            },
+            gen: Default::default(),
+            res: {
+                let mut res: ReversibleEnergyStorage = Default::default();
+                // dial it back for Hybrid
+                res.pwr_out_max /= 3.0;
+                res.energy_capacity /= 8.0;
+                res
+            },
+            edrv: Default::default(),
+            pt_cntrl: Default::default(),
+            state: Default::default(),
+            history: Default::default(),
+        }
+    }
 }
 
 impl Init for HybridLoco {
@@ -105,7 +130,7 @@ impl LocoTrait for Box<HybridLoco> {
                 }
             }
             HybridPowertrainControls::Placeholder => {
-                todo!()
+                todo!("placeholder")
             }
         };
 
@@ -147,13 +172,13 @@ impl LocoTrait for Box<HybridLoco> {
 
         self.res.set_curr_pwr_out_max(
             dt,
-            pwr_aux.unwrap_or_default(),
+            pwr_aux.with_context(|| format!("{}\nExpected `pwr_aux` to be Some", format_dbg!()))?,
             disch_buffer,
             chrg_buffer,
         )?;
 
         self.gen
-            .set_cur_pwr_max_out(self.fc.state.pwr_out_max, pwr_aux)?;
+            .set_cur_pwr_max_out(self.fc.state.pwr_out_max, Some(si::Power::ZERO))?;
 
         self.edrv.set_cur_pwr_max_out(
             self.gen.state.pwr_elec_prop_out_max + self.res.state.pwr_prop_max,
@@ -203,7 +228,6 @@ impl HybridLoco {
         pwr_aux: si::Power,
         assert_limits: bool,
     ) -> anyhow::Result<()> {
-        let fc_on: bool = !self.state.fc_on_causes.is_empty();
         self.edrv.set_pwr_in_req(pwr_out_req, dt)?;
         let (gen_pwr_out_req, res_pwr_out_req) = self
             .pt_cntrl
@@ -213,26 +237,83 @@ impl HybridLoco {
                 train_speed,
                 &mut self.state,
                 &self.fc,
+                &self.gen,
                 &self.edrv.state,
                 &self.res,
             )
             .with_context(|| format_dbg!())?;
 
-        self.gen.set_pwr_in_req(
-            // TODO: maybe this should be zero if not loco_on
-            gen_pwr_out_req,
-            if fc_on { pwr_aux } else { si::Power::ZERO },
-            dt,
-        )?;
+        let fc_on: bool = !self.state.fc_on_causes.is_empty();
+        self.gen
+            .set_pwr_in_req(
+                // TODO: maybe this should be zero if not loco_on
+                gen_pwr_out_req,
+                si::Power::ZERO,
+                // if fc_on { pwr_aux } else { si::Power::ZERO },
+                fc_on,
+                dt,
+            )
+            .with_context(|| {
+                format!(
+                    "{}\n
+{}",
+                    format_dbg!(self.state.fc_on_causes),
+                    format_dbg!(fc_on)
+                )
+            })?;
+        let fc_pwr_mech_out = self.gen.state.pwr_mech_in;
 
         self.fc
-            .solve_energy_consumption(self.gen.state.pwr_mech_in, dt, fc_on, assert_limits)
-            .with_context(|| format_dbg!())?;
+            .solve_energy_consumption(fc_pwr_mech_out, dt, fc_on, assert_limits)
+            .with_context(|| {
+                format!(
+                    "{}
+
+{} kW
+
+{} kW
+
+{} kW
+{} kW
+{} kW
+{} kW
+
+{} kW
+
+{} kW
+
+{} kW
+{} kW
+{} kW
+{} kW",
+                    format_dbg!(fc_on).replace("\"", ""),
+                    format_dbg!(pwr_out_req.get::<si::kilowatt>()).replace("\"", ""),
+                    format_dbg!(self.edrv.state.pwr_elec_prop_in.get::<si::kilowatt>())
+                        .replace("\"", ""),
+                    format_dbg!(gen_pwr_out_req.get::<si::kilowatt>()).replace("\"", ""),
+                    format_dbg!(self.gen.state.pwr_elec_aux.get::<si::kilowatt>())
+                        .replace("\"", ""),
+                    format_dbg!(self.gen.state.pwr_elec_out_max.get::<si::kilowatt>())
+                        .replace("\"", ""),
+                    format_dbg!(self.gen.state.pwr_mech_in.get::<si::kilowatt>()).replace("\"", ""),
+                    format_dbg!(self.fc.pwr_for_peak_eff.get::<si::kilowatt>()).replace("\"", ""),
+                    format_dbg!(res_pwr_out_req.get::<si::kilowatt>()).replace("\"", ""),
+                    format_dbg!(self.res.state.pwr_prop_max.get::<si::kilowatt>())
+                        .replace("\"", ""),
+                    format_dbg!(self.res.state.pwr_disch_max.get::<si::kilowatt>())
+                        .replace("\"", ""),
+                    format_dbg!(self.res.state.pwr_regen_max.get::<si::kilowatt>())
+                        .replace("\"", ""),
+                    format_dbg!(self.res.state.pwr_charge_max.get::<si::kilowatt>())
+                        .replace("\"", ""),
+                )
+            })?;
 
         self.res
             .solve_energy_consumption(
                 res_pwr_out_req,
-                if !fc_on { pwr_aux } else { si::Power::ZERO },
+                pwr_aux,
+                // if !fc_on { pwr_aux } else { si::Power::ZERO },
                 dt,
             )
             .with_context(|| format_dbg!())?;
@@ -445,20 +526,7 @@ fn handle_fc_on_causes_for_low_soc(
     mass: si::Mass,
     train_speed: si::Velocity,
 ) -> anyhow::Result<()> {
-    rgwdb.state.soc_fc_on_buffer = {
-        let energy_delta_to_buffer_speed: si::Energy = 0.5
-            * mass
-            * (rgwdb
-                .speed_soc_fc_on_buffer
-                .with_context(|| format_dbg!())?
-                .powi(typenum::P2::new())
-                - train_speed.powi(typenum::P2::new()));
-        energy_delta_to_buffer_speed.max(si::Energy::ZERO)
-            * rgwdb
-                .speed_soc_fc_on_buffer_coeff
-                .with_context(|| format_dbg!())?
-    } / res.energy_capacity_usable()
-        + res.min_soc;
+    rgwdb.set_soc_fc_on_buffer(res, mass, train_speed)?;
     if res.state.soc < rgwdb.state.soc_fc_on_buffer {
         hev_state.fc_on_causes.push(FCOnCause::ChargingForLowSOC)
     }
@@ -470,21 +538,18 @@ fn handle_fc_on_causes_for_low_soc(
 fn handle_fc_on_causes_for_pwr_demand(
     rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
     pwr_out_req: si::Power,
-    em_state: &ElectricDrivetrainState,
-    fc_state: &FuelConverterState,
+    gen_state: &GeneratorState,
     hev_state: &mut HELState,
 ) -> Result<(), anyhow::Error> {
     let frac_pwr_demand_fc_forced_on: si::Ratio = rgwdb
         .frac_pwr_demand_fc_forced_on
         .with_context(|| format_dbg!())?;
-    if pwr_out_req
-        > frac_pwr_demand_fc_forced_on * (em_state.pwr_mech_out_max + fc_state.pwr_out_max)
-    {
+    if pwr_out_req > frac_pwr_demand_fc_forced_on * gen_state.pwr_elec_out_max {
         hev_state
             .fc_on_causes
             .push(FCOnCause::PropulsionPowerDemandSoft);
     }
-    if pwr_out_req - em_state.pwr_mech_out_max >= si::Power::ZERO {
+    if pwr_out_req - gen_state.pwr_elec_out_max >= si::Power::ZERO {
         hev_state
             .fc_on_causes
             .push(FCOnCause::PropulsionPowerDemand);
@@ -508,7 +573,7 @@ impl HybridPowertrainControls {
     /// Determines power split between engine/generator and battery
     ///
     /// # Arguments
-    /// - `pwr_prop_req`: tractive power required
+    /// - `pwr_res_and_gen_to_edrv`: tractive power required as input to [ElectricDrivetrain]
     /// - `veh_state`: vehicle state
     /// - `hev_state`: HEV powertrain state
     /// - `fc`: fuel converter
@@ -517,31 +582,28 @@ impl HybridPowertrainControls {
     #[allow(clippy::too_many_arguments)]
     fn get_pwr_gen_and_res(
         &mut self,
-        pwr_prop_req: si::Power,
+        pwr_res_and_gen_to_edrv: si::Power,
         // TODO: make a `TrainMomentum` object to pass both mass and speed
         train_mass: si::Mass,
         train_speed: si::Velocity,
         hel_state: &mut HELState,
         fc: &FuelConverter,
-        em_state: &ElectricDrivetrainState,
+        gen: &Generator,
+        edrv_state: &ElectricDrivetrainState,
         res: &ReversibleEnergyStorage,
     ) -> anyhow::Result<(si::Power, si::Power)> {
         let fc_state = &fc.state;
         ensure!(
             // `almost` is in case of negligible numerical precision discrepancies
-            almost_le_uom(
-                &pwr_prop_req,
-                &(em_state.pwr_mech_out_max + fc_state.pwr_out_max),
-                None
-            ),
+            almost_le_uom(&pwr_res_and_gen_to_edrv, &edrv_state.pwr_mech_out_max, None),
             "{}
 `pwr_out_req`: {} kW
 `em_state.pwr_mech_fwd_out_max`: {} kW
 `fc_state.pwr_prop_max`: {} kW
 `res.state.soc`: {}",
             format_dbg!(),
-            pwr_prop_req.get::<si::kilowatt>(),
-            em_state.pwr_mech_out_max.get::<si::kilowatt>(),
+            pwr_res_and_gen_to_edrv.get::<si::kilowatt>(),
+            edrv_state.pwr_mech_out_max.get::<si::kilowatt>(),
             fc_state.pwr_out_max.get::<si::kilowatt>(),
             res.state.soc.get::<si::ratio>()
         );
@@ -555,64 +617,72 @@ impl HybridPowertrainControls {
                 // `handle_fc_*` below here are asymmetrical for positive tractive power only
                 handle_fc_on_causes_for_pwr_demand(
                     rgwdb,
-                    pwr_prop_req,
-                    em_state,
-                    fc_state,
+                    pwr_res_and_gen_to_edrv,
+                    &gen.state,
                     hel_state,
                 )?;
 
-                // Tractive power `em` must provide before deciding power
-                // split, cannot exceed ElectricMachine max output power.
-                // Excess demand will be handled by `fc`.  Favors drawing
-                // power from `em` before engine
-                let edrv_pwr = pwr_prop_req
-                    .min(em_state.pwr_mech_out_max)
-                    .max(-em_state.pwr_mech_regen_max);
-                // tractive power handled by fc
+                let res_pwr = pwr_res_and_gen_to_edrv
+                    .min(res.state.pwr_prop_max)
+                    .max(-res.state.pwr_regen_max);
+
                 if hel_state.fc_on_causes.is_empty() {
                     // engine is off, and `em_pwr` has already been limited within bounds
-                    (si::Power::ZERO, edrv_pwr)
+                    (si::Power::ZERO, pwr_res_and_gen_to_edrv)
                 } else {
                     // engine has been forced on
-                    let frac_of_pwr_for_peak_eff: si::Ratio = rgwdb
-                        .frac_of_most_eff_pwr_to_run_fc
-                        .with_context(|| format_dbg!())?;
-                    let fc_pwr = if pwr_prop_req < si::Power::ZERO {
+                    let pwr_gen_elec_out_for_eff_fc: si::Power =
+                        if rgwdb.pwr_gen_elec_out_for_eff_fc.is_none() {
+                            let frac_of_pwr_for_peak_eff: si::Ratio = rgwdb
+                                .frac_of_most_eff_pwr_to_run_fc
+                                .with_context(|| format_dbg!())?;
+                            let mut gen = gen.clone();
+                            // this assumes that the generator has a fairly flat efficiency curve
+                            gen.set_cur_pwr_max_out(
+                                frac_of_pwr_for_peak_eff * fc.pwr_for_peak_eff,
+                                Some(si::Power::ZERO),
+                            )
+                            .with_context(|| format_dbg!())?;
+                            rgwdb.pwr_gen_elec_out_for_eff_fc = Some(gen.state.pwr_elec_out_max);
+                            rgwdb.pwr_gen_elec_out_for_eff_fc.unwrap()
+                        } else {
+                            rgwdb.pwr_gen_elec_out_for_eff_fc.unwrap()
+                        };
+                    let gen_pwr = if pwr_res_and_gen_to_edrv < si::Power::ZERO {
                         // negative tractive power
                         // max power system can receive from engine during negative traction
-                        (em_state.pwr_mech_regen_max + pwr_prop_req)
+                        (gen.state.pwr_elec_prop_out + pwr_res_and_gen_to_edrv)
                             // or peak efficiency power if it's lower than above
-                            .min(fc.pwr_for_peak_eff * frac_of_pwr_for_peak_eff)
+                            .min(pwr_gen_elec_out_for_eff_fc)
                             // but not negative
                             .max(si::Power::ZERO)
                     } else {
                         // positive tractive power
-                        if pwr_prop_req - edrv_pwr > fc.pwr_for_peak_eff * frac_of_pwr_for_peak_eff
-                        {
+                        if pwr_res_and_gen_to_edrv - res_pwr > pwr_gen_elec_out_for_eff_fc {
                             // engine needs to run higher than peak efficiency point
-                            pwr_prop_req - edrv_pwr
+                            pwr_res_and_gen_to_edrv - res_pwr
                         } else {
                             // engine does not need to run higher than peak
                             // efficiency point to make tractive demand
 
-                            // fc handles all power not covered by em
-                            (pwr_prop_req - edrv_pwr)
+                            // gen handles all power not covered by em
+                            (pwr_res_and_gen_to_edrv - res_pwr)
                                 // and if that's less than the
                                 // efficiency-focused value, then operate at
                                 // that value
-                                .max(fc.pwr_for_peak_eff * frac_of_pwr_for_peak_eff)
+                                .max(pwr_gen_elec_out_for_eff_fc)
                                 // but don't exceed what what the battery can
                                 // absorb + tractive demand
-                                .min(pwr_prop_req + em_state.pwr_mech_regen_max)
+                                .min(pwr_res_and_gen_to_edrv + edrv_state.pwr_mech_regen_max)
                         }
                     }
                     // and don't exceed what the fc can do
-                    .min(fc_state.pwr_out_max);
+                    .min(gen.state.pwr_elec_prop_out_max);
 
                     // recalculate `em_pwr` based on `fc_pwr`
-                    let em_pwr_corrected =
-                        (pwr_prop_req - fc_pwr).max(-em_state.pwr_mech_regen_max);
-                    (fc_pwr, em_pwr_corrected)
+                    let res_pwr_corrected =
+                        (pwr_res_and_gen_to_edrv - gen_pwr).max(-edrv_state.pwr_mech_regen_max);
+                    (gen_pwr, res_pwr_corrected)
                 }
             }
             Self::Placeholder => todo!(),
@@ -669,6 +739,9 @@ pub struct RESGreedyWithDynamicBuffers {
     /// to receive charge, engine will run at this level and charge.
     #[api(skip_get, skip_set)]
     pub frac_of_most_eff_pwr_to_run_fc: Option<si::Ratio>,
+    /// Force generator, if engine is on, to run at this power to help run engine efficiently
+    #[api(skip_get, skip_set)]
+    pub pwr_gen_elec_out_for_eff_fc: Option<si::Power>,
     // /// temperature at which engine is forced on to warm up
     // #[serde(default)]
     // pub temp_fc_forced_on: Option<si::Temperature>,
@@ -683,23 +756,48 @@ pub struct RESGreedyWithDynamicBuffers {
     pub history: RGWDBStateHistoryVec,
 }
 
+impl RESGreedyWithDynamicBuffers {
+    fn set_soc_fc_on_buffer(
+        &mut self,
+        res: &ReversibleEnergyStorage,
+        mass: si::Mass,
+        train_speed: si::Velocity,
+    ) -> anyhow::Result<()> {
+        self.state.soc_fc_on_buffer = {
+            let energy_delta_to_buffer_speed: si::Energy = 0.5
+                * mass
+                * (self
+                    .speed_soc_fc_on_buffer
+                    .with_context(|| format_dbg!())?
+                    .powi(typenum::P2::new())
+                    - train_speed.powi(typenum::P2::new()));
+            energy_delta_to_buffer_speed.max(si::Energy::ZERO)
+                * self
+                    .speed_soc_fc_on_buffer_coeff
+                    .with_context(|| format_dbg!())?
+        } / res.energy_capacity_usable()
+            + res.min_soc;
+        Ok(())
+    }
+}
+
 impl Init for RESGreedyWithDynamicBuffers {
     fn init(&mut self) -> anyhow::Result<()> {
         // TODO: make sure these values propagate to the documented defaults above
-        self.speed_soc_disch_buffer = self.speed_soc_disch_buffer.or(Some(40.0 * uc::MPH));
-        self.speed_soc_disch_buffer_coeff = self.speed_soc_disch_buffer_coeff.or(Some(1.0 * uc::R));
-        self.speed_soc_fc_on_buffer = self
-            .speed_soc_fc_on_buffer
-            .or(Some(self.speed_soc_disch_buffer.unwrap() * 1.1));
-        self.speed_soc_fc_on_buffer_coeff = self.speed_soc_fc_on_buffer_coeff.or(Some(1.0 * uc::R));
-        self.speed_soc_regen_buffer = self.speed_soc_regen_buffer.or(Some(30. * uc::MPH));
-        self.speed_soc_regen_buffer_coeff = self.speed_soc_regen_buffer_coeff.or(Some(1.0 * uc::R));
-        self.fc_min_time_on = self.fc_min_time_on.or(Some(uc::S * 5.0));
-        self.speed_fc_forced_on = self.speed_fc_forced_on.or(Some(uc::MPH * 75.));
-        self.frac_pwr_demand_fc_forced_on =
-            self.frac_pwr_demand_fc_forced_on.or(Some(uc::R * 0.75));
-        self.frac_of_most_eff_pwr_to_run_fc =
-            self.frac_of_most_eff_pwr_to_run_fc.or(Some(1.0 * uc::R));
+        init_opt_default!(self, speed_soc_disch_buffer, 40.0 * uc::MPH);
+        init_opt_default!(self, speed_soc_disch_buffer_coeff, 1.0 * uc::R);
+        init_opt_default!(
+            self,
+            speed_soc_fc_on_buffer,
+            self.speed_soc_disch_buffer.unwrap() * 1.1
+        );
+        init_opt_default!(self, speed_soc_fc_on_buffer_coeff, 1.0 * uc::R);
+        init_opt_default!(self, speed_soc_regen_buffer, 30. * uc::MPH);
+        init_opt_default!(self, speed_soc_regen_buffer_coeff, 1.0 * uc::R);
+        init_opt_default!(self, fc_min_time_on, uc::S * 5.0);
+        init_opt_default!(self, speed_fc_forced_on, uc::MPH * 75.);
+        init_opt_default!(self, frac_pwr_demand_fc_forced_on, uc::R * 0.75);
+        init_opt_default!(self, frac_of_most_eff_pwr_to_run_fc, 1.0 * uc::R);
         Ok(())
     }
 }

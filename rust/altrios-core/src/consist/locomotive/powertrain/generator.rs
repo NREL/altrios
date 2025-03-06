@@ -247,6 +247,7 @@ impl Generator {
         &mut self,
         pwr_prop_req: si::Power,
         pwr_aux: si::Power,
+        engine_on: bool,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         // generator cannot regen
@@ -267,9 +268,26 @@ impl Generator {
             ),
         );
 
+        // if the engine is not on, `pwr_out_req` should be 0.0
+        ensure!(
+            engine_on || (pwr_prop_req + pwr_aux == si::Power::ZERO),
+            format!(
+                "{}\nEngine is off but `pwr_prop_req + pwr_aux` is non-zero\n`pwr_out_req`: {} kW
+{} kW
+{} kW",
+                format_dbg!(engine_on || (pwr_prop_req + pwr_aux == si::Power::ZERO))
+                    .replace("\"", ""),
+                format_dbg!((pwr_prop_req + pwr_aux).get::<si::kilowatt>()).replace("\"", ""),
+                format_dbg!(pwr_prop_req.get::<si::kilowatt>()).replace("\"", ""),
+                format_dbg!(pwr_aux.get::<si::kilowatt>()).replace("\"", ""),
+            )
+        );
+
         self.state.eta = uc::R
             * interp1d(
-                &(pwr_prop_req / self.pwr_out_max).get::<si::ratio>().abs(),
+                &((pwr_prop_req + pwr_aux) / self.pwr_out_max)
+                    .get::<si::ratio>()
+                    .abs(),
                 &self.pwr_out_frac_interp,
                 &self.eta_interp,
                 false,
@@ -426,19 +444,19 @@ mod tests {
         let mut gen = test_gen();
         gen.save_interval = Some(1);
         gen.save_state();
-        gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, uc::S * 1.0)
+        gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
         gen.step();
         gen.save_state();
-        gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, uc::S * 1.0)
+        gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
         gen.step();
         gen.save_state();
-        gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, uc::S * 1.0)
+        gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
         gen.step();
         gen.save_state();
-        gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, uc::S * 1.0)
+        gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
         gen.step();
         let energy_loss_j = gen

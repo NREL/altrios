@@ -418,14 +418,10 @@ mod tests {
 
     #[test]
     fn test_hybrid_locomotive_sim() {
-        // let hel = Locomotive::new(
-        //     PowertrainType::HybridLoco(Box::default()),
-
-        // );
-
-        // let pt = PowerTrace::default();
-        // let mut loco_sim = LocomotiveSimulation::new(hel, pt, None);
-        // loco_sim.walk().unwrap();
+        let hel = Locomotive::default_hybrid_electric_loco();
+        let pt = PowerTrace::default();
+        let mut loco_sim = LocomotiveSimulation::new(hel, pt, None);
+        loco_sim.walk().unwrap();
     }
 
     #[test]

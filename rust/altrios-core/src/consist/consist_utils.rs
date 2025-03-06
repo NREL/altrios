@@ -107,10 +107,13 @@ impl SolvePower for RESGreedy {
                 })
                 .collect()
         };
-        utils::assert_almost_eq_uom(
-            &loco_pwr_out_vec.iter().copied().sum(),
-            &state.pwr_out_req,
-            None,
+        ensure!(
+            utils::almost_eq_uom(
+                &loco_pwr_out_vec.iter().copied().sum(),
+                &state.pwr_out_req,
+                None,
+            ),
+            format_dbg!()
         );
         Ok(loco_pwr_out_vec)
     }

@@ -1,7 +1,6 @@
 # %%
 # Script for running the Wabtech BEL consist for sample data from Barstow to Stockton
-# Consist comprises [2X Tier 4](https://www.wabteccorp.com/media/3641/download?inline)
-# + [1x BEL](https://www.wabteccorp.com/media/466/download?inline)
+# Consist comprises [Tier 4](https://www.wabteccorp.com/media/3641/download?inline)
 
 
 import altrios as alt

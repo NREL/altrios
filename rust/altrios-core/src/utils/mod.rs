@@ -172,11 +172,11 @@ pub fn almost_le(val1: f64, val2: f64, epsilon: Option<f64>) -> bool {
     val1 < val2 * (1.0 + epsilon) || val1 < val2 + epsilon
 }
 
-make_cmp_fns!(almost_eq);
-make_cmp_fns!(almost_gt);
-make_cmp_fns!(almost_lt);
-make_cmp_fns!(almost_ge);
-make_cmp_fns!(almost_le);
+make_uom_cmp_fn!(almost_eq);
+make_uom_cmp_fn!(almost_gt);
+make_uom_cmp_fn!(almost_lt);
+make_uom_cmp_fn!(almost_ge);
+make_uom_cmp_fn!(almost_le);
 
 #[altrios_api]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq, SerdeAPI)]

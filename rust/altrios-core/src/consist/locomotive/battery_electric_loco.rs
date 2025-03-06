@@ -273,10 +273,10 @@ pub struct RESGreedyWithDynamicBuffersBEL {
 
 impl Init for RESGreedyWithDynamicBuffersBEL {
     fn init(&mut self) -> anyhow::Result<()> {
-        self.speed_soc_disch_buffer = self.speed_soc_disch_buffer.or(Some(40.0 * uc::MPH));
-        self.speed_soc_disch_buffer_coeff = self.speed_soc_disch_buffer_coeff.or(Some(1.0 * uc::R));
-        self.speed_soc_regen_buffer = self.speed_soc_regen_buffer.or(Some(20. * uc::MPH));
-        self.speed_soc_regen_buffer_coeff = self.speed_soc_regen_buffer_coeff.or(Some(1.0 * uc::R));
+        init_opt_default!(self, speed_soc_disch_buffer, 40.0 * uc::MPH);
+        init_opt_default!(self, speed_soc_disch_buffer_coeff, 1.0 * uc::R);
+        init_opt_default!(self, speed_soc_regen_buffer, 20. * uc::MPH);
+        init_opt_default!(self, speed_soc_regen_buffer_coeff, 1.0 * uc::R);
         Ok(())
     }
 }

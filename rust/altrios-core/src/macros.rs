@@ -157,27 +157,6 @@ macro_rules! eta_test_body {
 }
 
 #[macro_export]
-macro_rules! make_assert_cmp_fn {
-    ($name:ident) => {
-        paste! {
-            pub fn [<assert_ $name>]<D, U>(
-                val1: f64,
-                val2: f64,
-                epsilon: Option<f64>,
-            ) {
-                assert!($name(val1, val2, epsilon),
-                    "
-                    assert_{} failed.
-                    LHS: {val1:?}
-                    RHS: {val2:?}",
-                    std::stringify!($name)
-                );
-            }
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! make_uom_cmp_fn {
     ($name:ident) => {
         paste! {
@@ -197,40 +176,6 @@ macro_rules! make_uom_cmp_fn {
 }
 
 #[macro_export]
-macro_rules! make_assert_uom_cmp_fn {
-    ($name:ident) => {
-        paste! {
-            pub fn [<assert_ $name _uom>]<D, U>(
-                val1: &uom::si::Quantity<D, U, f64>,
-                val2: &uom::si::Quantity<D, U, f64>,
-                epsilon: Option<f64>,
-            )
-            where
-                D: uom::si::Dimension + ?Sized,
-                U: uom::si::Units<f64> + ?Sized,
-            {
-                assert!($name(val1.value, val2.value, epsilon),
-                    "
-                    assert_{}_uom failed.
-                    LHS: {val1:?}
-                    RHS: {val2:?}",
-                    std::stringify!($name)
-                );
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! make_cmp_fns {
-    ($name:ident) => {
-        make_assert_cmp_fn!($name);
-        make_uom_cmp_fn!($name);
-        make_assert_uom_cmp_fn!($name);
-    };
-}
-
-#[macro_export]
 /// Generates a String similar to output of `dbg` but without printing
 macro_rules! format_dbg {
     ($dbg_expr:expr) => {
@@ -244,5 +189,13 @@ macro_rules! format_dbg {
     };
     () => {
         format!("[{}:{}]", file!(), line!())
+    };
+}
+
+#[macro_export]
+/// Makes it so that optional parameters get set in the `Init::init` call
+macro_rules! init_opt_default {
+    ($obj:ident, $fieldname:ident, $def_val:expr) => {
+        $obj.$fieldname = $obj.$fieldname.or(Some($def_val));
     };
 }

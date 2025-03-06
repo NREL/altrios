@@ -63,9 +63,10 @@ impl ConventionalLoco {
         self.edrv.set_pwr_in_req(pwr_out_req, dt)?;
 
         self.gen.set_pwr_in_req(
-            // TODO: maybe this should be zero if not loco_on
+            // TODO: maybe this should be either zero or greater than or equal to zero if not loco_on
             self.edrv.state.pwr_elec_prop_in,
             if loco_on { pwr_aux } else { si::Power::ZERO },
+            loco_on,
             dt,
         )?;
 

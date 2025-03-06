@@ -6,9 +6,9 @@ vehicle_events = {
     'truck': []
 }
 
-def record_vehicle_event(vehicle_type, vehicle_id, action, state, emission, event_type, timestamp):
-    vehicle_events[vehicle_type].append({
-        'vehicle_id': vehicle_id,
+def record_vehicle_event(vehicle_category, vehicle, action, state, emission, event_type, timestamp):
+    vehicle_events[vehicle_category].append({
+        'vehicle_id': vehicle.to_string(),
         'action': action,
         'state': state,
         'emission': emission,

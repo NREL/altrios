@@ -24,8 +24,30 @@ class container:
         else:
             prefix = 'C'
         return f"{prefix}-{self.id}-Train-{self.train_id}"
-        
-
+    
+@dataclass
+class crane:
+    type: str = 'Diesel'
+    id: int = 0
+    track_id: int = 0
+    def to_string(self) -> str:
+        return f'{self.id}-Track-{self.track_id}-{self.type}'    
+    
+@dataclass
+class truck:
+    type: str = 'Diesel'
+    id: int = 0
+    train_id: int = 0
+    def to_string(self) -> str:
+        return f'{self.id}-Track-{self.train_id}-{self.type}'    
+    
+@dataclass
+class hostler:
+    type: str = 'Diesel'
+    id: int = 0
+    def to_string(self) -> str:
+        return f'{self.id}-{self.type}'    
+    
 @dataclass
 class LiftsState:
     # Fixed: Simulation files and hyperparameters

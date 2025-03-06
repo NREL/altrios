@@ -18,5 +18,4 @@ pub use consist_utils::*;
 /// Module containing tests for consists.
 pub mod tests;
 
-use self::locomotive::BatteryElectricLoco;
 use crate::consist::locomotive::{Locomotive, PowertrainType};

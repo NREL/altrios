@@ -356,6 +356,16 @@ impl ElectricMachine for Generator {
                 false,
             )?;
         self.state.pwr_elec_out_max = (pwr_in_max * eta).min(self.pwr_out_max);
+        ensure!(
+            self.state.pwr_elec_out_max >= si::Power::ZERO,
+            format_dbg!(self.state.pwr_elec_out_max.get::<si::kilowatt>())
+        );
+        if let Some(pwr_aux) = pwr_aux {
+            ensure!(
+                pwr_aux >= si::Power::ZERO,
+                format_dbg!(pwr_aux.get::<si::kilowatt>())
+            )
+        };
         self.state.pwr_elec_prop_out_max = self.state.pwr_elec_out_max - pwr_aux.unwrap();
 
         Ok(())

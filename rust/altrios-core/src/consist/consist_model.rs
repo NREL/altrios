@@ -344,12 +344,13 @@ impl Consist {
 
         for (i, (loco, pwr_out)) in self.loco_vec.iter_mut().zip(pwr_out_vec.iter()).enumerate() {
             loco.solve_energy_consumption(*pwr_out, dt, engine_on, train_mass, train_speed)
-                .map_err(|err| {
-                    err.context(format!(
-                        "loco idx: {}, loco type: {}",
+                .with_context(|| {
+                    format!(
+                        "{}\nloco idx: {}, loco type: {}",
+                        format_dbg!(),
                         i,
                         loco.loco_type.to_string()
-                    ))
+                    )
                 })?;
         }
 
@@ -403,16 +404,13 @@ impl Consist {
 
 impl Default for Consist {
     fn default() -> Self {
-        let bel_type = PowertrainType::BatteryElectricLoco(BatteryElectricLoco::default());
-        let mut bel = Locomotive::default();
-        bel.loco_type = bel_type;
-        bel.set_save_interval(Some(1));
         let mut consist = Self {
             state: Default::default(),
             history: Default::default(),
             loco_vec: vec![
                 Locomotive::default(),
-                bel,
+                Locomotive::default_battery_electric_loco(),
+                Locomotive::default_hybrid_electric_loco(),
                 Locomotive::default(),
                 Locomotive::default(),
                 Locomotive::default(),

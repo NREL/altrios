@@ -540,6 +540,19 @@ impl ReversibleEnergyStorage {
 
         if pwr_prop_req + pwr_aux_req >= si::Power::ZERO {
             ensure!(
+                utils::almost_le_uom(&(pwr_prop_req), &state.pwr_disch_max, Some(TOL)),
+                "{}\nres required power for propulsion ({:.6} MW) exceeds transient max propulsion power ({:.6} MW)\nstate.soc = {}
+{}
+{}
+",
+                format_dbg!(utils::almost_le_uom(&(pwr_prop_req), &state.pwr_prop_max, Some(TOL))),
+                pwr_prop_req.get::<si::megawatt>(),
+                state.pwr_prop_max.get::<si::megawatt>(),
+                state.soc.get::<si::ratio>(),
+                format_dbg!(pwr_aux_req.get::<si::kilowatt>()),
+                format_dbg!(state.pwr_disch_max.get::<si::kilowatt>())
+            );
+            ensure!(
                 utils::almost_le_uom(&(pwr_prop_req + pwr_aux_req), &self.pwr_out_max, Some(TOL)),
                 "{}\nres required power ({:.6} MW) exceeds static max discharge power ({:.6} MW)\nstate.soc = {}",
                 format_dbg!(utils::almost_le_uom(

@@ -1,7 +1,9 @@
 use super::powertrain::electric_drivetrain::{ElectricDrivetrain, ElectricDrivetrainState};
 use super::powertrain::fuel_converter::FuelConverter;
 use super::powertrain::generator::{Generator, GeneratorState};
-use super::powertrain::reversible_energy_storage::ReversibleEnergyStorage;
+use super::powertrain::reversible_energy_storage::{
+    ReversibleEnergyStorage, ReversibleEnergyStorageState,
+};
 use super::powertrain::ElectricMachine;
 use super::{LocoTrait, Mass, MassSideEffect};
 use crate::imports::*;
@@ -539,12 +541,13 @@ fn handle_fc_on_causes_for_pwr_demand(
     rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
     pwr_out_req: si::Power,
     gen_state: &GeneratorState,
+    res_state: &ReversibleEnergyStorageState,
     hev_state: &mut HELState,
 ) -> Result<(), anyhow::Error> {
     let frac_pwr_demand_fc_forced_on: si::Ratio = rgwdb
         .frac_pwr_demand_fc_forced_on
         .with_context(|| format_dbg!())?;
-    if pwr_out_req > frac_pwr_demand_fc_forced_on * gen_state.pwr_elec_out_max {
+    if pwr_out_req > frac_pwr_demand_fc_forced_on * res_state.pwr_disch_max {
         hev_state
             .fc_on_causes
             .push(FCOnCause::PropulsionPowerDemandSoft);
@@ -595,7 +598,11 @@ impl HybridPowertrainControls {
         let fc_state = &fc.state;
         ensure!(
             // `almost` is in case of negligible numerical precision discrepancies
-            almost_le_uom(&pwr_res_and_gen_to_edrv, &edrv_state.pwr_mech_out_max, None),
+            almost_le_uom(
+                &pwr_res_and_gen_to_edrv,
+                &(gen.state.pwr_elec_prop_out_max + res.state.pwr_prop_max),
+                None
+            ),
             "{}
 `pwr_out_req`: {} kW
 `em_state.pwr_mech_fwd_out_max`: {} kW
@@ -609,7 +616,7 @@ impl HybridPowertrainControls {
         );
 
         // TODO: make sure idle fuel gets converted to heat correctly
-        let (gen_pwr, res_pwr) = match self {
+        let (gen_prop_pwr, res_prop_pwr) = match self {
             Self::RGWDB(ref mut rgwdb) => {
                 // handle_fc_on_causes_for_temp(fc, rgwdb, hev_state)?;
                 handle_fc_on_causes_for_speed(train_speed, rgwdb, hel_state)?;
@@ -619,77 +626,104 @@ impl HybridPowertrainControls {
                     rgwdb,
                     pwr_res_and_gen_to_edrv,
                     &gen.state,
+                    &res.state,
                     hel_state,
                 )?;
 
-                let res_pwr = pwr_res_and_gen_to_edrv
+                let res_prop_pwr = pwr_res_and_gen_to_edrv
                     .min(res.state.pwr_prop_max)
                     .max(-res.state.pwr_regen_max);
 
                 if hel_state.fc_on_causes.is_empty() {
                     // engine is off, and `em_pwr` has already been limited within bounds
+                    ensure!(
+                        res_prop_pwr == pwr_res_and_gen_to_edrv,
+                        format!(
+                            "{}\n{}\n`res_prop_pwr` must be able to handle everything when engine is off",
+                            format_dbg!(res_prop_pwr.get::<si::kilowatt>()),
+                            format_dbg!(pwr_res_and_gen_to_edrv.get::<si::kilowatt>())
+                        )
+                    );
                     (si::Power::ZERO, pwr_res_and_gen_to_edrv)
                 } else {
                     // engine has been forced on
-                    let pwr_gen_elec_out_for_eff_fc: si::Power =
-                        if rgwdb.pwr_gen_elec_out_for_eff_fc.is_none() {
-                            let frac_of_pwr_for_peak_eff: si::Ratio = rgwdb
-                                .frac_of_most_eff_pwr_to_run_fc
-                                .with_context(|| format_dbg!())?;
-                            let mut gen = gen.clone();
-                            // this assumes that the generator has a fairly flat efficiency curve
-                            gen.set_cur_pwr_max_out(
-                                frac_of_pwr_for_peak_eff * fc.pwr_for_peak_eff,
-                                Some(si::Power::ZERO),
-                            )
-                            .with_context(|| format_dbg!())?;
-                            rgwdb.pwr_gen_elec_out_for_eff_fc = Some(gen.state.pwr_elec_out_max);
-                            rgwdb.pwr_gen_elec_out_for_eff_fc.unwrap()
-                        } else {
-                            rgwdb.pwr_gen_elec_out_for_eff_fc.unwrap()
-                        };
+                    let pwr_gen_elec_out_for_eff_fc =
+                        get_pwr_gen_elec_out_for_eff_fc(fc, gen, rgwdb)?;
                     let gen_pwr = if pwr_res_and_gen_to_edrv < si::Power::ZERO {
                         // negative tractive power
                         // max power system can receive from engine during negative traction
-                        (gen.state.pwr_elec_prop_out + pwr_res_and_gen_to_edrv)
+                        (res.state.pwr_regen_max + pwr_res_and_gen_to_edrv)
                             // or peak efficiency power if it's lower than above
                             .min(pwr_gen_elec_out_for_eff_fc)
                             // but not negative
                             .max(si::Power::ZERO)
                     } else {
                         // positive tractive power
-                        if pwr_res_and_gen_to_edrv - res_pwr > pwr_gen_elec_out_for_eff_fc {
+                        if pwr_res_and_gen_to_edrv - res_prop_pwr > pwr_gen_elec_out_for_eff_fc {
                             // engine needs to run higher than peak efficiency point
-                            pwr_res_and_gen_to_edrv - res_pwr
+                            pwr_res_and_gen_to_edrv - res_prop_pwr
                         } else {
                             // engine does not need to run higher than peak
                             // efficiency point to make tractive demand
 
                             // gen handles all power not covered by em
-                            (pwr_res_and_gen_to_edrv - res_pwr)
+                            (pwr_res_and_gen_to_edrv - res_prop_pwr)
                                 // and if that's less than the
                                 // efficiency-focused value, then operate at
                                 // that value
                                 .max(pwr_gen_elec_out_for_eff_fc)
                                 // but don't exceed what what the battery can
                                 // absorb + tractive demand
-                                .min(pwr_res_and_gen_to_edrv + edrv_state.pwr_mech_regen_max)
+                                .min(pwr_res_and_gen_to_edrv + res.state.pwr_regen_max)
                         }
                     }
-                    // and don't exceed what the fc can do
+                    // and don't exceed what the fc -> gen can do
                     .min(gen.state.pwr_elec_prop_out_max);
 
                     // recalculate `em_pwr` based on `fc_pwr`
                     let res_pwr_corrected =
-                        (pwr_res_and_gen_to_edrv - gen_pwr).max(-edrv_state.pwr_mech_regen_max);
+                        (pwr_res_and_gen_to_edrv - gen_pwr).max(-res.state.pwr_regen_max);
                     (gen_pwr, res_pwr_corrected)
                 }
             }
             Self::Placeholder => todo!(),
         };
 
-        Ok((gen_pwr, res_pwr))
+        ensure!(
+            almost_le_uom(&res_prop_pwr, &res.state.pwr_prop_max, None),
+            format!(
+                "{}\n{}",
+                format_dbg!(res_prop_pwr),
+                format_dbg!(res.state.pwr_prop_max)
+            )
+        );
+
+        Ok((gen_prop_pwr, res_prop_pwr))
     }
+}
+
+fn get_pwr_gen_elec_out_for_eff_fc(
+    fc: &FuelConverter,
+    gen: &Generator,
+    rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
+) -> anyhow::Result<si::Power> {
+    let pwr_gen_elec_out_for_eff_fc: si::Power = if rgwdb.pwr_gen_elec_out_for_eff_fc.is_none() {
+        let frac_of_pwr_for_peak_eff: si::Ratio = rgwdb
+            .frac_of_most_eff_pwr_to_run_fc
+            .with_context(|| format_dbg!())?;
+        let mut gen = gen.clone();
+        // this assumes that the generator has a fairly flat efficiency curve
+        gen.set_cur_pwr_max_out(
+            frac_of_pwr_for_peak_eff * fc.pwr_for_peak_eff,
+            Some(si::Power::ZERO),
+        )
+        .with_context(|| format_dbg!())?;
+        rgwdb.pwr_gen_elec_out_for_eff_fc = Some(gen.state.pwr_elec_out_max);
+        rgwdb.pwr_gen_elec_out_for_eff_fc.unwrap()
+    } else {
+        rgwdb.pwr_gen_elec_out_for_eff_fc.unwrap()
+    };
+    Ok(pwr_gen_elec_out_for_eff_fc)
 }
 
 /// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge

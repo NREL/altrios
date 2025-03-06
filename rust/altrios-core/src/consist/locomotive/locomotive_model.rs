@@ -580,6 +580,7 @@ impl Default for Locomotive {
             mu: Default::default(),
         };
         loco.init().unwrap();
+        loco.set_save_interval(Some(1));
         loco
     }
 }
@@ -755,6 +756,7 @@ impl Locomotive {
             assert_limits: true,
         };
         loco.init().unwrap();
+        loco.set_save_interval(Some(1));
         loco
     }
 
@@ -766,6 +768,7 @@ impl Locomotive {
             ..Default::default()
         };
         loco.init().unwrap();
+        loco.set_save_interval(Some(1));
         loco
     }
 
@@ -1073,7 +1076,8 @@ impl Locomotive {
                     engine_on.unwrap_or(true),
                     self.state.pwr_aux,
                     self.assert_limits,
-                )?;
+                )
+                .with_context(|| format_dbg!("ConventionalLoco"))?;
                 self.state.pwr_out =
                     loco.edrv.state.pwr_mech_prop_out - loco.edrv.state.pwr_mech_dyn_brake;
             }
@@ -1091,7 +1095,7 @@ impl Locomotive {
                     dt,
                     self.state.pwr_aux,
                     self.assert_limits,
-                )?;
+                ).with_context(|| format_dbg!("HybridLoco"))?;
                 // TODO: add `engine_on` and `pwr_aux` here as inputs
                 self.state.pwr_out =
                     loco.edrv.state.pwr_mech_prop_out - loco.edrv.state.pwr_mech_dyn_brake;
@@ -1099,7 +1103,8 @@ impl Locomotive {
             PowertrainType::BatteryElectricLoco(loco) => {
                 // todo: put something in here for deep sleep that is the
                 // equivalent of engine_on in conventional loco
-                loco.solve_energy_consumption(pwr_out_req, dt, self.state.pwr_aux)?;
+                loco.solve_energy_consumption(pwr_out_req, dt, self.state.pwr_aux)
+                    .with_context(|| format_dbg!("BatteryElectricLoco"))?;
                 self.state.pwr_out =
                     loco.edrv.state.pwr_mech_prop_out - loco.edrv.state.pwr_mech_dyn_brake;
             }

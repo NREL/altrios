@@ -91,7 +91,7 @@ impl SolvePower for RESGreedy {
                 })
                 .collect()
         } else {
-            // draw deficit power from conventional locomotives
+            // draw deficit power from conventional and hybrid locomotives
             loco_vec
                 .iter()
                 .map(|loco| match &loco.loco_type {
@@ -107,13 +107,18 @@ impl SolvePower for RESGreedy {
                 })
                 .collect()
         };
+        let loco_pwr_out_vec_sum: si::Power = loco_pwr_out_vec.iter().copied().sum();
         ensure!(
             utils::almost_eq_uom(
                 &loco_pwr_out_vec.iter().copied().sum(),
                 &state.pwr_out_req,
                 None,
             ),
-            format_dbg!()
+            format!(
+                "{}\n{}",
+                format_dbg!(loco_pwr_out_vec_sum.get::<si::kilowatt>()),
+                format_dbg!(&state.pwr_out_req.get::<si::kilowatt>())
+            )
         );
         Ok(loco_pwr_out_vec)
     }
@@ -157,6 +162,7 @@ fn solve_negative_traction(
 
     // fraction of consist-level max regen required to fulfill required braking power
     let regen_frac = if consist_state.pwr_regen_max == si::Power::ZERO {
+        // divide-by-zero protection
         si::Ratio::ZERO
     } else {
         (pwr_brake_req / consist_state.pwr_regen_max).min(uc::R * 1.)
@@ -204,6 +210,8 @@ fn solve_negative_traction(
 /// sum of the regen capacity is distributed to each locomotive with regen capacity, proportionally
 /// to it's current max regen ability.
 pub struct Proportional;
+#[allow(unused_variables)]
+#[allow(unreachable_code)]
 impl SolvePower for Proportional {
     fn solve_positive_traction(
         &mut self,
@@ -212,6 +220,7 @@ impl SolvePower for Proportional {
         _train_mass: Option<si::Mass>,
         _train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
+        todo!("this need some attention to make sure it handles the hybrid correctly");
         Ok(loco_vec
             .iter()
             .map(|loco| {
@@ -228,6 +237,7 @@ impl SolvePower for Proportional {
         train_mass: Option<si::Mass>,
         train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
+        todo!("this need some attention to make sure it handles the hybrid correctly");
         solve_negative_traction(loco_vec, state, train_mass, train_speed)
     }
 }

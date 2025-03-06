@@ -44,6 +44,7 @@ class Terminal:
         self.in_gates = simpy.Resource(env, state.IN_GATE_NUMBERS)
         self.out_gates = simpy.Resource(env, state.OUT_GATE_NUMBERS)
         self.oc_store = simpy.FilterStore(env)
+        self.parking_slots = simpy.Store(env, capacity = 9999)  # store ic and oc in the parking area
         self.chassis = simpy.FilterStore(env, capacity=9999)
         self.hostlers = simpy.Store(env, capacity=state.HOSTLER_NUMBER)
         self.truck_store = simpy.Store(env, capacity=truck_capacity)
@@ -109,8 +110,7 @@ def truck_entry(env, terminal, truck, oc, train_schedule):
     yield env.timeout(d_t_dist / (2 * state.TRUCK_SPEED_LIMIT))
     record_container_event(oc, 'truck_dropoff', env.now)
     emissions = emission_calculation('loaded', 'truck', truck, truck_travel_time)
-    record_vehicle_event('truck', truck, f'dropoff_OC_{oc.id}', 'loaded',
-                            emissions, 'end', env.now)
+    record_vehicle_event('truck', truck, f'dropoff_OC_{oc.id}', 'loaded', emissions, 'end', env.now)
 
 
 def empty_truck(env, terminal, truck_id):
@@ -122,8 +122,7 @@ def empty_truck(env, terminal, truck_id):
     yield env.timeout(truck_travel_time)  # truck passing gate time: 1 sec (demo_parameters.TRUCK_INGATE_TIME and TRUCK_INGATE_TIME_DEV)
     # Note the arrival of empty trucks will not be recorded due to excel output dimensions
     emissions = emission_calculation('empty', 'truck', truck_id, truck_travel_time)
-    record_vehicle_event('truck', truck_id, 'pass_gate', 'empty',
-                            emissions, 'end', env.now)
+    record_vehicle_event('truck', truck_id, 'pass_gate', 'empty', emissions, 'end', env.now)
 
 
 def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
@@ -162,6 +161,7 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
     yield env.timeout(state.TRUCK_TO_PARKING)  # truck travel time of placing OC at parking slot (demo_parameters.TRUCK_TO_PARKING)
     all_trucks_arrived_event.succeed()  # if all_trucks_arrived_event is triggered, train is allowed to enter
 
+
 def check_ic_picked_complete(env, terminal, train_schedule):
     inbound_count = sum(getattr(item, 'type', None) == 'Inbound' and getattr(item, 'train_id', None) == train_schedule['train_id'] for item in terminal.chassis.items)
     print(f"ic for train-{train_schedule['train_id']} on chassis:", inbound_count )
@@ -191,8 +191,7 @@ def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_need
         print(f"Time {env.now:.3f}: Crane {crane_item.to_string()} finishes unloading IC-{ic_item.id}-Train-{train_schedule['train_id']} onto chassis")
         yield terminal.chassis.put(ic_item)
         yield terminal.cranes.put(crane_item)
-        print(f"Time {env.now:.3f}: chassis (loading ic):", terminal.chassis.items)
-        print(f"Time {env.now:.3f}: hostler (loading ic):", terminal.hostlers.items)
+
         # ic_unloaded_count += 1
         terminal.train_ic_unload_count[train_schedule['train_id']] += 1
         print(f"        Train {train_schedule['train_id']} ic unload count: {terminal.train_ic_unload_count[train_schedule['train_id']]}")
@@ -231,8 +230,8 @@ def container_process(env, terminal, train_schedule):
     # Hostler picks up IC from chassis
     print("terminal.chassis", terminal.chassis.items)
     # ic = terminal.chassis.get(lambda x: x.type=='Inbound' and x.train_id==train_schedule['train_id']).value
-    ic = yield terminal.train_ic_stores[train_schedule['train_id']].get(lambda x: x.type == 'Inbound')
-    print(f"    Time {env.now:.3f}: Hostler {assigned_hostler.to_string()} picked up IC {ic.id}-Train-{train_schedule['train_id']} and is heading to parking slot.")
+    ic = yield terminal.chassis.get(lambda x: x.type == 'Inbound')
+    print(f"    Time {env.now:.3f}: Hostler {assigned_hostler.to_string()} picked up IC-{ic.id}-Train-{train_schedule['train_id']} and is heading to parking slot.")
     print(f"Chassis: {terminal.chassis.items}")
     record_container_event(ic, 'hostler_pickup', env.now)
     emissions = emission_calculation('empty', 'hostler', hostler, travel_time_to_parking)
@@ -241,8 +240,6 @@ def container_process(env, terminal, train_schedule):
 
     print(f"check if there has IC {terminal.train_ic_stores[train_schedule['train_id']].items} for train {train_schedule['train_id']} ")
 
-    # if sum(item.type=='Inbound' for item in terminal.train_ic_stores[train_schedule['train_id']].items) == 0 and terminal.train_ic_unload_events[train_schedule['train_id']].triggered:
-        # all_ic_picked.succeed()
     check_ic_picked_complete(env, terminal, train_schedule)
 
     # Test: status for chassis
@@ -349,9 +346,6 @@ def container_process(env, terminal, train_schedule):
 
     # Test: check if all OCs on chassis
     print("chassis (all oc prepared):", terminal.chassis.items)
-    # print(f"IC on chassis for {train_schedule['train_id']}: {len([c for c in terminal.chassis if c['type'] == 'Inbound' and c['train_id'] == train_schedule['train_id']])}")
-    # print("# of IC on chassis:", sum(str(item).isdigit() for item in terminal.chassis.items))
-    print(f"hostler (all oc prepared): {terminal.hostlers.items}")
 
     # IC < OC: ICs are all picked up and still have OCs remaining
     print("# of OCs in oc_store:", len(terminal.oc_store.items))
@@ -390,8 +384,8 @@ def container_process(env, terminal, train_schedule):
 
             print("chassis (oc_remaining):", terminal.chassis.items)
             print(f"hostler (oc_remaining): {terminal.hostlers.items}")
-            if sum(1 for item in terminal.chassis.items if isinstance(item, str) and "OC-" in str(item)) == oc_needed:
-                all_oc_prepared.succeed()
+            if sum(1 for item in terminal.chassis.items if isinstance(item, str) and "OC-" in str(item)) == train_schedule['oc_number']:
+                terminal.all_oc_prepared.succeed()
                 print("chassis (all_oc_prepared):", terminal.chassis.items)
                 print(f"hostler (all_oc_prepared): {terminal.hostlers.items}")
                 print("# of OC on chassis:", sum(1 for item in terminal.chassis.items if "OC-" in str(item)))

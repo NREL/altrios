@@ -756,6 +756,7 @@ pub struct RESGreedyWithDynamicBuffers {
     /// Coefficient for modifying amount of regen buffer
     #[api(skip_get, skip_set)]
     pub speed_soc_regen_buffer_coeff: Option<si::Ratio>,
+    // TODO: make it so that the engine never goes off at all
     /// Minimum time engine must remain on if it was on during the previous
     /// simulation time step.
     #[api(skip_get, skip_set)]

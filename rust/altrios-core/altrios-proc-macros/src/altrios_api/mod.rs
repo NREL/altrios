@@ -326,7 +326,8 @@ fn process_tuple_struct(
                             self.0.len()
                         }
                         /// PyO3-exposed method to check if the vec-containing struct is empty.
-                        fn is_empty(&self) -> bool {
+                        #[pyo3(name = "is_empty")]
+                        fn is_empty_py(&self) -> bool {
                             self.0.is_empty()
                         }
                     }

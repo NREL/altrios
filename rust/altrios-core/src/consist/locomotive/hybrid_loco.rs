@@ -336,12 +336,16 @@ impl FCOnCauses {
     }
 
     #[allow(dead_code)]
-    fn pop(&mut self) -> Option<FCOnCause> {
+    pub fn pop(&mut self) -> Option<FCOnCause> {
         self.0.pop()
     }
 
-    fn push(&mut self, new: FCOnCause) {
+    pub fn push(&mut self, new: FCOnCause) {
         self.0.push(new)
+    }
+
+    pub fn is_empty(&mut self) -> bool {
+        self.0.is_empty()
     }
 }
 

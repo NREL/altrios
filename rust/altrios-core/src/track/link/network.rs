@@ -445,7 +445,7 @@ impl SerdeAPI for Network {
             }
             Err(err) => {
                 match err {
-                    // if the outer error `err` is a SerdeError, try another network format
+                    // if the outer error `err` is a SerdeError, try the old network format
                     Error::SerdeError(_) => {
                         let filepath_canon = filepath.canonicalize().map_err(|err_canon| {
                             Error::SerdeError(format!("{err_canon}\n`canonicalize` failed"))
@@ -461,27 +461,39 @@ impl SerdeAPI for Network {
                             &format!(".{extension}"),
                             &format!("_updated_format.{extension}"),
                         );
-                        match NetworkOld::from_reader(&mut file, extension, skip_init) {
+                        match NetworkOld::from_file(filepath, skip_init) {
                             Err(err_old) => match err_old {
                                 Error::SerdeError(_) => {
-                                    // if the outer error `err` is a SerdeError, try another network format
-                                    match NetworkUnchecked::from_reader(
-                                        &mut file, extension, skip_init,
+                                    // if the outer error `err_old` is a SerdeError, try the unchecked network format
+                                    match NetworkUnchecked::from_file(
+                                        filepath, skip_init,
                                     ) {
                                         Ok(network_unchecked) => {
                                             let network: Network = network_unchecked.into();
                                             network.to_file(&filepath_copy).map_err(|tf_err| {
-                                                Error::SerdeError(format!("{tf_err}"))
+                                                Error::SerdeError(format!(
+                                                    "{}\n{tf_err}",
+                                                    format_dbg!()
+                                                ))
                                             })?;
                                             Err(Error::SerdeError(format!(
-                                                    "Deprecated network format.  Wrote copy of network file in new format to {}",
+                                                    "{}\n\n    `Network`: {err}\n    `NetworkOld`: {err_old}\nDeprecated network format.  Wrote copy of network file in new format to {}",
+                                                    format_dbg!(),
                                                     filepath_copy
                                                 )))
                                         }
-                                        Err(err_unchecked) => Err(err_unchecked),
+                                        Err(err_unchecked) => Err(err_unchecked).map_err(|err_unchecked | {
+                                                Error::SerdeError(
+                                                    format!("\n    `Network`: {err}\n    `NetworkOld`: {err_old}\n    `NetworkUnchecked`: {err_unchecked}"))
+                                        }),
                                     }
-                                }
-                                _ => Err(err_old),
+                                }.map_err(|err_unchecked | Error::SerdeError(format!("{}\n{err_unchecked}", format_dbg!()))),
+                                _ => Err(err_old).map_err(|err_old| {
+                                    Error::SerdeError(format!(
+                                        "{}\n{err}\n{err_old}",
+                                        format_dbg!()
+                                    ))
+                                }),
                             },
                             Ok(network_old) => {
                                 let network: Network = network_old.into();
@@ -489,13 +501,15 @@ impl SerdeAPI for Network {
                                     .to_file(&filepath_copy)
                                     .map_err(|tf_err| Error::SerdeError(format!("{tf_err}")))?;
                                 Err(Error::SerdeError(format!(
-                                    "Deprecated network format.  Wrote copy of network file in new format to {}",
+                                    "{}\n`Network`: {err}\nDeprecated network format.  Wrote copy of network file in new format to {}",
+                                    format_dbg!(),
                                     filepath_copy
                                 )))
                             }
                         }
                     }
-                    _ => Err(err),
+                    _ => Err(err)
+                        .map_err(|err| Error::SerdeError(format!("{}\n{err}", format_dbg!()))),
                 }
             }
         }

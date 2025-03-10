@@ -281,22 +281,21 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
         format: &str,
         skip_init: bool,
     ) -> Result<Self, Error> {
-        let mut deserialized: Self =
-            match format.trim_start_matches('.').to_lowercase().as_str() {
-                "yaml" | "yml" => serde_yaml::from_reader(rdr)
-                    .map_err(|err| Error::SerdeError(format!("{err}")))?,
-                "json" => serde_json::from_reader(rdr)
-                    .map_err(|err| Error::SerdeError(format!("{err}")))?,
-                #[cfg(feature = "msgpack")]
-                "msgpack" => rmp_serde::decode::from_read(rdr)
-                    .map_err(|err| Error::SerdeError(format!("{err}")))?,
-                _ => {
-                    return Err(Error::SerdeError(format!(
-                        "Unsupported format {format:?}, must be one of {:?}",
-                        Self::ACCEPTED_BYTE_FORMATS
-                    )))
-                }
-            };
+        let mut deserialized: Self = match format.trim_start_matches('.').to_lowercase().as_str() {
+            "yaml" | "yml" => serde_yaml::from_reader(rdr)
+                .map_err(|err| Error::SerdeError(format!("{err} while reading `yaml`")))?,
+            "json" => serde_json::from_reader(rdr)
+                .map_err(|err| Error::SerdeError(format!("{err} while reading `json`")))?,
+            #[cfg(feature = "msgpack")]
+            "msgpack" => rmp_serde::decode::from_read(rdr)
+                .map_err(|err| Error::SerdeError(format!("{err} while reading `msgpack`")))?,
+            _ => {
+                return Err(Error::SerdeError(format!(
+                    "Unsupported format {format:?}, must be one of {:?}",
+                    Self::ACCEPTED_BYTE_FORMATS
+                )))
+            }
+        };
         if !skip_init {
             deserialized.init()?;
         }

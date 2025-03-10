@@ -6,7 +6,7 @@ use thiserror::Error;
 pub enum Error {
     #[error("`Init::init` failed: {0}")]
     InitError(String),
-    #[error("`SerdeAPI` failed {0}")]
+    #[error("`SerdeAPI` failed: {0}")]
     SerdeError(String),
     #[error("{0}")]
     SimulationError(String),

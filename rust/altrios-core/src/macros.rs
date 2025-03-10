@@ -193,7 +193,8 @@ macro_rules! format_dbg {
 }
 
 #[macro_export]
-/// Makes it so that optional parameters get set in the `Init::init` call
+/// Makes it so that optional parameter that is not provided or provided as
+/// `None` gets set in the `Init::init` call
 macro_rules! init_opt_default {
     ($obj:ident, $fieldname:ident, $def_val:expr) => {
         $obj.$fieldname = $obj.$fieldname.or(Some($def_val));

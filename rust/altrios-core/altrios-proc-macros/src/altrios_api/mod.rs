@@ -106,7 +106,7 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[pyo3(signature = (msg_pack, skip_init=None))]
         pub fn from_msg_pack_py(msg_pack: &Bound<PyBytes>, skip_init: Option<bool>) -> PyResult<Self> {
             Self::from_msg_pack(
-                msg_pack.as_bytes(), 
+                msg_pack.as_bytes(),
                 skip_init.unwrap_or_default()
             ).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
         }

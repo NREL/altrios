@@ -363,9 +363,40 @@ impl ObjState for Link {
     }
 )]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
-/// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
-/// Python
-pub struct Network(pub Vec<Link>, pub Option<f64>);
+/// Struct that contains a `Vec<Link>`, and optional parameters for setting
+/// error tolerances in checks performed by [Init::init]
+pub struct Network(pub Vec<Link>, pub Option<NetworkErrTol>);
+
+#[altrios_api]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// Network error tolerances used in [Network::init]
+pub struct NetworkErrTol {
+    #[api(skip_get, skip_set)]
+    /// Maximum absolute grade allowed at any point in the network
+    pub max_grade: Option<si::Ratio>,
+    #[api(skip_get, skip_set)]
+    /// Maximum absolute curvature allowed anywhere in the network
+    pub max_curv: Option<si::Curvature>,
+    #[api(skip_get, skip_set)]
+    /// Maximum allowed step change in heading for coincident nodes in adjacent links
+    pub max_heading_step: Option<si::Angle>,
+    #[api(skip_get, skip_set)]
+    /// Maximum allowed step change in elevation for coincident nodes in
+    /// adjacent links, should be very small
+    pub max_elev_step: Option<si::Length>,
+}
+impl Init for NetworkErrTol {}
+impl SerdeAPI for NetworkErrTol {}
+impl Default for NetworkErrTol {
+    fn default() -> Self {
+        Self {
+            max_grade: Some(0.06 * uc::R),
+            max_curv: Some((15.0 * uc::DEG / (100.0 * uc::FT)).into()),
+            max_heading_step: Some(7.0 * uc::DEG),
+            max_elev_step: Some(2.5e-2 * uc::M),
+        }
+    }
+}
 
 impl Network {
     /// Sets `self.speed_set` based on `self.speed_sets` value corresponding to `train_type` key for
@@ -412,23 +443,72 @@ impl SerdeAPI for Network {
                 // init already happened in `from_reader`
                 Ok(network)
             }
-            Err(err0) => match err0 {
-                // if the outer error `err0` is a SerdeError, try another network format
-                Error::SerdeError(_) => {
-                    match NetworkOld::from_reader(&mut file, extension, skip_init) {
-                        Err(err1) => Err(err1).map_err(|err1| {
-                            Error::SerdeError(format!("\n`Network`: {err0}\n`NetworkOld`: {err1}"))
-                        }),
-                        Ok(network) => Ok(network.into()),
+            Err(err) => {
+                match err {
+                    // if the outer error `err` is a SerdeError, try another network format
+                    Error::SerdeError(_) => {
+                        let filepath_canon = filepath.canonicalize().map_err(|err_canon| {
+                            Error::SerdeError(format!("{err_canon}\n`canonicalize` failed"))
+                        })?;
+                        let mut filepath_copy: String = filepath_canon
+                            .as_os_str()
+                            .to_str()
+                            .ok_or_else(|| {
+                                Error::SerdeError("Unable to extract `filepath` as str".into())
+                            })?
+                            .into();
+                        filepath_copy = filepath_copy.replace(
+                            &format!(".{extension}"),
+                            &format!("_updated_format.{extension}"),
+                        );
+                        match NetworkOld::from_reader(&mut file, extension, skip_init) {
+                            Err(err_old) => match err_old {
+                                Error::SerdeError(_) => {
+                                    // if the outer error `err` is a SerdeError, try another network format
+                                    match NetworkUnchecked::from_reader(
+                                        &mut file, extension, skip_init,
+                                    ) {
+                                        Ok(network_unchecked) => {
+                                            let network: Network = network_unchecked.into();
+                                            network.to_file(&filepath_copy).map_err(|tf_err| {
+                                                Error::SerdeError(format!("{tf_err}"))
+                                            })?;
+                                            Err(Error::SerdeError(format!(
+                                                    "Deprecated network format.  Wrote copy of network file in new format to {}",
+                                                    filepath_copy
+                                                )))
+                                        }
+                                        Err(err_unchecked) => Err(err_unchecked),
+                                    }
+                                }
+                                _ => Err(err_old),
+                            },
+                            Ok(network_old) => {
+                                let network: Network = network_old.into();
+                                network
+                                    .to_file(&filepath_copy)
+                                    .map_err(|tf_err| Error::SerdeError(format!("{tf_err}")))?;
+                                Err(Error::SerdeError(format!(
+                                    "Deprecated network format.  Wrote copy of network file in new format to {}",
+                                    filepath_copy
+                                )))
+                            }
+                        }
                     }
+                    _ => Err(err),
                 }
-                _ => Err(err0),
-            },
+            }
         }
     }
 }
 impl Init for Network {
     fn init(&mut self) -> Result<(), Error> {
+        // if self.1.is_none() {
+        //     return Err(Error::InitError(format!(
+        //         "`network.1` (error tolerances must be provided, e.g.\n{})",
+        //         NetworkErrTol::default().to_str("json")
+        //     )));
+        // }
         self.as_ref()
             .validate()
             .map_err(|err| Error::InitError(format!("\n{}\n{err}", format_dbg!())))
@@ -440,6 +520,18 @@ impl From<NetworkOld> for Network {
         Network(old.0.iter().map(|l| Link::from(l.clone())).collect(), None)
     }
 }
+impl From<NetworkUnchecked> for Network {
+    fn from(unchecked: NetworkUnchecked) -> Self {
+        Network(unchecked.0, None)
+    }
+}
+
+#[altrios_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+/// Deprecated Struct that contains a `Vec<Link>` for the purpose of providing
+/// `SerdeAPI` for `Vec<Link>` in Python.  This is used solely to enable
+/// backwards compatibility.
+struct NetworkUnchecked(pub Vec<Link>);
 
 #[altrios_api]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
@@ -450,7 +542,7 @@ impl From<NetworkOld> for Network {
 /// This struct will be deprecated and superseded by [Network], which has the
 /// option for either a train-type-independent `speed_set` or a train-type-dependent
 /// `speed_sets` HashMap
-pub struct NetworkOld(pub Vec<LinkOld>);
+struct NetworkOld(pub Vec<LinkOld>);
 
 impl AsRef<[Link]> for Network {
     fn as_ref(&self) -> &[Link] {

@@ -105,11 +105,13 @@ class LiftsState:
     truck_arrival_time: list[float] = field(default_factory = lambda: [])   # **trucks arrive according to train departure and arrival gap
 
     # Fixed: Emission matrix
+    # Diesel unit: gallons/hr
+    # Electric unit: Mhr
     IDLE_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
         default_factory=lambda: {
             'Truck': {'Diesel': 5.2, 'Electric': 2.4},
             'Hostler': {'Diesel': 6.2, 'Electric': 2.4},
-            'Crane': {'Hybrid': 40.3, 'Electric': 30.5},
+            'Crane': {'Diesel': 40.3, 'Hybrid': 30.5},
         }
     )
 
@@ -117,7 +119,7 @@ class LiftsState:
         default_factory=lambda: {
             'Truck': {'Diesel': 20.7, 'Electric': 10.2},
             'Hostler': {'Diesel': 15.7, 'Electric': 10.2},
-            'Crane': {'Hybrid': 60.3, 'Electric': 50.5},
+            'Crane': {'Diesel': 60.3, 'Hybrid': 50.5},
         }
     )
 

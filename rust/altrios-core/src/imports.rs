@@ -9,13 +9,17 @@ pub(crate) use crate::si;
 pub(crate) use crate::traits::*;
 pub(crate) use crate::uc;
 pub(crate) use crate::utils;
-pub(crate) use crate::utils::{almost_eq, interp1d, interp3d, is_sorted, DIRECT_SET_ERR};
+pub(crate) use crate::utils::{
+    almost_eq, almost_eq_uom, almost_le_uom, interp1d, interp3d, is_sorted, DIRECT_SET_ERR,
+};
 pub(crate) use crate::utils::{Pyo3Vec2Wrapper, Pyo3Vec3Wrapper, Pyo3VecWrapper};
 pub(crate) use crate::validate::*;
-pub(crate) use altrios_proc_macros::{altrios_api, HistoryMethods, HistoryVec, SerdeAPI};
+pub(crate) use altrios_proc_macros::{
+    altrios_api, altrios_enum_api, HistoryMethods, HistoryVec, SerdeAPI,
+};
 pub(crate) use anyhow::{anyhow, bail, ensure, Context};
 pub(crate) use bincode::{deserialize, serialize};
-pub(crate) use derive_more::{From, FromStr, IsVariant};
+pub(crate) use derive_more::{From, FromStr, IsVariant, TryInto};
 pub(crate) use duplicate::duplicate_item;
 pub(crate) use easy_ext::ext;
 pub(crate) use eng_fmt::FormatEng;

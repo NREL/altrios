@@ -7,13 +7,17 @@ pub mod loco_sim;
 pub mod locomotive_model;
 pub mod powertrain;
 pub use locomotive_model::*;
-#[cfg(test)]
-pub mod tests;
 
-pub use super::*;
-pub use crate::consist::locomotive::battery_electric_loco::BatteryElectricLoco;
+use super::*;
+pub use crate::consist::locomotive::battery_electric_loco::{
+    BatteryElectricLoco, BatteryPowertrainControls, RESGreedyWithDynamicBuffersBEL, RGWDBStateBEL,
+    RGWDBStateBELHistoryVec,
+};
 pub use crate::consist::locomotive::conventional_loco::ConventionalLoco;
-pub use crate::consist::locomotive::hybrid_loco::HybridLoco;
+pub use crate::consist::locomotive::hybrid_loco::{
+    HybridLoco, HybridPowertrainControls, RESGreedyWithDynamicBuffers, RGWDBState,
+    RGWDBStateHistoryVec,
+};
 #[allow(unused_imports)] // probably gets used in tests
 use crate::imports::*;
 use altrios_proc_macros::{altrios_api, HistoryVec};

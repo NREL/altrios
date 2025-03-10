@@ -52,7 +52,7 @@ pub(crate) fn history_methods_derive(input: TokenStream) -> TokenStream {
     }
 
     let self_save_state: TokenStream2 = if struct_has_state {
-        quote! {self.history.push(self.state);}
+        quote! {self.history.push(self.state.clone());}
     } else {
         quote! {}
     };

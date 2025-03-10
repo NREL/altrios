@@ -48,17 +48,23 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
-bel = alt.Locomotive.build_battery_electric_loco(
-    reversible_energy_storage=res,
-    drivetrain=edrv,
-    loco_params=alt.LocoParams.from_dict(dict(
-        pwr_aux_offset_watts=8.55e3,
-        pwr_aux_traction_coeff_ratio=540.e-6,
-        force_max_newtons=667.2e3,
-)))
+bel: alt.Locomotive = alt.Locomotive.from_pydict({
+    "loco_type": {"BatteryElectricLoco": {
+        "res": res.to_pydict(),
+        "edrv": edrv.to_pydict(),
+    }},
+    "pwr_aux_offset_watts": 8.55e3,
+    "pwr_aux_traction_coeff": 540.e-6,
+    "force_max_newtons": 667.2e3,
+    "mass_kilograms": alt.LocoParams.default().to_pydict()['mass_kilograms'],
+    "save_interval": SAVE_INTERVAL,
+})
+
+hel: alt.Locomotive = alt.Locomotive.default_hybrid_electric_loco()
 
 # construct a vector of one BEL and several conventional locomotives
-loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7
+loco_vec = [bel.clone()] + [hel.clone()] + [alt.Locomotive.default()] * 7
+
 # instantiate consist
 loco_con = alt.Consist(
     loco_vec,
@@ -74,7 +80,7 @@ tsb = alt.TrainSimBuilder(
     loco_con=loco_con,
 )
 
-# Load the network and construct the timed link path through the network.  
+# Load the network and construct the timed link path through the network.
 network = alt.Network.from_file(
     alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 
@@ -97,7 +103,8 @@ timed_link_path = alt.run_dispatch(
 )[0]
 
 # whether to override files used by set_speed_train_sim_demo.py
-OVERRIDE_SSTS_INPUTS = os.environ.get("OVERRIDE_SSTS_INPUTS", "false").lower() == "true"
+OVERRIDE_SSTS_INPUTS = os.environ.get(
+    "OVERRIDE_SSTS_INPUTS", "false").lower() == "true"
 if OVERRIDE_SSTS_INPUTS:
     print("Overriding files used by `set_speed_train_sim_demo.py`")
     link_path = alt.LinkPath([x.link_idx for x in timed_link_path.tolist()])
@@ -122,7 +129,7 @@ if OVERRIDE_SSTS_INPUTS:
         alt.resources_root() / "demo_data/speed_trace.csv"
     )
 
-loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
+loco0: alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 
 fig, ax = plt.subplots(4, 1, sharex=True)
 ax[0].plot(
@@ -162,7 +169,7 @@ ax[1].set_ylabel('Force [MN]')
 ax[1].legend()
 
 ax[2].plot(
-    np.array(train_sim.history.time_seconds) / 3_600, 
+    np.array(train_sim.history.time_seconds) / 3_600,
     np.array(loco0.res.history.soc)
 )
 ax[2].set_ylabel('SOC')
@@ -240,6 +247,50 @@ ax2[-1].set_ylabel('Speed [m/s]')
 plt.suptitle("Speed Limit Train Sim Demo")
 plt.tight_layout()
 
+ts_dict = train_sim.to_pydict()
+hybrid_loco = ts_dict['loco_con']['loco_vec'][1]
+
+fig, ax = plt.subplots(3, 1, sharex=True)
+ax[0].plot(
+    ts_dict['history']['time_seconds'],
+    np.array(hybrid_loco['history']['pwr_out_watts']) / 1e3,
+    label='hybrid tract. pwr.'
+)
+ax[0].plot(
+    ts_dict['history']['time_seconds'],
+    np.array(hybrid_loco['loco_type']['HybridLoco']['res']
+             ['history']['pwr_out_electrical_watts']) / 1e3,
+    label='hybrid batt. elec. pwr.'
+)
+ax[0].set_ylabel('Power [kW]')
+ax[0].legend()
+ax[1].plot(
+    ts_dict['history']['time_seconds'],
+    hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc'],
+    label='soc'
+)
+ax[1].plot(
+    ts_dict['history']['time_seconds'],
+    hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc_chrg_buffer'],
+    label='chrg buff'
+)
+ax[1].plot(
+    ts_dict['history']['time_seconds'],
+    hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc_disch_buffer'],
+    label='disch buff'
+)
+# TODO: add static min and max soc bounds to plots
+# TODO: make a plot util for any type of locomotive that will plot all the stuff
+ax[1].set_ylabel('[-]')
+ax[1].legend()
+ax[2].plot(
+    ts_dict['history']['time_seconds'],
+    ts_dict['history']['speed_meters_per_second'],
+)
+ax[2].set_ylabel('Speed [m/s]')
+ax[2].set_xlabel('Times [s]')
+plt.tight_layout()
+
 
 if SHOW_PLOTS:
     plt.tight_layout()
@@ -249,18 +300,22 @@ if SHOW_PLOTS:
 # whether to run assertions, enabled by default
 ENABLE_ASSERTS = os.environ.get("ENABLE_ASSERTS", "true").lower() == "true"
 # whether to override reference files used in assertions, disabled by default
-ENABLE_REF_OVERRIDE = os.environ.get("ENABLE_REF_OVERRIDE", "false").lower() == "true"
+ENABLE_REF_OVERRIDE = os.environ.get(
+    "ENABLE_REF_OVERRIDE", "false").lower() == "true"
 # directory for reference files for checking sim results against expected results
 ref_dir = alt.resources_root() / "demo_data/speed_limit_train_sim_demo/"
 
 if ENABLE_REF_OVERRIDE:
     ref_dir.mkdir(exist_ok=True, parents=True)
-    df:pl.DataFrame = train_sim.to_dataframe().lazy().collect()[-1]
+    df: pl.DataFrame = train_sim.to_dataframe().lazy().collect()[-1]
     df.write_csv(ref_dir / "to_dataframe_expected.csv")
 if ENABLE_ASSERTS:
     print("Checking output of `to_dataframe`")
-    to_dataframe_expected = pl.scan_csv(ref_dir / "to_dataframe_expected.csv").collect()[-1]
+    to_dataframe_expected = pl.scan_csv(
+        ref_dir / "to_dataframe_expected.csv").collect()[-1]
     assert to_dataframe_expected.equals(train_sim.to_dataframe()[-1]), \
         f"to_dataframe_expected: \n{to_dataframe_expected}\ntrain_sim.to_dataframe()[-1]: \n{train_sim.to_dataframe()[-1]}" + \
-            "\ntry running with `ENABLE_REF_OVERRIDE=True`"
+        "\ntry running with `ENABLE_REF_OVERRIDE=True`"
     print("Success!")
+
+# %%

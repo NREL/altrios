@@ -111,19 +111,6 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             ).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
         }
 
-        /// See [SerdeAPI::to_bincode]
-        #[pyo3(name = "to_bincode")]
-        fn to_bincode_py<'py>(&self, py: Python<'py>) -> PyResult<Vec<u8>> {
-            Ok(self.to_bincode()?)
-        }
-
-        /// See [SerdeAPI::from_bincode]
-        #[staticmethod]
-        #[pyo3(name = "from_bincode")]
-        fn from_bincode_py(encoded: &Bound<PyBytes>) -> anyhow::Result<Self> {
-            Self::from_bincode(encoded.as_bytes())
-        }
-
         #[pyo3(name = "init")]
         fn init_py(&mut self) -> PyResult<()> {
             self.init().map_err(|e| PyIOError::new_err(format!("{:?}", e)))
@@ -331,7 +318,8 @@ fn process_tuple_struct(
                             self.0.len()
                         }
                         /// PyO3-exposed method to check if the vec-containing struct is empty.
-                        fn is_empty(&self) -> bool {
+                        #[pyo3(name = "is_empty")]
+                        fn is_empty_py(&self) -> bool {
                             self.0.is_empty()
                         }
                     }
@@ -339,4 +327,217 @@ fn process_tuple_struct(
             }
         }
     }
+}
+
+pub(crate) fn altrios_enum_api(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let py_impl_block = TokenStream2::default();
+    let impl_block = TokenStream2::default();
+
+    let ast = syn::parse_macro_input!(item as syn::ItemEnum);
+    let ident = &ast.ident;
+    let output: TokenStream2 = ast.to_token_stream();
+    // println!("{}", String::from("*").repeat(30));
+    // println!("struct: {}", ast.ident.to_string());
+
+    process_pyclass_generic(py_impl_block, attr, ident, output, impl_block, false)
+}
+
+fn process_pyclass_generic(
+    mut py_impl_block: TokenStream2,
+    attr: TokenStream,
+    ident: &Ident,
+    mut output: TokenStream2,
+    impl_block: TokenStream2,
+    subclass: bool,
+) -> TokenStream {
+    py_impl_block.extend::<TokenStream2>(parse_ts_as_fn_defs(attr, vec![], false, vec![]));
+
+    add_serde_methods(&mut py_impl_block);
+
+    let py_impl_block = quote! {
+        #[allow(non_snake_case)]
+        #[pymethods]
+        #[cfg(feature="pyo3")]
+        /// Implement methods exposed and used in Python via PyO3
+        impl #ident {
+            #py_impl_block
+        }
+    };
+    let mut final_output = TokenStream2::default();
+    if subclass {
+        final_output.extend::<TokenStream2>(quote! {
+            #[cfg_attr(feature="pyo3", pyclass(module = "altrios", subclass, eq))]
+        });
+    } else {
+        final_output.extend::<TokenStream2>(quote! {
+            #[cfg_attr(feature="pyo3", pyclass(module = "altrios", eq))]
+        });
+    }
+    output.extend(impl_block);
+    output.extend(py_impl_block);
+    // println!("{}", output.to_string());
+    final_output.extend::<TokenStream2>(output);
+    final_output.into()
+}
+
+fn add_serde_methods(py_impl_block: &mut TokenStream2) {
+    // NOTE: may be helpful to add an `init_py` method
+    py_impl_block.extend::<TokenStream2>(quote! {
+        pub fn copy(&self) -> Self {self.clone()}
+        pub fn __copy__(&self) -> Self {self.clone()}
+        pub fn __deepcopy__(&self, _memo: &Bound<PyDict>) -> Self {self.clone()}
+
+        /// Read (deserialize) an object from a resource file packaged with the `altrios-core` crate
+        ///
+        /// # Arguments:
+        ///
+        /// * `filepath`: `str | pathlib.Path` - Filepath, relative to the top of the `resources` folder (excluding any relevant prefix), from which to read the object
+        ///
+        #[cfg(feature = "resources")]
+        #[staticmethod]
+        #[pyo3(name = "from_resource")]
+        #[pyo3(signature = (filepath, skip_init=None))]
+        pub fn from_resource_py(filepath: &Bound<PyAny>, skip_init: Option<bool>) -> PyResult<Self> {
+            Self::from_resource(PathBuf::extract_bound(filepath)?, skip_init.unwrap_or_default()).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+
+        /// Write (serialize) an object to a file.
+        /// Supported file extensions are listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`).
+        /// Creates a new file if it does not already exist, otherwise truncates the existing file.
+        ///
+        /// # Arguments
+        ///
+        /// * `filepath`: `str | pathlib.Path` - The filepath at which to write the object
+        ///
+        #[pyo3(name = "to_file")]
+        pub fn to_file_py(&self, filepath: &Bound<PyAny>) -> PyResult<()> {
+           self.to_file(PathBuf::extract_bound(filepath)?).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+
+        /// Read (deserialize) an object from a file.
+        /// Supported file extensions are listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`).
+        ///
+        /// # Arguments:
+        ///
+        /// * `filepath`: `str | pathlib.Path` - The filepath from which to read the object
+        ///
+        #[staticmethod]
+        #[pyo3(name = "from_file")]
+        #[pyo3(signature = (filepath, skip_init=None))]
+        pub fn from_file_py(filepath: &Bound<PyAny>, skip_init: Option<bool>) -> PyResult<Self> {
+            Self::from_file(PathBuf::extract_bound(filepath)?, skip_init.unwrap_or_default()).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+
+        /// Write (serialize) an object into a string
+        ///
+        /// # Arguments:
+        ///
+        /// * `format`: `str` - The target format, any of those listed in [`ACCEPTED_STR_FORMATS`](`SerdeAPI::ACCEPTED_STR_FORMATS`)
+        ///
+        #[pyo3(name = "to_str")]
+        pub fn to_str_py(&self, format: &str) -> PyResult<String> {
+            self.to_str(format).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+
+        /// Read (deserialize) an object from a string
+        ///
+        /// # Arguments:
+        ///
+        /// * `contents`: `str` - The string containing the object data
+        /// * `format`: `str` - The source format, any of those listed in [`ACCEPTED_STR_FORMATS`](`SerdeAPI::ACCEPTED_STR_FORMATS`)
+        ///
+        #[staticmethod]
+        #[pyo3(name = "from_str")]
+        #[pyo3(signature = (contents, format, skip_init=None))]
+        pub fn from_str_py(contents: &str, format: &str, skip_init: Option<bool>) -> PyResult<Self> {
+            SerdeAPI::from_str(contents, format, skip_init.unwrap_or_default()).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+
+        /// Write (serialize) an object to a JSON string
+        #[cfg(feature = "json")]
+        #[pyo3(name = "to_json")]
+        pub fn to_json_py(&self) -> PyResult<String> {
+            self.to_json().map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+
+        /// Read (deserialize) an object from a JSON string
+        ///
+        /// # Arguments
+        ///
+        /// * `json_str`: `str` - JSON-formatted string to deserialize from
+        ///
+        #[cfg(feature = "json")]
+        #[staticmethod]
+        #[pyo3(name = "from_json")]
+        #[pyo3(signature = (json_str, skip_init=None))]
+        pub fn from_json_py(json_str: &str, skip_init: Option<bool>) -> PyResult<Self> {
+            Self::from_json(json_str, skip_init.unwrap_or_default()).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+
+        /// Write (serialize) an object to a message pack
+        #[cfg(feature = "msgpack")]
+        #[pyo3(name = "to_msg_pack")]
+        pub fn to_msg_pack_py(&self) -> PyResult<Vec<u8>> {
+            self.to_msg_pack().map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+
+        /// Read (deserialize) an object from a message pack
+        ///
+        /// # Arguments
+        ///
+        /// * `msg_pack`: message pack
+        ///
+        #[cfg(feature = "msgpack")]
+        #[staticmethod]
+        #[pyo3(name = "from_msg_pack")]
+        #[pyo3(signature = (msg_pack, skip_init=None))]
+        pub fn from_msg_pack_py(msg_pack: &Bound<PyBytes>, skip_init: Option<bool>) -> PyResult<Self> {
+            Self::from_msg_pack(
+                msg_pack.as_bytes(),
+                skip_init.unwrap_or_default()
+            ).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+
+        /// Write (serialize) an object to a TOML string
+        #[cfg(feature = "toml")]
+        #[pyo3(name = "to_toml")]
+        pub fn to_toml_py(&self) -> PyResult<String> {
+            self.to_toml().map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+
+        /// Read (deserialize) an object to a TOML string
+        ///
+        /// # Arguments
+        ///
+        /// * `toml_str`: `str` - TOML-formatted string to deserialize from
+        ///
+        #[cfg(feature = "toml")]
+        #[staticmethod]
+        #[pyo3(name = "from_toml")]
+        #[pyo3(signature = (toml_str, skip_init=None))]
+        pub fn from_toml_py(toml_str: &str, skip_init: Option<bool>) -> PyResult<Self> {
+            Self::from_toml(toml_str, skip_init.unwrap_or_default()).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+
+        /// Write (serialize) an object to a YAML string
+        #[cfg(feature = "yaml")]
+        #[pyo3(name = "to_yaml")]
+        pub fn to_yaml_py(&self) -> PyResult<String> {
+            self.to_yaml().map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+
+        /// Read (deserialize) an object from a YAML string
+        ///
+        /// # Arguments
+        ///
+        /// * `yaml_str`: `str` - YAML-formatted string to deserialize from
+        ///
+        #[cfg(feature = "yaml")]
+        #[staticmethod]
+        #[pyo3(name = "from_yaml")]
+        #[pyo3(signature = (yaml_str, skip_init=None))]
+        pub fn from_yaml_py(yaml_str: &str, skip_init: Option<bool>) -> PyResult<Self> {
+            Self::from_yaml(yaml_str, skip_init.unwrap_or_default()).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        }
+    });
 }

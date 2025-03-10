@@ -47,7 +47,10 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
-loco_type = alt.BatteryElectricLoco(res, edrv)
+loco_type = alt.BatteryElectricLoco.from_pydict({
+    "res": res.to_pydict(),
+    "edrv": edrv.to_pydict(),
+})
 
 bel: alt.Locomotive = alt.Locomotive(
     loco_type=loco_type,

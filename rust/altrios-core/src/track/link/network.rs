@@ -416,9 +416,9 @@ impl SerdeAPI for Network {
                 // if the outer error `err0` is a SerdeError, try another network format
                 Error::SerdeError(_) => {
                     match NetworkOld::from_reader(&mut file, extension, skip_init) {
-                        Err(err1) => {
-                            Err(err1).map_err(|err1| Error::SerdeError(format!("\n{err0}\n{err1}")))
-                        }
+                        Err(err1) => Err(err1).map_err(|err1| {
+                            Error::SerdeError(format!("\n`Network`: {err0}\n`NetworkOld`: {err1}"))
+                        }),
                         Ok(network) => Ok(network.into()),
                     }
                 }
@@ -426,7 +426,8 @@ impl SerdeAPI for Network {
             },
         }
     }
-
+}
+impl Init for Network {
     fn init(&mut self) -> Result<(), Error> {
         self.as_ref()
             .validate()

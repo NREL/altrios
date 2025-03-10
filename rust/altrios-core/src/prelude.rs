@@ -15,7 +15,8 @@ pub use crate::consist::locomotive::powertrain::reversible_energy_storage::{
 };
 pub use crate::consist::locomotive::{
     BatteryElectricLoco, ConventionalLoco, DummyLoco, HybridLoco, LocoParams, Locomotive,
-    LocomotiveState, LocomotiveStateHistoryVec,
+    LocomotiveState, LocomotiveStateHistoryVec, RESGreedyWithDynamicBuffers,
+    RESGreedyWithDynamicBuffersBEL,
 };
 pub use crate::consist::{Consist, ConsistState, ConsistStateHistoryVec};
 pub use crate::meet_pass::est_times::est_time_structs::SavedSim;

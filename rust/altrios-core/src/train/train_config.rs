@@ -1412,6 +1412,12 @@ pub fn run_speed_limit_train_sims(
     pub fn set_save_interval_py(&mut self, save_interval: Option<usize>) {
         self.set_save_interval(save_interval);
     }
+
+    #[new]
+    /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
+    fn __new__(v: Vec<SpeedLimitTrainSim>) -> Self {
+        Self(v)
+    }
 )]
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SpeedLimitTrainSimVec(pub Vec<SpeedLimitTrainSim>);

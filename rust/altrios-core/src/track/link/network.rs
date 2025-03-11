@@ -489,7 +489,7 @@ impl SerdeAPI for Network {
                                                 ))
                                             })?;
                                             Err(Error::SerdeError(format!(
-                                                    "{}\n\n    `Network`: {err}\n    `NetworkOld`: {err_old}\nDeprecated network format.  Wrote copy of network file in new format to {}",
+                                                    "{}\n    `Network`: {err}\n    `NetworkOld`: {err_old}\nMissing error tolerance.  Wrote copy of network file in new format with error tolerances to {}",
                                                     format_dbg!(),
                                                     filepath_copy
                                                 )))
@@ -862,8 +862,8 @@ mod tests {
             .set_speed_set_for_train_type(TrainType::Freight)
             .unwrap();
         assert!(
-            network_speed_sets.1[0].speed_sets[&TrainType::Freight]
-                == *network_speed_set.1[0].speed_set.as_ref().unwrap()
+            network_speed_sets.1[1].speed_sets[&TrainType::Freight]
+                == *network_speed_set.1[1].speed_set.as_ref().unwrap()
         );
         assert!(network_speed_set.1[0].speed_sets.is_empty());
         assert!(network_speed_sets.1[0].speed_set.is_none());

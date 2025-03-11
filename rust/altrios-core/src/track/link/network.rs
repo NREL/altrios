@@ -416,6 +416,8 @@ impl ObjState for Network {
     }
     fn validate(&self) -> ValidationResults {
         let err_tol = self.0.clone();
+        // NOTE: it may be better to change the trait to `fn validate(&mut self) -> ValidationResults {`
+        // to avoid the need for this clone()
         let mut links = self.1.clone();
         // propagate error tolerance to links
         links

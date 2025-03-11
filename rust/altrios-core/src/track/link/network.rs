@@ -115,7 +115,7 @@ impl From<LinkOld> for Link {
             idx_flip: l.idx_flip,
             osm_id: l.osm_id,
             link_idxs_lockout: l.link_idxs_lockout,
-            err_tol: Default::default(),
+            err_tol: Some(Default::default()),
         }
     }
 }
@@ -279,82 +279,76 @@ impl ObjState for Link {
                 }
             }
 
-            if self.err_tol.is_none() {
-                errors.push(anyhow!(
-                    "`err_tol` should not be `None` because it should propagate from the `Network`"
-                ));
-                return errors.make_err();
-            }
-            let err_tol = self.err_tol.clone().unwrap();
-
-            let grades: Vec<si::Ratio> = self
-                .elevs
-                .windows(2)
-                .map(|w| (w[1].elev - w[0].elev) / (w[1].offset - w[0].offset))
-                .collect();
-            if let Some(max_allowed_abs_grade) = err_tol.max_grade {
-                match grades.iter().map(|g| g.abs()).reduce(si::Ratio::max) {
-                    Some(max_abs_grade) => {
-                        if max_abs_grade > max_allowed_abs_grade {
-                            let idx_max_grade = grades
-                                .iter()
-                                .position(|&g| g.abs() == max_abs_grade)
-                                .with_context(|| format_dbg!())
-                                .unwrap(); // pretty sure this unwrap is safe
-                            errors.push(anyhow!(
-                            "{} -- Max absolute grade ({}%) exceeds max allowed grade ({}%) at offset: {} m",
-                            format_dbg!(),
-                            max_abs_grade.get::<si::ratio>(),
-                            max_allowed_abs_grade.get::<si::ratio>(),
-                            // Add 1 to the index because grades is 1 element longer
-                            self.elevs[idx_max_grade+ 1].offset.get::<si::meter>()
-                        ));
-                        }
-                    }
-                    None => errors.push(anyhow!(
-                        "{} -- Failed to calculate max absolute grade.",
-                        format_dbg!()
-                    )),
-                };
-            }
-            if let Some(max_allowed_abs_curv) = err_tol.max_curv {
-                // TODO: make sure that all headings are between 0 and 2 pi
-                let curves: Vec<si::Curvature> = self
-                    .headings
+            if let Some(err_tol) = &self.err_tol {
+                let grades: Vec<si::Ratio> = self
+                    .elevs
                     .windows(2)
-                    .map(|w| {
-                        // the 3.0 is to make sure heading changes that cross
-                        // through zero still result in positive numbers
-                        let dh: si::Angle = (w[1].heading - w[0].heading + 3.0 * uc::REV / 2.0)
-                            % uc::REV
-                            - uc::REV / 2.0;
-                        let dx: si::Length = w[1].offset - w[0].offset;
-                        (dh / dx).into()
-                    })
+                    .map(|w| (w[1].elev - w[0].elev) / (w[1].offset - w[0].offset))
                     .collect();
-                match curves.iter().map(|y| y.abs()).reduce(si::Curvature::max) {
-                    Some(max_abs_curv) => {
-                        if max_abs_curv > max_allowed_abs_curv {
-                            let idx_max_curv = curves
-                                .iter()
-                                .position(|&c| c.abs() == max_abs_curv)
-                                .with_context(|| format_dbg!())
-                                .unwrap(); // pretty sure this unwrap is safe
-                            errors.push(anyhow!(
-                        "{} -- Max curvature ({} degrees per 100 feet) exceeds max allowed curvature ({} degrees per 100 feet) at offset: {} m",
+                if let Some(max_allowed_abs_grade) = err_tol.max_grade {
+                    match grades.iter().map(|g| g.abs()).reduce(si::Ratio::max) {
+                        Some(max_abs_grade) => {
+                            if max_abs_grade > max_allowed_abs_grade {
+                                let idx_max_grade = grades
+                                    .iter()
+                                    .position(|&g| g.abs() == max_abs_grade)
+                                    .with_context(|| format_dbg!())
+                                    .unwrap(); // pretty sure this unwrap is safe
+                                errors.push(anyhow!(
+                        "{} -- Max absolute grade ({}%) exceeds max allowed grade ({}%) at offset: {} m",
                         format_dbg!(),
-                        max_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0,
-                        max_allowed_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0,
-                        // Add 1 to the index because headings is 1 element longer
-                        self.headings[idx_max_curv + 1].offset.get::<si::meter>()
+                        max_abs_grade.get::<si::ratio>(),
+                        max_allowed_abs_grade.get::<si::ratio>(),
+                        // Add 1 to the index because grades is 1 element longer
+                        self.elevs[idx_max_grade+ 1].offset.get::<si::meter>()
                     ));
+                            }
                         }
-                    }
-                    None => errors.push(anyhow!(
-                        "{} -- Failed to calculate max absolute curvature.",
-                        format_dbg!()
-                    )),
-                };
+                        None => errors.push(anyhow!(
+                            "{} -- Failed to calculate max absolute grade.",
+                            format_dbg!()
+                        )),
+                    };
+                }
+                if let Some(max_allowed_abs_curv) = err_tol.max_curv {
+                    // TODO: make sure that all headings are between 0 and 2 pi
+                    let curves: Vec<si::Curvature> = self
+                        .headings
+                        .windows(2)
+                        .map(|w| {
+                            // the 3.0 is to make sure heading changes that cross
+                            // through zero still result in positive numbers
+                            let dh: si::Angle = (w[1].heading - w[0].heading + 3.0 * uc::REV / 2.0)
+                                % uc::REV
+                                - uc::REV / 2.0;
+                            let dx: si::Length = w[1].offset - w[0].offset;
+                            (dh / dx).into()
+                        })
+                        .collect();
+                    match curves.iter().map(|y| y.abs()).reduce(si::Curvature::max) {
+                        Some(max_abs_curv) => {
+                            if max_abs_curv > max_allowed_abs_curv {
+                                let idx_max_curv = curves
+                                    .iter()
+                                    .position(|&c| c.abs() == max_abs_curv)
+                                    .with_context(|| format_dbg!())
+                                    .unwrap(); // pretty sure this unwrap is safe
+                                errors.push(anyhow!(
+                    "{} -- Max curvature ({} degrees per 100 feet) exceeds max allowed curvature ({} degrees per 100 feet) at offset: {} m",
+                    format_dbg!(),
+                    max_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0,
+                    max_allowed_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0,
+                    // Add 1 to the index because headings is 1 element longer
+                    self.headings[idx_max_curv + 1].offset.get::<si::meter>()
+                ));
+                            }
+                        }
+                        None => errors.push(anyhow!(
+                            "{} -- Failed to calculate max absolute curvature.",
+                            format_dbg!()
+                        )),
+                    };
+                }
             }
         }
 

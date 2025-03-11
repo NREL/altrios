@@ -269,6 +269,7 @@ fn process_tuple_struct(
 ) {
     // tuple struct
     assert!(unnamed.len() <= 2);
+    let idx_for_vec = syn::Index::from(if unnamed.len() == 1 { 0 } else { 1 });
     let re = Regex::new(r"Vec < (.+) >").unwrap();
     for field in unnamed.iter() {
         let ftype = field.ty.clone();
@@ -285,11 +286,11 @@ fn process_tuple_struct(
                     quote! {
                         /// Rust-defined `__repr__` magic method for Python used exposed via PyO3.
                         fn __repr__(&self) -> String {
-                            format!("Pyo3Vec({:?})", self.0)
+                            format!("Pyo3Vec({:?})", self.#idx_for_vec)
                         }
                         /// Rust-defined `__str__` magic method for Python used exposed via PyO3.
                         fn __str__(&self) -> String {
-                            format!("{:?}", self.0)
+                            format!("{:?}", self.#idx_for_vec)
                         }
                         /// Rust-defined `__getitem__` magic method for Python used exposed via PyO3.
                         /// Prevents the Python user getting item directly using indexing.
@@ -310,17 +311,17 @@ fn process_tuple_struct(
                         }
                         /// PyO3-exposed method to convert vec-containing struct to Python list.
                         fn tolist(&self) -> anyhow::Result<Vec<#contained_dtype>> {
-                            Ok(self.0.clone())
+                            Ok(self.#idx_for_vec.clone())
                         }
                         /// Rust-defined `__len__` magic method for Python used exposed via PyO3.
                         /// Returns the length of the Rust vector.
                         fn __len__(&self) -> usize {
-                            self.0.len()
+                            self.#idx_for_vec.len()
                         }
                         /// PyO3-exposed method to check if the vec-containing struct is empty.
                         #[pyo3(name = "is_empty")]
                         fn is_empty_py(&self) -> bool {
-                            self.0.is_empty()
+                            self.#idx_for_vec.is_empty()
                         }
                     }
                 );

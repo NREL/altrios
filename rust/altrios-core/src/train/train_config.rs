@@ -294,7 +294,7 @@ impl Valid for TrainConfig {
             Ok(n) => n,
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network(n, None)
+                Network( Default::default(), n)
             }
         };
 
@@ -334,7 +334,7 @@ impl Valid for TrainConfig {
             Ok(n) => n,
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network(n, None)
+                Network( Default::default(), n)
             }
         };
 
@@ -811,7 +811,7 @@ pub fn run_speed_limit_train_sims(
             let n = network
                 .extract::<Vec<Link>>()
                 .map_err(|_| anyhow!("{}", format_dbg!()))?;
-            Network(n, None)
+            Network(Default::default(), n)
         }
     };
 

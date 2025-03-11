@@ -54,6 +54,10 @@ pub struct Link {
     /// occupied at a given time. For further explanation, see the [graphical
     /// example](https://nrel.github.io/altrios/api-doc/rail-network.html?highlight=network#link-lockout).
     pub link_idxs_lockout: Vec<LinkIdx>,
+
+    #[serde(skip)]
+    #[api(skip_get, skip_set)]
+    pub err_tol: Option<NetworkErrTol>,
 }
 
 impl Link {
@@ -111,6 +115,7 @@ impl From<LinkOld> for Link {
             idx_flip: l.idx_flip,
             osm_id: l.osm_id,
             link_idxs_lockout: l.link_idxs_lockout,
+            err_tol: Default::default(),
         }
     }
 }
@@ -273,22 +278,30 @@ impl ObjState for Link {
                     ));
                 }
             }
+
+            if self.err_tol.is_none() {
+                errors.push(anyhow!(
+                    "`err_tol` should not be `None` because it should propagate from the `Network`"
+                ));
+                return errors.make_err();
+            }
+            let err_tol = self.err_tol.clone().unwrap();
+
             let grades: Vec<si::Ratio> = self
                 .elevs
                 .windows(2)
                 .map(|w| (w[1].elev - w[0].elev) / (w[1].offset - w[0].offset))
                 .collect();
-            // TODO: parameterize this
-            let max_allowed_abs_grade: si::Ratio = 0.06 * uc::R;
-            match grades.iter().map(|g| g.abs()).reduce(si::Ratio::max) {
-                Some(max_abs_grade) => {
-                    if max_abs_grade > max_allowed_abs_grade {
-                        let idx_max_grade = grades
-                            .iter()
-                            .position(|&g| g.abs() == max_abs_grade)
-                            .with_context(|| format_dbg!())
-                            .unwrap(); // pretty sure this unwrap is safe
-                        errors.push(anyhow!(
+            if let Some(max_allowed_abs_grade) = err_tol.max_grade {
+                match grades.iter().map(|g| g.abs()).reduce(si::Ratio::max) {
+                    Some(max_abs_grade) => {
+                        if max_abs_grade > max_allowed_abs_grade {
+                            let idx_max_grade = grades
+                                .iter()
+                                .position(|&g| g.abs() == max_abs_grade)
+                                .with_context(|| format_dbg!())
+                                .unwrap(); // pretty sure this unwrap is safe
+                            errors.push(anyhow!(
                             "{} -- Max absolute grade ({}%) exceeds max allowed grade ({}%) at offset: {} m",
                             format_dbg!(),
                             max_abs_grade.get::<si::ratio>(),
@@ -296,40 +309,38 @@ impl ObjState for Link {
                             // Add 1 to the index because grades is 1 element longer
                             self.elevs[idx_max_grade+ 1].offset.get::<si::meter>()
                         ));
+                        }
                     }
-                }
-                None => errors.push(anyhow!(
-                    "{} -- Failed to calculate max absolute grade.",
-                    format_dbg!()
-                )),
-            };
-            // TODO: make sure that all headings are between 0 and 2 pi
-            let curves: Vec<si::Curvature> = self
-                .headings
-                .windows(2)
-                .map(|w| {
-                    // the 3.0 is to make sure heading changes that cross
-                    // through zero still result in positive numbers
-                    let dh: si::Angle = (w[1].heading - w[0].heading + 3.0 * uc::REV / 2.0)
-                        % uc::REV
-                        - uc::REV / 2.0;
-                    let dx: si::Length = w[1].offset - w[0].offset;
-                    (dh / dx).into()
-                })
-                .collect();
-            // TODO: parameterize this
-            // curvature cannot exceed 15 degrees per 100 feet
-            // really don't understand why `into` is needed here but it works!
-            let max_allowed_abs_curv: si::Curvature = (15.0 * uc::DEG / (100.0 * uc::FT)).into();
-            match curves.iter().map(|y| y.abs()).reduce(si::Curvature::max) {
-                Some(max_abs_curv) => {
-                    if max_abs_curv > max_allowed_abs_curv {
-                        let idx_max_curv = curves
-                            .iter()
-                            .position(|&c| c.abs() == max_abs_curv)
-                            .with_context(|| format_dbg!())
-                            .unwrap(); // pretty sure this unwrap is safe
-                        errors.push(anyhow!(
+                    None => errors.push(anyhow!(
+                        "{} -- Failed to calculate max absolute grade.",
+                        format_dbg!()
+                    )),
+                };
+            }
+            if let Some(max_allowed_abs_curv) = err_tol.max_curv {
+                // TODO: make sure that all headings are between 0 and 2 pi
+                let curves: Vec<si::Curvature> = self
+                    .headings
+                    .windows(2)
+                    .map(|w| {
+                        // the 3.0 is to make sure heading changes that cross
+                        // through zero still result in positive numbers
+                        let dh: si::Angle = (w[1].heading - w[0].heading + 3.0 * uc::REV / 2.0)
+                            % uc::REV
+                            - uc::REV / 2.0;
+                        let dx: si::Length = w[1].offset - w[0].offset;
+                        (dh / dx).into()
+                    })
+                    .collect();
+                match curves.iter().map(|y| y.abs()).reduce(si::Curvature::max) {
+                    Some(max_abs_curv) => {
+                        if max_abs_curv > max_allowed_abs_curv {
+                            let idx_max_curv = curves
+                                .iter()
+                                .position(|&c| c.abs() == max_abs_curv)
+                                .with_context(|| format_dbg!())
+                                .unwrap(); // pretty sure this unwrap is safe
+                            errors.push(anyhow!(
                         "{} -- Max curvature ({} degrees per 100 feet) exceeds max allowed curvature ({} degrees per 100 feet) at offset: {} m",
                         format_dbg!(),
                         max_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0,
@@ -337,13 +348,14 @@ impl ObjState for Link {
                         // Add 1 to the index because headings is 1 element longer
                         self.headings[idx_max_curv + 1].offset.get::<si::meter>()
                     ));
+                        }
                     }
-                }
-                None => errors.push(anyhow!(
-                    "{} -- Failed to calculate max absolute curvature.",
-                    format_dbg!()
-                )),
-            };
+                    None => errors.push(anyhow!(
+                        "{} -- Failed to calculate max absolute curvature.",
+                        format_dbg!()
+                    )),
+                };
+            }
         }
 
         errors.make_err()
@@ -351,12 +363,6 @@ impl ObjState for Link {
 }
 
 #[altrios_api(
-    #[new]
-    /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
-    fn __new__(v: Vec<Link>) -> Self {
-        Self(v, None)
-    }
-
     #[pyo3(name = "set_speed_set_for_train_type")]
     fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> PyResult<()> {
         Ok(self.set_speed_set_for_train_type(train_type)?)
@@ -365,7 +371,7 @@ impl ObjState for Link {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 /// Struct that contains a `Vec<Link>`, and optional parameters for setting
 /// error tolerances in checks performed by [Init::init]
-pub struct Network(pub Vec<Link>, pub Option<NetworkErrTol>);
+pub struct Network(pub NetworkErrTol, pub Vec<Link>);
 
 #[altrios_api]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -402,7 +408,7 @@ impl Network {
     /// Sets `self.speed_set` based on `self.speed_sets` value corresponding to `train_type` key for
     /// all links
     pub fn set_speed_set_for_train_type(&mut self, train_type: TrainType) -> anyhow::Result<()> {
-        for l in self.0.iter_mut().skip(1) {
+        for l in self.1.iter_mut().skip(1) {
             l.set_speed_set_for_train_type(train_type)
                 .with_context(|| format!("`idx_curr`: {}", l.idx_curr))?;
         }
@@ -412,10 +418,16 @@ impl Network {
 
 impl ObjState for Network {
     fn is_fake(&self) -> bool {
-        self.0.is_fake()
+        self.1.is_fake()
     }
     fn validate(&self) -> ValidationResults {
-        self.0.validate()
+        let err_tol = self.0.clone();
+        let mut links = self.1.clone();
+        // propagate error tolerance to links
+        links
+            .iter_mut()
+            .for_each(|link| link.err_tol = Some(err_tol.clone()));
+        links.validate()
     }
 }
 
@@ -523,20 +535,22 @@ impl Init for Network {
         //         NetworkErrTol::default().to_str("json")
         //     )));
         // }
-        self.as_ref()
-            .validate()
+        self.validate()
             .map_err(|err| Error::InitError(format!("\n{}\n{err}", format_dbg!())))
     }
 }
 
 impl From<NetworkOld> for Network {
     fn from(old: NetworkOld) -> Self {
-        Network(old.0.iter().map(|l| Link::from(l.clone())).collect(), None)
+        Network(
+            Default::default(),
+            old.0.iter().map(|l| Link::from(l.clone())).collect(),
+        )
     }
 }
 impl From<NetworkUnchecked> for Network {
     fn from(unchecked: NetworkUnchecked) -> Self {
-        Network(unchecked.0, None)
+        Network(Default::default(), unchecked.0)
     }
 }
 
@@ -560,13 +574,13 @@ struct NetworkOld(pub Vec<LinkOld>);
 
 impl AsRef<[Link]> for Network {
     fn as_ref(&self) -> &[Link] {
-        &self.0
+        &self.1
     }
 }
 
 impl From<&Vec<Link>> for Network {
     fn from(value: &Vec<Link>) -> Self {
-        Self(value.to_vec(), None)
+        Self(Default::default(), value.to_vec())
     }
 }
 
@@ -848,10 +862,10 @@ mod tests {
             .set_speed_set_for_train_type(TrainType::Freight)
             .unwrap();
         assert!(
-            network_speed_sets.0[1].speed_sets[&TrainType::Freight]
-                == *network_speed_set.0[1].speed_set.as_ref().unwrap()
+            network_speed_sets.1[0].speed_sets[&TrainType::Freight]
+                == *network_speed_set.1[0].speed_set.as_ref().unwrap()
         );
-        assert!(network_speed_set.0[1].speed_sets.is_empty());
-        assert!(network_speed_sets.0[1].speed_set.is_none());
+        assert!(network_speed_set.1[0].speed_sets.is_empty());
+        assert!(network_speed_sets.1[0].speed_set.is_none());
     }
 }

@@ -875,7 +875,7 @@ pub fn make_est_times_py(
             let n = network
                 .extract::<Vec<Link>>()
                 .map_err(|_| anyhow!("{}", format_dbg!()))?;
-            Network(n, None)
+            Network(Default::default(), n)
         }
     };
 

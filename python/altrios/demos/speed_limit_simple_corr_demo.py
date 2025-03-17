@@ -11,7 +11,7 @@ import seaborn as sns
 
 import altrios as alt 
 def extract_bel_from_train_sim(ts: alt.TrainSim) -> list:
-    ts_list = train_sim.loco_con.loco_vec.tolist()
+    ts_list = ts.loco_con.loco_vec.tolist()
     loco_list = []
     for loco in ts_list:
         if "BatteryElectricLoco" in loco.loco_type():
@@ -22,7 +22,7 @@ def extract_bel_from_train_sim(ts: alt.TrainSim) -> list:
     return loco_list
 
 def extract_conv_from_train_sim(ts: alt.TrainSim) -> list:
-    ts_list = train_sim.loco_con.loco_vec.tolist()
+    ts_list = ts.loco_con.loco_vec.tolist()
     loco_list = []
     for loco in ts_list:
         if "ConventionalLoco" in loco.loco_type():
@@ -33,7 +33,7 @@ def extract_conv_from_train_sim(ts: alt.TrainSim) -> list:
     return loco_list
 
 def extract_hel_from_train_sim(ts: alt.TrainSim) -> list:
-    ts_list = train_sim.loco_con.loco_vec.tolist()
+    ts_list = ts.loco_con.loco_vec.tolist()
     loco_list = []
     for loco in ts_list:
         if "Hybrid" in loco.loco_type():
@@ -43,7 +43,7 @@ def extract_hel_from_train_sim(ts: alt.TrainSim) -> list:
         return False
     return loco_list
 
-def plot_locos_from_ts(ts:alt.TrainSim,x:string, y:string):
+def plot_locos_from_ts(ts:alt.TrainSim,x:str, y:str):
     """
     Extracts first instance of each loco_type and plots representative plots
     Offers several plotting options to put on x and y axis
@@ -55,8 +55,126 @@ def plot_locos_from_ts(ts:alt.TrainSim,x:string, y:string):
     first_hel = []
     if extract_bel_from_train_sim(ts) != False:
         first_bel = extract_bel_from_train_sim(ts)[0]
+        fig, ax = plt.subplots(4, 1, sharex=True)
+        ax[0].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            np.array(ts.history.pwr_whl_out_watts) / 1e6,
+            label="tract pwr",
+        )
+        ax[0].set_ylabel('Power [MW]')
+        ax[0].legend()
+
+        ax[1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            np.array(ts.history.res_aero_newtons) / 1e3,
+            label='aero',
+        )
+        ax[1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            np.array(ts.history.res_rolling_newtons) / 1e3,
+            label='rolling',
+        )
+        ax[1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            np.array(ts.history.res_curve_newtons) / 1e3,
+            label='curve',
+        )
+        ax[1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            np.array(ts.history.res_bearing_newtons) / 1e3,
+            label='bearing',
+        )
+        ax[1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            np.array(ts.history.res_grade_newtons) / 1e3,
+            label='grade',
+        )
+        ax[1].set_ylabel('Force [MN]')
+        ax[1].legend()
+
+        ax[2].plot(
+            np.array(ts.history.time_seconds) / 3_600, 
+            np.array(first_bel.res.history.soc)
+        )
+
+        ax[2].set_ylabel('SOC')
+        ax[2].legend()
+
+        ax[-1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            ts.history.speed_meters_per_second,
+            label='achieved'
+        )
+        ax[-1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            ts.history.speed_limit_meters_per_second,
+            label='limit'
+        )
+        ax[-1].set_xlabel('Time [hr]')
+        ax[-1].set_ylabel('Speed [m/s]')
+        ax[-1].legend()
+        plt.suptitle("Speed Limit Train Sim Demo")
     if extract_conv_from_train_sim(ts) != False:
         first_conv = extract_conv_from_train_sim(ts)[0]
+        fig, ax = plt.subplots(4, 1, sharex=True)
+        ax[0].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            np.array(ts.history.pwr_whl_out_watts) / 1e6,
+            label="tract pwr",
+        )
+        ax[0].set_ylabel('Power [MW]')
+        ax[0].legend()
+
+        ax[1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            np.array(ts.history.res_aero_newtons) / 1e3,
+            label='aero',
+        )
+        ax[1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            np.array(ts.history.res_rolling_newtons) / 1e3,
+            label='rolling',
+        )
+        ax[1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            np.array(ts.history.res_curve_newtons) / 1e3,
+            label='curve',
+        )
+        ax[1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            np.array(ts.history.res_bearing_newtons) / 1e3,
+            label='bearing',
+        )
+        ax[1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            np.array(ts.history.res_grade_newtons) / 1e3,
+            label='grade',
+        )
+        ax[1].set_ylabel('Force [MN]')
+        ax[1].legend()
+
+        ax[2].plot(
+            np.array(ts.history.time_seconds) / 3_600, 
+            np.array(first_conv.fc.history.soc)
+        )
+
+        ax[2].set_ylabel('SOC')
+        ax[2].legend()
+
+        ax[-1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            ts.history.speed_meters_per_second,
+            label='achieved'
+        )
+        ax[-1].plot(
+            np.array(ts.history.time_seconds) / 3_600,
+            ts.history.speed_limit_meters_per_second,
+            label='limit'
+        )
+        ax[-1].set_xlabel('Time [hr]')
+        ax[-1].set_ylabel('Speed [m/s]')
+        ax[-1].legend()
+        plt.suptitle("Speed Limit Train Sim Demo")
     if extract_hel_from_train_sim(ts) != False:
         first_hel = extract_hel_from_train_sim(ts)[0]
     

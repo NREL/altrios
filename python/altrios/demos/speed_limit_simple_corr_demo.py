@@ -10,6 +10,60 @@ import pandas as pd
 import seaborn as sns
 
 import altrios as alt 
+def extract_bel_from_train_sim(ts: alt.TrainSim) -> list:
+    ts_list = train_sim.loco_con.loco_vec.tolist()
+    loco_list = []
+    for loco in ts_list:
+        if "BatteryElectricLoco" in loco.loco_type():
+            loco_list.append(loco)
+    if not loco_list:
+        print("NO BEL IS FOUND IN CONSIST")
+        return False
+    return loco_list
+
+def extract_conv_from_train_sim(ts: alt.TrainSim) -> list:
+    ts_list = train_sim.loco_con.loco_vec.tolist()
+    loco_list = []
+    for loco in ts_list:
+        if "ConventionalLoco" in loco.loco_type():
+            loco_list.append(loco)
+    if not loco_list:
+        print("NO CONVENTIONAL LOCO IS FOUND IN CONSIST")
+        return False
+    return loco_list
+
+def extract_hel_from_train_sim(ts: alt.TrainSim) -> list:
+    ts_list = train_sim.loco_con.loco_vec.tolist()
+    loco_list = []
+    for loco in ts_list:
+        if "Hybrid" in loco.loco_type():
+            loco_list.append(loco)
+    if not loco_list:
+        print("NO HYBRID LOCO IS FOUND IN CONSIST")
+        return False
+    return loco_list
+
+def plot_locos_from_ts(ts:alt.TrainSim,x:string, y:string):
+    """
+    Extracts first instance of each loco_type and plots representative plots
+    Offers several plotting options to put on x and y axis
+    x: ["time","offset"]
+    y: ["Force Requirement" ,"Consumption"]
+    """
+    first_bel = []
+    first_conv = []
+    first_hel = []
+    if extract_bel_from_train_sim(ts) != False:
+        first_bel = extract_bel_from_train_sim(ts)[0]
+    if extract_conv_from_train_sim(ts) != False:
+        first_conv = extract_conv_from_train_sim(ts)[0]
+    if extract_hel_from_train_sim(ts) != False:
+        first_hel = extract_hel_from_train_sim(ts)[0]
+    
+    loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
+    plt.tight_layout()
+    plt.show()
+    return 
 sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()

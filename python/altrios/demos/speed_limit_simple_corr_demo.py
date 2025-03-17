@@ -50,6 +50,12 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
     x: ["time","offset"]
     y: ["Force Requirement" ,"Consumption"]
     """
+    if x == "time" or x =="Time":
+        x_axis = np.array(ts.history.time_seconds) / 3_600
+        x_label = "Time (hr)"
+    if x == "distance" or x == "Distance":
+        x_axis = np.array(ts.history.time_seconds) / 3_600
+        x_label = "Time (hr)"
     first_bel = []
     first_conv = []
     first_hel = []
@@ -61,123 +67,148 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         print("No HEL in consist")
     if extract_bel_from_train_sim(ts) != False:
         first_bel = extract_bel_from_train_sim(ts)[0]
+        '''
+        first fig
+        speed vs dist or time
+        soc vs dist or time
+        various powers along the powertrain vs dist or time
+        second fig with axes for:
+        speed vs dist or time
+        soc vs dist or time
+        various cumulative energies along the powertrain vs dist or time
+        '''
         fig, ax = plt.subplots(4, 1, sharex=True)
         ax[0].plot(
-            np.array(ts.history.time_seconds) / 3_600,
-            np.array(ts.history.pwr_whl_out_watts) / 1e6,
-            label="tract pwr",
+            x_axis,
+            ts.history.speed_meters_per_second,
+            label='achieved'
         )
-        ax[0].set_ylabel('Power [MW]')
+        ax[0].plot(
+            x_axis,
+            ts.history.speed_limit_meters_per_second,
+            label='limit'
+        )
+        ax[0].set_xlabel(x_label)
+        ax[0].set_ylabel('Speed [m/s]')
         ax[0].legend()
-
         ax[1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
-            np.array(ts.history.res_aero_newtons) / 1e3,
-            label='aero',
+            x_axis, 
+            np.array(first_bel.res.history.soc),
+            label = "SOC"
         )
-        ax[1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
-            np.array(ts.history.res_rolling_newtons) / 1e3,
-            label='rolling',
-        )
-        ax[1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
-            np.array(ts.history.res_curve_newtons) / 1e3,
-            label='curve',
-        )
-        ax[1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
-            np.array(ts.history.res_bearing_newtons) / 1e3,
-            label='bearing',
-        )
-        ax[1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
-            np.array(ts.history.res_grade_newtons) / 1e3,
-            label='grade',
-        )
-        ax[1].set_ylabel('Force [MN]')
+        ax[1].set_ylabel('SOC')
         ax[1].legend()
 
         ax[2].plot(
-            np.array(ts.history.time_seconds) / 3_600, 
-            np.array(first_bel.res.history.soc)
+            x_axis,
+            np.array(ts.history.res_aero_newtons) / 1e3,
+            label='aero',
         )
-
-        ax[2].set_ylabel('SOC')
+        ax[2].plot(
+            x_axis,
+            np.array(ts.history.res_rolling_newtons) / 1e3,
+            label='rolling',
+        )
+        ax[2].plot(
+            x_axis,
+            np.array(ts.history.res_curve_newtons) / 1e3,
+            label='curve',
+        )
+        ax[2].plot(
+            x_axis,
+            np.array(ts.history.res_bearing_newtons) / 1e3,
+            label='bearing',
+        )
+        ax[2].plot(
+            x_axis,
+            np.array(ts.history.res_grade_newtons) / 1e3,
+            label='grade',
+        )
+        ax[2].set_ylabel('Force [MN]')
         ax[2].legend()
 
         ax[-1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
+            x_axis,
             ts.history.speed_meters_per_second,
             label='achieved'
         )
         ax[-1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
+            x_axis,
             ts.history.speed_limit_meters_per_second,
             label='limit'
         )
-        ax[-1].set_xlabel('Time [hr]')
+        #need some changing for each loco's share of resistance?
+        ax[-1].set_xlabel(x_label)
         ax[-1].set_ylabel('Speed [m/s]')
         ax[-1].legend()
         plt.suptitle("Speed Limit Train Sim Demo")
     if extract_conv_from_train_sim(ts) != False:
         first_conv = extract_conv_from_train_sim(ts)[0]
         fig, ax = plt.subplots(4, 1, sharex=True)
+        #Need to find the current param for this:
+        #np.array(first_conv.fc.state.pwr_out_frac_interp*pwr_out_max_watts/1e6)
+        fig, ax = plt.subplots(4, 1, sharex=True)
         ax[0].plot(
-            np.array(ts.history.time_seconds) / 3_600,
-            np.array(ts.history.pwr_whl_out_watts) / 1e6,
-            label="tract pwr",
+            x_axis,
+            ts.history.speed_meters_per_second,
+            label='achieved'
         )
-        ax[0].set_ylabel('Power [MW]')
+        ax[0].plot(
+            x_axis,
+            ts.history.speed_limit_meters_per_second,
+            label='limit'
+        )
+        ax[0].set_xlabel(x_label)
+        ax[0].set_ylabel('Speed [m/s]')
         ax[0].legend()
-
         ax[1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
-            np.array(ts.history.res_aero_newtons) / 1e3,
-            label='aero',
+            x_axis, 
+            np.array(first_bel.res.history.soc),
+            label = "SOC"
         )
-        ax[1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
-            np.array(ts.history.res_rolling_newtons) / 1e3,
-            label='rolling',
-        )
-        ax[1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
-            np.array(ts.history.res_curve_newtons) / 1e3,
-            label='curve',
-        )
-        ax[1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
-            np.array(ts.history.res_bearing_newtons) / 1e3,
-            label='bearing',
-        )
-        ax[1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
-            np.array(ts.history.res_grade_newtons) / 1e3,
-            label='grade',
-        )
-        ax[1].set_ylabel('Force [MN]')
+        ax[1].set_ylabel('SOC')
         ax[1].legend()
 
         ax[2].plot(
-            np.array(ts.history.time_seconds) / 3_600, 
-            np.array(first_conv.fc.state.pwr_out_frac_interp*pwr_out_max_watts/1e6)
+            x_axis,
+            np.array(ts.history.res_aero_newtons) / 1e3,
+            label='aero',
         )
-
-        ax[2].set_ylabel('Output MWH')
+        ax[2].plot(
+            x_axis,
+            np.array(ts.history.res_rolling_newtons) / 1e3,
+            label='rolling',
+        )
+        ax[2].plot(
+            x_axis,
+            np.array(ts.history.res_curve_newtons) / 1e3,
+            label='curve',
+        )
+        ax[2].plot(
+            x_axis,
+            np.array(ts.history.res_bearing_newtons) / 1e3,
+            label='bearing',
+        )
+        ax[2].plot(
+            x_axis,
+            np.array(ts.history.res_grade_newtons) / 1e3,
+            label='grade',
+        )
+        ax[2].set_ylabel('Force [MN]')
         ax[2].legend()
 
         ax[-1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
+            x_axis,
             ts.history.speed_meters_per_second,
             label='achieved'
         )
         ax[-1].plot(
-            np.array(ts.history.time_seconds) / 3_600,
+            x_axis,
             ts.history.speed_limit_meters_per_second,
             label='limit'
         )
-        ax[-1].set_xlabel('Time [hr]')
+        #need some changing for each loco's share of resistance?
+        ax[-1].set_xlabel(x_label)
         ax[-1].set_ylabel('Speed [m/s]')
         ax[-1].legend()
         plt.suptitle("Speed Limit Train Sim Demo")

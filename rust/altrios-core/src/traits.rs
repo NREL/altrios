@@ -108,8 +108,9 @@ pub trait Linspace {
 
 impl Linspace for Vec<f64> {}
 
-pub trait Init: Serialize + for<'a> Deserialize<'a> {
-    /// Specialized code to execute upon initialization
+pub trait Init {
+    /// Specialized code to execute upon initialization.  For any struct with fields
+    /// that implement `Init`, this should propagate down the hierarchy.
     fn init(&mut self) -> Result<(), Error> {
         Ok(())
     }

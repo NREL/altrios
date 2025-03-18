@@ -68,7 +68,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         various powers along the powertrain vs dist or time
         various cumulative energies along the powertrain vs dist or time
         '''
-        fig, ax = plt.subplots(4, 1, sharex=True)
+        fig, ax = plt.subplots(3, 1, sharex=True)
         ax[0].plot(
             x_axis,
             ts.history.speed_meters_per_second,
@@ -117,6 +117,31 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         )
         ax[2].set_ylabel('Force [MN]')
         ax[2].legend()
+        plt.suptitle("BEL Speed Limit Train Sim Demo")
+        plt.tight_layout()
+        plt.show()
+        fig, ax = plt.subplots(3, 1, sharex=True)
+        ax[0].plot(
+            x_axis,
+            ts.history.speed_meters_per_second,
+            label='achieved'
+        )
+        ax[0].plot(
+            x_axis,
+            ts.history.speed_limit_meters_per_second,
+            label='limit'
+        )
+        ax[0].set_xlabel(x_label)
+        ax[0].set_ylabel('Speed [m/s]')
+        ax[0].legend()
+        ax[1].plot(
+            x_axis, 
+            np.array(first_bel.res.history.soc),
+            label = "SOC"
+        )
+        ax[1].set_ylabel('SOC')
+        ax[1].legend()
+
         cumulative_aero = np.cumsum(np.array(ts.history.res_aero_newtons) * train_sim.history.speed_meters_per_second * ts.get_save_interval())
         cumulative_rolling = np.cumsum(np.array(ts.history.res_rolling_newtons) * train_sim.history.speed_meters_per_second * ts.get_save_interval())
         cumulative_curve = np.cumsum(np.array(ts.history.res_curve_newtons) * train_sim.history.speed_meters_per_second * ts.get_save_interval())
@@ -150,13 +175,15 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax[-1].set_xlabel(x_label)
         ax[-1].set_ylabel('Cumulative Energy [J]')
         ax[-1].legend()
-        plt.suptitle("Speed Limit Train Sim Demo")
+        plt.suptitle("BEL Speed Limit Train Sim Demo")
+        plt.tight_layout()
+        plt.show()
     if extract_conv_from_train_sim(ts) != False:
         first_conv = extract_conv_from_train_sim(ts)[0]
         fig, ax = plt.subplots(4, 1, sharex=True)
         #Need to find the current param for this:
         #np.array(first_conv.fc.state.pwr_out_frac_interp*pwr_out_max_watts/1e6)
-        fig, ax = plt.subplots(3, 1, sharex=True)
+        fig, ax = plt.subplots(2, 1, sharex=True)
         ax[0].plot(
             x_axis,
             ts.history.speed_meters_per_second,
@@ -198,6 +225,24 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         )
         ax[1].set_ylabel('Force [MN]')
         ax[1].legend()
+        plt.suptitle("Conventional Loco Speed Limit Train Sim Demo")
+        plt.tight_layout()
+        plt.show()
+        fig, ax = plt.subplots(2, 1, sharex=True)
+        ax[0].plot(
+            x_axis,
+            ts.history.speed_meters_per_second,
+            label='achieved'
+        )
+        ax[0].plot(
+            x_axis,
+            ts.history.speed_limit_meters_per_second,
+            label='limit'
+        )
+        ax[0].set_xlabel(x_label)
+        ax[0].set_ylabel('Speed [m/s]')
+        ax[0].legend()
+
         cumulative_aero = np.cumsum(np.array(ts.history.res_aero_newtons) * train_sim.history.speed_meters_per_second * ts.get_save_interval())
         cumulative_rolling = np.cumsum(np.array(ts.history.res_rolling_newtons) * train_sim.history.speed_meters_per_second * ts.get_save_interval())
         cumulative_curve = np.cumsum(np.array(ts.history.res_curve_newtons) * train_sim.history.speed_meters_per_second * ts.get_save_interval())
@@ -231,10 +276,12 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax[-1].set_xlabel(x_label)
         ax[-1].set_ylabel('Cumulative Energy [J]')
         ax[-1].legend()
-        plt.suptitle("Speed Limit Train Sim Demo")
+        plt.suptitle("Conventional Loco Speed Limit Train Sim Demo")
+        plt.tight_layout()
+        plt.show()
     if extract_hel_from_train_sim(ts) != False:
         first_hel = extract_hel_from_train_sim(ts)[0]
-        fig, ax = plt.subplots(4, 1, sharex=True)
+        fig, ax = plt.subplots(3, 1, sharex=True)
         ax[0].plot(
             x_axis,
             ts.history.speed_meters_per_second,
@@ -283,6 +330,30 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         )
         ax[2].set_ylabel('Force [MN]')
         ax[2].legend()
+        plt.suptitle("Hybrid Loco Speed Limit Train Sim Demo")
+        plt.tight_layout()
+        plt.show()
+        fig, ax = plt.subplots(3, 1, sharex=True)
+        ax[0].plot(
+            x_axis,
+            ts.history.speed_meters_per_second,
+            label='achieved'
+        )
+        ax[0].plot(
+            x_axis,
+            ts.history.speed_limit_meters_per_second,
+            label='limit'
+        )
+        ax[0].set_xlabel(x_label)
+        ax[0].set_ylabel('Speed [m/s]')
+        ax[0].legend()
+        ax[1].plot(
+            x_axis, 
+            np.array(first_bel.res.history.soc),
+            label = "SOC"
+        )
+        ax[1].set_ylabel('SOC')
+        ax[1].legend()
         cumulative_aero = np.cumsum(np.array(ts.history.res_aero_newtons) * train_sim.history.speed_meters_per_second * ts.get_save_interval())
         cumulative_rolling = np.cumsum(np.array(ts.history.res_rolling_newtons) * train_sim.history.speed_meters_per_second * ts.get_save_interval())
         cumulative_curve = np.cumsum(np.array(ts.history.res_curve_newtons) * train_sim.history.speed_meters_per_second * ts.get_save_interval())
@@ -317,9 +388,10 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax[-1].set_ylabel('Cumulative Energy [J]')
         ax[-1].legend()
         plt.suptitle("Speed Limit Train Sim Demo")
+        plt.suptitle("Hybrid Loco Speed Limit Train Sim Demo")
+        plt.tight_layout()
+        plt.show()
     
-    plt.tight_layout()
-    plt.show()
     return 
 sns.set_theme()
 

@@ -62,7 +62,8 @@ bel: alt.Locomotive = alt.Locomotive.from_pydict({
 hel: alt.Locomotive = alt.Locomotive.default_hybrid_electric_loco()
 
 # construct a vector of one BEL and several conventional locomotives
-loco_vec = [bel.clone()] + [hel.clone()] + [alt.Locomotive.default()] * 7 
+# loco_vec = [bel.clone()] + [hel.clone()] + [alt.Locomotive.default()] * 7 
+loco_vec = [alt.Locomotive.default()] * 7 
 
 # instantiate consist
 loco_con = alt.Consist(
@@ -147,10 +148,10 @@ ax[1].plot(
 ax[1].set_ylabel('Force [MN]')
 ax[1].legend()
 
-ax[2].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(loco0.res.history.soc)
-)
+# ax[2].plot(
+#     np.array(train_sim.history.time_seconds) / 3_600,
+#     np.array(loco0.res.history.soc)
+# )
 ax[2].set_ylabel('SOC')
 
 ax[-1].plot(
@@ -227,48 +228,48 @@ plt.suptitle("Speed Limit Train Sim Demo")
 plt.tight_layout()
 
 ts_dict = train_sim.to_pydict()
-hybrid_loco = ts_dict['loco_con']['loco_vec'][1]
+# hybrid_loco = ts_dict['loco_con']['loco_vec'][1]
 
-fig, ax = plt.subplots(3, 1, sharex=True)
-ax[0].plot(
-    ts_dict['history']['time_seconds'],
-    np.array(hybrid_loco['history']['pwr_out_watts']) / 1e3,
-    label='hybrid tract. pwr.'
-)
-ax[0].plot(
-    ts_dict['history']['time_seconds'],
-    np.array(hybrid_loco['loco_type']['HybridLoco']['res']
-             ['history']['pwr_out_electrical_watts']) / 1e3,
-    label='hybrid batt. elec. pwr.'
-)
-ax[0].set_ylabel('Power [kW]')
-ax[0].legend()
-ax[1].plot(
-    ts_dict['history']['time_seconds'],
-    hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc'],
-    label='soc'
-)
-ax[1].plot(
-    ts_dict['history']['time_seconds'],
-    hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc_chrg_buffer'],
-    label='chrg buff'
-)
-ax[1].plot(
-    ts_dict['history']['time_seconds'],
-    hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc_disch_buffer'],
-    label='disch buff'
-)
-# TODO: add static min and max soc bounds to plots
-# TODO: make a plot util for any type of locomotive that will plot all the stuff
-ax[1].set_ylabel('[-]')
-ax[1].legend()
-ax[2].plot(
-    ts_dict['history']['time_seconds'],
-    ts_dict['history']['speed_meters_per_second'],
-)
-ax[2].set_ylabel('Speed [m/s]')
-ax[2].set_xlabel('Times [s]')
-plt.tight_layout()
+# fig, ax = plt.subplots(3, 1, sharex=True)
+# ax[0].plot(
+#     ts_dict['history']['time_seconds'],
+#     np.array(hybrid_loco['history']['pwr_out_watts']) / 1e3,
+#     label='hybrid tract. pwr.'
+# )
+# ax[0].plot(
+#     ts_dict['history']['time_seconds'],
+#     np.array(hybrid_loco['loco_type']['HybridLoco']['res']
+#              ['history']['pwr_out_electrical_watts']) / 1e3,
+#     label='hybrid batt. elec. pwr.'
+# )
+# ax[0].set_ylabel('Power [kW]')
+# ax[0].legend()
+# ax[1].plot(
+#     ts_dict['history']['time_seconds'],
+#     hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc'],
+#     label='soc'
+# )
+# ax[1].plot(
+#     ts_dict['history']['time_seconds'],
+#     hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc_chrg_buffer'],
+#     label='chrg buff'
+# )
+# ax[1].plot(
+#     ts_dict['history']['time_seconds'],
+#     hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc_disch_buffer'],
+#     label='disch buff'
+# )
+# # TODO: add static min and max soc bounds to plots
+# # TODO: make a plot util for any type of locomotive that will plot all the stuff
+# ax[1].set_ylabel('[-]')
+# ax[1].legend()
+# ax[2].plot(
+#     ts_dict['history']['time_seconds'],
+#     ts_dict['history']['speed_meters_per_second'],
+# )
+# ax[2].set_ylabel('Speed [m/s]')
+# ax[2].set_xlabel('Times [s]')
+# plt.tight_layout()
 
 
 if SHOW_PLOTS:

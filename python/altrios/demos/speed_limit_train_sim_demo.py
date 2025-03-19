@@ -223,6 +223,8 @@ ax2[0].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
     np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
     label="tract pwr",
+    linestyle="",
+    marker=".",
 )
 ax2[0].set_ylabel('Power [MW]')
 ax2[0].legend()

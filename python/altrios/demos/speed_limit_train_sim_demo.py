@@ -14,7 +14,7 @@ sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()
 
-SAVE_INTERVAL = 100
+SAVE_INTERVAL = 1
 
 # Build the train config
 rail_vehicle_loaded = alt.RailVehicle.from_file(

@@ -205,7 +205,7 @@ fig2, ax2 = plt.subplots(3, 1, sharex=True)
 ax2[0].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
     np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
-    label="tract pwr",
+    label="consist tract pwr",
 )
 ax2[0].set_ylabel('Power [MW]')
 ax2[0].legend()

@@ -148,12 +148,10 @@ ax[1].set_ylabel('Force [MN]')
 ax[1].legend()
 
 ax[2].plot(
-    np.array(train_sim.history.time_seconds) / 3_600, 
+    np.array(train_sim.history.time_seconds) / 3_600,
     np.array(loco0.res.history.soc)
 )
-
 ax[2].set_ylabel('SOC')
-ax[2].legend()
 
 ax[-1].plot(
     np.array(train_sim.history.time_seconds) / 3_600,
@@ -169,7 +167,110 @@ ax[-1].set_xlabel('Time [hr]')
 ax[-1].set_ylabel('Speed [m/s]')
 ax[-1].legend()
 plt.suptitle("Speed Limit Train Sim Demo")
+
+fig1, ax1 = plt.subplots(3, 1, sharex=True)
+ax1[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.offset_in_link_meters) / 1_000,
+    label='current link',
+)
+ax1[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.offset_meters) / 1_000,
+    label='overall',
+)
+ax1[0].legend()
+ax1[0].set_ylabel('Net Dist. [km]')
+
+ax1[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.link_idx_front,
+    linestyle='',
+    marker='.',
+)
+ax1[1].set_ylabel('Link Idx Front')
+
+ax1[-1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.speed_meters_per_second,
+)
+ax1[-1].set_xlabel('Time [hr]')
+ax1[-1].set_ylabel('Speed [m/s]')
+
+plt.suptitle("Speed Limit Train Sim Demo")
+plt.tight_layout()
+
+
+fig2, ax2 = plt.subplots(3, 1, sharex=True)
+ax2[0].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
+    label="tract pwr",
+)
+ax2[0].set_ylabel('Power [MW]')
+ax2[0].legend()
+
+ax2[1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    np.array(train_sim.history.grade_front) * 100.,
+)
+ax2[1].set_ylabel('Grade [%] at\nHead End')
+
+ax2[-1].plot(
+    np.array(train_sim.history.time_seconds) / 3_600,
+    train_sim.history.speed_meters_per_second,
+)
+ax2[-1].set_xlabel('Time [hr]')
+ax2[-1].set_ylabel('Speed [m/s]')
+
+plt.suptitle("Speed Limit Train Sim Demo")
+plt.tight_layout()
+
+ts_dict = train_sim.to_pydict()
+hybrid_loco = ts_dict['loco_con']['loco_vec'][1]
+
+fig, ax = plt.subplots(3, 1, sharex=True)
+ax[0].plot(
+    ts_dict['history']['time_seconds'],
+    np.array(hybrid_loco['history']['pwr_out_watts']) / 1e3,
+    label='hybrid tract. pwr.'
+)
+ax[0].plot(
+    ts_dict['history']['time_seconds'],
+    np.array(hybrid_loco['loco_type']['HybridLoco']['res']
+             ['history']['pwr_out_electrical_watts']) / 1e3,
+    label='hybrid batt. elec. pwr.'
+)
+ax[0].set_ylabel('Power [kW]')
+ax[0].legend()
+ax[1].plot(
+    ts_dict['history']['time_seconds'],
+    hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc'],
+    label='soc'
+)
+ax[1].plot(
+    ts_dict['history']['time_seconds'],
+    hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc_chrg_buffer'],
+    label='chrg buff'
+)
+ax[1].plot(
+    ts_dict['history']['time_seconds'],
+    hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc_disch_buffer'],
+    label='disch buff'
+)
+# TODO: add static min and max soc bounds to plots
+# TODO: make a plot util for any type of locomotive that will plot all the stuff
+ax[1].set_ylabel('[-]')
+ax[1].legend()
+ax[2].plot(
+    ts_dict['history']['time_seconds'],
+    ts_dict['history']['speed_meters_per_second'],
+)
+ax[2].set_ylabel('Speed [m/s]')
+ax[2].set_xlabel('Times [s]')
+plt.tight_layout()
+
+
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
-

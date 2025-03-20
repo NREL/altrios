@@ -9,7 +9,7 @@ simulation_duration = 24
 start_time = 10
 
 
-layout_file = "/Users/qianqiantong/PycharmProjects/altrios-private/altrios/python/altrios/lifts/single_track_input/layout.xlsx"
+layout_file = "C:/Users/mbruchon/Documents/Repos/NREL/altrios/python/altrios/lifts/single_track_input/layout.xlsx"
 df_layout = pd.read_excel(layout_file)
 
 if train_batch_size not in df_layout["train batch (k)"].values:

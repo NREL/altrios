@@ -17,7 +17,7 @@ class Terminal:
         # Example of number of cranes per track
         cranes_per_track = {
             1: 1,
-            2: 2
+            2: 1
         }
         self.cranes = simpy.FilterStore(env, state.CRANE_NUMBER)
 
@@ -114,7 +114,7 @@ def truck_entry(env, terminal, truck, oc, train_schedule):
     # Assign IDs for OCs
     print(f"Time {env.now}: Truck {truck} placed OC_{oc.id} at parking slot.")
     record_container_event(oc, 'truck_dropoff', env.now)
-    terminal.parking_slots.put(oc.id)
+    terminal.parking_slots.put(oc)
     emissions = emission_calculation('loaded', 'truck', truck, truck_travel_time)
     record_vehicle_event('truck', truck, f'dropoff_OC_{oc.id}', 'loaded', emissions, 'end', env.now)
 
@@ -306,8 +306,8 @@ def container_process(env, terminal, train_schedule):
 
 
     # IC < OC: ICs are all picked up and still have OCs remaining
-    if sum(str(item).isdigit() for item in terminal.chassis.items) == 0 and len(terminal.oc_store.items) == \
-            train_schedule['oc_number'] - train_schedule['full_cars']:
+    if (sum(item.type=='Inbound' for item in terminal.chassis.items) == 0) and (sum(item.type=='Outbound' for item in terminal.parking_slots.items) == \
+            train_schedule['oc_number'] - train_schedule['full_cars']):
         print(f"ICs are prepared, but OCs remaining: {terminal.oc_store.items}")
         remaining_oc = len(terminal.oc_store.items)
         # Repeat hostler picking-up OC process only, until all remaining OCs are transported

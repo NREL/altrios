@@ -112,7 +112,6 @@ assert len(train_sim.history) > 1
 # pull out solved locomotive for plotting convenience
 loco0: alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 
-
 def plot_train_level_powers() -> Tuple[plt.Figure, plt.Axes]:
     fig, ax = plt.subplots(4, 1, sharex=True)
     plt.suptitle("Train Power")

@@ -444,23 +444,23 @@ def run_simulation(train_consist_plan: pl.DataFrame, terminal: str, out_path = N
 
     # # Train timetable
     # Truck_numbers is equal to max(full_cars, oc_numbers), to make sure each container has one truck to pick up
-    # train_timetable = [
-    #     {"train_id": 19, "arrival_time": 187, "departure_time": 250, "empty_cars": 3, "full_cars": 50, "oc_number": 20,
-    #      "truck_number": 50},    # test: ic > oc
-    #     {"train_id": 12, "arrival_time": 300, "departure_time": 500, "empty_cars": 5, "full_cars": 40, "oc_number": 40,
-    #      "truck_number": 40},    # test: ic = oc
-    #     {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 5, "full_cars": 30, "oc_number": 50,
-    #      "truck_number": 50},    # test: ic < oc
-    # ]
-
     train_timetable = [
-        {"train_id": 19, "arrival_time": 187, "departure_time": 250, "empty_cars": 300, "full_cars": 500, "oc_number": 200,
-         "truck_number": 500},    # test: ic > oc
-        {"train_id": 12, "arrival_time": 300, "departure_time": 500, "empty_cars": 50, "full_cars": 400, "oc_number": 400,
-         "truck_number": 400},    # test: ic = oc
-        {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 50, "full_cars": 300, "oc_number": 500,
-         "truck_number": 500},    # test: ic < oc
+        {"train_id": 19, "arrival_time": 187, "departure_time": 250, "empty_cars": 3, "full_cars": 50, "oc_number": 20,
+         "truck_number": 50},    # test: ic > oc
+        {"train_id": 12, "arrival_time": 300, "departure_time": 500, "empty_cars": 5, "full_cars": 40, "oc_number": 40,
+         "truck_number": 40},    # test: ic = oc
+        {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 5, "full_cars": 30, "oc_number": 50,
+         "truck_number": 50},    # test: ic < oc
     ]
+
+    # train_timetable = [
+    #     {"train_id": 19, "arrival_time": 187, "departure_time": 250, "empty_cars": 3, "full_cars": 500, "oc_number": 200,
+    #      "truck_number": 500},    # test: ic > oc
+    #     {"train_id": 12, "arrival_time": 300, "departure_time": 500, "empty_cars": 5, "full_cars": 400, "oc_number": 400,
+    #      "truck_number": 400},    # test: ic = oc
+    #     {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 5, "full_cars": 300, "oc_number": 500,
+    #      "truck_number": 500},    # test: ic < oc
+    # ]
 
     # train_timetable = train_timetable
 

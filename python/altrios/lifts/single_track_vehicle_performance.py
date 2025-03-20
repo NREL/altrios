@@ -14,59 +14,75 @@ vehicle_events = {
 }
 
 
-def record_vehicle_event(vehicle_category, vehicle, action, state, emission, event_type, timestamp):
-    """Records an event related to a vehicle."""
+def record_vehicle_event(vehicle_category, vehicle, action, state, time, emission, event_type, timestamp):
     vehicle_events[vehicle_category].append({
         'vehicle_id': str(vehicle),
         'action': action,
         'state': state,
+        'time': time,
         'emission': emission,
         'event_type': event_type,
         'timestamp': timestamp
     })
 
 
-def calculate_average_times():
-    """Calculates average duration between 'start' and 'end' events for each vehicle category."""
-    averages = {}
-    for vehicle_type, events in vehicle_events.items():
-        total_time = 0
-        count = 0
-        start_time = None
+def calculate_performance(dataframes):
+    summary = {vehicle: {'IC Emissions': 0, 'OC Emissions': 0, 'Total Emissions': 0,
+                         'IC Time': 0, 'OC Time': 0, 'Total Time': 0} for vehicle in dataframes.keys()}
 
-        for event in events:
-            if event['event_type'] == 'start':
-                start_time = event['timestamp']
-            elif event['event_type'] == 'end' and start_time is not None:
-                total_time += (event['timestamp'] - start_time)
-                count += 1
-                start_time = None
+    for vehicle, df in dataframes.items():
+        for _, row in df.iterrows():
+            emission = row['emission']
+            time = row['time']
+            action = row['action']
 
-        averages[vehicle_type] = total_time / count if count > 0 else 0
-    return averages
+            if 'OC' in action:
+                summary[vehicle]['OC Emissions'] += emission
+                summary[vehicle]['OC Time'] += time
+            else:
+                summary[vehicle]['IC Emissions'] += emission
+                summary[vehicle]['IC Time'] += time
+
+            summary[vehicle]['Total Emissions'] = summary[vehicle]['IC Emissions'] + summary[vehicle]['OC Emissions']
+            summary[vehicle]['Total Time'] = summary[vehicle]['IC Time'] + summary[vehicle]['OC Time']
+
+    summary_df = pd.DataFrame.from_dict(summary, orient='index')
+    summary_df.reset_index(inplace=True)
+    summary_df.rename(columns={'index': 'Vehicle'}, inplace=True)
+
+    total_row = summary_df.sum(numeric_only=True)
+    total_row['Vehicle'] = 'Total'
+    summary_df = pd.concat([summary_df, pd.DataFrame([total_row])], ignore_index=True)
+
+    return summary_df
 
 
 def save_to_excel(state):
-    """Saves vehicle event logs and summary statistics to an Excel file."""
-    # Convert vehicle event logs to DataFrames
     df_logs = {}
     for vehicle_type, events in vehicle_events.items():
         df_logs[vehicle_type] = pd.DataFrame(events)
 
     # Calculate summary statistics
-    averages = calculate_average_times()
-    summary_df = pd.DataFrame.from_dict(averages, orient='index', columns=['Average Time'])
+    performance_df = calculate_performance(df_logs)
+    performance_df.rename(columns={'IC Emissions': 'IC Energy Consumption',
+                               'OC Emissions': 'OC Energy Consumption',
+                               'Total Emissions': 'Total Energy Consumption',
+                               'IC Time': 'IC Processing Time',
+                               'OC Time': 'OC Processing Time',
+                               'Total Time': 'Total Processing Time'}, inplace=True)
 
-    # Define output file name
     file_name = f"vehicle_log_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx"
     file_path = out_path / file_name
 
-    # Save to Excel
     with pd.ExcelWriter(file_path) as writer:
         for vehicle_type, df in df_logs.items():
             df.to_excel(writer, sheet_name=vehicle_type, index=False)
-        summary_df.to_excel(writer, sheet_name='Summary', index=True)
+        performance_df.to_excel(writer, sheet_name='performance', index=True)
 
+    print("*" * 100)
+    print("Intermodal Terminal Performance Matrix")
+    print(performance_df)
+    print("*" * 100)
 
 if __name__ == "__main__":
     global state

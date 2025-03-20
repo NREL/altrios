@@ -19,13 +19,13 @@ class LiftsState:
     # Fixed: Simulation files and hyperparameters
     log_level: loggingLevel = loggingLevel.DEBUG
     random_seed: int = 42
-    sim_time: int = 2000
+    sim_time: int = 4000
     terminal: str = 'Allouez'  # Choose 'Hibbing' or 'Allouez'
     train_consist_plan: pl.DataFrame = field(default_factory=lambda: pl.DataFrame())
 
     # Fixed: Train parameters
     ## Train timetable: train_units, train arrival time
-    TRAIN_INSPECTION_TIME: float = 10 / 60  # hr
+    TRAIN_INSPECTION_TIME: float = 1 / 60  # hr
 
     # Fixed: Yard parameters
     TRACK_NUMBER: int = 1
@@ -45,18 +45,19 @@ class LiftsState:
     CRANE_MOVE_DEV_TIME: float = 1 / 600  # crane movement speed deviation value: hr
 
     # Fixed: Hostler parameters
-    HOSTLER_NUMBER: int = 2
+    HOSTLER_NUMBER: int = 50
     HOSTLER_DIESEL_PERCENTAGE: float = 1
     # Fixed hostler travel time (** will update with density-speed/time functions later soon)
     CONTAINERS_PER_HOSTLER: int = 1  # hostler capacity
 
     # Fixed: Truck parameters
     TRUCK_DIESEL_PERCENTAGE: float = 1
-    TRUCK_ARRIVAL_MEAN: float = 0.01   # hr, assume all containers are well-prepared
-    TRUCK_INGATE_TIME: float = 1 / 60  # hr
-    TRUCK_OUTGATE_TIME: float = 2 / 60  # hr
-    TRUCK_INGATE_TIME_DEV: float = 1 / 60  # hr
-    TRUCK_OUTGATE_TIME_DEV: float = 1 / 60  # hr
+    TRUCK_ARRIVAL_MEAN: float = 2/60  # hr, assume all containers are well-prepared
+    TRUCK_INGATE_TIME: float = 2/60 # hr
+    TRUCK_OUTGATE_TIME: float = 2/60  # hr
+    TRUCK_INGATE_TIME_DEV: float = 2/60  # hr
+    TRUCK_OUTGATE_TIME_DEV: float = 2/60  # hr
+    TRUCK_TO_PARKING: float = 2/60 # hr
 
     # Fixed: Gate parameters
     IN_GATE_NUMBERS: int = 6  # test queuing module with 1; normal operations with 6

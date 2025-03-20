@@ -96,19 +96,6 @@ impl Default for FuelConverter {
 
 impl Init for FuelConverter {
     fn init(&mut self) -> Result<(), Error> {
-        let eff_max = self.get_eta_max();
-        self.pwr_for_peak_eff = *self
-            .eta_interp
-            .get(
-                self.eta_interp
-                    .iter()
-                    .position(|&eff| eff == eff_max)
-                    .ok_or_else(|| {
-                        Error::InitError(format!("{}\n`eff_max`: {eff_max}", format_dbg!()))
-                    })?,
-            )
-            .ok_or_else(|| Error::InitError(format_dbg!()))?
-            * self.pwr_out_max;
         self.state.init()?;
         Ok(())
     }

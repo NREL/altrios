@@ -95,7 +95,7 @@ dev = { features = ["dev"], solve-group = "default" }
 
 [tool.pixi.tasks]
 cargo_test = "(cd rust && cargo test)"
-py_test = "pixi run -e dev pytest -v"
+py_test = "maturin develop --release && pixi run -e dev pytest -v"
 build_and_test = { depends-on = ["cargo_test", "py_test"] }
 
 fmt = "ruff"

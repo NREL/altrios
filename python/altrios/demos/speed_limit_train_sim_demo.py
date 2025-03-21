@@ -63,6 +63,12 @@ bel: alt.Locomotive = alt.Locomotive.from_pydict({
 })
 bel_dict = bel.to_pydict()
 bel_pt_cntrl = bel_dict['loco_type']['BatteryElectricLoco']['pt_cntrl']['RGWDB']
+bel_pt_cntrl['speed_soc_disch_buffer_meters_per_second'] = 10
+bel_pt_cntrl['speed_soc_regen_buffer_meters_per_second'] = 15
+bel_dict = copy(bel_dict)
+bel_dict['loco_type']['BatteryElectricLoco']['pt_cntrl']['RGWDB'] = bel_pt_cntrl
+bel = alt.Locomotive.from_pydict(bel_dict)
+
 bel_new_pt_cntrl = copy(bel_pt_cntrl)
 # effectively turn off the buffers
 bel_new_pt_cntrl['speed_soc_disch_buffer_meters_per_second'] = 0
@@ -74,20 +80,34 @@ bel_sans_buffers = alt.Locomotive.from_pydict(bel_new_dict)
 hel: alt.Locomotive = alt.Locomotive.default_hybrid_electric_loco()
 hel_dict = hel.to_pydict()
 hel_pt_cntrl = hel_dict['loco_type']['HybridLoco']['pt_cntrl']['RGWDB']
+hel_pt_cntrl['speed_soc_disch_buffer_meters_per_second'] = 0
+hel_pt_cntrl['speed_soc_regen_buffer_meters_per_second'] = 100
+hel_dict['loco_type']['HybridLoco']['pt_cntrl']['RGWDB'] = hel_pt_cntrl
+hel = alt.Locomotive.from_pydict(hel_dict)
+
 hel_new_pt_cntrl = copy(hel_pt_cntrl)
 # effectively turn off the buffers
-hel_new_pt_cntrl['speed_soc_disch_buffer_meters_per_second'] = 0
-hel_new_pt_cntrl['speed_soc_regen_buffer_meters_per_second'] = 100
+hel_new_pt_cntrl['speed_soc_disch_buffer_meters_per_second'] = 15
+hel_new_pt_cntrl['speed_soc_regen_buffer_meters_per_second'] = 15
 hel_new_dict = copy(hel_dict)
 hel_new_dict['loco_type']['HybridLoco']['pt_cntrl']['RGWDB'] = hel_new_pt_cntrl
 hel_sans_buffers = alt.Locomotive.from_pydict(hel_new_dict)
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
-loco_vec = [bel.clone()] + [hel.clone()] + [alt.Locomotive.default()] * 7
+loco_vec = (
+    []
+    # + [bel.clone()]
+    + [hel.clone()]
+    + [alt.Locomotive.default()] * 1
+)
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
-loco_vec_sans_buffers = [bel_sans_buffers.clone()] + [hel_sans_buffers.clone()] + \
-    [alt.Locomotive.default()] * 7
+loco_vec_sans_buffers = (
+    []
+    # + [bel_sans_buffers.clone()]
+    + [hel_sans_buffers.clone()]
+    + [alt.Locomotive.default()] * 1
+)
 
 # instantiate consist
 loco_con = alt.Consist(
@@ -174,6 +194,7 @@ train_sim.walk_timed_path(
     timed_path=timed_link_path,
 )
 t1 = time.perf_counter()
+
 print(f'Time to simulate: {t1 - t0:.5g}')
 raw_fuel_gigajoules = train_sim.get_energy_fuel_joules(False) / 1e9
 print(
@@ -189,15 +210,21 @@ train_sim_sans_buffers.walk_timed_path(
     timed_path=timed_link_path_sans_buffers,
 )
 t1 = time.perf_counter()
+
 print(f'\nTime to simulate without buffers: {t1 - t0:.5g}')
 raw_fuel_sans_buffers_gigajoules = train_sim_sans_buffers.get_energy_fuel_joules(False) / 1e9
 print(
-    f"Total raw fuel used without BEL and HEL buffers active: {raw_fuel_sans_buffers_gigajoules:.6g} GJ")
+    f"Total raw fuel used with BEL and HEL buffers inactive: {raw_fuel_sans_buffers_gigajoules:.6g} GJ")
 corrected_fuel_sans_buffers_gigajoules = train_sim_sans_buffers.get_energy_fuel_soc_corrected_joules() / 1e9
 print(
-    f"Total SOC-corrected fuel used without BEL and HEL buffers active: {corrected_fuel_sans_buffers_gigajoules:.6g} GJ")
+    f"Total SOC-corrected fuel used with BEL and HEL buffers inactive: {corrected_fuel_sans_buffers_gigajoules:.6g} GJ")
 assert len(train_sim_sans_buffers.history) > 1
-print()
+
+savings_raw = -(raw_fuel_gigajoules - raw_fuel_sans_buffers_gigajoules) / raw_fuel_sans_buffers_gigajoules * 100
+print(f"\nRaw fuel savings from buffers: {savings_raw:.5g}%")
+savings_soc_corrected = -(
+    corrected_fuel_gigajoules - corrected_fuel_sans_buffers_gigajoules) / corrected_fuel_sans_buffers_gigajoules * 100
+print(f"SOC-corrected fuel savings from buffers: {savings_soc_corrected:.5g}%")
 
 # Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `speed_trace`
 if OVERRIDE_SSTS_INPUTS:
@@ -209,129 +236,116 @@ if OVERRIDE_SSTS_INPUTS:
         alt.resources_root() / "demo_data/speed_trace.csv"
     )
 
-loco0: alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
-
-
-def plot_train_level_powers() -> Tuple[plt.Figure, plt.Axes]:
-    fig, ax = plt.subplots(4, 1, sharex=True)
-    plt.suptitle("Train Power")
+def plot_train_level_powers(ts: alt.SpeedLimitTrainSim, mod_str: str) -> Tuple[plt.Figure, plt.Axes]:
+    fig, ax = plt.subplots(3, 1, sharex=True)
+    plt.suptitle("Train Power " + mod_str)
     ax[0].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
+        np.array(ts.history.time_seconds) / 3_600,
+        np.array(ts.history.pwr_whl_out_watts) / 1e6,
         label="tract pwr",
     )
     ax[0].set_ylabel('Power [MW]')
     ax[0].legend()
 
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.res_aero_newtons) / 1e3,
+        np.array(ts.history.time_seconds) / 3_600,
+        np.array(ts.history.res_aero_newtons) / 1e3,
         label='aero',
     )
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.res_rolling_newtons) / 1e3,
+        np.array(ts.history.time_seconds) / 3_600,
+        np.array(ts.history.res_rolling_newtons) / 1e3,
         label='rolling',
     )
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.res_curve_newtons) / 1e3,
+        np.array(ts.history.time_seconds) / 3_600,
+        np.array(ts.history.res_curve_newtons) / 1e3,
         label='curve',
     )
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.res_bearing_newtons) / 1e3,
+        np.array(ts.history.time_seconds) / 3_600,
+        np.array(ts.history.res_bearing_newtons) / 1e3,
         label='bearing',
     )
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.res_grade_newtons) / 1e3,
+        np.array(ts.history.time_seconds) / 3_600,
+        np.array(ts.history.res_grade_newtons) / 1e3,
         label='grade',
     )
     ax[1].set_ylabel('Force [MN]')
     ax[1].legend()
 
-    ax[2].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(loco0.res.history.soc)
-    )
-    ax[2].set_ylabel('SOC')
-
     ax[-1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        train_sim.history.speed_meters_per_second,
+        np.array(ts.history.time_seconds) / 3_600,
+        ts.history.speed_meters_per_second,
         label='achieved'
     )
     ax[-1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        train_sim.history.speed_limit_meters_per_second,
+        np.array(ts.history.time_seconds) / 3_600,
+        ts.history.speed_limit_meters_per_second,
         label='limit'
     )
     ax[-1].set_xlabel('Time [hr]')
     ax[-1].set_ylabel('Speed [m/s]')
     ax[-1].legend()
-    plt.suptitle("Speed Limit Train Sim Demo")
 
     return fig, ax
 
-
-def plot_train_network_info() -> Tuple[plt.Figure, plt.Axes]:
+def plot_train_network_info(ts: alt.SpeedLimitTrainSim, mod_str: str) -> Tuple[plt.Figure, plt.Axes]:
     fig, ax = plt.subplots(3, 1, sharex=True)
-    plt.suptitle("Train Position in Network")
+    plt.suptitle("Train Position in Network " + mod_str)
     ax[0].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.offset_in_link_meters) / 1_000,
+        np.array(ts.history.time_seconds) / 3_600,
+        np.array(ts.history.offset_in_link_meters) / 1_000,
         label='current link',
     )
     ax[0].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.offset_meters) / 1_000,
+        np.array(ts.history.time_seconds) / 3_600,
+        np.array(ts.history.offset_meters) / 1_000,
         label='overall',
     )
     ax[0].legend()
     ax[0].set_ylabel('Net Dist. [km]')
 
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        train_sim.history.link_idx_front,
+        np.array(ts.history.time_seconds) / 3_600,
+        ts.history.link_idx_front,
         linestyle='',
         marker='.',
     )
     ax[1].set_ylabel('Link Idx Front')
 
     ax[-1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        train_sim.history.speed_meters_per_second,
+        np.array(ts.history.time_seconds) / 3_600,
+        ts.history.speed_meters_per_second,
     )
     ax[-1].set_xlabel('Time [hr]')
     ax[-1].set_ylabel('Speed [m/s]')
 
-    plt.suptitle("Speed Limit Train Sim Demo")
     plt.tight_layout()
 
     return fig, ax
 
-
-def plot_consist_pwr() -> Tuple[plt.Figure, plt.Axes]:
+def plot_consist_pwr(ts: alt.SpeedLimitTrainSim, mod_str: str) -> Tuple[plt.Figure, plt.Axes]:
     fig, ax = plt.subplots(3, 1, sharex=True)
-    plt.suptitle("Loco. Consist")
+    plt.suptitle("Loco. Consist " + mod_str)
     ax[0].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
+        np.array(ts.history.time_seconds) / 3_600,
+        np.array(ts.history.pwr_whl_out_watts) / 1e6,
         label="consist tract pwr",
     )
     ax[0].set_ylabel('Power [MW]')
     ax[0].legend()
 
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.grade_front) * 100.,
+        np.array(ts.history.time_seconds) / 3_600,
+        np.array(ts.history.grade_front) * 100.,
     )
     ax[1].set_ylabel('Grade [%] at\nHead End')
 
     ax[-1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        train_sim.history.speed_meters_per_second,
+        np.array(ts.history.time_seconds) / 3_600,
+        ts.history.speed_meters_per_second,
     )
     ax[-1].set_xlabel('Time [hr]')
     ax[-1].set_ylabel('Speed [m/s]')
@@ -339,14 +353,13 @@ def plot_consist_pwr() -> Tuple[plt.Figure, plt.Axes]:
     return fig, ax
 
 
-ts_dict = train_sim.to_pydict()
-hybrid_loco = ts_dict['loco_con']['loco_vec'][1]
 hel_type = "HybridLoco"
 
-
-def plot_hel_pwr_and_soc() -> Tuple[plt.Figure, plt.Axes]:
+def plot_hel_pwr_and_soc(ts: alt.SpeedLimitTrainSim, mod_str: str) -> Tuple[plt.Figure, plt.Axes]:
+    ts_dict = ts.to_pydict()
+    hybrid_loco = ts_dict['loco_con']['loco_vec'][0]
     fig, ax = plt.subplots(3, 1, sharex=True)
-    plt.suptitle("Hybrid Locomotive")
+    plt.suptitle("Hybrid Locomotive " + mod_str)
 
     ax_idx = 0
     ax[ax_idx].plot(
@@ -420,15 +433,15 @@ def plot_hel_pwr_and_soc() -> Tuple[plt.Figure, plt.Axes]:
     return fig, ax
 
 
-batt_loco = ts_dict['loco_con']['loco_vec'][0]
 
 
 bel_type = "BatteryElectricLoco"
 
-
-def plot_bel_pwr_and_soc() -> Tuple[plt.Figure, plt.Axes]:
+def plot_bel_pwr_and_soc(ts: alt.SpeedLimitTrainSim, mod_str: str) -> Tuple[plt.Figure, plt.Axes]:
+    ts_dict = ts.to_pydict()
+    batt_loco = ts_dict['loco_con']['loco_vec'][0]
     fig, ax = plt.subplots(3, 1, sharex=True)
-    plt.suptitle("Battery Electric Locomotive")
+    plt.suptitle("Battery Electric Locomotive " + mod_str)
 
     ax_idx = 0
     ax[ax_idx].plot(
@@ -495,11 +508,17 @@ def plot_bel_pwr_and_soc() -> Tuple[plt.Figure, plt.Axes]:
     return fig, ax
 
 
-fig0, ax0 = plot_train_level_powers()
-fig1, ax1 = plot_train_network_info()
-fig2, ax2 = plot_consist_pwr()
-fig3, ax3 = plot_hel_pwr_and_soc()
-fig4, ax4 = plot_bel_pwr_and_soc()
+fig0, ax0 = plot_train_level_powers(train_sim, "With Buffers")
+fig1, ax1 = plot_train_network_info(train_sim, "With Buffers")
+fig2, ax2 = plot_consist_pwr(train_sim, "With Buffers")
+fig3, ax3 = plot_hel_pwr_and_soc(train_sim, "With Buffers")
+# fig4, ax4 = plot_bel_pwr_and_soc(train_sim, "With Buffers")
+
+fig0_sans_buffers, ax0_sans_buffers = plot_train_level_powers(train_sim_sans_buffers, "Without Buffers")
+fig1_sans_buffers, ax1_sans_buffers = plot_train_network_info(train_sim_sans_buffers, "Without Buffers")
+fig2_sans_buffers, ax2_sans_buffers = plot_consist_pwr(train_sim_sans_buffers, "Without Buffers")
+fig3_sans_buffers, ax3_sans_buffers = plot_hel_pwr_and_soc(train_sim_sans_buffers, "Without Buffers")
+# fig4_sans_buffers, ax4_sans_buffers = plot_bel_pwr_and_soc(train_sim_sans_buffers, "Without Buffers")
 
 if SHOW_PLOTS:
     plt.tight_layout()

@@ -350,6 +350,10 @@ pub(crate) fn impl_getters_and_setters(
             "SpecificPower" => extract_units!(uom::si::specific_power::watt_per_kilogram),
             "Time" => extract_units!(uom::si::time::second, uom::si::time::hour),
             "Volume" => extract_units!(uom::si::volume::liter),
+            "Curvature" => extract_units!(
+                uom::si::curvature::radian_per_meter,
+                uom::si::curvature::degree_per_meter
+            ),
             "Velocity" => extract_units!(
                 uom::si::velocity::meter_per_second,
                 uom::si::velocity::mile_per_hour

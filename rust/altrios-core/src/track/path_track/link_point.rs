@@ -54,6 +54,15 @@ impl ObjState for LinkPoint {
     }
 }
 
+impl ObjState for Vec<LinkPoint> {
+    fn is_fake(&self) -> bool {
+        (**self).is_fake()
+    }
+    fn validate(&self) -> ValidationResults {
+        (**self).validate()
+    }
+}
+
 impl GetOffset for LinkPoint {
     fn get_offset(&self) -> si::Length {
         self.offset

@@ -44,6 +44,15 @@ impl ObjState for SpeedLimit {
     }
 }
 
+impl ObjState for Vec<SpeedLimit> {
+    fn is_fake(&self) -> bool {
+        (**self).is_fake()
+    }
+    fn validate(&self) -> ValidationResults {
+        (**self).validate()
+    }
+}
+
 impl Valid for Vec<SpeedLimit> {
     fn valid() -> Self {
         let speed_limit = SpeedLimit::valid();

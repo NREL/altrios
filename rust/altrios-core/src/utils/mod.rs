@@ -181,26 +181,41 @@ make_uom_cmp_fn!(almost_le);
 #[altrios_api]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq, SerdeAPI)]
 pub struct Pyo3VecBoolWrapper(pub Vec<bool>);
+impl Pyo3VecBoolWrapper {
+    pub fn new(value: Vec<bool>) -> Self {
+        Self(value)
+    }
+}
 
 #[altrios_api]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, SerdeAPI)]
 pub struct Pyo3VecWrapper(pub Vec<f64>);
+impl Pyo3VecWrapper {
+    pub fn new(value: Vec<f64>) -> Self {
+        Self(value)
+    }
+}
 
 #[altrios_api]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, SerdeAPI)]
 pub struct Pyo3Vec2Wrapper(pub Vec<Vec<f64>>);
 impl From<Vec<Vec<f64>>> for Pyo3Vec2Wrapper {
     fn from(v: Vec<Vec<f64>>) -> Self {
-        Self::new(v)
+        Self(v)
     }
 }
 
 #[altrios_api]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, SerdeAPI)]
 pub struct Pyo3Vec3Wrapper(pub Vec<Vec<Vec<f64>>>);
+impl Pyo3Vec3Wrapper {
+    pub fn new(value: Vec<Vec<Vec<f64>>>) -> Self {
+        Self(value)
+    }
+}
 impl From<Vec<Vec<Vec<f64>>>> for Pyo3Vec3Wrapper {
     fn from(v: Vec<Vec<Vec<f64>>>) -> Self {
-        Self::new(v)
+        Self(v)
     }
 }
 

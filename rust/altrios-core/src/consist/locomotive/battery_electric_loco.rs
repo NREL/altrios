@@ -84,7 +84,7 @@ impl Mass for BatteryElectricLoco {
 }
 
 impl Init for BatteryElectricLoco {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.res.init()?;
         self.edrv.init()?;
         self.pt_cntrl.init()?;
@@ -210,7 +210,7 @@ impl Default for BatteryPowertrainControls {
 }
 
 impl Init for BatteryPowertrainControls {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         match self {
             Self::RGWDB(rgwb) => rgwb.init()?,
             Self::Placeholder => {
@@ -272,10 +272,10 @@ pub struct RESGreedyWithDynamicBuffersBEL {
 }
 
 impl Init for RESGreedyWithDynamicBuffersBEL {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         init_opt_default!(self, speed_soc_disch_buffer, 40.0 * uc::MPH);
         init_opt_default!(self, speed_soc_disch_buffer_coeff, 1.0 * uc::R);
-        init_opt_default!(self, speed_soc_regen_buffer, 20. * uc::MPH);
+        init_opt_default!(self, speed_soc_regen_buffer, 10. * uc::MPH);
         init_opt_default!(self, speed_soc_regen_buffer_coeff, 1.0 * uc::R);
         Ok(())
     }

@@ -79,7 +79,7 @@ class LiftsState:
 
     # Fixed: Hostler parameters
     # HOSTLER_NUMBER = int(input("Enter the number of hostler: "))
-    HOSTLER_NUMBER: int = 1
+    HOSTLER_NUMBER: int = 100 #TODO: reset to a realistic number
     HOSTLER_DIESEL_PERCENTAGE: float = 0.6
     # Fixed hostler travel time (** will update with density-speed/time functions later soon)
     CONTAINERS_PER_HOSTLER: int = 1  # hostler capacity

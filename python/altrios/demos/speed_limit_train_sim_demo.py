@@ -7,6 +7,7 @@ import pandas as pd
 import seaborn as sns
 import os
 from typing import Tuple
+from copy import copy
 
 import altrios as alt
 sns.set_theme()
@@ -60,15 +61,43 @@ bel: alt.Locomotive = alt.Locomotive.from_pydict({
     "mass_kilograms": alt.LocoParams.default().to_pydict()['mass_kilograms'],
     "save_interval": SAVE_INTERVAL,
 })
+bel_dict = bel.to_pydict()
+bel_pt_cntrl = bel_dict['loco_type']['BatteryElectricLoco']['pt_cntrl']['RGWDB']
+bel_new_pt_cntrl = copy(bel_pt_cntrl)
+# effectively turn off the buffers
+bel_new_pt_cntrl['speed_soc_disch_buffer_meters_per_second'] = 0
+bel_new_pt_cntrl['speed_soc_regen_buffer_meters_per_second'] = 100
+bel_new_dict = copy(bel_dict)
+bel_new_dict['loco_type']['BatteryElectricLoco']['pt_cntrl']['RGWDB'] = bel_new_pt_cntrl
+bel_sans_buffers = alt.Locomotive.from_pydict(bel_new_dict)
 
 hel: alt.Locomotive = alt.Locomotive.default_hybrid_electric_loco()
+hel_dict = hel.to_pydict()
+hel_pt_cntrl = hel_dict['loco_type']['HybridLoco']['pt_cntrl']['RGWDB']
+hel_new_pt_cntrl = copy(hel_pt_cntrl)
+# effectively turn off the buffers
+hel_new_pt_cntrl['speed_soc_disch_buffer_meters_per_second'] = 0
+hel_new_pt_cntrl['speed_soc_regen_buffer_meters_per_second'] = 100
+hel_new_dict = copy(hel_dict)
+hel_new_dict['loco_type']['HybridLoco']['pt_cntrl']['RGWDB'] = hel_new_pt_cntrl
+hel_sans_buffers = alt.Locomotive.from_pydict(hel_new_dict)
 
-# construct a vector of one BEL and several conventional locomotives
+# construct a vector of one BEL, one HEL, and several conventional locomotives
 loco_vec = [bel.clone()] + [hel.clone()] + [alt.Locomotive.default()] * 7
+
+# construct a vector of one BEL, one HEL, and several conventional locomotives
+loco_vec_sans_buffers = [bel_sans_buffers.clone()] + [hel_sans_buffers.clone()] + \
+    [alt.Locomotive.default()] * 7
 
 # instantiate consist
 loco_con = alt.Consist(
     loco_vec,
+    SAVE_INTERVAL,
+)
+
+# instantiate consist
+loco_con_sans_buffers = alt.Consist(
+    loco_vec_sans_buffers,
     SAVE_INTERVAL,
 )
 
@@ -81,27 +110,55 @@ tsb = alt.TrainSimBuilder(
     loco_con=loco_con,
 )
 
+# Instantiate the intermediate `TrainSimBuilder`
+tsb_sans_buffers = alt.TrainSimBuilder(
+    train_id="0",
+    origin_id="Minneapolis",
+    destination_id="Superior",
+    train_config=train_config,
+    loco_con=loco_con_sans_buffers,
+)
+
 # Load the network and construct the timed link path through the network.
 network = alt.Network.from_file(
     alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 
 location_map = alt.import_locations(
     alt.resources_root() / "networks/default_locations.csv")
+
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
     location_map=location_map,
     save_interval=SAVE_INTERVAL,
 )
 train_sim.set_save_interval(SAVE_INTERVAL)
 
+train_sim_sans_buffers: alt.SpeedLimitTrainSim = tsb_sans_buffers.make_speed_limit_train_sim(
+    location_map=location_map,
+    save_interval=SAVE_INTERVAL,
+)
+train_sim_sans_buffers.set_save_interval(SAVE_INTERVAL)
+
 est_time_net, _consist = alt.make_est_times(train_sim, network)
 
-timed_link_path = alt.run_dispatch(
+est_time_net_sans_buffers, _consist = alt.make_est_times(
+    train_sim_sans_buffers, network)
+
+timed_link_path = next(iter(alt.run_dispatch(
     network,
     alt.SpeedLimitTrainSimVec([train_sim]),
     [est_time_net],
     False,
     False,
-)[0]
+)))
+
+timed_link_path_sans_buffers = next(iter(alt.run_dispatch(
+    network,
+    alt.SpeedLimitTrainSimVec([train_sim_sans_buffers]),
+    [est_time_net_sans_buffers],
+    False,
+    False,
+)))
+
 
 # whether to override files used by set_speed_train_sim_demo.py
 OVERRIDE_SSTS_INPUTS = os.environ.get(
@@ -118,7 +175,29 @@ train_sim.walk_timed_path(
 )
 t1 = time.perf_counter()
 print(f'Time to simulate: {t1 - t0:.5g}')
+raw_fuel_gigajoules = train_sim.get_energy_fuel_joules(False) / 1e9
+print(
+    f"Total raw fuel used with BEL and HEL buffers active: {raw_fuel_gigajoules:.6g} GJ")
+corrected_fuel_gigajoules = train_sim.get_energy_fuel_soc_corrected_joules() / 1e9
+print(
+    f"Total SOC-corrected fuel used with BEL and HEL buffers active: {corrected_fuel_gigajoules:.6g} GJ")
 assert len(train_sim.history) > 1
+
+t0 = time.perf_counter()
+train_sim_sans_buffers.walk_timed_path(
+    network=network,
+    timed_path=timed_link_path_sans_buffers,
+)
+t1 = time.perf_counter()
+print(f'\nTime to simulate without buffers: {t1 - t0:.5g}')
+raw_fuel_sans_buffers_gigajoules = train_sim_sans_buffers.get_energy_fuel_joules(False) / 1e9
+print(
+    f"Total raw fuel used without BEL and HEL buffers active: {raw_fuel_sans_buffers_gigajoules:.6g} GJ")
+corrected_fuel_sans_buffers_gigajoules = train_sim_sans_buffers.get_energy_fuel_soc_corrected_joules() / 1e9
+print(
+    f"Total SOC-corrected fuel used without BEL and HEL buffers active: {corrected_fuel_sans_buffers_gigajoules:.6g} GJ")
+assert len(train_sim_sans_buffers.history) > 1
+print()
 
 # Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `speed_trace`
 if OVERRIDE_SSTS_INPUTS:
@@ -131,6 +210,7 @@ if OVERRIDE_SSTS_INPUTS:
     )
 
 loco0: alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
+
 
 def plot_train_level_powers() -> Tuple[plt.Figure, plt.Axes]:
     fig, ax = plt.subplots(4, 1, sharex=True)
@@ -263,6 +343,7 @@ ts_dict = train_sim.to_pydict()
 hybrid_loco = ts_dict['loco_con']['loco_vec'][1]
 hel_type = "HybridLoco"
 
+
 def plot_hel_pwr_and_soc() -> Tuple[plt.Figure, plt.Axes]:
     fig, ax = plt.subplots(3, 1, sharex=True)
     plt.suptitle("Hybrid Locomotive")
@@ -343,6 +424,8 @@ batt_loco = ts_dict['loco_con']['loco_vec'][0]
 
 
 bel_type = "BatteryElectricLoco"
+
+
 def plot_bel_pwr_and_soc() -> Tuple[plt.Figure, plt.Axes]:
     fig, ax = plt.subplots(3, 1, sharex=True)
     plt.suptitle("Battery Electric Locomotive")
@@ -394,21 +477,23 @@ def plot_bel_pwr_and_soc() -> Tuple[plt.Figure, plt.Axes]:
         batt_loco['loco_type'][bel_type]['res']['history']['soc_disch_buffer'][1:],
         label='disch buff'
     )
+    ax[ax_idx].set_ylabel('[-]')
+    ax[ax_idx].legend()
 
     ax_idx += 1
     # TODO: add static min and max soc bounds to plots
     # TODO: make a plot util for any type of locomotive that will plot all the stuff
-    ax[ax_idx].set_ylabel('[-]')
-    ax[ax_idx].legend()
     ax[ax_idx].plot(
         ts_dict['history']['time_seconds'],
         ts_dict['history']['speed_meters_per_second'],
     )
     ax[ax_idx].set_ylabel('Speed [m/s]')
     ax[ax_idx].set_xlabel('Times [s]')
+    ax[ax_idx].legend()
     plt.tight_layout()
 
     return fig, ax
+
 
 fig0, ax0 = plot_train_level_powers()
 fig1, ax1 = plot_train_network_info()

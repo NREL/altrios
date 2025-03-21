@@ -825,7 +825,7 @@ impl Init for RESGreedyWithDynamicBuffers {
         init_opt_default!(self, speed_soc_disch_buffer_coeff, 1.0 * uc::R);
         init_opt_default!(self, speed_soc_fc_on_buffer, 100.0 * uc::MPH);
         init_opt_default!(self, speed_soc_fc_on_buffer_coeff, 1.0 * uc::R);
-        init_opt_default!(self, speed_soc_regen_buffer, 30. * uc::MPH);
+        init_opt_default!(self, speed_soc_regen_buffer, 10. * uc::MPH);
         init_opt_default!(self, speed_soc_regen_buffer_coeff, 1.0 * uc::R);
         init_opt_default!(self, fc_min_time_on, uc::S * 5.0);
         // Force FC to be on all the time by default

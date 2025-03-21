@@ -275,7 +275,7 @@ impl Init for RESGreedyWithDynamicBuffersBEL {
     fn init(&mut self) -> Result<(), Error> {
         init_opt_default!(self, speed_soc_disch_buffer, 40.0 * uc::MPH);
         init_opt_default!(self, speed_soc_disch_buffer_coeff, 1.0 * uc::R);
-        init_opt_default!(self, speed_soc_regen_buffer, 20. * uc::MPH);
+        init_opt_default!(self, speed_soc_regen_buffer, 10. * uc::MPH);
         init_opt_default!(self, speed_soc_regen_buffer_coeff, 1.0 * uc::R);
         Ok(())
     }

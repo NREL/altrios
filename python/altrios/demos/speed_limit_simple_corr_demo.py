@@ -374,18 +374,20 @@ def plot_bel_pwr_and_soc() -> Tuple[plt.Figure, plt.Axes]:
         batt_loco['loco_type'][bel_type]['res']['history']['soc_disch_buffer'][1:],
         label='disch buff'
     )
+    ax[ax_idx].set_ylabel('[-]')
+    ax[ax_idx].legend()
 
     ax_idx += 1
     # TODO: add static min and max soc bounds to plots
     # TODO: make a plot util for any type of locomotive that will plot all the stuff
     ax[ax_idx].set_ylabel('[-]')
-    ax[ax_idx].legend()
     ax[ax_idx].plot(
         ts_dict['history']['time_seconds'],
         ts_dict['history']['speed_meters_per_second'],
     )
     ax[ax_idx].set_ylabel('Speed [m/s]')
     ax[ax_idx].set_xlabel('Times [s]')
+    ax[ax_idx].legend()
     plt.tight_layout()
 
     return fig, ax

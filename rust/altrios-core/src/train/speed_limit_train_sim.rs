@@ -105,6 +105,11 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
         self.get_energy_fuel(annualize).get::<si::joule>()
     }
 
+    #[pyo3(name = "get_energy_fuel_soc_corrected_joules")]
+    pub fn get_energy_fuel_soc_corrected_py(&self) -> PyResult<f64> {
+        Ok(self.get_energy_fuel_soc_corrected().map_err(|err| anyhow!("{:?}", err))?.get::<si::joule>())
+    }
+
     #[pyo3(name = "walk")]
     fn walk_py(&mut self) -> anyhow::Result<()> {
         self.walk()
@@ -265,6 +270,77 @@ impl SpeedLimitTrainSim {
 
     pub fn get_energy_fuel(&self, annualize: bool) -> si::Energy {
         self.loco_con.get_energy_fuel() * self.get_scaling_factor(annualize)
+    }
+
+    /// Returns total fuel and fuel-equivalent battery energy used for consist
+    pub fn get_energy_fuel_soc_corrected(&self) -> Result<si::Energy, Error> {
+        if self.save_interval != Some(1) && self.history.is_empty() {
+            return Err(Error::Other(
+                "Expected `save_interval = Some(1)` and non-empty history".into(),
+            ));
+        }
+        let eta_eng_mean_consist: si::Ratio = self
+            .loco_con
+            .loco_vec
+            .iter()
+            .filter(|loco| loco.fuel_converter().is_some())
+            .map(|loco| {
+                let fc = loco.fuel_converter().unwrap();
+                let eta_mean_for_loco = fc
+                    .history
+                    .eta
+                    .iter()
+                    .filter(|eta| eta > &&si::Ratio::ZERO)
+                    .fold(si::Ratio::ZERO, |acc, eta_for_loco| acc + *eta_for_loco)
+                    / (fc.history.len() as f64);
+                eta_mean_for_loco
+            })
+            .fold(si::Ratio::ZERO, |acc, eta_for_loco_vec| {
+                acc + eta_for_loco_vec
+            })
+            / (self.loco_con.loco_vec.len() as f64);
+        let res_fuel_equiv = self
+            .loco_con
+            .loco_vec
+            .iter()
+            .map(|loco| {
+                if let Some(res) = loco.reversible_energy_storage() {
+                    let delta_soc: si::Ratio =
+                        *res.history.soc.last().unwrap() - *res.history.soc.first().unwrap();
+                    let loco_res_fuel_equiv: si::Energy = if delta_soc < si::Ratio::ZERO {
+                        // net discharge
+                        let eta_pos: si::Ratio = res
+                            .history
+                            .eta
+                            .iter()
+                            .zip(res.history.pwr_out_electrical.clone())
+                            .filter(|(_, pwr_out)| pwr_out > &si::Power::ZERO)
+                            .fold(si::Ratio::ZERO, |acc, (eta, _)| acc + *eta)
+                            / (res.history.len() as f64);
+                        // net discharge is equivalent to using fuel
+                        -delta_soc * res.energy_capacity_usable() * eta_pos / eta_eng_mean_consist
+                    } else if delta_soc > si::Ratio::ZERO {
+                        // net charge
+                        let eta_neg: si::Ratio = res
+                            .history
+                            .eta
+                            .iter()
+                            .zip(res.history.pwr_out_electrical.clone())
+                            .filter(|(_, pwr_out)| pwr_out < &si::Power::ZERO)
+                            .fold(si::Ratio::ZERO, |acc, (eta, _)| acc + *eta)
+                            / (res.history.len() as f64);
+                        // net charge is equivalent to making fuel fuel
+                        -delta_soc * res.energy_capacity_usable() / eta_neg / eta_eng_mean_consist
+                    } else {
+                        si::Energy::ZERO
+                    };
+                    loco_res_fuel_equiv
+                } else {
+                    si::Energy::ZERO
+                }
+            })
+            .sum::<si::Energy>();
+        Ok(res_fuel_equiv + self.loco_con.get_energy_fuel())
     }
 
     pub fn get_net_energy_res(&self, annualize: bool) -> si::Energy {

@@ -787,6 +787,38 @@ impl ReversibleEnergyStorage {
     pub fn energy_capacity_usable(&self) -> si::Energy {
         self.energy_capacity * (self.max_soc - self.min_soc)
     }
+
+    /// Mean efficiency in charge direction
+    pub fn mean_chrg_eff(&self) -> si::Ratio {
+        self.history
+            .eta
+            .iter()
+            .zip(self.history.pwr_out_electrical.clone())
+            .fold(si::Ratio::ZERO, |acc, (eta, pwr_out)| {
+                if pwr_out < si::Power::ZERO {
+                    acc + *eta
+                } else {
+                    acc
+                }
+            })
+            / (self.history.len() as f64)
+    }
+
+    /// Mean efficiency in discharge direction
+    pub fn mean_dschrg_eff(&self) -> si::Ratio {
+        self.history
+            .eta
+            .iter()
+            .zip(self.history.pwr_out_electrical.clone())
+            .fold(si::Ratio::ZERO, |acc, (eta, pwr_out)| {
+                if pwr_out >= si::Power::ZERO {
+                    acc + *eta
+                } else {
+                    acc
+                }
+            })
+            / (self.history.len() as f64)
+    }
 }
 
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, HistoryVec)]

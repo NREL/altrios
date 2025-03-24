@@ -402,7 +402,7 @@ impl Default for NetworkErrTol {
             max_grade: Some(0.06 * uc::R),
             max_curv: Some((15.0 * uc::DEG / (100.0 * uc::FT)).into()),
             max_heading_step: Some(7.0 * uc::DEG),
-            max_elev_step: Some(2.5e-2 * uc::M),
+            max_elev_step: Some(0.0 * uc::M),
         }
     }
 }
@@ -602,7 +602,7 @@ impl ObjState for [Link] {
             errors.push(anyhow!(
                 "There must be at least two links (one physical and one dummy)!"
             ));
-            return Err(errors);
+            early_err!(errors, "Links");
         }
         validate_slice_fake(&mut errors, &self[..1], "Link");
         validate_slice_real_shift(&mut errors, &self[1..], "Link", 1);
@@ -655,6 +655,21 @@ impl ObjState for [Link] {
                             name,
                             link_next.idx_curr,
                         ));
+                    }
+                    // since `err_tol` propagates from `Network`, only one needs to be checked
+                    // these unwraps should be guaranteed to be checked before this
+                    if !link.elevs.is_empty()
+                        && !link_next.elevs.is_empty()
+                        && (link.elevs.last().unwrap().elev - link_next.elevs[0].elev).abs()
+                            > link_next.err_tol.as_ref().unwrap().max_elev_step.unwrap()
+                    {
+                        errors.push(anyhow!(
+                            "Difference between last elevation in current link {} and first elevation in {} {} exceed elevation error tolerance: {} m",
+                            link.idx_curr,
+                            link_next.idx_curr,
+                            name,
+                            link_next.err_tol.as_ref().unwrap().max_elev_step.unwrap().get::<si::meter>()
+                        ))
                     }
                 }
             } else if link.idx_next_alt.is_real() {

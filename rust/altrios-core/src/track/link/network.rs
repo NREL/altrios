@@ -9,7 +9,7 @@ use crate::imports::*;
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 struct OldSpeedSets(Vec<OldSpeedSet>);
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 /// An arbitrary unit of single track that does not include turnouts
 #[altrios_api()]
 pub struct Link {
@@ -58,17 +58,6 @@ pub struct Link {
     #[serde(skip)]
     #[api(skip_get, skip_set)]
     pub err_tol: Option<NetworkErrTol>,
-}
-
-impl SerdeAPI for Link {}
-impl Init for Link {
-    fn init(&mut self) -> Result<(), Error> {
-        match &mut self.err_tol {
-            Some(err_tol) => err_tol.init()?,
-            None => self.err_tol = Some(Default::default()),
-        }
-        Ok(())
-    }
 }
 
 impl Link {

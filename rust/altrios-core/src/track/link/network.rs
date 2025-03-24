@@ -679,9 +679,14 @@ impl ObjState for [Link] {
                     // since `err_tol` propagates from `Network`, only one needs to be checked
                     // these unwraps should be guaranteed to be checked before this
                     if !link.headings.is_empty() && !link_next.headings.is_empty() {
-                        let heading_delta =
-                            link.headings.last().unwrap().heading - link_next.headings[0].heading;
-                        if heading_delta.abs()
+                        let heading_delta = {
+                            let w = [
+                                link.headings.last().unwrap().heading,
+                                link_next.headings[0].heading,
+                            ];
+                            (w[1] - w[0] + 3.0 * uc::REV / 2.0) % uc::REV - uc::REV / 2.0
+                        };
+                        if heading_delta
                             > link_next
                                 .err_tol
                                 .as_ref()

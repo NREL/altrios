@@ -512,12 +512,14 @@ fig0, ax0 = plot_train_level_powers(train_sim, "With Buffers")
 fig1, ax1 = plot_train_network_info(train_sim, "With Buffers")
 fig2, ax2 = plot_consist_pwr(train_sim, "With Buffers")
 fig3, ax3 = plot_hel_pwr_and_soc(train_sim, "With Buffers")
+# fig3.savefig("plots/hel with buffers.svg")
 # fig4, ax4 = plot_bel_pwr_and_soc(train_sim, "With Buffers")
 
 fig0_sans_buffers, ax0_sans_buffers = plot_train_level_powers(train_sim_sans_buffers, "Without Buffers")
 fig1_sans_buffers, ax1_sans_buffers = plot_train_network_info(train_sim_sans_buffers, "Without Buffers")
 fig2_sans_buffers, ax2_sans_buffers = plot_consist_pwr(train_sim_sans_buffers, "Without Buffers")
 fig3_sans_buffers, ax3_sans_buffers = plot_hel_pwr_and_soc(train_sim_sans_buffers, "Without Buffers")
+# fig3_sans_buffers.savefig("plots/hel sans buffers.svg")
 # fig4_sans_buffers, ax4_sans_buffers = plot_bel_pwr_and_soc(train_sim_sans_buffers, "Without Buffers")
 
 if SHOW_PLOTS:

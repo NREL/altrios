@@ -55,8 +55,8 @@ impl Default for FricBrake {
     fn default() -> Self {
         Self {
             force_max: 600_000.0 * uc::LBF,
-            ramp_up_time: 60.0 * uc::S,
-            ramp_up_coeff: 0.5 * uc::R,
+            ramp_up_time: 0.0 * uc::S,
+            ramp_up_coeff: 0.6 * uc::R,
             state: Default::default(),
             history: Default::default(),
             save_interval: Default::default(),
@@ -116,6 +116,9 @@ pub struct FricBrakeState {
     pub force_max_curr: si::Force,
     // pressure: si::Pressure,
 }
+
+impl SerdeAPI for FricBrakeState {}
+impl Init for FricBrakeState {}
 
 impl FricBrakeState {
     /// TODO: this method needs to accept arguments

@@ -85,9 +85,24 @@ impl ConsistSimulation {
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         self.loco_con.set_pwr_aux(Some(true))?;
-        self.loco_con
-            .set_cur_pwr_max_out(None, self.power_trace.dt(self.i))?;
-        self.solve_energy_consumption(self.power_trace.pwr[self.i], self.power_trace.dt(self.i))?;
+        let train_mass = self.power_trace.train_mass;
+        let train_speed = if !self.power_trace.train_speed.is_empty() {
+            Some(self.power_trace.train_speed[self.i])
+        } else {
+            None
+        };
+        self.loco_con.set_curr_pwr_max_out(
+            None,
+            train_mass,
+            train_speed,
+            self.power_trace.dt(self.i),
+        )?;
+        self.solve_energy_consumption(
+            self.power_trace.pwr[self.i],
+            train_mass,
+            train_speed,
+            self.power_trace.dt(self.i),
+        )?;
         Ok(())
     }
 
@@ -112,25 +127,35 @@ impl ConsistSimulation {
     pub fn solve_energy_consumption(
         &mut self,
         pwr_out_req: si::Power,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
-        self.loco_con
-            .solve_energy_consumption(pwr_out_req, dt, Some(true))?;
+        self.loco_con.solve_energy_consumption(
+            pwr_out_req,
+            train_mass,
+            train_speed,
+            dt,
+            Some(true),
+        )?;
         Ok(())
     }
 }
 
-impl SerdeAPI for ConsistSimulation {
-    fn init(&mut self) -> anyhow::Result<()> {
+impl Init for ConsistSimulation {
+    fn init(&mut self) -> Result<(), Error> {
         self.loco_con.init()?;
         self.power_trace.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for ConsistSimulation {}
 
 impl Default for ConsistSimulation {
     fn default() -> Self {
-        Self::new(Consist::default(), PowerTrace::default(), Some(1))
+        let mut consist_sim = Self::new(Consist::default(), PowerTrace::default(), Some(1));
+        consist_sim.init().unwrap();
+        consist_sim
     }
 }
 

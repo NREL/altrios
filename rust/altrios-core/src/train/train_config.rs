@@ -9,7 +9,7 @@ use super::{
     SetSpeedTrainSim, SpeedLimitTrainSim, SpeedTrace, TrainState,
 };
 use crate::track::link::link_idx::LinkPath;
-use crate::track::link::link_impl::Network;
+use crate::track::link::network::Network;
 use crate::track::LocationMap;
 
 use polars::prelude::*;
@@ -117,15 +117,20 @@ pub struct TrainConfig {
     pub cd_area_vec: Option<Vec<si::Area>>,
 }
 
-impl SerdeAPI for TrainConfig {
-    fn init(&mut self) -> anyhow::Result<()> {
+impl Init for TrainConfig {
+    fn init(&mut self) -> Result<(), Error> {
         if let Some(dcv) = &self.cd_area_vec {
             // TODO: account for locomotive drag here, too
-            ensure!(dcv.len() as u32 == self.cars_total());
+            if dcv.len() as u32 != self.cars_total() {
+                return Err(Error::InitError(
+                    "`cd_area_vec` len and `cars_total()` do not match".into(),
+                ));
+            }
         };
         Ok(())
     }
 }
+impl SerdeAPI for TrainConfig {}
 
 impl TrainConfig {
     pub fn new(
@@ -289,7 +294,7 @@ impl Valid for TrainConfig {
             Ok(n) => n,
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network(n)
+                Network( Default::default(), n)
             }
         };
 
@@ -329,7 +334,7 @@ impl Valid for TrainConfig {
             Ok(n) => n,
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network(n)
+                Network( Default::default(), n)
             }
         };
 
@@ -806,7 +811,7 @@ pub fn run_speed_limit_train_sims(
             let n = network
                 .extract::<Vec<Link>>()
                 .map_err(|_| anyhow!("{}", format_dbg!()))?;
-            Network(n)
+            Network(Default::default(), n)
         }
     };
 
@@ -1407,11 +1412,21 @@ pub fn run_speed_limit_train_sims(
     pub fn set_save_interval_py(&mut self, save_interval: Option<usize>) {
         self.set_save_interval(save_interval);
     }
+
+    #[new]
+    /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
+    fn __new__(v: Vec<SpeedLimitTrainSim>) -> Self {
+        Self(v)
+    }
 )]
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SpeedLimitTrainSimVec(pub Vec<SpeedLimitTrainSim>);
 
 impl SpeedLimitTrainSimVec {
+    pub fn new(value: Vec<SpeedLimitTrainSim>) -> Self {
+        Self(value)
+    }
+
     pub fn get_energy_fuel(&self, annualize: bool) -> si::Energy {
         self.0
             .iter()
@@ -1469,9 +1484,10 @@ impl SpeedLimitTrainSimVec {
     }
 }
 
-impl SerdeAPI for SpeedLimitTrainSimVec {
-    fn init(&mut self) -> anyhow::Result<()> {
+impl Init for SpeedLimitTrainSimVec {
+    fn init(&mut self) -> Result<(), Error> {
         self.0.iter_mut().try_for_each(|ts| ts.init())?;
         Ok(())
     }
 }
+impl SerdeAPI for SpeedLimitTrainSimVec {}

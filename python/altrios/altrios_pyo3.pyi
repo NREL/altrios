@@ -23,10 +23,12 @@ class SerdeAPI(object):
     def to_yaml(self) -> str: ...
     def to_pydict(self, data_fmt: str = "msg_pack", flatten: bool = False) -> Dict: ...
     @classmethod
-    def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack", skip_init: bool=False) -> Self:
+    def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack", skip_init: bool=False) -> Self: ...
 
 
 class Consist(SerdeAPI):
+    def __init__(self, loco_vec: List[Locomotive]):
+        ...
     assert_limits: bool
     history: ConsistStateHistoryVec
     loco_vec: list[Locomotive]
@@ -39,7 +41,6 @@ class Consist(SerdeAPI):
     def default(cls) -> Self: ...
     def get_hct(self) -> Any: ...
     def get_save_interval(self) -> Any: ...
-    def set_pdct_gss(self) -> Any: ...
     def set_pdct_prop(self) -> Any: ...
     def set_pdct_resgreedy(self) -> Any: ...
     def set_save_interval(self, save_interval: int): ...
@@ -299,11 +300,11 @@ class GeneratorStateHistoryVec(SerdeAPI):
 
 
 @dataclass
-class LocoParams:
+class LocoParams(SerdeAPI):
     pwr_aux_offset_watts: float
     pwr_aux_traction_coeff_ratio: float
     force_max_newtons: float
-    mass_kilograms: Optional[float]
+    mass_kilograms: Optional[float] = 0.0
 
     @classmethod
     def from_dict(cls, param_dict: Dict[str, float]) -> Self:
@@ -326,10 +327,6 @@ class HybridLoco(SerdeAPI):
     generator: Generator
     reversible_energy_storage: ReversibleEnergyStorage
     electric_drivetrain: ElectricDrivetrain
-    fuel_res_ratio: Optional[float]
-    fuel_res_split: Optional[float]
-    gss_interval: Optional[int]
-
 
 @dataclass
 class BatteryElectricLoco(SerdeAPI):
@@ -360,14 +357,6 @@ class Locomotive(SerdeAPI):
         loco_type: Union[ConventionalLoco, HybridLoco, BatteryElectricLoco, DummyLoco],
         loco_params: LocoParams,
         ): ...
-    @classmethod
-    def build_battery_electric_loco(
-        cls,
-        reversible_energy_storage: ReversibleEnergyStorage,
-        drivetrain: ElectricDrivetrain,
-        loco_params: LocoParams,
-        save_interval: Optional[int]
-    ) -> Self: ...
 
     @classmethod
     def default_battery_electric_loco(cls) -> Locomotive: ...
@@ -382,19 +371,6 @@ class Locomotive(SerdeAPI):
     ) -> Self: ...
     @classmethod
     def build_dummy_loco(cls) -> Self: ...
-    @classmethod
-    def build_hybrid_loco(
-        cls,
-        fuel_converter: FuelConverter,
-        generator: Generator,
-        reversible_energy_storage: ReversibleEnergyStorage,
-        drivetrain: ElectricDrivetrain,
-        loco_params: LocoParams,
-        fuel_res_split: Optional[float],
-        fuel_res_ratio: Optional[float],
-        gss_interval: Optional[int],
-        save_interval: Optional[int],
-    ) -> Self: ...
     def clone(self) -> Self: ...
     @classmethod
     def default(cls) -> Self: ...
@@ -502,7 +478,6 @@ class Pyo3VecBoolWrapper(SerdeAPI):
     def clone(self) -> Self: ...
     @classmethod
     def default(cls) -> Self: ...
-    def from_yaml(cls) -> Self: ...
     def is_empty(self) -> Any: ...
     def tolist(self) -> Any: ...
     def __copy__(self) -> Any: ...
@@ -1100,9 +1075,9 @@ class InitTrainState(SerdeAPI):
 
 @dataclass
 class TrainType(SerdeAPI):
-    Freight = altpy.TrainType.Freight,
-    Passenger = altpy.TrainType.Passenger,
-    Intermodal = altpy.TrainType.Intermodal,
-    HighSpeedPassenger = altpy.TrainType.HighSpeedPassenger,
-    TiltTrain = altpy.TrainType.TiltTrain,
-    Commuter = altpy.TrainType.Commuter,
+    Freight = altpy.TrainType.Freight,  # type: ignore[has-type]
+    Passenger = altpy.TrainType.Passenger,  # type: ignore[has-type]
+    Intermodal = altpy.TrainType.Intermodal,  # type: ignore[has-type]
+    HighSpeedPassenger = altpy.TrainType.HighSpeedPassenger,  # type: ignore[has-type]
+    TiltTrain = altpy.TrainType.TiltTrain,  # type: ignore[has-type]
+    Commuter = altpy.TrainType.Commuter,  # type: ignore[has-type]

@@ -155,7 +155,7 @@ def set_param_from_path(
             # save for when we repack the containers
             lists[i] = (list_attr, list_name, list_index)
         else:
-            attr = container.__getattribute__(path_elem)
+            attr = getattr(container, path_elem)
 
         if i < len(path_list) - 1:
             containers.append(attr)

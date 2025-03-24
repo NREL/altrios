@@ -370,9 +370,14 @@ impl SetSpeedTrainSim {
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
         // set aux power loads.  this will be calculated in the locomotive model and be loco type dependent.
         self.loco_con.set_pwr_aux(Some(true))?;
+        let train_mass = Some(self.state.mass_compound().with_context(|| format_dbg!())?);
         // set the max power out for the consist based on calculation of each loco state
-        self.loco_con
-            .set_cur_pwr_max_out(None, self.speed_trace.dt(self.state.i))?;
+        self.loco_con.set_curr_pwr_max_out(
+            None,
+            train_mass,
+            Some(self.state.speed),
+            self.speed_trace.dt(self.state.i),
+        )?;
         // calculate the train resistance for current time steps.  Based on train config and calculated in train model.
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
@@ -380,6 +385,8 @@ impl SetSpeedTrainSim {
         self.solve_required_pwr(self.speed_trace.dt(self.state.i))?;
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
+            train_mass,
+            Some(self.speed_trace.speed[self.state.i]),
             self.speed_trace.dt(self.state.i),
             Some(true),
         )?;
@@ -463,8 +470,8 @@ impl SetSpeedTrainSim {
     }
 }
 
-impl SerdeAPI for SetSpeedTrainSim {
-    fn init(&mut self) -> anyhow::Result<()> {
+impl Init for SetSpeedTrainSim {
+    fn init(&mut self) -> Result<(), Error> {
         self.loco_con.init()?;
         self.speed_trace.init()?;
         self.train_res.init()?;
@@ -474,6 +481,7 @@ impl SerdeAPI for SetSpeedTrainSim {
         Ok(())
     }
 }
+impl SerdeAPI for SetSpeedTrainSim {}
 
 impl Default for SetSpeedTrainSim {
     fn default() -> Self {

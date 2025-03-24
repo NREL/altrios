@@ -39,6 +39,15 @@ impl ObjState for Heading {
     }
 }
 
+impl ObjState for Vec<Heading> {
+    fn is_fake(&self) -> bool {
+        (**self).is_fake()
+    }
+    fn validate(&self) -> ValidationResults {
+        (**self).validate()
+    }
+}
+
 impl Valid for Vec<Heading> {
     fn valid() -> Self {
         let offset_end = uc::M * 10000.0;

@@ -34,21 +34,23 @@ classifiers = [
 ]
 dependencies = [
     "pandas>=2",
-    "numpy==1.24",
+    "numpy~=1.24",
     "pymoo==0.6",
     "openpyxl",
     "xlrd",
     "seaborn",
-    "matplotlib",
-    "plotly",
+    "matplotlib~=3.3",
+    "plotly~=6.0",
     "typing_extensions",
-    "pyyaml",
-    "polars >= 1.20.0",
     "pyarrow >= 16.0",
+    "polars==1.20.0",
     "requests",
     "PyYAML==6.0.2",
     "simpy",
     "msgpack==1.1.0",
+    "ipykernel~=6.29",
+    "executing~=2.0",
+    "pip",
 ]
 
 [project.urls]
@@ -59,13 +61,10 @@ source = "https://github.com/NREL/altrios"
 dev = [
     "pytest~=8.3",
     "maturin~=1.8",
-    "ipykernel~=6.29",
     "python-lsp-server~=1.10",
     "ruff~=0.9",
     "pylsp-mypy~=0.7.0",
     "memory_profiler~=0.61.0",
-    "pymoo~=0.6",
-    "plotly~=6.0",
 ]
 
 [tool.maturin]
@@ -82,3 +81,24 @@ include = [
     { format = "sdist", path = "rust/altrios-core/proc-macros/Cargo.toml" },
     { format = "sdist", path = "rust/altrios-core/proc-macros/src/*" },
 ]
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["osx-64", "osx-arm64", "linux-64", "win-64"]
+
+[tool.pixi.pypi-dependencies]
+altrios = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tool.pixi.tasks]
+cargo_test = "(cd rust && cargo test)"
+py_test = "maturin develop --release && pixi run -e dev pytest -v"
+build_and_test = { depends-on = ["cargo_test", "py_test"] }
+
+fmt = "ruff"
+lint = "pylint"
+style = { depends-on = ["fmt", "lint"] }
+

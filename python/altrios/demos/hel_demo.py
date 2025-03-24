@@ -21,33 +21,11 @@ SAVE_INTERVAL = 1
 
 pt = alt.PowerTrace.default()
 
-res = alt.ReversibleEnergyStorage.from_file(
-    alt.resources_root() / 
-        "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
-)
-# instantiate electric drivetrain (motors and any gearboxes)
-edrv = alt.ElectricDrivetrain(
-    pwr_out_frac_interp=[0., 1.],
-    eta_interp=[0.98, 0.98],
-    pwr_out_max_watts=5e9,
-    save_interval=SAVE_INTERVAL,
-)
-
-bel: alt.Locomotive = alt.Locomotive.from_pydict({
-    "loco_type": {"BatteryElectricLoco": {
-        "res": res.to_pydict(),
-        "edrv": edrv.to_pydict(),
-    }},
-    "pwr_aux_offset_watts": 8.55e3,
-    "pwr_aux_traction_coeff": 540.e-6,
-    "force_max_newtons": 667.2e3,
-    "mass_kilograms": alt.LocoParams.default().to_pydict()['mass_kilograms'],
-    "save_interval": SAVE_INTERVAL,
-})
+hel: alt.Locomotive = alt.Locomotive.default_hybrid_electric_loco()
 
 # instantiate battery model
 t0 = time.perf_counter()
-sim = alt.LocomotiveSimulation(bel, pt, SAVE_INTERVAL)
+sim = alt.LocomotiveSimulation(hel, pt, SAVE_INTERVAL)
 t1 = time.perf_counter()
 print(f"Time to load: {t1-t0:.3g}")
 

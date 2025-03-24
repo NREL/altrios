@@ -7,15 +7,6 @@ use crate::consist::LocoTrait;
 use crate::imports::*;
 
 #[altrios_api(
-    #[new]
-    fn __new__(
-        time_seconds: Vec<f64>,
-        pwr_watts: Vec<f64>,
-        engine_on: Vec<Option<bool>>,
-    ) -> anyhow::Result<Self> {
-        Ok(Self::new(time_seconds, pwr_watts, engine_on))
-    }
-
     #[staticmethod]
     #[pyo3(name = "from_csv_file")]
     fn from_csv_file_py(pathstr: String) -> anyhow::Result<Self> {
@@ -35,22 +26,22 @@ pub struct PowerTrace {
     pub pwr: Vec<si::Power>,
     /// Whether engine is on
     pub engine_on: Vec<Option<bool>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Speed, needed only if simulating [HybridElectricLocomotive]  
+    pub train_speed: Vec<si::Velocity>,
+    /// Train mass, needed only if simulating [HybridElectricLocomotive]
+    #[api(skip_get, skip_set)]
+    pub train_mass: Option<si::Mass>,
 }
 
 impl PowerTrace {
-    pub fn new(time_s: Vec<f64>, pwr_watts: Vec<f64>, engine_on: Vec<Option<bool>>) -> Self {
-        Self {
-            time: time_s.iter().map(|x| uc::S * (*x)).collect(),
-            pwr: pwr_watts.iter().map(|x| uc::W * (*x)).collect(),
-            engine_on,
-        }
-    }
-
     pub fn empty() -> Self {
         Self {
             time: Vec::new(),
             pwr: Vec::new(),
             engine_on: Vec::new(),
+            train_speed: Vec::new(),
+            train_mass: None,
         }
     }
 
@@ -70,6 +61,9 @@ impl PowerTrace {
         self.time.push(pt_element.time);
         self.pwr.push(pt_element.pwr);
         self.engine_on.push(pt_element.engine_on);
+        if let Some(train_speed) = pt_element.train_speed {
+            self.train_speed.push(train_speed);
+        }
     }
 
     pub fn trim(&mut self, start_idx: Option<usize>, end_idx: Option<usize>) -> anyhow::Result<()> {
@@ -115,7 +109,15 @@ impl Default for PowerTrace {
         pwr_watts.append(&mut pwr_watts_ramp.iter().rev().copied().collect());
         let time_s: Vec<f64> = (0..pwr_watts.len()).map(|x| x as f64).collect();
         let time_len = time_s.len();
-        Self::new(time_s, pwr_watts, vec![Some(true); time_len])
+        let mut pt = Self {
+            time: time_s.iter().map(|t| *t * uc::S).collect(),
+            pwr: pwr_watts.iter().map(|p| *p * uc::W).collect(),
+            engine_on: vec![Some(true); time_len],
+            train_speed: vec![10.0 * uc::MPH; time_len],
+            train_mass: Some(1e6 * uc::LB),
+        };
+        pt.init().unwrap();
+        pt
     }
 }
 
@@ -128,6 +130,8 @@ pub struct PowerTraceElement {
     pwr: si::Power,
     /// Whether engine is on
     engine_on: Option<bool>,
+    /// speed at time step
+    train_speed: Option<si::Velocity>,
 }
 
 #[altrios_api(
@@ -225,12 +229,24 @@ impl LocomotiveSimulation {
         // linear aux model
         let engine_on = self.power_trace.engine_on[self.i];
         self.loco_unit.set_pwr_aux(engine_on);
-        self.loco_unit
-            .set_cur_pwr_max_out(None, self.power_trace.dt(self.i))?;
+        let train_mass = self.power_trace.train_mass;
+        let train_speed = if !self.power_trace.train_speed.is_empty() {
+            Some(self.power_trace.train_speed[self.i])
+        } else {
+            None
+        };
+        self.loco_unit.set_curr_pwr_max_out(
+            None,
+            train_mass,
+            train_speed,
+            self.power_trace.dt(self.i),
+        )?;
         self.solve_energy_consumption(
             self.power_trace.pwr[self.i],
             self.power_trace.dt(self.i),
             engine_on,
+            train_mass,
+            train_speed,
         )?;
         ensure!(
             utils::almost_eq_uom(
@@ -274,30 +290,46 @@ impl LocomotiveSimulation {
         pwr_out_req: si::Power,
         dt: si::Time,
         engine_on: Option<bool>,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<()> {
-        self.loco_unit
-            .solve_energy_consumption(pwr_out_req, dt, engine_on)?;
+        self.loco_unit.solve_energy_consumption(
+            pwr_out_req,
+            dt,
+            engine_on,
+            train_mass,
+            train_speed,
+        )?;
         Ok(())
     }
 }
 
-impl SerdeAPI for LocomotiveSimulation {
-    fn init(&mut self) -> anyhow::Result<()> {
+impl Init for LocomotiveSimulation {
+    fn init(&mut self) -> Result<(), Error> {
         self.loco_unit.init()?;
         self.power_trace.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for LocomotiveSimulation {}
 
 impl Default for LocomotiveSimulation {
     fn default() -> Self {
         let power_trace = PowerTrace::default();
         let loco_unit = Locomotive::default();
-        Self::new(loco_unit, power_trace, None)
+        let mut ls = Self::new(loco_unit, power_trace, None);
+        ls.init().unwrap();
+        ls
     }
 }
 
 #[altrios_api(
+    #[new]
+    /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
+    fn __new__(v: Vec<LocomotiveSimulation>) -> Self {
+        Self(v)
+    }
+
     #[pyo3(name="walk")]
     #[pyo3(signature = (b_parallelize=None))]
     /// Exposes `walk` to Python.
@@ -308,13 +340,19 @@ impl Default for LocomotiveSimulation {
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
+impl LocomotiveSimulationVec {
+    pub fn new(value: Vec<LocomotiveSimulation>) -> Self {
+        Self(value)
+    }
+}
 
-impl SerdeAPI for LocomotiveSimulationVec {
-    fn init(&mut self) -> anyhow::Result<()> {
+impl Init for LocomotiveSimulationVec {
+    fn init(&mut self) -> Result<(), Error> {
         self.0.iter_mut().try_for_each(|l| l.init())?;
         Ok(())
     }
 }
+impl SerdeAPI for LocomotiveSimulationVec {}
 impl Default for LocomotiveSimulationVec {
     fn default() -> Self {
         Self(vec![LocomotiveSimulation::default(); 3])
@@ -391,14 +429,10 @@ mod tests {
 
     #[test]
     fn test_hybrid_locomotive_sim() {
-        // let hel = Locomotive::new(
-        //     PowertrainType::HybridLoco(Box::default()),
-
-        // );
-
-        // let pt = PowerTrace::default();
-        // let mut loco_sim = LocomotiveSimulation::new(hel, pt, None);
-        // loco_sim.walk().unwrap();
+        let hel = Locomotive::default_hybrid_electric_loco();
+        let pt = PowerTrace::default();
+        let mut loco_sim = LocomotiveSimulation::new(hel, pt, None);
+        loco_sim.walk().unwrap();
     }
 
     #[test]

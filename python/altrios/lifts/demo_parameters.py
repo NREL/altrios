@@ -127,7 +127,6 @@ class LiftsState:
     IC_NUM: int = 1     # tracking
     OC_NUM: int = 1
 
-    # TODO: Various: performance evaluations
     ## Train performance, dictionary: id, time
     time_per_train: dict[str, int] = field(default_factory=lambda: {})  # total processing time for a train
     train_delay_time: dict[str, int] = field(default_factory=lambda: {})  # delay time for a train

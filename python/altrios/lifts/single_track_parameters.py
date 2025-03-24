@@ -19,7 +19,7 @@ class LiftsState:
     # Fixed: Simulation files and hyperparameters
     log_level: loggingLevel = loggingLevel.DEBUG
     random_seed: int = 42
-    sim_time: int = 4000
+    sim_time: int = 72
     terminal: str = 'Allouez'  # Choose 'Hibbing' or 'Allouez'
     train_consist_plan: pl.DataFrame = field(default_factory=lambda: pl.DataFrame())
 
@@ -42,7 +42,7 @@ class LiftsState:
     CRANE_NUMBER: int = 2
     CRANE_DIESEL_PERCENTAGE: float = 1
     CONTAINERS_PER_CRANE_MOVE_MEAN: float = 1/60  # crane movement avg time: distance / speed = hr
-    CRANE_MOVE_DEV_TIME: float = 1 / 600  # crane movement speed deviation value: hr
+    CRANE_MOVE_DEV_TIME: float = 1 / 3600  # crane movement speed deviation value: hr
 
     # Fixed: Hostler parameters
     HOSTLER_NUMBER: int = 50
@@ -60,8 +60,8 @@ class LiftsState:
     TRUCK_TO_PARKING: float = 2/60 # hr
 
     # Fixed: Gate parameters
-    IN_GATE_NUMBERS: int = 6  # test queuing module with 1; normal operations with 6
-    OUT_GATE_NUMBERS: int = 6
+    IN_GATE_NUMBERS: int = 60  # test queuing module with 1; normal operations with 6
+    OUT_GATE_NUMBERS: int = 60
 
     # Fixed: Emission matrix
     # Diesel unit: gallons/load

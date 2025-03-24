@@ -108,7 +108,7 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
 
     trucks = [(i, "diesel") for i in range(num_diesel)] + \
              [(i + num_diesel, "electric") for i in range(num_electric)]
-    random.shuffle(trucks)
+
     print(f"truck platoon has total {len(trucks)} including {trucks}")
     print(f"oc store has {terminal.oc_store.items}")
 
@@ -121,7 +121,6 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
         else:
             env.process(empty_truck(env, train_schedule, terminal, truck_id))
 
-    yield env.timeout(state.TRUCK_TO_PARKING)    # truck travel time of placing OC at parking slot (demo_parameters.TRUCK_TO_PARKING)
     all_trucks_arrived_event.succeed()  # if all_trucks_arrived_event is triggered, train is allowed to enter
 
 
@@ -415,10 +414,10 @@ def process_train_arrival(env, terminal, train_departed_event, train_schedule, n
         if f"train_id_{train_id}" not in delay_list:
             delay_list[f"train_id_{train_id}"] = {}
         delay_list[f"train_id_{train_id}"]["departure"] = delay_time
-        print(f"Time {env.now}: [DELAYED] Train {train_schedule['train_id']} has been delayed for {delay_time} hours from the track {track_id}..")
+        print(f"Time {env.now}: [DELAYED] Train {train_schedule['train_id']} has been delayed for {delay_time} hours from the track {track_id}.")
 
     yield terminal.tracks.put(track_id)
-    print(f"Time {env.now}: Train is departing the terminal.")
+    print(f"Time {env.now}: Train {train_id} is departing the terminal.")
 
     for oc_id in range(state.OC_NUM, state.OC_NUM + train_schedule['oc_number']):
         record_event(f"OC-{oc_id}", 'train_depart', env.now) # loop: assign container_id range(current_oc, current_oc + train_schedule['full_cars'])
@@ -452,14 +451,24 @@ def run_simulation(train_consist_plan: pl.DataFrame, terminal: str, out_path = N
     #      "truck_number": 50},    # test: ic < oc
     # ]
 
+    # train_timetable = [
+    #     {"train_id": 19, "arrival_time": 187, "departure_time": 250, "empty_cars": 3, "full_cars": 500, "oc_number": 200,
+    #      "truck_number": 500},    # test: ic > oc
+    #     {"train_id": 12, "arrival_time": 300, "departure_time": 500, "empty_cars": 5, "full_cars": 400, "oc_number": 400,
+    #      "truck_number": 400},    # test: ic = oc
+    #     {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 5, "full_cars": 300, "oc_number": 500,
+    #      "truck_number": 500},    # test: ic < oc
+    # ]
+
     train_timetable = [
-        {"train_id": 19, "arrival_time": 187, "departure_time": 250, "empty_cars": 3, "full_cars": 500, "oc_number": 200,
-         "truck_number": 500},    # test: ic > oc
-        {"train_id": 12, "arrival_time": 300, "departure_time": 500, "empty_cars": 5, "full_cars": 400, "oc_number": 400,
-         "truck_number": 400},    # test: ic = oc
-        {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 5, "full_cars": 300, "oc_number": 500,
-         "truck_number": 500},    # test: ic < oc
-    ]
+    {'train_id': 15, 'arrival_time': 0, 'departure_time': 6, 'empty_cars': 0, 'full_cars': 150,
+      'oc_number': 150, 'truck_number': 150},
+     {'train_id': 328, 'arrival_time': 6, 'departure_time': 12, 'empty_cars': 0, 'full_cars': 150,
+      'oc_number': 150, 'truck_number': 150},
+     {'train_id': 603, 'arrival_time': 12, 'departure_time': 18, 'empty_cars': 0, 'full_cars': 150,
+      'oc_number': 150, 'truck_number': 150},
+     {'train_id': 986, 'arrival_time': 18, 'departure_time': 18, 'empty_cars': 0, 'full_cars': 50,
+      'oc_number': 50, 'truck_number': 50}]
 
     # train_timetable = train_timetable
 
@@ -508,7 +517,6 @@ def run_simulation(train_consist_plan: pl.DataFrame, terminal: str, out_path = N
                 pl.col("train_depart").is_not_null()
             )
             .then(
-                # pl.col("crane_load") - pl.col("truck_arrival")
                 pl.col("crane_load") - pl.col("hostler_pickup")
             )
             .otherwise(None)

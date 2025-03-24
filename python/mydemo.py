@@ -51,7 +51,7 @@ class Terminal:
         self.parking_slots = simpy.FilterStore(env)  # store ic and oc in the parking area
         self.chassis = simpy.FilterStore(env, capacity=9999)
         self.hostlers = simpy.Store(env, capacity=state.HOSTLER_NUMBER)
-        self.truck_store = simpy.Store(env, capacity=truck_capacity)
+        self.truck_store = simpy.Store(env)
         # Hostler setup
         hostler_diesel = round(state.HOSTLER_NUMBER * state.HOSTLER_DIESEL_PERCENTAGE)
         hostler_electric = state.HOSTLER_NUMBER - hostler_diesel
@@ -91,17 +91,16 @@ def truck_entry(env, terminal, truck, oc, train_schedule):
     global state
     yield terminal.in_gates.request()
     if state.log_level > loggingLevel.NONE:
-        print(f"Time {env.now:.3f}: {truck} passed the in-gate and is entering the terminal")
+        print(f"Time {env.now:.3f}: {truck} loaded with {oc} passed the in-gate and is entering the terminal.")
 
+    # Assume each truck takes 1 OC, and drop OC to the closest parking lot according to triangular distribution
+    # Assign IDs for OCs
     truck_travel_time = state.TRUCK_INGATE_TIME + random.uniform(0, state.TRUCK_INGATE_TIME_DEV)
     yield env.timeout(truck_travel_time)  # truck passing gate time: 1 sec (demo_parameters.TRUCK_INGATE_TIME and TRUCK_INGATE_TIME_DEV)
     emissions = emission_calculation('loaded', 'truck', truck, truck_travel_time)
     record_vehicle_event('truck', truck, f'entry_OC_{oc.id}', 'loaded',emissions, 'end', env.now)
-
-    # Assume each truck takes 1 OC, and drop OC to the closest parking lot according to triangular distribution
-    # Assign IDs for OCs
     if state.log_level > loggingLevel.NONE:
-        print(f"Time {env.now:.3f}: {truck} placed OC {oc.id} at parking slot.")
+        print(f"Time {env.now:.3f}: {truck} placed OC {oc} at parking slot.")
     record_container_event(oc, 'truck_arrival', env.now)
 
     # Calculate truck speed according to the current density
@@ -111,7 +110,7 @@ def truck_entry(env, terminal, truck, oc, train_schedule):
 
     # Assume each truck takes 1 OC, and drop OC to the closest parking lot according to triangular distribution
     # Assign IDs for OCs
-    print(f"Time {env.now}: Truck {truck} placed OC_{oc.id} at parking slot.")
+    print(f"Time {env.now}: Truck {truck} placed OC {oc} at parking slot.")
     record_container_event(oc, 'truck_dropoff', env.now)
     yield terminal.parking_slots.put(oc)
     emissions = emission_calculation('loaded', 'truck', truck, truck_travel_time)
@@ -135,34 +134,32 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
     truck_number = train_schedule["truck_number"]
     num_diesel = round(truck_number * state.TRUCK_DIESEL_PERCENTAGE)
     num_electric = truck_number - num_diesel
-    arrival_rate = 1  # truck arrival rate: poisson distribution, arrival rate depends on the gap between last train departure and next train arrival
 
     trucks = [truck(type="Diesel", id=i, train_id=train_schedule['train_id']) for i in range(num_diesel)] + \
          [truck(type="Electric", id=i + num_diesel, train_id=train_schedule['train_id']) for i in range(num_electric)]
 
-    random.shuffle(trucks)
+    # only shows trucks for one train, which may cause stuck?
+    print("trucks:",trucks)
     
     terminal.total_oc[train_schedule['train_id']] = train_schedule["oc_number"]
 
     for oc_id in range(terminal.OC_COUNT[train_schedule['train_id']], terminal.OC_COUNT[train_schedule['train_id']] + terminal.total_oc[train_schedule['train_id']]):
-        terminal.oc_store.put(
-            container(type='Outbound', id=oc_id, train_id=train_schedule['train_id'])
-        )
+        terminal.oc_store.put(container(type='Outbound', id=oc_id, train_id=train_schedule['train_id']))
         oc_id += 1
     print(f"Time {env.now:.3f}: oc_store has {terminal.oc_store.items}", )
 
-    # for truck_id in range(1, truck_number + 1):
     for this_truck in trucks:
-        yield env.timeout(random.expovariate(arrival_rate))  # Assume truck arrives according to the poisson distribution
+        yield env.timeout(0)
         terminal.truck_store.put(this_truck)
+        print(f"trucks in truck stores {sum(getattr(item, 'train_id', None) == train_schedule['train_id'] for item in terminal.truck_store.items)} for train-{train_schedule['train_id']}")
         if sum(getattr(item, 'train_id', None) == train_schedule['train_id'] for item in terminal.truck_store.items) <= terminal.total_oc[train_schedule['train_id']]:
             # if truck_id <= total_oc:
-            oc = yield terminal.oc_store.get()
-            env.process(truck_entry(env, terminal, this_truck, oc, train_schedule))
-        else:
-            env.process(empty_truck(env, terminal, this_truck))
+            if sum(getattr(item, 'train_id', None) == train_schedule['train_id'] for item in terminal.parking_slots.items) <= train_schedule['oc_number']:
+                oc = yield terminal.oc_store.get()
+                env.process(truck_entry(env, terminal, this_truck, oc, train_schedule))
+            else:
+                env.process(empty_truck(env, terminal, this_truck))
 
-    yield env.timeout(state.TRUCK_TO_PARKING)  # truck travel time of placing OC at parking slot (demo_parameters.TRUCK_TO_PARKING)
     all_trucks_arrived_event.succeed()  # if all_trucks_arrived_event is triggered, train is allowed to enter
 
 
@@ -538,41 +535,42 @@ def run_simulation(train_consist_plan: pl.DataFrame,terminal: str,out_path=None)
 
     # Performance Matrix
     # Train processing time
-    # avg_time_per_train = sum(state.time_per_train.values()) / len(state.time_per_train)
-    # print(f"Average train processing time: {sum(state.time_per_train) / len(state.time_per_train) if state.time_per_train else 0:.2f}")
-    # print("Simulation completed. ")
-    # with open("avg_time_per_train.txt", "w") as f:
-    #   f.write(str(avg_time_per_train))
+    avg_time_per_train = sum(state.time_per_train.values()) / len(state.time_per_train)
+    print(f"Average train processing time: {sum(state.time_per_train) / len(state.time_per_train) if state.time_per_train else 0:.2f}")
+    print("Simulation completed. ")
+    with open("avg_time_per_train.txt", "w") as f:
+      f.write(str(avg_time_per_train))
 
     # Create DataFrame for container events
     print(state.sim_time)
 
-    # container_data = (
-    #     pl.from_dicts(
-    #         [dict(event, **{'container_id': container_id}) for container_id, event in state.container_events.items()]
-    #     )
-    #     .with_columns(
-    #         pl.when(
-    #             pl.col("truck_exit").is_not_null() & pl.col("train_arrival").is_not_null()
-    #         )
-    #         .then(
-    #             pl.col("truck_exit") - pl.col("train_arrival")
-    #         )
-    #         .when(
-    #             pl.col("train_depart").is_not_null()
-    #         )
-    #         .then(
-    #             pl.col("crane_load") - pl.col("truck_arrival")
-    #         )
-    #         .otherwise(None)
-    #         .alias("container_processing_time")
-    #     )
-    #     .sort("container_id")
-    #     .select(pl.col("container_id"), pl.all().exclude("container_id"))
-    # )
-    # if out_path is not None:
-    #     container_data.write_excel(
-    #         out_path / f"simulation_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx")
+    container_data = (
+        pl.from_dicts(
+            [dict(event, **{'container_id': container_id}) for container_id, event in state.container_events.items()],
+            infer_schema_length = None
+        )
+        .with_columns(
+            pl.when(
+                pl.col("truck_exit").is_not_null() & pl.col("train_arrival").is_not_null()
+            )
+            .then(
+                pl.col("truck_exit") - pl.col("train_arrival")
+            )
+            .when(
+                pl.col("train_depart").is_not_null()
+            )
+            .then(
+                pl.col("crane_load") - pl.col("truck_arrival")
+            )
+            .otherwise(None)
+            .alias("container_processing_time")
+        )
+        .sort("container_id")
+        .select(pl.col("container_id"), pl.all().exclude("container_id"))
+    )
+    if out_path is not None:
+        container_data.write_excel(
+            out_path / f"simulation_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx")
 
     # Use save_average_times and save_vehicle_logs for vehicle related logs
     save_vehicle_logs()

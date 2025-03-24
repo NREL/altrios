@@ -5,11 +5,12 @@ import math
 
 # Yard setting: optimal layout output
 YARD_TYPE = 'parallel'  # choose 'perpendicular' or 'parallel'
+k = 200 # train batch size
 M = 2 # decide the number of rows of parking blocks in the layout
-N = 2 # decide the number of columns of parking blocks in the layout
+N = 3 # decide the number of columns of parking blocks in the layout
 n_t = 2 # decide the numbers of train side aisles per group
 n_p = 2 # decide the numbers of parking area aisles per group
-n_r = 6  # decide the number of spots within each parking block (10 * n_r = BL_l, the length of each parking block)
+n_r = 17  # decide the number of spots within each parking block (10 * n_r = BL_l, the length of each parking block)
 
 # Fixed yard parameters
 P = 10  # fixed aisle width
@@ -25,16 +26,25 @@ def speed_density(count, vehicle_type):
     '''
     Unit of speed: ft/s
     '''
-    if vehicle_type == 'hostler':
-        speed = 3.80 * math.e ** (-3.34 * count)
-    elif vehicle_type == 'truck':
-        speed = 10.22 * math.e ** (-10.98 * count)
+    if vehicle_type == 'hostler':   # V_h = (1.7033 + 0.1445 nr + 0.3020 k) * e(-1.4726 * N - 0.5197) * d
+        speed = (1.7 + 0.1 * n_r + 0.003 * k) * math.e ** ((-1.5 * N - 0.5) * (count / total_lane_length))
+    elif vehicle_type == 'truck':   # V_t = 10 * e(-3.5 * N - 0.5) * d
+        speed = 10 * math.e ** ((-3.5 * N - 0.5) * (count / total_lane_length))
     else:
         raise ValueError("Invalid vehicle type. Choose 'hostler' or 'truck'.")
     return speed
 
-
-from scipy.stats import uniform
+# def speed_density(count, vehicle_type):
+#     '''
+#     Unit of speed: ft/s
+#     '''
+#     if vehicle_type == 'hostler':
+#         speed = 3.80 * math.e ** (-3.34 * count)
+#     elif vehicle_type == 'truck':   # V_t = 10 * e(-3.5 * N - 0.5) * d
+#         speed = 10 * math.e ** (-10.98 * count)
+#     else:
+#         raise ValueError("Invalid vehicle type. Choose 'hostler' or 'truck'.")
+#     return speed
 
 
 def simulate_truck_travel(truck_id, train_schedule, terminal, total_lane_length, d_t_min, d_t_max):
@@ -58,7 +68,7 @@ def simulate_truck_travel(truck_id, train_schedule, terminal, total_lane_length,
     print(f"Current truck {truck_id} speed is {truck_speed} (m/s)")
 
     # Compute truck travel time in hours and convert to seconds
-    truck_travel_time = (32 * d_t_dist) / (2 * truck_speed * 3600)  # ft/s
+    truck_travel_time = (d_t_dist/3.2) / (2 * truck_speed * 3600)  # (ft -> m) / (m/hr)
     print(f"Truck {truck_id} travel time {truck_travel_time} (hr)")
 
     return truck_travel_time
@@ -77,7 +87,7 @@ def simulate_hostler_travel(hostler_id, current_veh_num, total_lane_length, d_h_
     print(f"Current hostler {hostler_id} speed is {hostler_speed} (m/s)")
 
     # Compute hostler travel time in hours and convert to seconds
-    hostler_travel_time = (32 * d_h_dist) / (2 * hostler_speed * 3600)  # ft/s
+    hostler_travel_time = (d_h_dist/3.2) / (2 * hostler_speed * 3600)     # (ft -> m) / (m/hr)
     print(f"hostler {hostler_id} travel time {hostler_travel_time} (hr)")
 
     return hostler_travel_time
@@ -95,18 +105,21 @@ def simulate_reposition_travel(hostler_id, current_veh_num, total_lane_length, d
     print(f"Current hostler {hostler_id} speed is {hostler_speed} (m/s)")
 
     # Compute hostler travel time in hours and convert to seconds
-    hostler_reposition_travel_time = (32 * d_r_dist) / (2 * hostler_speed * 3600)  # ft/h
+    hostler_reposition_travel_time = (d_r_dist/3.2) / (2 * hostler_speed * 3600)      # (ft -> m) / (m/hr)
     print(f"hostler {hostler_id} travel time {hostler_reposition_travel_time} (hr)")
 
     return hostler_reposition_travel_time
 
 
-def create_distribution(min_val, avg_val, max_val):
+def triang_distribution(min_val, avg_val, max_val):
     c = (avg_val - min_val) / (max_val - min_val)
     return triang(c, loc=min_val, scale=(max_val - min_val))
 
 def uniform_distribution(min_val, max_val):
     return uniform(loc=min_val, scale=(max_val - min_val))
+
+def uniform_mean(min_val, max_val):
+    return (max_val + min_val) / 2
 
 def ugly_sigma(x):
     total_sum = 0
@@ -126,14 +139,17 @@ if YARD_TYPE == 'parallel':
     # d_h: hostler distance
     d_h_min = n_t * P + 1.5 * n_p * P
     d_h_max = n_t * P + A(M, n_r, n_p) - n_p * P + B(N, n_p) - n_p * P
+    d_h_avg = (d_h_max + d_h_min) / 2
 
     # d_r: repositioning distance
     d_r_min = 5 * n_r + 40
     d_r_max = ugly_sigma(M) * (10 * n_r + n_p * P) + ugly_sigma(N) * (80 + n_p * P)
+    d_r_avg = (d_r_max + d_r_min) / 2
 
     # d_t: truck distance
     d_t_min = 0.5 * n_p * P
     d_t_max = B(N, n_p) - n_p * P + A(M, n_r, n_p) - n_p * P
+    d_t_avg = (d_t_max + d_t_min) / 2
 
 
 elif YARD_TYPE == 'perpendicular':

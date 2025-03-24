@@ -9,7 +9,7 @@ use crate::imports::*;
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 struct OldSpeedSets(Vec<OldSpeedSet>);
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 /// An arbitrary unit of single track that does not include turnouts
 #[altrios_api()]
 pub struct Link {
@@ -58,6 +58,17 @@ pub struct Link {
     #[serde(skip)]
     #[api(skip_get, skip_set)]
     pub err_tol: Option<NetworkErrTol>,
+}
+
+impl SerdeAPI for Link {}
+impl Init for Link {
+    fn init(&mut self) -> Result<(), Error> {
+        match &mut self.err_tol {
+            Some(err_tol) => err_tol.init()?,
+            None => self.err_tol = Some(Default::default()),
+        }
+        Ok(())
+    }
 }
 
 impl Link {
@@ -385,7 +396,16 @@ pub struct NetworkErrTol {
     /// adjacent links, should be very small
     pub max_elev_step: Option<si::Length>,
 }
-impl Init for NetworkErrTol {}
+impl Init for NetworkErrTol {
+    fn init(&mut self) -> Result<(), Error> {
+        let def: Self = Default::default();
+        self.max_grade = self.max_grade.or(def.max_grade);
+        self.max_curv = self.max_curv.or(def.max_curv);
+        self.max_heading_step = self.max_heading_step.or(def.max_heading_step);
+        self.max_elev_step = self.max_elev_step.or(def.max_elev_step);
+        Ok(())
+    }
+}
 impl SerdeAPI for NetworkErrTol {}
 impl Default for NetworkErrTol {
     fn default() -> Self {
@@ -833,10 +853,7 @@ mod tests {
         let tempdir = tempfile::tempdir().unwrap();
         let temp_file_path = tempdir.path().join("links_test2.yaml");
         links.to_file(temp_file_path.clone()).unwrap();
-        assert_eq!(
-            Vec::<Link>::from_file(temp_file_path, false).unwrap(),
-            links
-        );
+        assert_eq!(Vec::<Link>::from_file(temp_file_path, true).unwrap(), links);
         tempdir.close().unwrap();
     }
 

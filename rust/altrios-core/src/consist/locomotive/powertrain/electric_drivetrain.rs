@@ -250,7 +250,7 @@ impl ElectricDrivetrain {
 // ));
 
 impl Init for ElectricDrivetrain {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.state.init()?;
         Ok(())
     }

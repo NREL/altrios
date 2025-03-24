@@ -33,6 +33,13 @@ impl LinkIdxTime {
 /// `Vec<LinkIdxTime>` in Python
 pub struct TimedLinkPath(pub Vec<LinkIdxTime>);
 
+impl TimedLinkPath {
+    /// Implement the non-Python `new` method.
+    pub fn new(value: Vec<LinkIdxTime>) -> Self {
+        Self(value)
+    }
+}
+
 impl AsRef<[LinkIdxTime]> for TimedLinkPath {
     fn as_ref(&self) -> &[LinkIdxTime] {
         &self.0
@@ -98,6 +105,11 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
         self.get_energy_fuel(annualize).get::<si::joule>()
     }
 
+    #[pyo3(name = "get_energy_fuel_soc_corrected_joules")]
+    pub fn get_energy_fuel_soc_corrected_py(&self) -> PyResult<f64> {
+        Ok(self.get_energy_fuel_soc_corrected().map_err(|err| anyhow!("{:?}", err))?.get::<si::joule>())
+    }
+
     #[pyo3(name = "walk")]
     fn walk_py(&mut self) -> anyhow::Result<()> {
         self.walk()
@@ -127,7 +139,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
             Ok(n) => n,
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network(n)
+                Network( Default::default(), n)
             }
         };
 
@@ -260,6 +272,77 @@ impl SpeedLimitTrainSim {
         self.loco_con.get_energy_fuel() * self.get_scaling_factor(annualize)
     }
 
+    /// Returns total fuel and fuel-equivalent battery energy used for consist
+    pub fn get_energy_fuel_soc_corrected(&self) -> Result<si::Energy, Error> {
+        if self.save_interval != Some(1) && self.history.is_empty() {
+            return Err(Error::Other(
+                "Expected `save_interval = Some(1)` and non-empty history".into(),
+            ));
+        }
+        let eta_eng_mean_consist: si::Ratio = self
+            .loco_con
+            .loco_vec
+            .iter()
+            .filter(|loco| loco.fuel_converter().is_some())
+            .map(|loco| {
+                let fc = loco.fuel_converter().unwrap();
+                let eta_mean_for_loco = fc
+                    .history
+                    .eta
+                    .iter()
+                    .filter(|eta| eta > &&si::Ratio::ZERO)
+                    .fold(si::Ratio::ZERO, |acc, eta_for_loco| acc + *eta_for_loco)
+                    / (fc.history.len() as f64);
+                eta_mean_for_loco
+            })
+            .fold(si::Ratio::ZERO, |acc, eta_for_loco_vec| {
+                acc + eta_for_loco_vec
+            })
+            / (self.loco_con.loco_vec.len() as f64);
+        let res_fuel_equiv = self
+            .loco_con
+            .loco_vec
+            .iter()
+            .map(|loco| {
+                if let Some(res) = loco.reversible_energy_storage() {
+                    let delta_soc: si::Ratio =
+                        *res.history.soc.last().unwrap() - *res.history.soc.first().unwrap();
+                    let loco_res_fuel_equiv: si::Energy = if delta_soc < si::Ratio::ZERO {
+                        // net discharge
+                        let eta_pos: si::Ratio = res
+                            .history
+                            .eta
+                            .iter()
+                            .zip(res.history.pwr_out_electrical.clone())
+                            .filter(|(_, pwr_out)| pwr_out > &si::Power::ZERO)
+                            .fold(si::Ratio::ZERO, |acc, (eta, _)| acc + *eta)
+                            / (res.history.len() as f64);
+                        // net discharge is equivalent to using fuel
+                        -delta_soc * res.energy_capacity_usable() * eta_pos / eta_eng_mean_consist
+                    } else if delta_soc > si::Ratio::ZERO {
+                        // net charge
+                        let eta_neg: si::Ratio = res
+                            .history
+                            .eta
+                            .iter()
+                            .zip(res.history.pwr_out_electrical.clone())
+                            .filter(|(_, pwr_out)| pwr_out < &si::Power::ZERO)
+                            .fold(si::Ratio::ZERO, |acc, (eta, _)| acc + *eta)
+                            / (res.history.len() as f64);
+                        // net charge is equivalent to making fuel fuel
+                        -delta_soc * res.energy_capacity_usable() / eta_neg / eta_eng_mean_consist
+                    } else {
+                        si::Energy::ZERO
+                    };
+                    loco_res_fuel_equiv
+                } else {
+                    si::Energy::ZERO
+                }
+            })
+            .sum::<si::Energy>();
+        Ok(res_fuel_equiv + self.loco_con.get_energy_fuel())
+    }
+
     pub fn get_net_energy_res(&self, annualize: bool) -> si::Energy {
         self.loco_con.get_net_energy_res() * self.get_scaling_factor(annualize)
     }
@@ -322,10 +405,16 @@ impl SpeedLimitTrainSim {
         // set aux power for the consist
         self.loco_con.set_pwr_aux(Some(true))?;
         // set the maximum power out based on dt.
-        self.loco_con.set_curr_pwr_max_out(None,  Some(self.state.mass_compound()?), Some(self.state.speed), self.state.dt)?;
+        self.loco_con.set_curr_pwr_max_out(
+            None,
+            Some(self.state.mass_compound()?),
+            Some(self.state.speed),
+            self.state.dt,
+        )?;
         // calculate new resistance
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
+        set_link_and_offset(&mut self.state, &self.path_tpc)?;
         // solve the required power
         self.solve_required_pwr()?;
 
@@ -336,7 +425,6 @@ impl SpeedLimitTrainSim {
             self.state.dt,
             Some(true),
         )?;
-        set_link_and_offset(&mut self.state, &self.path_tpc)?;
         Ok(())
     }
 
@@ -421,6 +509,7 @@ impl SpeedLimitTrainSim {
         // of any braking), and if `self.state.res_net()` is negative and has
         // a higher magnitude than `self.fric_brake.force_max`, then the train
         // cannot slow down.
+        // TODO: dial this back to just show `self.state` via debug print
         ensure!(
             self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO,
             format!(
@@ -521,7 +610,6 @@ impl SpeedLimitTrainSim {
                     format!("pwr_pos_max / speed_target.min(v_max): {} N", (pwr_pos_max / speed_target.min(v_max)).get::<si::newton>().format_eng(Some(5))),
                     // pwr_pos_max
                     format!("pwr_pos_max: {} W", pwr_pos_max.get::<si::watt>().format_eng(Some(5)),
-                    
                 ),
                 // SOC across all RES-equipped locomotives
                 format!(
@@ -698,7 +786,7 @@ impl SpeedLimitTrainSim {
 }
 
 impl Init for SpeedLimitTrainSim {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.origs.init()?;
         self.dests.init()?;
         self.loco_con.init()?;
@@ -711,7 +799,7 @@ impl Init for SpeedLimitTrainSim {
         Ok(())
     }
 }
-impl SerdeAPI for SpeedLimitTrainSim{}
+impl SerdeAPI for SpeedLimitTrainSim {}
 impl Default for SpeedLimitTrainSim {
     fn default() -> Self {
         let mut slts = Self {

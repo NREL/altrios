@@ -272,7 +272,7 @@ pub fn run_dispatch_py(
             let n = network
                 .extract::<Vec<Link>>()
                 .map_err(|_| anyhow!("{}", format_dbg!()))?;
-            Network(n)
+            Network(Default::default(), n)
         }
     };
 
@@ -304,7 +304,14 @@ mod test_dispatch {
         let network_file_path = project_root::get_project_root()
             .unwrap()
             .join("../python/altrios/resources/networks/Taconite.yaml");
-        let network = Network::from_file(network_file_path, false).unwrap();
+        let network = {
+            let network = Network::from_file(network_file_path, false);
+            if let Err(err) = &network {
+                panic!("{err}");
+            }
+            network
+        }
+        .unwrap();
 
         let train_sims = vec![
             crate::train::speed_limit_train_sim_fwd(),

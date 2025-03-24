@@ -236,31 +236,39 @@ impl Mass for ReversibleEnergyStorage {
 }
 
 impl Init for ReversibleEnergyStorage {
-    fn init(&mut self) -> anyhow::Result<()> {
-        let _ = self.mass().with_context(|| format_dbg!())?;
-        self.state.init().with_context(|| format_dbg!())?;
+    fn init(&mut self) -> Result<(), Error> {
+        let _ = self
+            .mass()
+            .map_err(|err| Error::InitError(format_dbg!(err)))?;
+        self.state
+            .init()
+            .map_err(|err| Error::InitError(format_dbg!(err)))?;
         Ok(())
     }
 }
 impl SerdeAPI for ReversibleEnergyStorage {
-    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> anyhow::Result<Self> {
+    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> Result<Self, Error> {
         let filepath = filepath.as_ref();
         let extension = filepath
             .extension()
             .and_then(OsStr::to_str)
-            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        let mut file = File::open(filepath).with_context(|| {
-            if !filepath.exists() {
-                format!("File not found: {filepath:?}")
-            } else {
-                format!("Could not open file: {filepath:?}")
-            }
-        })?;
+            .ok_or_else(|| {
+                Error::SerdeError(format!("File extension could not be parsed: {filepath:?}"))
+            })?;
+        let mut file = File::open(filepath)
+            .with_context(|| {
+                if !filepath.exists() {
+                    format!("File not found: {filepath:?}")
+                } else {
+                    format!("Could not open file: {filepath:?}")
+                }
+            })
+            .map_err(|err| Error::SerdeError(format!("{err}")))?;
         let mut network = match Self::from_reader(&mut file, extension, skip_init) {
             Ok(network) => network,
             Err(err) => res_legacy::ReversibleEnergyStorageLegacy::from_file(filepath, false)
                 .map_err(|old_err| {
-                    anyhow!("\nattempting to load as `ReversibleEnergyStorage`:\n{}\nattempting to load as `ReversibleEnergyStorageLegacy`:\n{}", err, old_err)
+                    Error::SerdeError(format!("\nattempting to load as `ReversibleEnergyStorage`:\n{}\nattempting to load as `ReversibleEnergyStorageLegacy`:\n{}", err, old_err))
                 })?
                 .into(),
         };
@@ -778,6 +786,38 @@ impl ReversibleEnergyStorage {
     /// Usable energy capacity, accounting for SOC limits
     pub fn energy_capacity_usable(&self) -> si::Energy {
         self.energy_capacity * (self.max_soc - self.min_soc)
+    }
+
+    /// Mean efficiency in charge direction
+    pub fn mean_chrg_eff(&self) -> si::Ratio {
+        self.history
+            .eta
+            .iter()
+            .zip(self.history.pwr_out_electrical.clone())
+            .fold(si::Ratio::ZERO, |acc, (eta, pwr_out)| {
+                if pwr_out < si::Power::ZERO {
+                    acc + *eta
+                } else {
+                    acc
+                }
+            })
+            / (self.history.len() as f64)
+    }
+
+    /// Mean efficiency in discharge direction
+    pub fn mean_dschrg_eff(&self) -> si::Ratio {
+        self.history
+            .eta
+            .iter()
+            .zip(self.history.pwr_out_electrical.clone())
+            .fold(si::Ratio::ZERO, |acc, (eta, pwr_out)| {
+                if pwr_out >= si::Power::ZERO {
+                    acc + *eta
+                } else {
+                    acc
+                }
+            })
+            / (self.history.len() as f64)
     }
 }
 

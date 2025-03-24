@@ -305,7 +305,7 @@ impl LocomotiveSimulation {
 }
 
 impl Init for LocomotiveSimulation {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.loco_unit.init()?;
         self.power_trace.init()?;
         Ok(())
@@ -324,6 +324,12 @@ impl Default for LocomotiveSimulation {
 }
 
 #[altrios_api(
+    #[new]
+    /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
+    fn __new__(v: Vec<LocomotiveSimulation>) -> Self {
+        Self(v)
+    }
+
     #[pyo3(name="walk")]
     #[pyo3(signature = (b_parallelize=None))]
     /// Exposes `walk` to Python.
@@ -334,9 +340,14 @@ impl Default for LocomotiveSimulation {
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
+impl LocomotiveSimulationVec {
+    pub fn new(value: Vec<LocomotiveSimulation>) -> Self {
+        Self(value)
+    }
+}
 
 impl Init for LocomotiveSimulationVec {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.0.iter_mut().try_for_each(|l| l.init())?;
         Ok(())
     }

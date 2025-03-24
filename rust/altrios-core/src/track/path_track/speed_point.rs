@@ -26,6 +26,15 @@ impl ObjState for SpeedLimitPoint {
     }
 }
 
+impl ObjState for Vec<SpeedLimitPoint> {
+    fn is_fake(&self) -> bool {
+        (**self).is_fake()
+    }
+    fn validate(&self) -> ValidationResults {
+        (**self).validate()
+    }
+}
+
 #[ext(InsertSpeed)]
 pub impl Vec<SpeedLimitPoint> {
     /// Add a speed limit to speed points.  

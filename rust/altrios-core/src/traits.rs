@@ -111,7 +111,7 @@ impl Linspace for Vec<f64> {}
 pub trait Init {
     /// Specialized code to execute upon initialization.  For any struct with fields
     /// that implement `Init`, this should propagate down the hierarchy.
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         Ok(())
     }
 }
@@ -178,18 +178,23 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
     ///
     /// * `filepath`: The filepath from which to read the object
     ///
-    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> anyhow::Result<Self> {
+    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> Result<Self, Error> {
         let filepath = filepath.as_ref();
         let extension = filepath
             .extension()
             .and_then(OsStr::to_str)
-            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        let mut file = File::open(filepath).with_context(|| {
-            if !filepath.exists() {
-                format!("File not found: {filepath:?}")
-            } else {
-                format!("Could not open file: {filepath:?}")
-            }
+            .ok_or_else(|| {
+                Error::SerdeError(format!("File extension could not be parsed: {filepath:?}"))
+            })?;
+        let mut file = File::open(filepath).map_err(|err| {
+            Error::SerdeError(format!(
+                "{err}\n{}",
+                if !filepath.exists() {
+                    format!("File not found: {filepath:?}")
+                } else {
+                    format!("Could not open file: {filepath:?}")
+                }
+            ))
         })?;
         Self::from_reader(&mut file, extension, skip_init)
     }
@@ -218,42 +223,6 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
             ),
         }
         Ok(())
-    }
-
-    /// Deserialize an object from anything that implements [`std::io::Read`]
-    ///
-    /// # Arguments:
-    ///
-    /// * `rdr` - The reader from which to read object data
-    /// * `format` - The source format, any of those listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`)
-    ///
-    fn from_reader<R: std::io::Read>(
-        rdr: &mut R,
-        format: &str,
-        skip_init: bool,
-    ) -> anyhow::Result<Self> {
-        let mut deserialized: Self = match format.trim_start_matches('.').to_lowercase().as_str() {
-            #[cfg(feature = "yaml")]
-            "yaml" | "yml" => serde_yaml::from_reader(rdr)?,
-            #[cfg(feature = "json")]
-            "json" => serde_json::from_reader(rdr)?,
-            #[cfg(feature = "msgpack")]
-            "msgpack" => rmp_serde::decode::from_read(rdr)?,
-            #[cfg(feature = "toml")]
-            "toml" => {
-                let mut buf = String::new();
-                rdr.read_to_string(&mut buf)?;
-                Self::from_toml(buf, skip_init)?
-            }
-            _ => bail!(
-                "Unsupported format {format:?}, must be one of {:?}",
-                Self::ACCEPTED_BYTE_FORMATS
-            ),
-        };
-        if !skip_init {
-            deserialized.init()?;
-        }
-        Ok(deserialized)
     }
 
     /// Write (serialize) an object into a string
@@ -299,6 +268,39 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
                 ),
             },
         )
+    }
+
+    /// Deserialize an object from anything that implements [`std::io::Read`]
+    ///
+    /// # Arguments:
+    ///
+    /// * `rdr` - The reader from which to read object data
+    /// * `format` - The source format, any of those listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`)
+    ///
+    fn from_reader<R: std::io::Read>(
+        rdr: &mut R,
+        format: &str,
+        skip_init: bool,
+    ) -> Result<Self, Error> {
+        let mut deserialized: Self = match format.trim_start_matches('.').to_lowercase().as_str() {
+            "yaml" | "yml" => serde_yaml::from_reader(rdr)
+                .map_err(|err| Error::SerdeError(format!("{err} while reading `yaml`")))?,
+            "json" => serde_json::from_reader(rdr)
+                .map_err(|err| Error::SerdeError(format!("{err} while reading `json`")))?,
+            #[cfg(feature = "msgpack")]
+            "msgpack" => rmp_serde::decode::from_read(rdr)
+                .map_err(|err| Error::SerdeError(format!("{err} while reading `msgpack`")))?,
+            _ => {
+                return Err(Error::SerdeError(format!(
+                    "Unsupported format {format:?}, must be one of {:?}",
+                    Self::ACCEPTED_BYTE_FORMATS
+                )))
+            }
+        };
+        if !skip_init {
+            deserialized.init()?;
+        }
+        Ok(deserialized)
     }
 
     /// Write (serialize) an object to a JSON string
@@ -387,7 +389,7 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
 }
 
 impl<T: Init> Init for Vec<T> {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         for val in self {
             val.init()?
         }

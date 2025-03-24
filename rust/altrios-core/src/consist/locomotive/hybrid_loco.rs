@@ -59,7 +59,7 @@ impl Default for HybridLoco {
 }
 
 impl Init for HybridLoco {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.fc.init()?;
         self.gen.init()?;
         self.res.init()?;
@@ -283,8 +283,6 @@ impl HybridLoco {
 {} kW
 
 {} kW
-
-{} kW
 {} kW
 {} kW
 {} kW",
@@ -298,7 +296,6 @@ impl HybridLoco {
                     format_dbg!(self.gen.state.pwr_elec_out_max.get::<si::kilowatt>())
                         .replace("\"", ""),
                     format_dbg!(self.gen.state.pwr_mech_in.get::<si::kilowatt>()).replace("\"", ""),
-                    format_dbg!(self.fc.pwr_for_peak_eff.get::<si::kilowatt>()).replace("\"", ""),
                     format_dbg!(res_pwr_out_req.get::<si::kilowatt>()).replace("\"", ""),
                     format_dbg!(self.res.state.pwr_prop_max.get::<si::kilowatt>())
                         .replace("\"", ""),
@@ -513,7 +510,7 @@ impl Default for HybridPowertrainControls {
 }
 
 impl Init for HybridPowertrainControls {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         match self {
             Self::RGWDB(rgwb) => rgwb.init()?,
             Self::Placeholder => {
@@ -619,7 +616,6 @@ impl HybridPowertrainControls {
             res.state.soc.get::<si::ratio>()
         );
 
-        // TODO: make sure idle fuel gets converted to heat correctly
         let (gen_prop_pwr, res_prop_pwr) = match self {
             Self::RGWDB(ref mut rgwdb) => {
                 // handle_fc_on_causes_for_temp(fc, rgwdb, hev_state)?;
@@ -711,22 +707,24 @@ fn get_pwr_gen_elec_out_for_eff_fc(
     gen: &Generator,
     rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
 ) -> anyhow::Result<si::Power> {
-    let pwr_gen_elec_out_for_eff_fc: si::Power = if rgwdb.pwr_gen_elec_out_for_eff_fc.is_none() {
-        let frac_of_pwr_for_peak_eff: si::Ratio = rgwdb
-            .frac_of_most_eff_pwr_to_run_fc
+    let pwr_gen_elec_out_for_eff_fc: si::Power =
+        if let Some(pwr_gen_elec_out_for_eff_fc) = rgwdb.pwr_gen_elec_out_for_eff_fc {
+            pwr_gen_elec_out_for_eff_fc
+        } else {
+            let frac_of_pwr_for_peak_eff: si::Ratio = rgwdb
+                .frac_of_max_pwr_to_run_fc
+                .with_context(|| format_dbg!())?;
+            let mut gen = gen.clone();
+            // this assumes that the generator has a fairly flat efficiency curve
+            gen.set_cur_pwr_max_out(
+                frac_of_pwr_for_peak_eff * fc.pwr_out_max,
+                Some(si::Power::ZERO),
+            )
             .with_context(|| format_dbg!())?;
-        let mut gen = gen.clone();
-        // this assumes that the generator has a fairly flat efficiency curve
-        gen.set_cur_pwr_max_out(
-            frac_of_pwr_for_peak_eff * fc.pwr_for_peak_eff,
-            Some(si::Power::ZERO),
-        )
-        .with_context(|| format_dbg!())?;
-        rgwdb.pwr_gen_elec_out_for_eff_fc = Some(gen.state.pwr_elec_out_max);
-        rgwdb.pwr_gen_elec_out_for_eff_fc.unwrap()
-    } else {
-        rgwdb.pwr_gen_elec_out_for_eff_fc.unwrap()
-    };
+            rgwdb.pwr_gen_elec_out_for_eff_fc = Some(gen.state.pwr_elec_out_max);
+            gen.state.pwr_elec_out_max
+        };
+
     Ok(pwr_gen_elec_out_for_eff_fc)
 }
 
@@ -772,12 +770,12 @@ pub struct RESGreedyWithDynamicBuffers {
     /// [FuelConverter] is forced on.
     #[api(skip_get, skip_set)]
     pub frac_pwr_demand_fc_forced_on: Option<si::Ratio>,
-    /// Force engine, if on, to run at this fraction of power at which peak
-    /// efficiency occurs or the required power, whichever is greater. If SOC is
-    /// below min buffer or engine is otherwise forced on and battery has room
-    /// to receive charge, engine will run at this level and charge.
+    /// Force engine, if on, to run at this fraction of peak power or the
+    /// required power, whichever is greater. If SOC is below min buffer or
+    /// engine is otherwise forced on and battery has room to receive charge,
+    /// engine will run at this level and charge.
     #[api(skip_get, skip_set)]
-    pub frac_of_most_eff_pwr_to_run_fc: Option<si::Ratio>,
+    pub frac_of_max_pwr_to_run_fc: Option<si::Ratio>,
     /// Force generator, if engine is on, to run at this power to help run engine efficiently
     #[api(skip_get, skip_set)]
     pub pwr_gen_elec_out_for_eff_fc: Option<si::Power>,
@@ -821,22 +819,20 @@ impl RESGreedyWithDynamicBuffers {
 }
 
 impl Init for RESGreedyWithDynamicBuffers {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         // TODO: make sure these values propagate to the documented defaults above
         init_opt_default!(self, speed_soc_disch_buffer, 40.0 * uc::MPH);
         init_opt_default!(self, speed_soc_disch_buffer_coeff, 1.0 * uc::R);
-        init_opt_default!(
-            self,
-            speed_soc_fc_on_buffer,
-            self.speed_soc_disch_buffer.unwrap() * 1.1
-        );
+        init_opt_default!(self, speed_soc_fc_on_buffer, 100.0 * uc::MPH);
         init_opt_default!(self, speed_soc_fc_on_buffer_coeff, 1.0 * uc::R);
-        init_opt_default!(self, speed_soc_regen_buffer, 30. * uc::MPH);
+        init_opt_default!(self, speed_soc_regen_buffer, 10. * uc::MPH);
         init_opt_default!(self, speed_soc_regen_buffer_coeff, 1.0 * uc::R);
         init_opt_default!(self, fc_min_time_on, uc::S * 5.0);
-        init_opt_default!(self, speed_fc_forced_on, uc::MPH * 75.);
+        // Force FC to be on all the time by default
+        init_opt_default!(self, speed_fc_forced_on, uc::MPH * 0.0);
         init_opt_default!(self, frac_pwr_demand_fc_forced_on, uc::R * 0.75);
-        init_opt_default!(self, frac_of_most_eff_pwr_to_run_fc, 1.0 * uc::R);
+        // 20% of peak power gets most of peak efficiency
+        init_opt_default!(self, frac_of_max_pwr_to_run_fc, 0.2 * uc::R);
         Ok(())
     }
 }

@@ -143,7 +143,7 @@ impl ConsistSimulation {
 }
 
 impl Init for ConsistSimulation {
-    fn init(&mut self) -> anyhow::Result<()> {
+    fn init(&mut self) -> Result<(), Error> {
         self.loco_con.init()?;
         self.power_trace.init()?;
         Ok(())

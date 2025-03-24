@@ -107,8 +107,10 @@ pub struct Generator {
 }
 
 impl Init for Generator {
-    fn init(&mut self) -> anyhow::Result<()> {
-        let _ = self.mass().with_context(|| format_dbg!())?;
+    fn init(&mut self) -> Result<(), Error> {
+        let _ = self
+            .mass()
+            .map_err(|err| Error::InitError(format_dbg!(err)))?;
         self.state.init()?;
         Ok(())
     }

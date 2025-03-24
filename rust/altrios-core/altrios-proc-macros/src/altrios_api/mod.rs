@@ -10,14 +10,13 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
     // println!("struct: {}", ast.ident.to_string());
 
     let mut py_impl_block = TokenStream2::default();
-    let mut impl_block = TokenStream2::default();
 
     py_impl_block.extend::<TokenStream2>(parse_ts_as_fn_defs(attr, vec![], false, vec![]));
 
     if let syn::Fields::Named(syn::FieldsNamed { named, .. }) = &mut ast.fields {
         process_named_field_structs(named, &mut py_impl_block);
     } else if let syn::Fields::Unnamed(syn::FieldsUnnamed { unnamed, .. }) = &mut ast.fields {
-        process_tuple_struct(unnamed, &mut py_impl_block, &mut impl_block, ident);
+        process_tuple_struct(unnamed, &mut py_impl_block);
     } else {
         abort_call_site!(
             "Invalid use of `altrios_api` macro.  Expected tuple struct or C-style struct."
@@ -93,9 +92,8 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         /// Write (serialize) an object to a message pack
         #[cfg(feature = "msgpack")]
         #[pyo3(name = "to_msg_pack")]
-        // TODO: figure from Kyle out how to use `PyIOError`
-        pub fn to_msg_pack_py<'py>(&self, py: Python<'py>) -> anyhow::Result<Bound<'py, PyBytes>> {
-            Ok(PyBytes::new_bound(py, &self.to_msg_pack()?))
+        pub fn to_msg_pack_py<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+            Ok(PyBytes::new_bound(py, &self.to_msg_pack().map_err(|e| PyIOError::new_err(format!("{:?}", e)))?))
         }
 
         /// Read (deserialize) an object from a message pack
@@ -106,17 +104,16 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[staticmethod]
         #[pyo3(name = "from_msg_pack")]
         #[pyo3(signature = (msg_pack, skip_init=None))]
-        // TODO: figure from Kyle out how to use `PyIOError`
-        pub fn from_msg_pack_py(msg_pack: &Bound<PyBytes>, skip_init: Option<bool>) -> anyhow::Result<Self> {
+        pub fn from_msg_pack_py(msg_pack: &Bound<PyBytes>, skip_init: Option<bool>) -> PyResult<Self> {
             Self::from_msg_pack(
-                msg_pack.as_bytes(), 
+                msg_pack.as_bytes(),
                 skip_init.unwrap_or_default()
-            )
+            ).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
         }
 
         #[pyo3(name = "init")]
         fn init_py(&mut self) -> PyResult<()> {
-            Ok(self.init()?)
+            self.init().map_err(|e| PyIOError::new_err(format!("{:?}", e)))
         }
 
         /// `__copy__` magic method that uses `clone`.
@@ -168,7 +165,10 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
             #[pyo3(name = "from_file")]
             #[pyo3(signature = (filepath, skip_init=None))]
             pub fn from_file_py(filepath: &Bound<PyAny>, skip_init: Option<bool>) -> PyResult<Self> {
-                Ok(Self::from_file(PathBuf::extract_bound(filepath)?, skip_init.unwrap_or_default())?)
+                Self::from_file(
+                    PathBuf::extract_bound(filepath)?,
+                    skip_init.unwrap_or_default()
+                ).map_err(|err| PyIOError::new_err(format!("{:?}", err)))
             }
         }
     };
@@ -177,7 +177,6 @@ pub(crate) fn altrios_api(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[cfg_attr(feature="pyo3", pyclass(module="altrios_pyo3", subclass, eq))]
     });
     let mut output: TokenStream2 = ast.to_token_stream();
-    output.extend(impl_block);
     output.extend(py_impl_block);
     // println!("{}", output.to_string());
     final_output.extend::<TokenStream2>(output);
@@ -267,17 +266,16 @@ fn process_named_field_structs(
 fn process_tuple_struct(
     unnamed: &mut syn::punctuated::Punctuated<syn::Field, syn::token::Comma>,
     py_impl_block: &mut TokenStream2,
-    impl_block: &mut TokenStream2,
-    ident: &Ident,
 ) {
     // tuple struct
-    assert!(unnamed.len() == 1);
+    assert!(unnamed.len() <= 2);
+    let idx_for_vec = syn::Index::from(if unnamed.len() == 1 { 0 } else { 1 });
+    let re = Regex::new(r"Vec < (.+) >").unwrap();
     for field in unnamed.iter() {
         let ftype = field.ty.clone();
         if let syn::Type::Path(type_path) = ftype.clone() {
             let type_str = type_path.clone().into_token_stream().to_string();
             if type_str.contains("Vec") {
-                let re = Regex::new(r"Vec < (.+) >").unwrap();
                 // println!("{}", type_str);
                 // println!("{}", &re.captures(&type_str).unwrap()[1]);
                 let contained_dtype: TokenStream2 = re.captures(&type_str).unwrap()[1]
@@ -286,18 +284,13 @@ fn process_tuple_struct(
                     .unwrap();
                 py_impl_block.extend::<TokenStream2>(
                     quote! {
-                        #[new]
-                        /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
-                        fn __new__(v: Vec<#contained_dtype>) -> Self {
-                            Self(v)
-                        }
                         /// Rust-defined `__repr__` magic method for Python used exposed via PyO3.
                         fn __repr__(&self) -> String {
-                            format!("Pyo3Vec({:?})", self.0)
+                            format!("Pyo3Vec({:?})", self.#idx_for_vec)
                         }
                         /// Rust-defined `__str__` magic method for Python used exposed via PyO3.
                         fn __str__(&self) -> String {
-                            format!("{:?}", self.0)
+                            format!("{:?}", self.#idx_for_vec)
                         }
                         /// Rust-defined `__getitem__` magic method for Python used exposed via PyO3.
                         /// Prevents the Python user getting item directly using indexing.
@@ -318,28 +311,20 @@ fn process_tuple_struct(
                         }
                         /// PyO3-exposed method to convert vec-containing struct to Python list.
                         fn tolist(&self) -> anyhow::Result<Vec<#contained_dtype>> {
-                            Ok(self.0.clone())
+                            Ok(self.#idx_for_vec.clone())
                         }
                         /// Rust-defined `__len__` magic method for Python used exposed via PyO3.
                         /// Returns the length of the Rust vector.
                         fn __len__(&self) -> usize {
-                            self.0.len()
+                            self.#idx_for_vec.len()
                         }
                         /// PyO3-exposed method to check if the vec-containing struct is empty.
                         #[pyo3(name = "is_empty")]
                         fn is_empty_py(&self) -> bool {
-                            self.0.is_empty()
+                            self.#idx_for_vec.is_empty()
                         }
                     }
                 );
-                impl_block.extend::<TokenStream2>(quote! {
-                    impl #ident{
-                        /// Implement the non-Python `new` method.
-                        pub fn new(value: Vec<#contained_dtype>) -> Self {
-                            Self(value)
-                        }
-                    }
-                });
             }
         }
     }
@@ -493,8 +478,8 @@ fn add_serde_methods(py_impl_block: &mut TokenStream2) {
         /// Write (serialize) an object to a message pack
         #[cfg(feature = "msgpack")]
         #[pyo3(name = "to_msg_pack")]
-        pub fn to_msg_pack_py(&self) -> PyResult<Vec<u8>> {
-            self.to_msg_pack().map_err(|e| PyIOError::new_err(format!("{:?}", e)))
+        pub fn to_msg_pack_py<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+            Ok(PyBytes::new_bound(py, &self.to_msg_pack().map_err(|e| PyIOError::new_err(format!("{:?}", e)))?))
         }
 
         /// Read (deserialize) an object from a message pack

@@ -2,7 +2,7 @@ use super::cat_power::*;
 use super::elev::*;
 use super::heading::*;
 use super::link_idx::*;
-use super::link_old::Link as LinkOld;
+use super::link_old::LinkOld;
 use super::speed::*;
 use crate::imports::*;
 
@@ -54,6 +54,10 @@ pub struct Link {
     /// occupied at a given time. For further explanation, see the [graphical
     /// example](https://nrel.github.io/altrios/api-doc/rail-network.html?highlight=network#link-lockout).
     pub link_idxs_lockout: Vec<LinkIdx>,
+
+    #[serde(skip)]
+    #[api(skip_get, skip_set)]
+    pub err_tol: Option<NetworkErrTol>,
 }
 
 impl Link {
@@ -111,6 +115,7 @@ impl From<LinkOld> for Link {
             idx_flip: l.idx_flip,
             osm_id: l.osm_id,
             link_idxs_lockout: l.link_idxs_lockout,
+            err_tol: Some(Default::default()),
         }
     }
 }
@@ -158,6 +163,7 @@ impl ObjState for Link {
                 ));
             }
         } else {
+            // Link is real
             si_chk_num_gtz(&mut errors, &self.length, "Link length");
             validate_field_real(&mut errors, &self.elevs, "Elevations");
             if !self.headings.is_empty() {
@@ -272,7 +278,80 @@ impl ObjState for Link {
                     ));
                 }
             }
+
+            if let Some(err_tol) = &self.err_tol {
+                let grades: Vec<si::Ratio> = self
+                    .elevs
+                    .windows(2)
+                    .map(|w| (w[1].elev - w[0].elev) / (w[1].offset - w[0].offset))
+                    .collect();
+                if let Some(max_allowed_abs_grade) = err_tol.max_grade {
+                    match grades.iter().map(|g| g.abs()).reduce(si::Ratio::max) {
+                        Some(max_abs_grade) => {
+                            if max_abs_grade > max_allowed_abs_grade {
+                                let idx_max_grade = grades
+                                    .iter()
+                                    .position(|&g| g.abs() == max_abs_grade)
+                                    .with_context(|| format_dbg!())
+                                    .unwrap(); // pretty sure this unwrap is safe
+                                errors.push(anyhow!(
+                        "{} -- Max absolute grade ({}%) exceeds max allowed grade ({}%) at offset: {} m",
+                        format_dbg!(),
+                        max_abs_grade.get::<si::ratio>(),
+                        max_allowed_abs_grade.get::<si::ratio>(),
+                        // Add 1 to the index because grades is 1 element longer
+                        self.elevs[idx_max_grade+ 1].offset.get::<si::meter>()
+                    ));
+                            }
+                        }
+                        None => errors.push(anyhow!(
+                            "{} -- Failed to calculate max absolute grade.",
+                            format_dbg!()
+                        )),
+                    };
+                }
+                if let Some(max_allowed_abs_curv) = err_tol.max_curv {
+                    // TODO: make sure that all headings are between 0 and 2 pi
+                    let curves: Vec<si::Curvature> = self
+                        .headings
+                        .windows(2)
+                        .map(|w| {
+                            // the 3.0 is to make sure heading changes that cross
+                            // through zero still result in positive numbers
+                            let dh: si::Angle = (w[1].heading - w[0].heading + 3.0 * uc::REV / 2.0)
+                                % uc::REV
+                                - uc::REV / 2.0;
+                            let dx: si::Length = w[1].offset - w[0].offset;
+                            (dh / dx).into()
+                        })
+                        .collect();
+                    match curves.iter().map(|y| y.abs()).reduce(si::Curvature::max) {
+                        Some(max_abs_curv) => {
+                            if max_abs_curv > max_allowed_abs_curv {
+                                let idx_max_curv = curves
+                                    .iter()
+                                    .position(|&c| c.abs() == max_abs_curv)
+                                    .with_context(|| format_dbg!())
+                                    .unwrap(); // pretty sure this unwrap is safe
+                                errors.push(anyhow!(
+                    "{} -- Max curvature ({} degrees per 100 feet) exceeds max allowed curvature ({} degrees per 100 feet) at offset: {} m",
+                    format_dbg!(),
+                    max_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0,
+                    max_allowed_abs_curv.get::<si::degree_per_meter>() / 3.28084 * 100.0,
+                    // Add 1 to the index because headings is 1 element longer
+                    self.headings[idx_max_curv + 1].offset.get::<si::meter>()
+                ));
+                            }
+                        }
+                        None => errors.push(anyhow!(
+                            "{} -- Failed to calculate max absolute curvature.",
+                            format_dbg!()
+                        )),
+                    };
+                }
+            }
         }
+
         errors.make_err()
     }
 }
@@ -284,15 +363,55 @@ impl ObjState for Link {
     }
 )]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
-/// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
-/// Python
-pub struct Network(pub Vec<Link>);
+/// Struct that contains a `Vec<Link>`, and optional parameters for setting
+/// error tolerances in checks performed by [Init::init]
+pub struct Network(pub NetworkErrTol, pub Vec<Link>);
+
+#[altrios_api]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// Network error tolerances used in [Network::init]
+pub struct NetworkErrTol {
+    #[api(skip_get, skip_set)]
+    /// Maximum absolute grade allowed at any point in the network
+    pub max_grade: Option<si::Ratio>,
+    #[api(skip_get, skip_set)]
+    /// Maximum absolute curvature allowed anywhere in the network
+    pub max_curv: Option<si::Curvature>,
+    #[api(skip_get, skip_set)]
+    /// Maximum allowed step change in heading for coincident nodes in adjacent links
+    pub max_heading_step: Option<si::Angle>,
+    #[api(skip_get, skip_set)]
+    /// Maximum allowed step change in elevation for coincident nodes in
+    /// adjacent links, should be very small
+    pub max_elev_step: Option<si::Length>,
+}
+impl Init for NetworkErrTol {
+    fn init(&mut self) -> Result<(), Error> {
+        let def: Self = Default::default();
+        self.max_grade = self.max_grade.or(def.max_grade);
+        self.max_curv = self.max_curv.or(def.max_curv);
+        self.max_heading_step = self.max_heading_step.or(def.max_heading_step);
+        self.max_elev_step = self.max_elev_step.or(def.max_elev_step);
+        Ok(())
+    }
+}
+impl SerdeAPI for NetworkErrTol {}
+impl Default for NetworkErrTol {
+    fn default() -> Self {
+        Self {
+            max_grade: Some(0.06 * uc::R),
+            max_curv: Some((15.0 * uc::DEG / (100.0 * uc::FT)).into()),
+            max_heading_step: Some(7.0 * uc::DEG),
+            max_elev_step: Some(0.0 * uc::M),
+        }
+    }
+}
 
 impl Network {
     /// Sets `self.speed_set` based on `self.speed_sets` value corresponding to `train_type` key for
     /// all links
     pub fn set_speed_set_for_train_type(&mut self, train_type: TrainType) -> anyhow::Result<()> {
-        for l in self.0.iter_mut().skip(1) {
+        for l in self.1.iter_mut().skip(1) {
             l.set_speed_set_for_train_type(train_type)
                 .with_context(|| format!("`idx_curr`: {}", l.idx_curr))?;
         }
@@ -302,70 +421,171 @@ impl Network {
 
 impl ObjState for Network {
     fn is_fake(&self) -> bool {
-        self.0.is_fake()
+        self.1.is_fake()
     }
     fn validate(&self) -> ValidationResults {
-        self.0.validate()
+        let err_tol = self.0.clone();
+        // NOTE: it may be better to change the trait to `fn validate(&mut self) -> ValidationResults {`
+        // to avoid the need for this clone()
+        let mut links = self.1.clone();
+        // propagate error tolerance to links
+        links
+            .iter_mut()
+            .for_each(|link| link.err_tol = Some(err_tol.clone()));
+        links.validate()
     }
 }
 
 impl SerdeAPI for Network {
-    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> anyhow::Result<Self> {
+    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> Result<Self, Error> {
         let filepath = filepath.as_ref();
         let extension = filepath
             .extension()
             .and_then(OsStr::to_str)
-            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        let mut file = File::open(filepath).with_context(|| {
-            if !filepath.exists() {
-                format!("File not found: {filepath:?}")
-            } else {
-                format!("Could not open file: {filepath:?}")
-            }
+            .ok_or_else(|| {
+                Error::SerdeError(format!("File extension could not be parsed: {filepath:?}"))
+            })?;
+        let mut file = File::open(filepath).map_err(|err| {
+            Error::SerdeError(format!(
+                "{err}\n{}",
+                if !filepath.exists() {
+                    format!("File not found: {filepath:?}")
+                } else {
+                    format!("Could not open file: {filepath:?}")
+                }
+            ))
         })?;
-        let mut network = match Self::from_reader(&mut file, extension, skip_init) {
-            Ok(network) => network,
-            Err(err) => NetworkOld::from_file(filepath, false)
-                .map_err(|old_err| {
-                    anyhow!("\nattempting to load as `Network`:\n{}\nattempting to load as `NetworkOld`:\n{}", err, old_err)
-                })?
-                .into(),
-        };
-        network.init()?;
-
-        Ok(network)
+        match Self::from_reader(&mut file, extension, skip_init) {
+            Ok(network) => {
+                // init already happened in `from_reader`
+                Ok(network)
+            }
+            Err(err) => {
+                match err {
+                    // if the outer error `err` is a SerdeError, try the old network format
+                    Error::SerdeError(_) => {
+                        let filepath_canon = filepath.canonicalize().map_err(|err_canon| {
+                            Error::SerdeError(format!("{err_canon}\n`canonicalize` failed"))
+                        })?;
+                        let mut filepath_copy: String = filepath_canon
+                            .as_os_str()
+                            .to_str()
+                            .ok_or_else(|| {
+                                Error::SerdeError("Unable to extract `filepath` as str".into())
+                            })?
+                            .into();
+                        filepath_copy = filepath_copy.replace(
+                            &format!(".{extension}"),
+                            &format!("_updated_format.{extension}"),
+                        );
+                        match NetworkOld::from_file(filepath, skip_init) {
+                            Err(err_old) => match err_old {
+                                Error::SerdeError(_) => {
+                                    // if the outer error `err_old` is a SerdeError, try the unchecked network format
+                                    match NetworkUnchecked::from_file(
+                                        filepath, skip_init,
+                                    ) {
+                                        Ok(network_unchecked) => {
+                                            let network: Network = network_unchecked.into();
+                                            network.to_file(&filepath_copy).map_err(|tf_err| {
+                                                Error::SerdeError(format!(
+                                                    "{}\n{tf_err}",
+                                                    format_dbg!()
+                                                ))
+                                            })?;
+                                            Err(Error::SerdeError(format!(
+                                                    "{}\n    `Network`: {err}\n    `NetworkOld`: {err_old}\nMissing error tolerance.  Wrote copy of network file in new format with error tolerances to {}",
+                                                    format_dbg!(),
+                                                    filepath_copy
+                                                )))
+                                        }
+                                        Err(err_unchecked) => Err(err_unchecked).map_err(|err_unchecked | {
+                                                Error::SerdeError(
+                                                    format!("\n    `Network`: {err}\n    `NetworkOld`: {err_old}\n    `NetworkUnchecked`: {err_unchecked}"))
+                                        }),
+                                    }
+                                }.map_err(|err_unchecked | Error::SerdeError(format!("{}\n{err_unchecked}", format_dbg!()))),
+                                _ => Err(err_old).map_err(|err_old| {
+                                    Error::SerdeError(format!(
+                                        "{}\n{err}\n{err_old}",
+                                        format_dbg!()
+                                    ))
+                                }),
+                            },
+                            Ok(network_old) => {
+                                let network: Network = network_old.into();
+                                network
+                                    .to_file(&filepath_copy)
+                                    .map_err(|tf_err| Error::SerdeError(format!("{tf_err}")))?;
+                                Err(Error::SerdeError(format!(
+                                    "{}\n`Network`: {err}\nDeprecated network format.  Wrote copy of network file in new format to {}",
+                                    format_dbg!(),
+                                    filepath_copy
+                                )))
+                            }
+                        }
+                    }
+                    _ => Err(err)
+                        .map_err(|err| Error::SerdeError(format!("{}\n{err}", format_dbg!()))),
+                }
+            }
+        }
     }
 }
 impl Init for Network {
-    fn init(&mut self) -> anyhow::Result<()> {
-        Ok(self.as_ref().validate()?)
+    fn init(&mut self) -> Result<(), Error> {
+        // if self.1.is_none() {
+        //     return Err(Error::InitError(format!(
+        //         "`network.1` (error tolerances must be provided, e.g.\n{})",
+        //         NetworkErrTol::default().to_str("json")
+        //     )));
+        // }
+        self.validate()
+            .map_err(|err| Error::InitError(format!("\n{}\n{err}", format_dbg!())))
     }
 }
 
 impl From<NetworkOld> for Network {
     fn from(old: NetworkOld) -> Self {
-        Network(old.0.iter().map(|l| Link::from(l.clone())).collect())
+        Network(
+            Default::default(),
+            old.0.iter().map(|l| Link::from(l.clone())).collect(),
+        )
+    }
+}
+impl From<NetworkUnchecked> for Network {
+    fn from(unchecked: NetworkUnchecked) -> Self {
+        Network(Default::default(), unchecked.0)
     }
 }
 
 #[altrios_api]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
-/// Struct that contains a `Vec<Link>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
+/// Deprecated Struct that contains a `Vec<Link>` for the purpose of providing
+/// `SerdeAPI` for `Vec<Link>` in Python.  This is used solely to enable
+/// backwards compatibility.
+struct NetworkUnchecked(pub Vec<Link>);
+
+#[altrios_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+/// Struct that contains a `Vec<LinkOld>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
 ///
 /// # Note:
-/// This struct will be deprecated and superseded by [Network]
-pub struct NetworkOld(pub Vec<LinkOld>);
+/// This struct will be deprecated and superseded by [Network], which has the
+/// option for either a train-type-independent `speed_set` or a train-type-dependent
+/// `speed_sets` HashMap
+struct NetworkOld(pub Vec<LinkOld>);
 
 impl AsRef<[Link]> for Network {
     fn as_ref(&self) -> &[Link] {
-        &self.0
+        &self.1
     }
 }
 
 impl From<&Vec<Link>> for Network {
     fn from(value: &Vec<Link>) -> Self {
-        Self(value.to_vec())
+        Self(Default::default(), value.to_vec())
     }
 }
 
@@ -382,10 +602,10 @@ impl ObjState for [Link] {
             errors.push(anyhow!(
                 "There must be at least two links (one physical and one dummy)!"
             ));
-            return Err(errors);
+            early_err!(errors, "Links");
         }
         validate_slice_fake(&mut errors, &self[..1], "Link");
-        validate_slice_real_shift(&mut errors, &self[1..], "Link", 0);
+        validate_slice_real_shift(&mut errors, &self[1..], "Link", 1);
         early_err!(errors, "Links");
 
         for (idx, link) in self.iter().enumerate().skip(1) {
@@ -436,6 +656,54 @@ impl ObjState for [Link] {
                             link_next.idx_curr,
                         ));
                     }
+
+                    // Verify that coincident link points have matching elevations within a tolerance parameter
+                    // since `err_tol` propagates from `Network`, only one needs to be checked
+                    // these unwraps should be guaranteed to be checked before this
+                    if !link.elevs.is_empty() && !link_next.elevs.is_empty() {
+                        let elev_delta = link.elevs.last().unwrap().elev - link_next.elevs[0].elev;
+                        if elev_delta.abs()
+                            > link_next.err_tol.as_ref().unwrap().max_elev_step.unwrap()
+                        {
+                            errors.push(anyhow!(
+                            "Difference between last elevation in current link {} and first elevation in {} {} ({} m) exceeds elevation error tolerance: {} m",
+                            link.idx_curr,
+                            link_next.idx_curr,
+                            name,
+                            elev_delta.get::<si::meter>(),
+                            link_next.err_tol.as_ref().unwrap().max_elev_step.unwrap().get::<si::meter>()
+                        ))
+                        }
+                    }
+                    // Verify that coincident link points have matching heading within a tolerance parameter
+                    // since `err_tol` propagates from `Network`, only one needs to be checked
+                    // these unwraps should be guaranteed to be checked before this
+                    if !link.headings.is_empty() && !link_next.headings.is_empty() {
+                        let heading_delta = {
+                            let w = [
+                                link.headings.last().unwrap().heading,
+                                link_next.headings[0].heading,
+                            ];
+                            (w[1] - w[0] + 3.0 * uc::REV / 2.0) % uc::REV - uc::REV / 2.0
+                        };
+                        if heading_delta
+                            > link_next
+                                .err_tol
+                                .as_ref()
+                                .unwrap()
+                                .max_heading_step
+                                .unwrap()
+                        {
+                            errors.push(anyhow!(
+                            "Difference between last heading in current link {} and first heading in {} {} ({} deg) exceed heading error tolerance: {} deg",
+                            link.idx_curr,
+                            link_next.idx_curr,
+                            name,
+                            heading_delta.get::<si::degree>(),
+                            link_next.err_tol.as_ref().unwrap().max_heading_step.unwrap().get::<si::degree>()
+                        ))
+                        }
+                    }
                 }
             } else if link.idx_next_alt.is_real() {
                 errors.push(anyhow!(
@@ -478,6 +746,11 @@ impl ObjState for [Link] {
                 ));
             }
         }
+
+        // TODO: validate coincident data for adjoining links (e.g. elevation, heading, and maybe lat/lon)
+        // either in the above for loop or an equivalent loop below
+        // for (idx, link) in self.iter().enumerate().skip(1) {
+
         errors.make_err()
     }
 }
@@ -613,15 +886,11 @@ mod tests {
 
     #[test]
     fn test_to_and_from_file_for_links() {
-        // TODO: make use of `tempfile` or similar crate
         let links = Vec::<Link>::valid();
         let tempdir = tempfile::tempdir().unwrap();
         let temp_file_path = tempdir.path().join("links_test2.yaml");
         links.to_file(temp_file_path.clone()).unwrap();
-        assert_eq!(
-            Vec::<Link>::from_file(temp_file_path, false).unwrap(),
-            links
-        );
+        assert_eq!(Vec::<Link>::from_file(temp_file_path, true).unwrap(), links);
         tempdir.close().unwrap();
     }
 
@@ -630,16 +899,23 @@ mod tests {
         let network_file_path = project_root::get_project_root()
             .unwrap()
             .join("../python/altrios/resources/networks/Taconite.yaml");
-        let network_speed_sets = Network::from_file(network_file_path, false).unwrap();
+        let network_speed_sets = {
+            let network = Network::from_file(network_file_path, false);
+            if let Err(err) = &network {
+                panic!("{err}");
+            }
+            network
+        }
+        .unwrap();
         let mut network_speed_set = network_speed_sets.clone();
         network_speed_set
             .set_speed_set_for_train_type(TrainType::Freight)
             .unwrap();
         assert!(
-            network_speed_sets.0[1].speed_sets[&TrainType::Freight]
-                == *network_speed_set.0[1].speed_set.as_ref().unwrap()
+            network_speed_sets.1[1].speed_sets[&TrainType::Freight]
+                == *network_speed_set.1[1].speed_set.as_ref().unwrap()
         );
-        assert!(network_speed_set.0[1].speed_sets.is_empty());
-        assert!(network_speed_sets.0[1].speed_set.is_none());
+        assert!(network_speed_set.1[0].speed_sets.is_empty());
+        assert!(network_speed_sets.1[0].speed_set.is_none());
     }
 }

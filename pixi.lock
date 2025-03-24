@@ -790,7 +790,7 @@ packages:
 - pypi: .
   name: altrios
   version: 0.2.3
-  sha256: 0ccfd615f33dbdf75ea62ebddd0b0c42200d2777ed4ffb55ae208f191d4ae70c
+  sha256: 1ce89aad5cf9853958c09600c9702792ab7c84231e4277444016cf1e199334fc
   requires_dist:
   - pandas>=2
   - numpy~=1.24
@@ -801,8 +801,8 @@ packages:
   - matplotlib~=3.3
   - plotly~=6.0
   - typing-extensions
+  - pyarrow>=16.0
   - polars==1.20.0
-  - pyarrow
   - requests
   - pyyaml==6.0.2
   - simpy

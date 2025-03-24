@@ -3,8 +3,9 @@
 - max_grade: 0.25 
   # TODO: fix heading change spikes and then lower this to 0.009 (~15 deg per 100 ft) 
   max_curv_radians_per_meter: 0.020 
-  max_heading_step_radians: 0.12217304763960307
-  max_elev_step_meters: 0.025
+  # TODO: fix heading change spikes and then lower this to 0.12 (~7 degrees)
+  max_heading_step_radians: 0.24
+  max_elev_step_meters: 0.0
 - - idx_curr: 0
     idx_flip: 0
     idx_next: 0

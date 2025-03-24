@@ -656,20 +656,48 @@ impl ObjState for [Link] {
                             link_next.idx_curr,
                         ));
                     }
+
+                    // Verify that coincident link points have matching elevations within a tolerance parameter
                     // since `err_tol` propagates from `Network`, only one needs to be checked
                     // these unwraps should be guaranteed to be checked before this
-                    if !link.elevs.is_empty()
-                        && !link_next.elevs.is_empty()
-                        && (link.elevs.last().unwrap().elev - link_next.elevs[0].elev).abs()
+                    if !link.elevs.is_empty() && !link_next.elevs.is_empty() {
+                        let elev_delta = link.elevs.last().unwrap().elev - link_next.elevs[0].elev;
+                        if elev_delta.abs()
                             > link_next.err_tol.as_ref().unwrap().max_elev_step.unwrap()
-                    {
-                        errors.push(anyhow!(
-                            "Difference between last elevation in current link {} and first elevation in {} {} exceed elevation error tolerance: {} m",
+                        {
+                            errors.push(anyhow!(
+                            "Difference between last elevation in current link {} and first elevation in {} {} ({} m) exceeds elevation error tolerance: {} m",
                             link.idx_curr,
                             link_next.idx_curr,
                             name,
+                            elev_delta.get::<si::meter>(),
                             link_next.err_tol.as_ref().unwrap().max_elev_step.unwrap().get::<si::meter>()
                         ))
+                        }
+                    }
+                    // Verify that coincident link points have matching heading within a tolerance parameter
+                    // since `err_tol` propagates from `Network`, only one needs to be checked
+                    // these unwraps should be guaranteed to be checked before this
+                    if !link.headings.is_empty() && !link_next.headings.is_empty() {
+                        let heading_delta =
+                            link.headings.last().unwrap().heading - link_next.headings[0].heading;
+                        if heading_delta.abs()
+                            > link_next
+                                .err_tol
+                                .as_ref()
+                                .unwrap()
+                                .max_heading_step
+                                .unwrap()
+                        {
+                            errors.push(anyhow!(
+                            "Difference between last heading in current link {} and first heading in {} {} ({} deg) exceed heading error tolerance: {} deg",
+                            link.idx_curr,
+                            link_next.idx_curr,
+                            name,
+                            heading_delta.get::<si::degree>(),
+                            link_next.err_tol.as_ref().unwrap().max_heading_step.unwrap().get::<si::degree>()
+                        ))
+                        }
                     }
                 }
             } else if link.idx_next_alt.is_real() {

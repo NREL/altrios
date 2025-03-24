@@ -4,6 +4,7 @@
 
 use uom::si;
 
+pub use si::angle::degree;
 pub use si::area::square_meter;
 pub use si::available_energy::{joule_per_kilogram, kilojoule_per_kilogram};
 pub use si::curvature::{degree_per_meter, radian_per_meter};

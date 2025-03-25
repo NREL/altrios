@@ -148,17 +148,17 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
         oc_id += 1
     print(f"Time {env.now:.3f}: oc_store has {terminal.oc_store.items}", )
 
-    for this_truck in trucks:
-        yield env.timeout(0)
-        terminal.truck_store.put(this_truck)
-        print(f"trucks in truck stores {sum(getattr(item, 'train_id', None) == train_schedule['train_id'] for item in terminal.truck_store.items)} for train-{train_schedule['train_id']}")
-        if sum(getattr(item, 'train_id', None) == train_schedule['train_id'] for item in terminal.truck_store.items) <= terminal.total_oc[train_schedule['train_id']]:
-            # if truck_id <= total_oc:
-            if sum(getattr(item, 'train_id', None) == train_schedule['train_id'] for item in terminal.parking_slots.items) <= train_schedule['oc_number']:
-                oc = yield terminal.oc_store.get()
-                env.process(truck_entry(env, terminal, this_truck, oc, train_schedule))
-            else:
-                env.process(empty_truck(env, terminal, this_truck))
+    truck_entries_needed = train_schedule['oc_number']
+    empty_truck_needed = len(trucks) - truck_entries_needed
+
+    for i in range(truck_entries_needed):
+        this_truck = trucks.pop(0)
+        oc = yield terminal.oc_store.get()
+        env.process(truck_entry(env, terminal, this_truck, oc, train_schedule))
+
+    for i in range(empty_truck_needed):
+        this_truck = trucks.pop(0)
+        env.process(empty_truck(env, terminal, this_truck))
 
     all_trucks_arrived_event.succeed()  # if all_trucks_arrived_event is triggered, train is allowed to enter
 

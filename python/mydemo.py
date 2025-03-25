@@ -20,7 +20,7 @@ class Terminal:
             1: 1,
             2: 1
         }
-        self.cranes = simpy.FilterStore(env, state.CRANE_NUMBER)
+        self.cranes = simpy.FilterStore(env, sum(cranes_per_track.values()))
 
 
         self.train_ic_unload_events = {}
@@ -43,7 +43,7 @@ class Terminal:
                 self.cranes.put(crane(type='Hybrid', id=crane_number, track_id=track_id))
 
 
-        self.train_ic_stores = simpy.Store(env, capacity=9999)
+        self.train_ic_stores = simpy.FilterStore(env, capacity=9999)
         self.train_oc_stores = simpy.Store(env, capacity=9999)
         self.in_gates = simpy.Resource(env, state.IN_GATE_NUMBERS)
         self.out_gates = simpy.Resource(env, state.OUT_GATE_NUMBERS)
@@ -89,7 +89,8 @@ def emission_calculation(status, vehicle_category, vehicle, travel_time):
 
 def truck_entry(env, terminal, truck, oc, train_schedule):
     global state
-    yield terminal.in_gates.request()
+    ingate_request = terminal.in_gates.request()
+    yield ingate_request
     if state.log_level > loggingLevel.NONE:
         print(f"Time {env.now:.3f}: {truck} loaded with {oc} passed the in-gate and is entering the terminal.")
 
@@ -97,6 +98,7 @@ def truck_entry(env, terminal, truck, oc, train_schedule):
     # Assign IDs for OCs
     truck_travel_time = state.TRUCK_INGATE_TIME + random.uniform(0, state.TRUCK_INGATE_TIME_DEV)
     yield env.timeout(truck_travel_time)  # truck passing gate time: 1 sec (demo_parameters.TRUCK_INGATE_TIME and TRUCK_INGATE_TIME_DEV)
+    terminal.in_gates.release(ingate_request)
     emissions = emission_calculation('loaded', 'truck', truck, truck_travel_time)
     record_vehicle_event('truck', truck, f'entry_OC_{oc.id}', 'loaded',emissions, 'end', env.now)
     if state.log_level > loggingLevel.NONE:
@@ -119,11 +121,13 @@ def truck_entry(env, terminal, truck, oc, train_schedule):
 
 def empty_truck(env, terminal, truck_id):
     global state
-    yield terminal.in_gates.request()
+    ingate_request = terminal.in_gates.request()
+    yield ingate_request
     if state.log_level > loggingLevel.NONE:
         print(f"Time {env.now:.3f}: {truck_id} passed the in-gate and is entering the terminal with empty loading")
     truck_travel_time = state.TRUCK_INGATE_TIME + random.uniform(0, state.TRUCK_INGATE_TIME_DEV)
     yield env.timeout(truck_travel_time)  # truck passing gate time: 1 sec (demo_parameters.TRUCK_INGATE_TIME and TRUCK_INGATE_TIME_DEV)
+    terminal.in_gates.release(ingate_request)
     # Note the arrival of empty trucks will not be recorded due to excel output dimensions
     emissions = emission_calculation('empty', 'truck', truck_id, truck_travel_time)
     record_vehicle_event('truck', truck_id, 'pass_gate', 'empty', emissions, 'end', env.now)
@@ -177,12 +181,16 @@ def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_need
     terminal.total_ic[train_schedule['train_id']] = train_schedule["full_cars"]
     print(f"ic_item on train {train_schedule['train_id']} train_ic_stores has {terminal.train_ic_stores.items}")
 
-    for ic_id in range(terminal.IC_COUNT[train_schedule['train_id']], terminal.IC_COUNT[train_schedule['train_id']] + terminal.total_ic[train_schedule['train_id']]):
+    start_id = terminal.IC_COUNT[train_schedule['train_id']]
+    end_id = terminal.IC_COUNT[train_schedule['train_id']] + terminal.total_ic[train_schedule['train_id']]
+    for ic_id in range(start_id, end_id):
+        print(f"Crane request {ic_id} for Train-{train_schedule['train_id']}")
         crane_item = yield terminal.cranes.get(lambda x: x.track_id == track_id)
-        ic_item = yield terminal.train_ic_stores.get() # pick up the first ic_item, all ic there
+        print(f"Time {env.now:.3f}: Crane {crane_item.to_string()} for Train-{train_schedule['train_id']}")
+        ic_item = yield terminal.train_ic_stores.get(lambda x: x.train_id == train_schedule['train_id']) # pick up the first ic_item, all ic there
 
         print(f"Time {env.now:.3f}: Crane {crane_item.to_string()} starts unloading IC-{ic_item.id}-Train-{train_schedule['train_id']}")
-        crane_unload_move_time = state.CONTAINERS_PER_CRANE_MOVE_MEAN + random.uniform(0, state.CRANE_MOVE_DEV_TIME)
+        crane_unload_move_time = 0 #TODO add this back state.CONTAINERS_PER_CRANE_MOVE_MEAN + random.uniform(0, state.CRANE_MOVE_DEV_TIME)
         yield env.timeout(crane_unload_move_time)
         record_container_event(ic_item.to_string(), 'crane_unload', env.now)
         record_vehicle_event('crane', crane_item, f"unload_IC_{ic_item.id}-Train-{train_schedule['train_id']}", 'full',
@@ -191,6 +199,7 @@ def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_need
         yield terminal.chassis.put(ic_item)
         print(f"Before put: cranes {len(terminal.cranes.items)} / crane capacity {terminal.cranes.capacity}")
         yield terminal.cranes.put(crane_item)
+        print(f"After put: cranes {len(terminal.cranes.items)} / crane capacity {terminal.cranes.capacity}")
 
         # ic_unloaded_count += 1
         terminal.train_ic_unload_count[train_schedule['train_id']] += 1
@@ -348,15 +357,16 @@ def container_process(env, terminal, train_schedule):
 
 def truck_exit(env, terminal, truck, ic, train_schedule):
     global state
-    with terminal.out_gates.request() as out_gate_request:
-        yield out_gate_request
-        print(f"Time {env.now:.3f}: Truck {truck.id} with IC-{ic.id}-Train-{train_schedule['train_id']} is passing through the out-gate and leaving the terminal")
-        truck_travel_time = state.TRUCK_OUTGATE_TIME + random.uniform(0, state.TRUCK_OUTGATE_TIME_DEV)
-        yield env.timeout(truck_travel_time)
-        record_container_event(ic, 'truck_exit', env.now)
-        emissions = emission_calculation('loaded', 'truck', truck, truck_travel_time)
-        record_vehicle_event('truck', truck, f"leave_gate_IC_{ic.id}-Train-{train_schedule['train_id']}", 'loaded',
-                             emissions, 'end', env.now)
+    out_gate_request = terminal.out_gates.request()
+    yield out_gate_request
+    print(f"Time {env.now:.3f}: Truck {truck.id} with IC-{ic.id}-Train-{train_schedule['train_id']} is passing through the out-gate and leaving the terminal")
+    truck_travel_time = state.TRUCK_OUTGATE_TIME + random.uniform(0, state.TRUCK_OUTGATE_TIME_DEV)
+    yield env.timeout(truck_travel_time)
+    terminal.out_gates.release(out_gate_request)
+    record_container_event(ic, 'truck_exit', env.now)
+    emissions = emission_calculation('loaded', 'truck', truck, truck_travel_time)
+    record_vehicle_event('truck', truck, f"leave_gate_IC_{ic.id}-Train-{train_schedule['train_id']}", 'loaded',
+                            emissions, 'end', env.now)
 
     yield terminal.truck_store.put(truck)
 

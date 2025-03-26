@@ -297,8 +297,8 @@ impl ObjState for Link {
                                 errors.push(anyhow!(
                         "{} -- Max absolute grade ({}%) exceeds max allowed grade ({}%) at offset: {} m",
                         format_dbg!(),
-                        max_abs_grade.get::<si::ratio>(),
-                        max_allowed_abs_grade.get::<si::ratio>(),
+                        max_abs_grade.get::<si::percent>(),
+                        max_allowed_abs_grade.get::<si::percent>(),
                         // Add 1 to the index because grades is 1 element longer
                         self.elevs[idx_max_grade+ 1].offset.get::<si::meter>()
                     ));

@@ -820,6 +820,7 @@ impl RESGreedyWithDynamicBuffers {
 
 impl Init for RESGreedyWithDynamicBuffers {
     fn init(&mut self) -> Result<(), Error> {
+        // TODO: tunnel buffer!
         // TODO: make sure these values propagate to the documented defaults above
         init_opt_default!(self, speed_soc_disch_buffer, 40.0 * uc::MPH);
         init_opt_default!(self, speed_soc_disch_buffer_coeff, 1.0 * uc::R);

@@ -34,6 +34,7 @@ def extract_hel_from_train_sim(ts: alt.SetSpeedTrainSim) -> list:
     loco_list = []
     for loco in ts_list:
         if "Hybrid" in loco.loco_type():
+            # Hybrid loco's loco type is somehow still BEL
             loco_list.append(loco)
     if not loco_list:
         print("NO HYBRID LOCO IS FOUND IN CONSIST")
@@ -111,13 +112,14 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax[-1].plot(
             x_axis,
             ts.history.speed_meters_per_second,
-            label='achieved'
+            label='achieved speed'
         )
-        ax[-1].plot(
-            x_axis,
-            ts.history.speed_limit_meters_per_second,
-            label='limit'
-        )
+        if isinstance(train_sim,alt.SpeedLimitTrainSim):
+            ax[-1].plot(
+                x_axis,
+                ts.history.speed_limit_meters_per_second,
+                label='limit'
+            )
         ax[-1].set_xlabel(x_label)
         ax[-1].set_ylabel('Speed [m/s]')
         ax[-1].legend()
@@ -296,7 +298,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         fig, ax = plt.subplots(4, 1, sharex=True)
         #Need to find the current param for this:
         #np.array(first_conv.fc.state.pwr_out_frac_interp*pwr_out_max_watts/1e6)
-        fig, ax = plt.subplots(4, 1, sharex=True)
+        fig, ax = plt.subplots(3, 1, sharex=True)
         ax[0].plot(
             x_axis,
             np.array(ts.history.pwr_whl_out_watts) / 1e6,
@@ -333,22 +335,17 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax[1].set_ylabel('Force [MN]')
         ax[1].legend()
 
-        ax[2].plot(
-            x_axis,
-            np.array(first_bel.res.history.soc)
-        )
-        ax[2].set_ylabel('SOC')
-
         ax[-1].plot(
             x_axis,
             ts.history.speed_meters_per_second,
-            label='achieved'
+            label='achieved speed'
         )
-        ax[-1].plot(
-            x_axis,
-            ts.history.speed_limit_meters_per_second,
-            label='limit'
-        )
+        if isinstance(train_sim,alt.SpeedLimitTrainSim):
+            ax[-1].plot(
+                x_axis,
+                ts.history.speed_limit_meters_per_second,
+                label='limit'
+            )
         ax[-1].set_xlabel(x_label)
         ax[-1].set_ylabel('Speed [m/s]')
         ax[-1].legend()
@@ -666,9 +663,9 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax[-1].plot(
             x_axis,
             ts.history.speed_meters_per_second,
-            label='achieved'
+            label='achieved speed'
         )
-        if isinstance(ts, alt.SpeedLimitTrainSim):
+        if isinstance(train_sim,alt.SpeedLimitTrainSim):
             ax[-1].plot(
                 x_axis,
                 ts.history.speed_limit_meters_per_second,
@@ -744,6 +741,8 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax3[0].plot(
             x_axis,
             np.array(first_hel.res.history.pwr_out_pwr_out_electrical_watts) / 1e3,
+            #np.array(hybrid_loco['loco_type']['HybridLoco']['res']
+            #        ['history']['pwr_out_electrical_watts']) / 1e3,
             label='hybrid batt. elec. pwr.'
         )
         ax3[0].set_ylabel('Power [kW]')
@@ -751,16 +750,19 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax3[1].plot(
             x_axis,
             first_hel.res.history.soc,
+            #hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc'],
             label='soc'
         )
         ax3[1].plot(
             x_axis,
             first_hel.res.history.soc_chrg_buffer,
+            #hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc_chrg_buffer'],
             label='chrg buff'
         )
         ax3[1].plot(
             x_axis,
             first_hel.res.history.soc_disch_buffer,
+            #hybrid_loco['loco_type']['HybridLoco']['res']['history']['soc_disch_buffer'],
             label='disch buff'
         )
         ax3[1].set_ylabel('[-]')

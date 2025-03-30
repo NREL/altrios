@@ -37,25 +37,31 @@ def extract_hel_from_train_sim(ts: alt.SetSpeedTrainSim) -> list:
     loco_list = []
     for loco in ts_list:
         if "Hybrid" in loco.loco_type():
+            # Hybrid loco's loco type is somehow still BEL
             loco_list.append(loco)
     if not loco_list:
         print("NO HYBRID LOCO IS FOUND IN CONSIST")
         return False
     return loco_list
 
-def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
+def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str):
     """
+    Can take in either SetSpeedTrainSim or SpeedLimitTrainSim
     Extracts first instance of each loco_type and plots representative plots
-    Offers several plotting options to put on x and y axis
+    Offers two plotting options to put on x axis
+    ts: train sim
     x: ["time","offset"]
-    y: ["Force Requirement" ,"Consumption"]
     """
+    if isinstance(train_sim,alt.SpeedLimitTrainSim):
+        plot_name = "Speed Limit Train Sim"
+    if isinstance(train_sim,alt.SetSpeedTrainSim):
+        plot_name = "Set Speed Train Sim"
     if x == "time" or x =="Time":
         x_axis = np.array(ts.history.time_seconds) / 3_600
         x_label = "Time (hr)"
     if x == "distance" or x == "Distance":
-        x_axis = np.array(ts.history.offset_back_meters)
-        x_label = "Distance (m)"
+        x_axis = np.array(ts.history.offset_back_meters) / 1_000
+        x_label = "Distance (km)"
     first_bel = []
     first_conv = []
     first_hel = []
@@ -114,17 +120,18 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax[-1].plot(
             x_axis,
             ts.history.speed_meters_per_second,
-            label='achieved'
+            label='achieved speed'
         )
-        ax[-1].plot(
-            x_axis,
-            ts.history.speed_limit_meters_per_second,
-            label='limit'
-        )
+        if isinstance(train_sim,alt.SpeedLimitTrainSim):
+            ax[-1].plot(
+                x_axis,
+                ts.history.speed_limit_meters_per_second,
+                label='limit'
+            )
         ax[-1].set_xlabel(x_label)
         ax[-1].set_ylabel('Speed [m/s]')
         ax[-1].legend()
-        plt.suptitle("Speed Limit Train Sim Demo")
+        plt.suptitle(plot_name + " " + "Train Resistance, BEL SOC and Train Speed")
 
         fig1, ax1 = plt.subplots(3, 1, sharex=True)
         ax1[0].plot(
@@ -155,7 +162,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax1[-1].set_xlabel(x_label)
         ax1[-1].set_ylabel('Speed [m/s]')
 
-        plt.suptitle("Speed Limit Train Sim Demo")
+        plt.suptitle(plot_name + " " + "Distance and Link Tracking")
         plt.tight_layout()
 
         fig2, ax2 = plt.subplots(3, 1, sharex=True)
@@ -180,7 +187,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax2[-1].set_xlabel(x_label)
         ax2[-1].set_ylabel('Speed [m/s]')
 
-        plt.suptitle("Speed Limit Train Sim Demo")
+        plt.suptitle(plot_name + " " + "Power and Grade Profile")
         plt.tight_layout()
         plt.show()
 
@@ -299,7 +306,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         fig, ax = plt.subplots(4, 1, sharex=True)
         #Need to find the current param for this:
         #np.array(first_conv.fc.state.pwr_out_frac_interp*pwr_out_max_watts/1e6)
-        fig, ax = plt.subplots(4, 1, sharex=True)
+        fig, ax = plt.subplots(3, 1, sharex=True)
         ax[0].plot(
             x_axis,
             np.array(ts.history.pwr_whl_out_watts) / 1e6,
@@ -336,26 +343,21 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax[1].set_ylabel('Force [MN]')
         ax[1].legend()
 
-        ax[2].plot(
-            x_axis,
-            np.array(first_bel.res.history.soc)
-        )
-        ax[2].set_ylabel('SOC')
-
         ax[-1].plot(
             x_axis,
             ts.history.speed_meters_per_second,
-            label='achieved'
+            label='achieved speed'
         )
-        ax[-1].plot(
-            x_axis,
-            ts.history.speed_limit_meters_per_second,
-            label='limit'
-        )
+        if isinstance(train_sim,alt.SpeedLimitTrainSim):
+            ax[-1].plot(
+                x_axis,
+                ts.history.speed_limit_meters_per_second,
+                label='limit'
+            )
         ax[-1].set_xlabel(x_label)
         ax[-1].set_ylabel('Speed [m/s]')
         ax[-1].legend()
-        plt.suptitle("Speed Limit Train Sim Demo")
+        plt.suptitle(plot_name + " " + "Train Resistance, and Train Speed")
 
         fig1, ax1 = plt.subplots(3, 1, sharex=True)
         ax1[0].plot(
@@ -386,7 +388,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax1[-1].set_xlabel(x_label)
         ax1[-1].set_ylabel('Speed [m/s]')
 
-        plt.suptitle("Speed Limit Train Sim Demo")
+        plt.suptitle(plot_name + " " + "Distance and Link Tracking")
         plt.tight_layout()
 
         fig2, ax2 = plt.subplots(3, 1, sharex=True)
@@ -411,7 +413,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax2[-1].set_xlabel(x_label)
         ax2[-1].set_ylabel('Speed [m/s]')
 
-        plt.suptitle("Speed Limit Train Sim Demo")
+        plt.suptitle(plot_name + " " + "Power and Grade Profile")
         plt.tight_layout()
         plt.show()
         # fig, ax = plt.subplots(2, 1, sharex=True)
@@ -662,24 +664,25 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
 
         ax[2].plot(
             x_axis,
-            np.array(first_bel.res.history.soc)
+            np.array(first_hel.res.history.soc)
         )
         ax[2].set_ylabel('SOC')
 
         ax[-1].plot(
             x_axis,
             ts.history.speed_meters_per_second,
-            label='achieved'
+            label='achieved speed'
         )
-        ax[-1].plot(
-            x_axis,
-            ts.history.speed_limit_meters_per_second,
-            label='limit'
-        )
+        if isinstance(train_sim,alt.SpeedLimitTrainSim):
+            ax[-1].plot(
+                x_axis,
+                ts.history.speed_limit_meters_per_second,
+                label='limit'
+            )
         ax[-1].set_xlabel(x_label)
         ax[-1].set_ylabel('Speed [m/s]')
         ax[-1].legend()
-        plt.suptitle("Speed Limit Train Sim Demo")
+        plt.suptitle(plot_name + " " + "Train Resistance, Battery SOC and Train Speed")
 
         fig1, ax1 = plt.subplots(3, 1, sharex=True)
         ax1[0].plot(
@@ -710,7 +713,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax1[-1].set_xlabel(x_label)
         ax1[-1].set_ylabel('Speed [m/s]')
 
-        plt.suptitle("Speed Limit Train Sim Demo")
+        plt.suptitle(plot_name + " " + "Distance and Link Tracking")
         plt.tight_layout()
 
         fig2, ax2 = plt.subplots(3, 1, sharex=True)
@@ -735,12 +738,12 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax2[-1].set_xlabel(x_label)
         ax2[-1].set_ylabel('Speed [m/s]')
 
-        plt.suptitle("Speed Limit Train Sim Demo")
+        plt.suptitle(plot_name + " " + "Power and Grade Profile")
         plt.tight_layout()
         fig3, ax3 = plt.subplots(3, 1, sharex=True)
         ax3[0].plot(
             x_axis,
-            np.array(hybrid_loco['history']['pwr_out_watts']) / 1e3,
+            np.array(first_hel['history']['pwr_out_watts']) / 1e3,
             label='hybrid tract. pwr.'
         )
         ax3[0].plot(
@@ -779,6 +782,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         )
         ax3[2].set_ylabel('Speed [m/s]')
         ax3[2].set_xlabel('Times [s]')
+        plt.suptitle(plot_name + " " + "Hybrid Loco Power and Buffer Profile")
         plt.tight_layout()
         plt.show()
     
@@ -816,9 +820,10 @@ bel: alt.Locomotive = alt.Locomotive.build_battery_electric_loco(
         pwr_aux_traction_coeff_ratio=540.e-6,
         force_max_newtons=667.2e3,
 )))
+hel: alt.Locomotive = alt.Locomotive.default_battery_electric_loco()
 
 # construct a vector of one BEL and several conventional locomotives
-loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7
+loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7 + [hel.clone()]
 # instantiate consist
 loco_con = alt.Consist(
     loco_vec

@@ -182,6 +182,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
 
         plt.suptitle("Speed Limit Train Sim Demo")
         plt.tight_layout()
+        plt.show()
 
         # fig, ax = plt.subplots(3, 1, sharex=True)
         # ax[0].plot(
@@ -412,6 +413,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
 
         plt.suptitle("Speed Limit Train Sim Demo")
         plt.tight_layout()
+        plt.show()
         # fig, ax = plt.subplots(2, 1, sharex=True)
         # ax[0].plot(
         #     x_axis,
@@ -778,6 +780,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         ax3[2].set_ylabel('Speed [m/s]')
         ax3[2].set_xlabel('Times [s]')
         plt.tight_layout()
+        plt.show()
     
     return 
 sns.set_theme()

@@ -1,13 +1,14 @@
 import pandas as pd
 import random
 import math
-from altrios.lifts.distances import *
+from altrios.lifts.distances_single_track import *
 from altrios.lifts.single_track_parameters import *
 
 # User-input
-daily_throughput = 1000
+replicate_times = 1
+daily_throughput = 1000 * replicate_times
 train_batch_size = 300
-simulation_duration = 24
+simulation_duration = 24 * replicate_times
 start_time = 0
 
 # layout_file = "C:/Users/mbruchon/Documents/Repos/NREL/altrios/python/altrios/lifts/single_track_input/layout.xlsx"
@@ -27,12 +28,14 @@ print(f"crane number: {state.CRANE_NUMBER}")
 print(f"average travel distance for hostler: {(2 * uniform_mean(d_h_min, d_h_max) + uniform_mean(d_r_min, d_r_max)) / 3.2} meters.")
 print(f"average hostler speed: {2.9 * 3600} m/hr.")
 hostler_cycle_time = state.CRANE_NUMBER * ((2 * uniform_mean(d_h_min, d_h_max) + uniform_mean(d_r_min, d_r_max)) / 3.2 ) / (2.9 * 3600)   # (ft -> m) / (m/s -> m/hr)
-print(f"hostler cycle time: {hostler_cycle_time} hr")
-hostler_num = hostler_cycle_time / (state.CONTAINERS_PER_CRANE_MOVE_MEAN)   # hr/hr
+print(f"hostler moving cycle time: {hostler_cycle_time} hr")
+crane_loading_time = 2/60 # hr
+hostler_num = (hostler_cycle_time + crane_loading_time) / (state.CONTAINERS_PER_CRANE_MOVE_MEAN)   # hr/hr
 print(f"numbers of hostler: {math.ceil(hostler_num)}")
 
 # train numbers
-num_trains = math.ceil(daily_throughput / train_batch_size)
+num_trains = math.ceil(daily_throughput / (replicate_times * train_batch_size)) * replicate_times
+print(f"number of trains: {num_trains}")
 full_cars_list = [train_batch_size] * (num_trains - 1)
 full_cars_list.append(daily_throughput - sum(full_cars_list))
 train_ids = random.sample(range(1, 1000), num_trains)
@@ -53,12 +56,12 @@ for i in range(num_trains):
 
     train_timetable.append({
         "train_id": train_id,
-        "arrival_time": round(arrival_time, 2),
-        "departure_time": round(departure_time, 2),
+        "arrival_time": int(round(arrival_time, 2)),
+        "departure_time": int(round(departure_time, 2)),
         "empty_cars": 0,
-        "full_cars": full_cars,
-        "oc_number": oc_number,
-        "truck_number": truck_number
+        "full_cars": int(full_cars),
+        "oc_number": int(oc_number),
+        "truck_number": int(truck_number)
     })
 
 print(train_timetable)

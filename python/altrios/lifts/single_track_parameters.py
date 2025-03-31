@@ -19,7 +19,7 @@ class LiftsState:
     # Fixed: Simulation files and hyperparameters
     log_level: loggingLevel = loggingLevel.DEBUG
     random_seed: int = 42
-    sim_time: int = 72
+    sim_time: int = 24
     terminal: str = 'Allouez'  # Choose 'Hibbing' or 'Allouez'
     train_consist_plan: pl.DataFrame = field(default_factory=lambda: pl.DataFrame())
 
@@ -45,7 +45,7 @@ class LiftsState:
     CRANE_MOVE_DEV_TIME: float = 1 / 3600  # crane movement speed deviation value: hr
 
     # Fixed: Hostler parameters
-    HOSTLER_NUMBER: int = 50
+    HOSTLER_NUMBER: int = 4
     HOSTLER_DIESEL_PERCENTAGE: float = 1
     # Fixed hostler travel time (** will update with density-speed/time functions later soon)
     CONTAINERS_PER_HOSTLER: int = 1  # hostler capacity

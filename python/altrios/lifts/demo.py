@@ -4,7 +4,7 @@ from altrios.lifts.single_track_timetable import *
 import polars as pl
 from altrios.lifts import utilities
 from altrios.lifts.single_track_parameters import *
-from altrios.lifts.distances import *
+from altrios.lifts.distances_single_track import *
 from altrios.lifts.dictionary import *
 from altrios.lifts.schedule import *
 from altrios.lifts.single_track_vehicle_performance import *
@@ -451,24 +451,11 @@ def run_simulation(train_consist_plan: pl.DataFrame, terminal: str, out_path = N
     #      "truck_number": 50},    # test: ic < oc
     # ]
 
-    # train_timetable = [
-    #     {"train_id": 19, "arrival_time": 187, "departure_time": 250, "empty_cars": 3, "full_cars": 500, "oc_number": 200,
-    #      "truck_number": 500},    # test: ic > oc
-    #     {"train_id": 12, "arrival_time": 300, "departure_time": 500, "empty_cars": 5, "full_cars": 400, "oc_number": 400,
-    #      "truck_number": 400},    # test: ic = oc
-    #     {"train_id": 70, "arrival_time": 530, "departure_time": 800, "empty_cars": 5, "full_cars": 300, "oc_number": 500,
-    #      "truck_number": 500},    # test: ic < oc
-    # ]
+    train_timetable = [{'train_id': 840, 'arrival_time': 0, 'departure_time': 6, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 7, 'arrival_time': 6, 'departure_time': 12, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 82, 'arrival_time': 12, 'departure_time': 18, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 414, 'arrival_time': 18, 'departure_time': 18, 'empty_cars': 0, 'full_cars': 50, 'oc_number': 50, 'truck_number': 50}]
 
-    train_timetable = [
-    {'train_id': 15, 'arrival_time': 0, 'departure_time': 6, 'empty_cars': 0, 'full_cars': 150,
-      'oc_number': 150, 'truck_number': 150},
-     {'train_id': 328, 'arrival_time': 6, 'departure_time': 12, 'empty_cars': 0, 'full_cars': 150,
-      'oc_number': 150, 'truck_number': 150},
-     {'train_id': 603, 'arrival_time': 12, 'departure_time': 18, 'empty_cars': 0, 'full_cars': 150,
-      'oc_number': 150, 'truck_number': 150},
-     {'train_id': 986, 'arrival_time': 18, 'departure_time': 18, 'empty_cars': 0, 'full_cars': 50,
-      'oc_number': 50, 'truck_number': 50}]
+
+    # train_timetable = [{'train_id': 403, 'arrival_time': 0, 'departure_time': 6, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 629, 'arrival_time': 6, 'departure_time': 12, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 912, 'arrival_time': 12, 'departure_time': 18, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 170, 'arrival_time': 18, 'departure_time': 24, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 980, 'arrival_time': 24, 'departure_time': 30, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 937, 'arrival_time': 30, 'departure_time': 36, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 640, 'arrival_time': 36, 'departure_time': 42, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 267, 'arrival_time': 42, 'departure_time': 48, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 86, 'arrival_time': 48, 'departure_time': 54, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 451, 'arrival_time': 54, 'departure_time': 60, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 271, 'arrival_time': 60, 'departure_time': 66, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 77, 'arrival_time': 66, 'departure_time': 66, 'empty_cars': 0, 'full_cars': -150, 'oc_number': -150, 'truck_number': -150}]
+
 
     # train_timetable = train_timetable
 
@@ -492,11 +479,11 @@ def run_simulation(train_consist_plan: pl.DataFrame, terminal: str, out_path = N
 
     # Performance Matrix
     # Train processing time
-    avg_time_per_train = sum(state.time_per_train.values()) / len(state.time_per_train)
-    print(f"Average train processing time: {sum(state.time_per_train) / len(state.time_per_train) if state.time_per_train else 0:.2f}")
-    print("Simulation completed. ")
-    with open("avg_time_per_train.txt", "w") as f:
-       f.write(str(avg_time_per_train))
+    # avg_time_per_train = sum(state.time_per_train.values()) / len(state.time_per_train)
+    # print(f"Average train processing time: {sum(state.time_per_train) / len(state.time_per_train) if state.time_per_train else 0:.2f}")
+    # print("Simulation completed. ")
+    # with open("avg_time_per_train.txt", "w") as f:
+    #    f.write(str(avg_time_per_train))
 
     # Create DataFrame for container events
     print(state.sim_time)

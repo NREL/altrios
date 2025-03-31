@@ -8,7 +8,8 @@ vehicle_events = {
 
 def record_vehicle_event(vehicle_category, vehicle, action, state, emission, event_type, timestamp):
     vehicle_events[vehicle_category].append({
-        'vehicle_id': vehicle.to_string(),
+        'vehicle_id': vehicle[0] if isinstance(vehicle, tuple) else vehicle.id,
+        # 'vehicle_id': vehicle.to_string(),
         'action': action,
         'state': state,
         'emission': emission,

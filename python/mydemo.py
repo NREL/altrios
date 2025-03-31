@@ -196,16 +196,14 @@ def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_need
         ic_item = yield terminal.train_ic_stores.get(
             lambda x: x.train_id == train_schedule['train_id'])  # pick up the first ic_item, all ic there
 
-        print(
-            f"Time {env.now:.3f}: Crane {crane_item.to_string()} starts unloading IC-{ic_item.id}-Train-{train_schedule['train_id']}")
+        print(f"Time {env.now:.3f}: Crane {crane_item.to_string()} starts unloading IC-{ic_item.id}-Train-{train_schedule['train_id']}")
         crane_unload_move_time = 0  # TODO add this back state.CONTAINERS_PER_CRANE_MOVE_MEAN + random.uniform(0, state.CRANE_MOVE_DEV_TIME)
         yield env.timeout(crane_unload_move_time)
         record_container_event(ic_item.to_string(), 'crane_unload', env.now)
         record_vehicle_event('crane', crane_item, f"unload_IC_{ic_item.id}-Train-{train_schedule['train_id']}", 'full',
                              crane_unload_move_time * state.FULL_EMISSIONS_RATES['Crane'][crane_item.type], 'end',
                              env.now)
-        print(
-            f"Time {env.now:.3f}: Crane {crane_item.to_string()} finishes unloading IC-{ic_item.id}-Train-{train_schedule['train_id']} onto chassis")
+        print(f"Time {env.now:.3f}: Crane {crane_item.to_string()} finishes unloading IC-{ic_item.id}-Train-{train_schedule['train_id']} onto chassis")
         yield terminal.chassis.put(ic_item)
         print(f"Before put: cranes {len(terminal.cranes.items)} / crane capacity {terminal.cranes.capacity}")
         yield terminal.cranes.put(crane_item)
@@ -397,18 +395,15 @@ def crane_load_process(env, terminal, track_id, train_schedule):
     yield terminal.train_start_load_events[train_schedule['train_id']]
     print(f"Time {env.now:.3f}: Starting loading process onto the train.")
 
-    while len([item for item in terminal.chassis.items if
-               isinstance(item, str) and "OC" in item]) > 0:  # if there still has OC on chassis
+    while sum(item.type == 'Outbound' for item in terminal.chassis.items) > 0:    # if there still has OC on chassis
         crane_item = yield terminal.cranes.get(lambda x: x.track_id == track_id)
-        oc = yield terminal.chassis.get(
-            lambda x: x.type == 'Outbound' & x.train_id == train_schedule['train_id'])  # obtain an OC from chassis
+        oc = yield terminal.chassis.get(lambda x: x.type == 'Outbound' and x.train_id == train_schedule['train_id'])  # obtain an OC from chassis
         print(f"Time {env.now:.3f}: Crane {crane_item.to_string()} starts loading {oc} onto the train.")
-        crane_load_move_time = state.CONTAINERS_PER_CRANE_MOVE_MEAN + random.uniform(0, state.CRANE_MOVE_DEV_TIME)
+        crane_load_move_time = 0 # state.CONTAINERS_PER_CRANE_MOVE_MEAN + random.uniform(0, state.CRANE_MOVE_DEV_TIME)
         yield env.timeout(crane_load_move_time)  # loading time, depends on container parameter**
         record_container_event(oc, 'crane_load', env.now)
         record_vehicle_event('crane', (crane_item.id, crane_item.type), f'load_{oc}', 'full',
-                             crane_load_move_time * state.FULL_EMISSIONS_RATES['Crane'][crane_item.type], 'end',
-                             env.now)
+                             crane_load_move_time * state.FULL_EMISSIONS_RATES['Crane'][crane_item.type], 'end', env.now)
         print(f"Time {env.now:.3f}: Crane {crane_item.to_string()} finished loading {oc} onto the train.")
         yield terminal.train_oc_stores.put(oc)
         yield terminal.cranes.put(crane_item)

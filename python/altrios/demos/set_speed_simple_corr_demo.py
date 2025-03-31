@@ -27,9 +27,9 @@ train_config = alt.TrainConfig(
 )
 
 bel: alt.Locomotive = alt.Locomotive.default_battery_electric_loco()
-
+hel: alt.Locomotive = alt.Locomotive.default_hybrid_electric_loco()
 # construct a vector of one BEL and several conventional locomotives
-loco_vec = [bel] + [alt.Locomotive.default()] * 7
+loco_vec = [bel] + [alt.Locomotive.default()] * 7 + [hel.clone()] 
 # instantiate consist
 loco_con = alt.Consist(
     loco_vec,

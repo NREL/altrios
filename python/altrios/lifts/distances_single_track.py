@@ -2,6 +2,20 @@ import numpy as np
 from altrios.lifts.single_track_parameters import *
 from scipy.stats import triang, uniform
 import math
+import json
+
+def load_layout_config_from_json(path="sim_config.json"):
+    import json
+    global k, M, N, n_t, n_p, n_r
+    with open(path, "r") as f:
+        config = json.load(f)
+        layout = config["layout"]
+        k = layout["k"]
+        M = layout["M"]
+        N = layout["N"]
+        n_t = layout["n_t"]
+        n_p = layout["n_p"]
+        n_r = layout["n_r"]
 
 # Yard setting: optimal layout output
 YARD_TYPE = 'parallel'  # choose 'perpendicular' or 'parallel'

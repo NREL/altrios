@@ -66,7 +66,7 @@ class LiftsState:
     # Fixed: Emission matrix
     # Diesel unit: gallons/load
     # Electric unit: kMhr/load
-    FULL_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
+    FULL_LOAD_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
         default_factory=lambda: {
             'Truck': {'Diesel': 2.00, 'Electric': 14.2},
             'Hostler': {'Diesel': 0.35, 'Electric': 4.76},
@@ -75,7 +75,23 @@ class LiftsState:
     )
 
 
-    IDLE_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
+    IDLE_LOAD_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
+        default_factory=lambda: {
+            'Truck': {'Diesel': 0.60, 'Electric': 12.42},
+            'Hostler': {'Diesel': 0.25, 'Electric': 1.28},
+            'Crane': {'Diesel': 0.26, 'Hybrid': 0.48},
+        }
+    )
+
+    FULL_TRIP_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
+        default_factory=lambda: {
+            'Truck': {'Diesel': 2.00, 'Electric': 14.2},
+            'Hostler': {'Diesel': 0.35, 'Electric': 4.76},
+            'Crane': {'Diesel': 0.26, 'Hybrid': 0.48},
+        }
+    )
+
+    IDLE_TRIP_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
         default_factory=lambda: {
             'Truck': {'Diesel': 0.60, 'Electric': 12.42},
             'Hostler': {'Diesel': 0.25, 'Electric': 1.28},
@@ -109,6 +125,5 @@ class LiftsState:
 
     def __post_init__(self):
         self.initialize()
-
 
 state = LiftsState()

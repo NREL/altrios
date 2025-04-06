@@ -6,7 +6,7 @@ from altrios.lifts.demo_parameters import *
 from altrios.lifts.distances import *
 from altrios.lifts.dictionary import *
 from altrios.lifts.schedule import *
-from altrios.lifts.vehicle_performance import record_vehicle_event, save_average_times, save_vehicle_logs
+from altrios.lifts.single_track_vehicle_performance import record_vehicle_event, save_average_times, save_vehicle_logs
 
 
 class Terminal:

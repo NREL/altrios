@@ -14,11 +14,12 @@ vehicle_events = {
     'truck': []
 }
 
-def record_vehicle_event(vehicle_category, vehicle, action, state, time, emission, event_type, timestamp):
+def record_vehicle_event(vehicle_category, vehicle, action, state, move, time, emission, event_type, timestamp):
     vehicle_events[vehicle_category].append({
         'vehicle_id': str(vehicle),
         'action': action,
-        'state': state,
+        'state': state, # loaded or empty
+        'move': move, # load or trip
         'time': time,
         'emission': emission,
         'event_type': event_type,
@@ -49,32 +50,31 @@ def calculate_performance(dataframes, ic_count, oc_count):
     summary_df.reset_index(inplace=True)
     summary_df.rename(columns={'index': 'Vehicle'}, inplace=True)
 
-    total_row = summary_df.sum(numeric_only=True)
+    total_row = summary_df.sum(numeric_only=True).to_dict()
     total_row['Vehicle'] = 'Total'
     summary_df = pd.concat([summary_df, pd.DataFrame([total_row])], ignore_index=True)
 
-    # Calculate average row
+    # Append the average row directly below total row
     average_row = {
         'Vehicle': 'Average',
-        'IC Energy Consumption': total_row['IC Emissions'] / ic_count if ic_count else 0,
-        'OC Energy Consumption': total_row['OC Emissions'] / oc_count if oc_count else 0,
-        'Total Energy Consumption': total_row['Total Emissions'] / (ic_count + oc_count) if (ic_count + oc_count) else 0,
-        'IC Processing Time': total_row['IC Time'] / ic_count if ic_count else 0,
-        'OC Processing Time': total_row['OC Time'] / oc_count if oc_count else 0,
-        'Total Processing Time': total_row['Total Time'] / (ic_count + oc_count) if (ic_count + oc_count) else 0
+        'IC Emissions': total_row['IC Emissions'] / ic_count if ic_count else 0,
+        'OC Emissions': total_row['OC Emissions'] / oc_count if oc_count else 0,
+        'Total Emissions': total_row['Total Emissions'] / (ic_count + oc_count) if (ic_count + oc_count) else 0,
+        'IC Time': total_row['IC Time'] / ic_count if ic_count else 0,
+        'OC Time': total_row['OC Time'] / oc_count if oc_count else 0,
+        'Total Time': total_row['Total Time'] / (ic_count + oc_count) if (ic_count + oc_count) else 0
     }
-    average_row_list = list(average_row.values())
-    summary_df.loc[len(summary_df)] = average_row_list
 
+    summary_df = pd.concat([summary_df, pd.DataFrame([average_row])], ignore_index=True)
     return summary_df
 
-def save_to_excel(state):
+def save_energy_to_excel(state):
     df_logs = {}
     for vehicle_type, events in vehicle_events.items():
         df_logs[vehicle_type] = pd.DataFrame(events)
 
-    ic_count = state.IC_NUM - 1
-    oc_count = state.OC_NUM - 1
+    ic_count = state.IC_NUM
+    oc_count = state.OC_NUM
 
     # Calculate summary statistics
     performance_df = calculate_performance(df_logs, ic_count, oc_count)
@@ -93,12 +93,42 @@ def save_to_excel(state):
             df.to_excel(writer, sheet_name=vehicle_type, index=False)
         performance_df.to_excel(writer, sheet_name='performance', index=True)
 
-    # print(f"total processed oc {state.OC_NUM}; total processed ic {state.IC_NUM}")
+
+def calculate_container_processing_time(container_excel_path):
+    df = pd.read_excel(container_excel_path)
+    df['type'] = df['container_id'].apply(lambda x: 'IC' if str(x).isdigit() else 'OC' if str(x).startswith('OC-') else 'Unknown')
+
+    ic_df = df[df['type'] == 'IC']
+    oc_df = df[df['type'] == 'OC']
+
+    ic_avg_time = ic_df['container_processing_time'].mean() if not ic_df.empty else 0
+    oc_avg_time = oc_df['container_processing_time'].mean() if not oc_df.empty else 0
+    total_avg_time = df['container_processing_time'].mean() if not df.empty else 0
+
+    return ic_avg_time, oc_avg_time, total_avg_time
+
+
+def calculate_vehicle_energy(vehicle_excel_path):
+    df = pd.read_excel(vehicle_excel_path, sheet_name="performance")
+    average_row = df[df['Vehicle'] == 'Average']
+
+    ic_energy = average_row['IC Energy Consumption'].values[0]
+    oc_energy = average_row['OC Energy Consumption'].values[0]
+    total_energy = average_row['Total Energy Consumption'].values[0]
+
+    return ic_energy, oc_energy, total_energy
+
+
+def print_and_save_metrics(ic_time, oc_time, total_time, ic_energy, oc_energy, total_energy):
     print("*" * 100)
     print("Intermodal Terminal Performance Matrix")
-    print(performance_df)
+    print(f"IC average processing time: {ic_time:.4f}")
+    print(f"OC average processing time: {oc_time:.4f}")
+    print(f"Average container processing time: {total_time:.4f}")
+    print(f"IC average energy consumption: {ic_energy:.4f}")
+    print(f"OC average energy consumption: {oc_energy:.4f}")
+    print(f"Average container energy consumption: {total_energy:.4f}")
     print("*" * 100)
 
-if __name__ == "__main__":
-    global state
-    save_to_excel(state)
+    single_run = [ic_time, oc_time, total_time, ic_energy, oc_energy, total_energy]
+    return single_run

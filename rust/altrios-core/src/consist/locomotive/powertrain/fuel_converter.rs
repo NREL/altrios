@@ -75,6 +75,9 @@ pub struct FuelConverter {
     pub(crate) pwr_for_peak_eff: si::Power,
     /// idle fuel power to overcome internal friction (not including aux load)
     pub pwr_idle_fuel: si::Power,
+    /// interpolator for altitude and temperature derating
+    #[api(skip_get, skip_set)]
+    pub elev_and_temp_derate: Option<ninterp::Interpolator>,
     /// time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]

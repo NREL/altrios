@@ -67,7 +67,7 @@ def save_vehicle_and_performance_metrics(state):
 
     ic_time, oc_time, total_time = calculate_container_processing_time(container_excel_path)
     ic_energy, oc_energy, total_energy = calculate_vehicle_energy(vehicle_excel_path)
-    print_and_save_metrics(ic_time, oc_time, total_time, ic_energy, oc_energy, total_energy)
+    # print_and_save_metrics(ic_time, oc_time, total_time, ic_energy, oc_energy, total_energy)
     return print_and_save_metrics(ic_time, oc_time, total_time, ic_energy, oc_energy, total_energy)
 
 

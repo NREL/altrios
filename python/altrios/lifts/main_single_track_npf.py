@@ -8,8 +8,8 @@ from altrios.lifts.single_track_parameters import *
 from demo import save_vehicle_and_performance_metrics
 
 replicate_times = 2
-daily_throughput_range = range(200, 251, 10)
-train_batch_size_range = range(150, 201, 10)
+daily_throughput_range = range(200, 2001, 10)
+train_batch_size_range = range(100, 201, 10)
 simulation_duration = 24 * replicate_times
 layout_file = "single_track_input/layout.xlsx"
 
@@ -18,6 +18,7 @@ performance_matrix = []
 
 for daily_throughput in daily_throughput_range:
     for train_batch_size in train_batch_size_range:
+        train_batch_size = train_batch_size * 2
         if train_batch_size not in df_layout["train batch (k)"].values:
             continue
 

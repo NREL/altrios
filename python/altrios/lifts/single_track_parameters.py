@@ -63,7 +63,7 @@ class LiftsState:
     IN_GATE_NUMBERS: int = 60  # test queuing module with 1; normal operations with 6
     OUT_GATE_NUMBERS: int = 60
 
-    # Fixed: Emission matrix
+    # Fixed: Load Emission matrix
     # Diesel unit: gallons/load
     # Electric unit: kMhr/load
     FULL_LOAD_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
@@ -73,8 +73,6 @@ class LiftsState:
             'Crane': {'Diesel': 0.26, 'Hybrid': 0.48},
         }
     )
-
-
     IDLE_LOAD_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
         default_factory=lambda: {
             'Truck': {'Diesel': 0.60, 'Electric': 12.42},
@@ -83,22 +81,21 @@ class LiftsState:
         }
     )
 
+    # Diesel unit: gallons/meters
+    # Electric unit: kMhr/meters
     FULL_TRIP_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
         default_factory=lambda: {
-            'Truck': {'Diesel': 2.00, 'Electric': 14.2},
+            'Truck': {'Diesel': 1.94, 'Electric': 3.66},
             'Hostler': {'Diesel': 0.35, 'Electric': 4.76},
-            'Crane': {'Diesel': 0.26, 'Hybrid': 0.48},
         }
     )
 
     IDLE_TRIP_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
         default_factory=lambda: {
-            'Truck': {'Diesel': 0.60, 'Electric': 12.42},
+            'Truck': {'Diesel': 0.60, 'Electric': 1.42},
             'Hostler': {'Diesel': 0.25, 'Electric': 1.28},
-            'Crane': {'Diesel': 0.26, 'Hybrid': 0.48},
         }
     )
-
 
     # Various: tracking container number
     IC_NUM: int = 1

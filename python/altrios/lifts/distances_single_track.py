@@ -48,18 +48,6 @@ def speed_density(count, vehicle_type):
         raise ValueError("Invalid vehicle type. Choose 'hostler' or 'truck'.")
     return speed
 
-# def speed_density(count, vehicle_type):
-#     '''
-#     Unit of speed: ft/s
-#     '''
-#     if vehicle_type == 'hostler':
-#         speed = 3.80 * math.e ** (-3.34 * count)
-#     elif vehicle_type == 'truck':   # V_t = 10 * e(-3.5 * N - 0.5) * d
-#         speed = 10 * math.e ** (-10.98 * count)
-#     else:
-#         raise ValueError("Invalid vehicle type. Choose 'hostler' or 'truck'.")
-#     return speed
-
 
 def simulate_truck_travel(truck_id, train_schedule, terminal, total_lane_length, d_t_min, d_t_max):
     """

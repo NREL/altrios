@@ -250,8 +250,7 @@ def container_process(env, terminal, train_schedule):
 
     # Hostler puts IC to the closest parking lot
     current_veh_num = state.HOSTLER_NUMBER - len(terminal.hostlers.items)
-    hostler_travel_time_to_parking = simulate_hostler_travel(assigned_hostler.to_string(), current_veh_num,
-                                                             total_lane_length, d_h_min, d_h_max)
+    hostler_travel_time_to_parking = 0 # simulate_hostler_travel(assigned_hostler.to_string(), current_veh_num, total_lane_length, d_h_min, d_h_max)
     yield env.timeout(hostler_travel_time_to_parking)
     # Hostler picks up IC from chassis
     print("terminal.chassis before hostler picking up IC:", terminal.chassis.items)
@@ -271,8 +270,7 @@ def container_process(env, terminal, train_schedule):
 
     # Hostler drop off IC to parking slot
     current_veh_num = state.HOSTLER_NUMBER - len(terminal.hostlers.items)
-    hostler_travel_time_to_parking = simulate_hostler_travel(assigned_hostler.to_string(), current_veh_num,
-                                                             total_lane_length, d_h_min, d_h_max)
+    hostler_travel_time_to_parking = 0 #simulate_hostler_travel(assigned_hostler.to_string(), current_veh_num, total_lane_length, d_h_min, d_h_max)
     yield env.timeout(hostler_travel_time_to_parking)  # update: time calculated by density-travel_time function
     print(f"Time {env.now:.3f}: Hostler {assigned_hostler.to_string()} dropped off IC {ic.id}-Train-{train_schedule['train_id']} at parking slot.")
     record_container_event(ic, 'hostler_dropoff', env.now)
@@ -312,7 +310,7 @@ def container_process(env, terminal, train_schedule):
 
         # The hostler drops off OC at the chassis
         current_veh_num = state.HOSTLER_NUMBER - len(terminal.hostlers.items)
-        hostler_travel_time_to_chassis = simulate_hostler_travel(assigned_hostler, current_veh_num, total_lane_length, d_h_min, d_h_max)
+        hostler_travel_time_to_chassis = 0 # simulate_hostler_travel(assigned_hostler, current_veh_num, total_lane_length, d_h_min, d_h_max)
         yield env.timeout(hostler_travel_time_to_chassis)
         emissions = emission_calculation('empty', 'hostler', assigned_hostler, hostler_travel_time_to_chassis)
         yield terminal.chassis.put(oc)
@@ -366,8 +364,7 @@ def container_process(env, terminal, train_schedule):
                 print(f"Time {env.now:.3f}: All OCs are ready on chassis.")
         else:
             current_veh_num = state.HOSTLER_NUMBER - len(terminal.hostlers.items)
-            hostler_travel_time_to_parking = simulate_hostler_travel(assigned_hostler, current_veh_num,
-                                                                     total_lane_length, d_h_min, d_h_max)
+            hostler_travel_time_to_parking = 0 # simulate_hostler_travel(assigned_hostler, current_veh_num, total_lane_length, d_h_min, d_h_max)
             emissions = emission_calculation('empty', 'hostler', assigned_hostler, hostler_travel_time_to_parking)
             yield env.timeout(hostler_travel_time_to_parking)
             print(f"Time {env.now:.3f}: Hostler {assigned_hostler.to_string()} return to parking slot.")

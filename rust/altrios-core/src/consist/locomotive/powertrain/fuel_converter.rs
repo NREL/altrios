@@ -164,7 +164,11 @@ impl Mass for FuelConverter {
 // non-py methods
 impl FuelConverter {
     /// Get fuel converter max power output given time step, dt
-    pub fn set_cur_pwr_out_max(&mut self, dt: si::Time) -> anyhow::Result<()> {
+    pub fn set_cur_pwr_out_max(
+        &mut self,
+        elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
+        dt: si::Time,
+    ) -> anyhow::Result<()> {
         ensure!(
             dt > si::Time::ZERO,
             format!(
@@ -368,7 +372,7 @@ mod tests {
     #[test]
     fn test_that_max_power_includes_rate() {
         let mut fc = test_fc();
-        fc.set_cur_pwr_out_max(uc::S * 1.0).unwrap();
+        fc.set_cur_pwr_out_max(None, uc::S * 1.0).unwrap();
         let pwr_out_max = fc.state.pwr_out_max;
         assert!(pwr_out_max < fc.pwr_out_max);
     }

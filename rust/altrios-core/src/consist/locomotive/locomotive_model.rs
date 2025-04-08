@@ -25,23 +25,40 @@ impl LocoTrait for PowertrainType {
     fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         train_mass_for_loco: Option<si::Mass>,
         train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         match self {
-            PowertrainType::ConventionalLoco(conv) => {
-                conv.set_curr_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
-            }
-            PowertrainType::HybridLoco(hel) => {
-                hel.set_curr_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
-            }
-            PowertrainType::BatteryElectricLoco(bel) => {
-                bel.set_curr_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
-            }
-            PowertrainType::DummyLoco(dummy) => {
-                dummy.set_curr_pwr_max_out(pwr_aux, train_mass_for_loco, train_speed, dt)
-            }
+            PowertrainType::ConventionalLoco(conv) => conv.set_curr_pwr_max_out(
+                pwr_aux,
+                elev_and_temp,
+                train_mass_for_loco,
+                train_speed,
+                dt,
+            ),
+            PowertrainType::HybridLoco(hel) => hel.set_curr_pwr_max_out(
+                pwr_aux,
+                elev_and_temp,
+                train_mass_for_loco,
+                train_speed,
+                dt,
+            ),
+            PowertrainType::BatteryElectricLoco(bel) => bel.set_curr_pwr_max_out(
+                pwr_aux,
+                elev_and_temp,
+                train_mass_for_loco,
+                train_speed,
+                dt,
+            ),
+            PowertrainType::DummyLoco(dummy) => dummy.set_curr_pwr_max_out(
+                pwr_aux,
+                elev_and_temp,
+                train_mass_for_loco,
+                train_speed,
+                dt,
+            ),
         }
     }
 
@@ -243,6 +260,7 @@ impl LocoTrait for DummyLoco {
     fn set_curr_pwr_max_out(
         &mut self,
         _pwr_aux: Option<si::Power>,
+        _elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         _train_mass: Option<si::Mass>,
         _train_speed: Option<si::Velocity>,
         _dt: si::Time,
@@ -1187,6 +1205,7 @@ impl LocoTrait for Locomotive {
     fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         train_mass_for_loco: Option<si::Mass>,
         train_speed: Option<si::Velocity>,
         dt: si::Time,
@@ -1202,6 +1221,7 @@ impl LocoTrait for Locomotive {
 
         self.loco_type.set_curr_pwr_max_out(
             Some(self.state.pwr_aux),
+            elev_and_temp,
             train_mass_for_loco,
             train_speed,
             dt,

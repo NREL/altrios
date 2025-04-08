@@ -101,6 +101,7 @@ impl LocoTrait for Box<HybridLoco> {
     fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         // amount of assigned train mass for this locomotive
         train_mass_for_loco: Option<si::Mass>,
         train_speed: Option<si::Velocity>,
@@ -136,7 +137,7 @@ impl LocoTrait for Box<HybridLoco> {
             }
         };
 
-        self.fc.set_cur_pwr_out_max(dt)?;
+        self.fc.set_cur_pwr_out_max(elev_and_temp, dt)?;
         let disch_buffer: si::Energy = match &self.pt_cntrl {
             HybridPowertrainControls::RGWDB(rgwb) => {
                 (0.5 * mass_for_loco

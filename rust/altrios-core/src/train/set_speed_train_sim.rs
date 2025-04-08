@@ -371,9 +371,14 @@ impl SetSpeedTrainSim {
         // set aux power loads.  this will be calculated in the locomotive model and be loco type dependent.
         self.loco_con.set_pwr_aux(Some(true))?;
         let train_mass = Some(self.state.mass_compound().with_context(|| format_dbg!())?);
+
+        let elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)> =
+            Some((self.state.elev_front, todo!()));
+
         // set the max power out for the consist based on calculation of each loco state
         self.loco_con.set_curr_pwr_max_out(
             None,
+            elev_and_temp,
             train_mass,
             Some(self.state.speed),
             self.speed_trace.dt(self.state.i),

@@ -404,9 +404,14 @@ impl SpeedLimitTrainSim {
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
         // set aux power for the consist
         self.loco_con.set_pwr_aux(Some(true))?;
+
+        let elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)> =
+            Some((self.state.elev_front, todo!()));
+
         // set the maximum power out based on dt.
         self.loco_con.set_curr_pwr_max_out(
             None,
+            elev_and_temp,
             Some(self.state.mass_compound()?),
             Some(self.state.speed),
             self.state.dt,

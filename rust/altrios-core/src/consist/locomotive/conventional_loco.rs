@@ -118,11 +118,12 @@ impl LocoTrait for ConventionalLoco {
     fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         _train_mass: Option<si::Mass>,
         _train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
-        self.fc.set_cur_pwr_out_max(dt)?;
+        self.fc.set_cur_pwr_out_max(elev_and_temp, dt)?;
         self.gen.set_cur_pwr_max_out(
             self.fc.state.pwr_out_max,
             Some(pwr_aux.with_context(|| format_dbg!("`pwr_aux` not provided"))?),

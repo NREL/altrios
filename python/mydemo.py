@@ -214,7 +214,7 @@ def crane_unload_process(env, terminal, train_schedule, all_oc_prepared, oc_need
             lambda x: x.train_id == train_schedule['train_id'])  # pick up the first ic_item, all ic there
 
         print(f"Time {env.now:.3f}: Crane {crane_item.to_string()} starts unloading IC-{ic_item.id}-Train-{train_schedule['train_id']}")
-        crane_unload_move_time = 0  # TODO add this back state.CONTAINERS_PER_CRANE_MOVE_MEAN + random.uniform(0, state.CRANE_MOVE_DEV_TIME)
+        crane_unload_move_time = state.CONTAINERS_PER_CRANE_MOVE_MEAN + random.uniform(0, state.CRANE_MOVE_DEV_TIME)
         yield env.timeout(crane_unload_move_time)
         record_container_event(ic_item.to_string(), 'crane_unload', env.now)
         record_vehicle_event('crane', crane_item, f"unload_IC_{ic_item.id}-Train-{train_schedule['train_id']}", 'full', crane_unload_move_time,
@@ -274,8 +274,7 @@ def container_process(env, terminal, train_schedule):
     hostler_travel_time_to_parking = simulate_hostler_travel(assigned_hostler.to_string(), current_veh_num,
                                                              total_lane_length, d_h_min, d_h_max)
     yield env.timeout(hostler_travel_time_to_parking)  # update: time calculated by density-travel_time function
-    print(f"Time {env.now}: Hostler {assigned_hostler.to_string()} dropped off IC {ic.id} at parking slot")
-    print(f"    Time {env.now:.3f}: Hostler {assigned_hostler.to_string()} dropped off IC {ic.id}-Train-{train_schedule['train_id']} at parking slot.")
+    print(f"Time {env.now:.3f}: Hostler {assigned_hostler.to_string()} dropped off IC {ic.id}-Train-{train_schedule['train_id']} at parking slot.")
     record_container_event(ic, 'hostler_dropoff', env.now)
     emissions = emission_calculation('loaded', 'hostler', assigned_hostler, hostler_travel_time_to_parking)
     record_vehicle_event('hostler', assigned_hostler, f"dropoff_IC_{ic.id}-Train-{train_schedule['train_id']}",
@@ -292,10 +291,6 @@ def container_process(env, terminal, train_schedule):
 
     # Truck queue and exit the gate
     env.process(truck_exit(env, terminal, assigned_truck, ic, train_schedule))
-
-    # Test: OC remaining before hostlers pick up OCs
-    # print(f"# of hostlers: {sum(item for item in terminal.parking_slots.items)}")
-    # print(f"# of OC remains in parking_slots: {sum(item.type == 'Outbound' for item in terminal.parking_slots.items)}")
 
     # Assign a hostler to pick up an OC
     if sum(item.type == 'Outbound' for item in terminal.parking_slots.items) > 0:
@@ -317,8 +312,7 @@ def container_process(env, terminal, train_schedule):
 
         # The hostler drops off OC at the chassis
         current_veh_num = state.HOSTLER_NUMBER - len(terminal.hostlers.items)
-        hostler_travel_time_to_chassis = simulate_hostler_travel(assigned_hostler, current_veh_num, total_lane_length,
-                                                                 d_h_min, d_h_max)
+        hostler_travel_time_to_chassis = simulate_hostler_travel(assigned_hostler, current_veh_num, total_lane_length, d_h_min, d_h_max)
         yield env.timeout(hostler_travel_time_to_chassis)
         emissions = emission_calculation('empty', 'hostler', assigned_hostler, hostler_travel_time_to_chassis)
         yield terminal.chassis.put(oc)
@@ -409,7 +403,7 @@ def crane_load_process(env, terminal, track_id, train_schedule):
         crane_item = yield terminal.cranes.get(lambda x: x.track_id == track_id)
         oc = yield terminal.chassis.get(lambda x: x.type == 'Outbound' and x.train_id == train_schedule['train_id'])  # obtain an OC from chassis
         print(f"Time {env.now:.3f}: Crane {crane_item.to_string()} starts loading {oc} onto the train.")
-        crane_load_move_time = 2/60 # todo:state.CONTAINERS_PER_CRANE_MOVE_MEAN + random.uniform(0, state.CRANE_MOVE_DEV_TIME)
+        crane_load_move_time = state.CONTAINERS_PER_CRANE_MOVE_MEAN + random.uniform(0, state.CRANE_MOVE_DEV_TIME)
         yield env.timeout(crane_load_move_time)  # loading time, depends on container parameter**
         record_container_event(oc, 'crane_load', env.now)
         record_vehicle_event('crane', (crane_item.id, crane_item.type), f'load_{oc}', 'full', crane_load_move_time,

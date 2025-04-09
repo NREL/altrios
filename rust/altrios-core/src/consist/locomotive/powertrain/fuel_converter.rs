@@ -1,3 +1,5 @@
+use ninterp::InterpMethods;
+
 use super::*;
 
 // FUTURE: think about how to incorporate life modeling for Fuel Cells and other tech
@@ -75,9 +77,9 @@ pub struct FuelConverter {
     pub(crate) pwr_for_peak_eff: si::Power,
     /// idle fuel power to overcome internal friction (not including aux load)
     pub pwr_idle_fuel: si::Power,
-    /// interpolator for altitude and temperature derating
+    /// interpolator for derating dynamic engine peak power based on altitude and temperature
     #[api(skip_get, skip_set)]
-    pub elev_and_temp_derate: Option<ninterp::Interpolator>,
+    pub elev_and_temp_derate: Option<Interpolator>,
     /// time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
@@ -100,6 +102,15 @@ impl Default for FuelConverter {
 impl Init for FuelConverter {
     fn init(&mut self) -> Result<(), Error> {
         self.state.init()?;
+        match &mut self.elev_and_temp_derate {
+            Some(Interpolator::Interp2D(_int2d)) => {}
+            _ => {
+                return Err(Error::InitError(format!(
+                    "{}\nExpected `Interp2d` to interpolate fraction of engine peak power as a function of altitude and ambient temperature",
+                    format_dbg!()
+                )));
+            }
+        }
         Ok(())
     }
 }
@@ -179,10 +190,30 @@ impl FuelConverter {
                 format_dbg!(dt > si::Time::ZERO)
             )
         );
+
+        let pwr_max_derated = match (&mut self.elev_and_temp_derate, elev_and_temp) {
+            (Some(elev_and_temp_derate), Some(elev_and_temp)) => {
+                elev_and_temp_derate.interpolate(&[
+                    elev_and_temp.0.get::<si::meter>(),
+                    elev_and_temp.1.get::<si::degree_celsius>(),
+                ])? * self.pwr_out_max
+            }
+            (None, Some(_)) => bail!(
+                "{}\nExpected (self.elev_and_temp_derate, elev_and_temp) to both be Some or None",
+                format_dbg!()
+            ),
+            (Some(_), None) => bail!(
+                "{}\nExpected (self.elev_and_temp_derate, elev_and_temp) to both be Some or None",
+                format_dbg!()
+            ),
+            (None, None) => self.pwr_out_max,
+        };
+
         self.pwr_out_max_init = self.pwr_out_max_init.max(self.pwr_out_max / 10.);
         self.state.pwr_out_max = (self.state.pwr_mech_out
             + (self.pwr_out_max / self.pwr_ramp_lag) * dt)
             .min(self.pwr_out_max)
+            .min(pwr_max_derated)
             .max(self.pwr_out_max_init);
         Ok(())
     }

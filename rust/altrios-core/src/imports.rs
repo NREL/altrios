@@ -23,6 +23,7 @@ pub(crate) use derive_more::{From, FromStr, IsVariant, TryInto};
 pub(crate) use duplicate::duplicate_item;
 pub(crate) use easy_ext::ext;
 pub(crate) use eng_fmt::FormatEng;
+pub(crate) use ninterp::Interpolator;
 pub(crate) use serde::{Deserialize, Serialize};
 pub(crate) use std::cmp::{self, Ordering};
 pub(crate) use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};

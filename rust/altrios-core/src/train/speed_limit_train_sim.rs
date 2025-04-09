@@ -1,3 +1,4 @@
+use super::environment::TemperatureTrace;
 use super::{braking_point::BrakingPoints, friction_brakes::*, train_imports::*};
 use crate::imports::*;
 use crate::track::link::network::Network;
@@ -183,45 +184,11 @@ pub struct SpeedLimitTrainSim {
     save_interval: Option<usize>,
     simulation_days: Option<i32>,
     scenario_year: Option<i32>,
+    /// Time-dependent temperature at sea level that can be corrected for altitude using a standard model
+    temp_trace: Option<TemperatureTrace>,
 }
 
 impl SpeedLimitTrainSim {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        train_id: String,
-        origs: &[Location],
-        dests: &[Location],
-        loco_con: Consist,
-        n_cars_by_type: HashMap<String, u32>,
-        state: TrainState,
-        train_res: TrainRes,
-        path_tpc: PathTpc,
-        fric_brake: FricBrake,
-        save_interval: Option<usize>,
-        simulation_days: Option<i32>,
-        scenario_year: Option<i32>,
-    ) -> Self {
-        let mut train_sim = Self {
-            train_id,
-            origs: origs.to_vec(),
-            dests: dests.to_vec(),
-            loco_con,
-            n_cars_by_type,
-            state,
-            train_res,
-            path_tpc,
-            braking_points: Default::default(),
-            fric_brake,
-            history: Default::default(),
-            save_interval,
-            simulation_days,
-            scenario_year,
-        };
-        train_sim.set_save_interval(save_interval);
-
-        train_sim
-    }
-
     /// Returns the scaling factor to be used when converting partial-year
     /// simulations to a full year of output metrics.
     pub fn get_scaling_factor(&self, annualize: bool) -> f64 {
@@ -819,6 +786,7 @@ impl Default for SpeedLimitTrainSim {
             braking_points: Default::default(),
             fric_brake: Default::default(),
             history: Default::default(),
+            temp_trace: Default::default(),
             save_interval: None,
             simulation_days: None,
             scenario_year: None,

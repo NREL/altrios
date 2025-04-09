@@ -358,10 +358,15 @@ pub(crate) fn impl_getters_and_setters(
                 uom::si::velocity::meter_per_second,
                 uom::si::velocity::mile_per_hour
             ),
+            "ThermodynamicTemperature" => extract_units!(
+                uom::si::thermodynamic_temperature::degree_celsius
+            ),
             "MassDensity" => extract_units!(uom::si::mass_density::kilogram_per_cubic_meter),
             _ => abort!(
                 inner_path.span(),
-                "Unknown si quantity! Make sure it's implemented in `impl_getters_and_setters`"
+                "[{}:{}]\nUnknown si quantity! Make sure it's implemented in `impl_getters_and_setters`",
+                file!(),
+                line!(),
             ),
         };
         for (field_units, unit_name) in &unit_impls {

@@ -28,8 +28,8 @@ def extract_hel_from_train_sim(ts: alt.SetSpeedTrainSim) -> list:
     ts_list = ts.loco_con.loco_vec.tolist()
     loco_list = []
     for loco in ts_list:
-        if "Hybrid" in loco.loco_type():
-            # Hybrid loco's loco type is somehow still BEL
+        if "HybridLoco" in loco.loco_type():
+            # default_hybrid_electric_loco() is not in this repo, but it is in altrios, "HybridLoco" is the loco_type() value
             loco_list.append(loco)
     if not loco_list:
         print("NO HYBRID LOCO IS FOUND IN CONSIST")

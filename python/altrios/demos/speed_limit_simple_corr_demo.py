@@ -36,7 +36,7 @@ def extract_hel_from_train_sim(ts: alt.SetSpeedTrainSim) -> list:
     ts_list = ts.loco_con.loco_vec.tolist()
     loco_list = []
     for loco in ts_list:
-        if "Hybrid" in loco.loco_type():
+        if "HybridLoco" in loco.loco_type():
             # Hybrid loco's loco type is somehow still BEL
             loco_list.append(loco)
     if not loco_list:
@@ -820,7 +820,7 @@ bel: alt.Locomotive = alt.Locomotive.build_battery_electric_loco(
         pwr_aux_traction_coeff_ratio=540.e-6,
         force_max_newtons=667.2e3,
 )))
-hel: alt.Locomotive = alt.Locomotive.default_battery_electric_loco()
+hel: alt.Locomotive = alt.Locomotive.default_hybrid_electric_loco()
 
 # construct a vector of one BEL and several conventional locomotives
 loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7 + [hel.clone()]

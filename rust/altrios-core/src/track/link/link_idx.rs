@@ -1,6 +1,7 @@
 use crate::imports::*;
 use serde::{de::Visitor, Deserializer, Serializer};
 use std::fmt;
+use std::io::prelude::*;
 
 #[altrios_api(
     #[new]
@@ -16,6 +17,7 @@ use std::fmt;
 /// See [supplementary documentation.](https://nrel.github.io/altrios/doc/rail-network.html)
 pub struct LinkIdx {
     #[api(skip_set)]
+    /// index of link within network
     idx: u32,
 }
 pub const LINK_IDX_NA: LinkIdx = LinkIdx { idx: 0 };
@@ -57,7 +59,7 @@ impl<'de> Deserialize<'de> for LinkIdx {
         D: Deserializer<'de>,
     {
         struct LinkIdxVisitor;
-        impl<'de> Visitor<'de> for LinkIdxVisitor {
+        impl Visitor<'_> for LinkIdxVisitor {
             type Value = LinkIdx;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -102,13 +104,13 @@ impl ObjState for LinkIdx {
 #[altrios_api(
     #[staticmethod]
     #[pyo3(name = "from_csv_file")]
-    fn from_csv_file_py(filepath: &PyAny) -> anyhow::Result<Self> {
-        Self::from_csv_file(PathBuf::extract(filepath)?)
+    fn from_csv_file_py(filepath: &Bound<PyAny>) -> anyhow::Result<Self> {
+        Self::from_csv_file(PathBuf::extract_bound(filepath)?)
     }
 
     #[pyo3(name = "to_csv_file")]
-    fn to_csv_file_py(&self, filepath: &PyAny) -> anyhow::Result<()> {
-        self.to_csv_file(PathBuf::extract(filepath)?)
+    fn to_csv_file_py(&self, filepath: &Bound<PyAny>) -> anyhow::Result<()> {
+        self.to_csv_file(PathBuf::extract_bound(filepath)?)
     }
 )]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
@@ -148,14 +150,21 @@ impl LinkPath {
         }
     }
 
-    /// Load from csv file
+    /// Save to csv file
     pub fn to_csv_file<P: AsRef<Path>>(&self, filepath: P) -> anyhow::Result<()> {
-        let file = std::fs::OpenOptions::new().write(true).open(filepath)?;
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(filepath)?;
+        let mut file = std::io::LineWriter::new(file);
+        // write header
+        file.write_all(b"link_idx\n")?;
         let mut wrtr = csv::WriterBuilder::new()
-            .has_headers(true)
+            // .has_headers(true) -- this line has no effect because of the custom `impl Deserialize`
             .from_writer(file);
-        for elem in &self.0 {
-            wrtr.serialize(elem)?;
+        for link_idx in &self.0 {
+            wrtr.serialize(link_idx)?;
         }
         wrtr.flush()?;
         Ok(())

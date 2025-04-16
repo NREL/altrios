@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI, Hash)]
 #[repr(u8)]
-#[cfg_attr(feature = "pyo3", pyclass)]
+#[cfg_attr(feature = "pyo3", pyclass(eq))]
 /// Enum with variants representing train types
 pub enum TrainType {
     #[default]

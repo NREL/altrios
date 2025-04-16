@@ -172,35 +172,50 @@ pub fn almost_le(val1: f64, val2: f64, epsilon: Option<f64>) -> bool {
     val1 < val2 * (1.0 + epsilon) || val1 < val2 + epsilon
 }
 
-make_cmp_fns!(almost_eq);
-make_cmp_fns!(almost_gt);
-make_cmp_fns!(almost_lt);
-make_cmp_fns!(almost_ge);
-make_cmp_fns!(almost_le);
+make_uom_cmp_fn!(almost_eq);
+make_uom_cmp_fn!(almost_gt);
+make_uom_cmp_fn!(almost_lt);
+make_uom_cmp_fn!(almost_ge);
+make_uom_cmp_fn!(almost_le);
 
 #[altrios_api]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq, SerdeAPI)]
 pub struct Pyo3VecBoolWrapper(pub Vec<bool>);
+impl Pyo3VecBoolWrapper {
+    pub fn new(value: Vec<bool>) -> Self {
+        Self(value)
+    }
+}
 
 #[altrios_api]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, SerdeAPI)]
 pub struct Pyo3VecWrapper(pub Vec<f64>);
+impl Pyo3VecWrapper {
+    pub fn new(value: Vec<f64>) -> Self {
+        Self(value)
+    }
+}
 
 #[altrios_api]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, SerdeAPI)]
 pub struct Pyo3Vec2Wrapper(pub Vec<Vec<f64>>);
 impl From<Vec<Vec<f64>>> for Pyo3Vec2Wrapper {
     fn from(v: Vec<Vec<f64>>) -> Self {
-        Self::new(v)
+        Self(v)
     }
 }
 
 #[altrios_api]
 #[derive(Default, Serialize, Deserialize, Clone, PartialEq, SerdeAPI)]
 pub struct Pyo3Vec3Wrapper(pub Vec<Vec<Vec<f64>>>);
+impl Pyo3Vec3Wrapper {
+    pub fn new(value: Vec<Vec<Vec<f64>>>) -> Self {
+        Self(value)
+    }
+}
 impl From<Vec<Vec<Vec<f64>>>> for Pyo3Vec3Wrapper {
     fn from(v: Vec<Vec<Vec<f64>>>) -> Self {
-        Self::new(v)
+        Self(v)
     }
 }
 

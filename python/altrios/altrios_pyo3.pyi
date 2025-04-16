@@ -1,5 +1,5 @@
 import altrios.altrios_pyo3 as altpy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Path
 import polars as pl
 from typing_extensions import Self
 from typing import Union, Tuple
@@ -16,14 +16,19 @@ class SerdeAPI(object):
     @classmethod
     def from_yaml(cls) -> Self: ...
     @classmethod
-    def from_file(cls) -> Self: ...
+    def from_file(cls, skip_init=False) -> Self: ...
     def to_file(self): ...
     def to_bincode(self) -> bytes: ...
     def to_json(self) -> str: ...
     def to_yaml(self) -> str: ...
+    def to_pydict(self, data_fmt: str = "msg_pack", flatten: bool = False) -> Dict: ...
+    @classmethod
+    def from_pydict(cls, pydict: Dict, data_fmt: str = "msg_pack", skip_init: bool=False) -> Self: ...
 
 
 class Consist(SerdeAPI):
+    def __init__(self, loco_vec: List[Locomotive]):
+        ...
     assert_limits: bool
     history: ConsistStateHistoryVec
     loco_vec: list[Locomotive]
@@ -36,7 +41,6 @@ class Consist(SerdeAPI):
     def default(cls) -> Self: ...
     def get_hct(self) -> Any: ...
     def get_save_interval(self) -> Any: ...
-    def set_pdct_gss(self) -> Any: ...
     def set_pdct_prop(self) -> Any: ...
     def set_pdct_resgreedy(self) -> Any: ...
     def set_save_interval(self, save_interval: int): ...
@@ -296,11 +300,11 @@ class GeneratorStateHistoryVec(SerdeAPI):
 
 
 @dataclass
-class LocoParams:
+class LocoParams(SerdeAPI):
     pwr_aux_offset_watts: float
     pwr_aux_traction_coeff_ratio: float
     force_max_newtons: float
-    mass_kilograms: Optional[float]
+    mass_kilograms: Optional[float] = 0.0
 
     @classmethod
     def from_dict(cls, param_dict: Dict[str, float]) -> Self:
@@ -323,10 +327,6 @@ class HybridLoco(SerdeAPI):
     generator: Generator
     reversible_energy_storage: ReversibleEnergyStorage
     electric_drivetrain: ElectricDrivetrain
-    fuel_res_ratio: Optional[float]
-    fuel_res_split: Optional[float]
-    gss_interval: Optional[int]
-
 
 @dataclass
 class BatteryElectricLoco(SerdeAPI):
@@ -357,14 +357,6 @@ class Locomotive(SerdeAPI):
         loco_type: Union[ConventionalLoco, HybridLoco, BatteryElectricLoco, DummyLoco],
         loco_params: LocoParams,
         ): ...
-    @classmethod
-    def build_battery_electric_loco(
-        cls,
-        reversible_energy_storage: ReversibleEnergyStorage,
-        drivetrain: ElectricDrivetrain,
-        loco_params: LocoParams,
-        save_interval: Optional[int]
-    ) -> Self: ...
 
     @classmethod
     def default_battery_electric_loco(cls) -> Locomotive: ...
@@ -379,19 +371,6 @@ class Locomotive(SerdeAPI):
     ) -> Self: ...
     @classmethod
     def build_dummy_loco(cls) -> Self: ...
-    @classmethod
-    def build_hybrid_loco(
-        cls,
-        fuel_converter: FuelConverter,
-        generator: Generator,
-        reversible_energy_storage: ReversibleEnergyStorage,
-        drivetrain: ElectricDrivetrain,
-        loco_params: LocoParams,
-        fuel_res_split: Optional[float],
-        fuel_res_ratio: Optional[float],
-        gss_interval: Optional[int],
-        save_interval: Optional[int],
-    ) -> Self: ...
     def clone(self) -> Self: ...
     @classmethod
     def default(cls) -> Self: ...
@@ -499,7 +478,6 @@ class Pyo3VecBoolWrapper(SerdeAPI):
     def clone(self) -> Self: ...
     @classmethod
     def default(cls) -> Self: ...
-    def from_yaml(cls) -> Self: ...
     def is_empty(self) -> Any: ...
     def tolist(self) -> Any: ...
     def __copy__(self) -> Any: ...
@@ -633,7 +611,7 @@ class TrainState:
     dt_seconds: float
     length_meters: float
     mass_static_kilograms: float
-    mass_adj_kilograms: float
+    mass_rot_kilograms: float
     mass_freight_kilograms: float
     weight_static_newtons: float
     res_rolling_newtons: float
@@ -761,7 +739,7 @@ class CatPowerLimit(SerdeAPI):
 class TrainParams(SerdeAPI):
     length: float
     speed_max: float
-    mass_total: float
+    mass_static: float
     mass_per_brake: float
     axle_count: int
     train_type: TrainType
@@ -819,6 +797,7 @@ class SpeedLimitTrainSim(SerdeAPI):
     origs: List[Location]
     dests: List[Location]
     loco_con: Consist
+    n_cars_by_type: Dict[str, int]
     state: TrainState
     # train_res: TrainRes # not accessible in Python
     path_tpc: PathTpc
@@ -833,6 +812,7 @@ class SpeedLimitTrainSim(SerdeAPI):
     def __init__(
         cls,
         loco_con: Consist,
+        n_cars_by_type: Dict[str, int],
         state: TrainState,
         train_res_file: Optional[str],
         path_tpc_file: Optional[str],
@@ -893,7 +873,7 @@ class TrainSimBuilder(SerdeAPI):
     ) -> None: ...
 
     def make_set_speed_train_sim(
-        rail_vehicle: RailVehicle,
+        rail_vehicles: List[RailVehicle],
         network: List[Link],
         link_path: List[LinkIdx],
         speed_trace: SpeedTrace,
@@ -903,7 +883,7 @@ class TrainSimBuilder(SerdeAPI):
 
     def make_speed_limit_train_sim(
         self,
-        rail_vehicle: RailVehicle,
+        rail_vehicles: List[RailVehicle],
         location_map: Dict[str, List[Location]],
         save_interval: Optional[int],
         simulation_days: Optional[int],
@@ -914,13 +894,12 @@ class TrainSimBuilder(SerdeAPI):
 
 @dataclass
 class TrainConfig(SerdeAPI):
-    rail_vehicle_type: str
-    cars_empty: int
-    cars_loaded: int
-    train_type: str
+    n_cars_by_type: Dict[str, int]
+    rail_vehicle_type: Optional[str]
+    train_type: Optional[TrainType]
     train_length_meters: Optional[float]
     train_mass_kilograms: Optional[float]
-    drag_coeff_vec: Optional[List[float]]
+    cd_area_vec: Optional[List[float]]
     @classmethod
     def default(cls) -> Self: ...
 
@@ -932,11 +911,12 @@ class RailVehicle(SerdeAPI):
     braking_ratio_empty: float
     braking_ratio_loaded: float
     car_type: str
+    freight_type: str
     davis_b_seconds_per_meter: float
-    drag_area_empty_square_meters: float
-    drag_area_loaded_square_meters: float
+    cd_area_empty_square_meters: float
+    cd_area_loaded_square_meters: float
     length_meters: float
-    mass_extra_per_axle_kilograms: float
+    mass_rot_per_axle_kilograms: float
     mass_static_empty_kilograms: float
     mass_static_loaded_kilograms: float
     rolling_ratio: float
@@ -989,8 +969,6 @@ class SpeedSet(SerdeAPI): ...
     # TODO: finish fleshing this out
 
 def import_locations(filename: str) -> Dict[str, List[Location]]: ...
-def import_rail_vehicles(filename: str) -> Dict[str, RailVehicle]: ...
-
 
 def build_speed_limit_train_sims(
     train_sim_builders: List[TrainSimBuilder],
@@ -1024,6 +1002,7 @@ def run_dispatch(
 def make_est_times(
     speed_limit_train_sim: SpeedLimitTrainSim,
     network: List[Link],
+    path_for_failed_sim: Optional[Path]=None
 ) -> Tuple[EstTimeNet, Consist]:
     ...
 
@@ -1096,9 +1075,9 @@ class InitTrainState(SerdeAPI):
 
 @dataclass
 class TrainType(SerdeAPI):
-    Freight = altpy.TrainType.Freight,
-    Passenger = altpy.TrainType.Passenger,
-    Intermodal = altpy.TrainType.Intermodal,
-    HighSpeedPassenger = altpy.TrainType.HighSpeedPassenger,
-    TiltTrain = altpy.TrainType.TiltTrain,
-    Commuter = altpy.TrainType.Commuter,
+    Freight = altpy.TrainType.Freight,  # type: ignore[has-type]
+    Passenger = altpy.TrainType.Passenger,  # type: ignore[has-type]
+    Intermodal = altpy.TrainType.Intermodal,  # type: ignore[has-type]
+    HighSpeedPassenger = altpy.TrainType.HighSpeedPassenger,  # type: ignore[has-type]
+    TiltTrain = altpy.TrainType.TiltTrain,  # type: ignore[has-type]
+    Commuter = altpy.TrainType.Commuter,  # type: ignore[has-type]

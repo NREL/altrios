@@ -27,8 +27,8 @@ pub type LocationMap = HashMap<String, Vec<Location>>;
 
 #[cfg(feature = "pyo3")]
 #[cfg_attr(feature = "pyo3", pyfunction(name = "import_locations"))]
-pub fn import_locations_py(filepath: &PyAny) -> anyhow::Result<LocationMap> {
-    import_locations(PathBuf::extract(filepath)?)
+pub fn import_locations_py(filepath: &Bound<PyAny>) -> anyhow::Result<LocationMap> {
+    import_locations(PathBuf::extract_bound(filepath)?)
 }
 
 pub fn import_locations<P: AsRef<Path>>(filepath: P) -> anyhow::Result<LocationMap> {

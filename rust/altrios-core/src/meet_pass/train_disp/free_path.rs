@@ -719,14 +719,14 @@ impl TrainDisp {
 
         // Update front and back dispatch nodes
         let (idx_min, idx_max) = if self.disp_node_idx_back < self.disp_node_idx_front {
-            (&mut self.disp_node_idx_front, &mut self.disp_node_idx_back)
-        } else {
             (&mut self.disp_node_idx_back, &mut self.disp_node_idx_front)
+        } else {
+            (&mut self.disp_node_idx_front, &mut self.disp_node_idx_back)
         };
         assert!(idx_max.idx() < idx_join_base);
 
         // If the train has passed the split point
-        if idx_split < idx_max.idx() {
+        if idx_split <= idx_max.idx() {
             let mut idx_new = 0;
             let mut update_disp_node_idx = |idx_update: &mut DispNodeIdx| {
                 // This exits because some place on the new path must match
@@ -738,7 +738,7 @@ impl TrainDisp {
                 *idx_update = (idx_split + idx_new).try_from_idx().unwrap();
             };
 
-            if idx_split < idx_min.idx() {
+            if idx_split <= idx_min.idx() {
                 update_disp_node_idx(idx_min);
             }
             update_disp_node_idx(idx_max);
@@ -800,7 +800,7 @@ impl TrainDisp {
             }
         }
 
-        //TODO: fix the occupancy problem.
+        // TODO: fix the occupancy problem.
         // Check for occupancy conflicts
         for disp_node_curr in &self.disp_path[self.disp_node_idx_free.idx()..] {
             if disp_node_curr.link_event.est_type == EstType::Arrive

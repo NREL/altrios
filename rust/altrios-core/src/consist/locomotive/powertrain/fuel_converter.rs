@@ -1,6 +1,6 @@
 use super::*;
 
-// TODO: think about how to incorporate life modeling for Fuel Cells and other tech
+// FUTURE: think about how to incorporate life modeling for Fuel Cells and other tech
 
 const TOL: f64 = 1e-3;
 
@@ -31,13 +31,6 @@ const TOL: f64 = 1e-3;
         Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
     }
 
-    // TODO: uncomment and fix
-    // #[setter("__mass_kg")]
-    // fn set_mass_py(&mut self, mass_kg: Option<f64>) -> anyhow::Result<()> {
-    //     self.set_mass(mass_kg.map(|m| m * uc::KG))?;
-    //     Ok(())
-    // }
-
     #[getter("mass_kg")]
     fn get_mass_py(&self) -> anyhow::Result<Option<f64>> {
         Ok(self.mass()?.map(|m| m.get::<si::kilogram>()))
@@ -62,14 +55,12 @@ pub struct FuelConverter {
     /// FuelConverter specific power
     #[api(skip_get, skip_set)]
     specific_pwr: Option<si::SpecificPower>,
-    #[serde(rename = "pwr_out_max_watts")]
     /// max rated brake output power
     pub pwr_out_max: si::Power,
     /// starting/baseline transient power limit
     #[serde(default)]
     pub pwr_out_max_init: si::Power,
     // TODO: consider a ramp down rate, which may be needed for fuel cells
-    #[serde(rename = "pwr_ramp_lag_seconds")]
     /// lag time for ramp up
     pub pwr_ramp_lag: si::Time,
     /// Fuel converter brake power fraction array at which efficiencies are evaluated.
@@ -78,29 +69,38 @@ pub struct FuelConverter {
     pub pwr_out_frac_interp: Vec<f64>,
     /// fuel converter efficiency array
     pub eta_interp: Vec<f64>,
+    /// pwr at which peak efficiency occurs
+    #[serde(skip)]
+    #[api(skip_get)]
+    pub(crate) pwr_for_peak_eff: si::Power,
     /// idle fuel power to overcome internal friction (not including aux load)
-    #[serde(rename = "pwr_idle_fuel_watts")]
     pub pwr_idle_fuel: si::Power,
     /// time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
-    #[serde(default)]
+    #[serde(
+        default,
+        skip_serializing_if = "FuelConverterStateHistoryVec::is_empty"
+    )]
     pub history: FuelConverterStateHistoryVec, // TODO: spec out fuel tank size and track kg of fuel
 }
 
 impl Default for FuelConverter {
     fn default() -> Self {
         let file_contents = include_str!("fuel_converter.default.yaml");
-        serde_yaml::from_str::<FuelConverter>(file_contents).unwrap()
+        let mut fc = Self::from_yaml(file_contents, false).unwrap();
+        fc.init().unwrap();
+        fc
     }
 }
 
-impl SerdeAPI for FuelConverter {
-    fn init(&mut self) -> anyhow::Result<()> {
+impl Init for FuelConverter {
+    fn init(&mut self) -> Result<(), Error> {
         self.state.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for FuelConverter {}
 
 impl Mass for FuelConverter {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
@@ -125,11 +125,6 @@ impl Mass for FuelConverter {
         let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
         if let (Some(derived_mass), Some(new_mass)) = (derived_mass, new_mass) {
             if derived_mass != new_mass {
-                #[cfg(feature = "logging")]
-                log::info!(
-                    "Derived mass from `self.specific_pwr` and `self.pwr_out_max` does not match {}",
-                    "provided mass. Updating based on `side_effect`"
-                );
                 match side_effect {
                     MassSideEffect::Extensive => {
                         self.pwr_out_max = self.specific_pwr.ok_or_else(|| {
@@ -148,8 +143,6 @@ impl Mass for FuelConverter {
                 }
             }
         } else if new_mass.is_none() {
-            #[cfg(feature = "logging")]
-            log::debug!("Provided mass is None, setting `self.specific_pwr` to None");
             self.specific_pwr = None;
         }
         self.mass = new_mass;
@@ -180,7 +173,7 @@ impl FuelConverter {
             )
         );
         self.pwr_out_max_init = self.pwr_out_max_init.max(self.pwr_out_max / 10.);
-        self.state.pwr_out_max = (self.state.pwr_brake
+        self.state.pwr_out_max = (self.state.pwr_mech_out
             + (self.pwr_out_max / self.pwr_ramp_lag) * dt)
             .min(self.pwr_out_max)
             .max(self.pwr_out_max_init);
@@ -195,6 +188,12 @@ impl FuelConverter {
         engine_on: bool,
         assert_limits: bool,
     ) -> anyhow::Result<()> {
+        if engine_on {
+            self.state.time_on += dt;
+        } else {
+            self.state.time_on = si::Time::ZERO;
+        }
+
         if assert_limits {
             ensure!(
                 utils::almost_le_uom(&pwr_out_req, &self.pwr_out_max, Some(TOL)),
@@ -206,10 +205,10 @@ impl FuelConverter {
             );
             ensure!(
                 utils::almost_le_uom(&pwr_out_req, &self.state.pwr_out_max, Some(TOL)),
-                format!("{}\nfc pwr_out_req ({:.6} MW) must be less than or equal to current transient pwr_out_max ({:.6} MW)",
+                format!("{}\nfc pwr_out_req ({:.6} kW) must be less than or equal to current transient pwr_out_max ({:.6} kW)",
                 format_dbg!(utils::almost_le_uom(&pwr_out_req, &self.state.pwr_out_max, Some(TOL))),
-                pwr_out_req.get::<si::megawatt>(),
-                self.state.pwr_out_max.get::<si::megawatt>()),
+                pwr_out_req.get::<si::kilowatt>(),
+                self.state.pwr_out_max.get::<si::kilowatt>()),
             );
         }
         ensure!(
@@ -220,7 +219,18 @@ impl FuelConverter {
                 pwr_out_req.get::<si::megawatt>()
             )
         );
-        self.state.pwr_brake = pwr_out_req;
+
+        // if the engine is not on, `pwr_out_req` should be 0.0
+        ensure!(
+            engine_on || (pwr_out_req == si::Power::ZERO),
+            format!(
+                "{}\nEngine is off but `pwr_out_req` is non-zero\n`pwr_out_req`: {} kW",
+                format_dbg!(engine_on || (pwr_out_req == si::Power::ZERO)),
+                pwr_out_req.get::<si::kilowatt>(),
+            )
+        );
+
+        self.state.pwr_mech_out = pwr_out_req;
         self.state.eta = uc::R
             * interp1d(
                 &(pwr_out_req / self.pwr_out_max).get::<si::ratio>(),
@@ -252,9 +262,9 @@ impl FuelConverter {
             )
         );
         self.state.pwr_fuel = pwr_out_req / self.state.eta + self.pwr_idle_fuel;
-        self.state.pwr_loss = self.state.pwr_fuel - self.state.pwr_brake;
+        self.state.pwr_loss = self.state.pwr_fuel - self.state.pwr_mech_out;
 
-        self.state.energy_brake += self.state.pwr_brake * dt;
+        self.state.energy_brake += self.state.pwr_mech_out * dt;
         self.state.energy_fuel += self.state.pwr_fuel * dt;
         self.state.energy_loss += self.state.pwr_loss * dt;
         self.state.energy_idle_fuel += self.state.pwr_idle_fuel * dt;
@@ -282,7 +292,7 @@ pub struct FuelConverterState {
     /// efficiency evaluated at current demand
     pub eta: si::Ratio,
     /// instantaneous power going to generator
-    pub pwr_brake: si::Power,
+    pub pwr_mech_out: si::Power,
     /// instantaneous fuel power flow
     pub pwr_fuel: si::Power,
     /// loss power, including idle
@@ -299,8 +309,12 @@ pub struct FuelConverterState {
     pub energy_idle_fuel: si::Energy,
     /// If true, engine is on, and if false, off (no idle)
     pub engine_on: bool,
+    /// elapsed time since engine was turned on
+    pub time_on: si::Time,
 }
 
+impl Init for FuelConverterState {}
+impl SerdeAPI for FuelConverterState {}
 impl Default for FuelConverterState {
     fn default() -> Self {
         Self {
@@ -308,7 +322,7 @@ impl Default for FuelConverterState {
             pwr_out_max: Default::default(),
             eta: Default::default(),
             pwr_fuel: Default::default(),
-            pwr_brake: Default::default(),
+            pwr_mech_out: Default::default(),
             pwr_loss: Default::default(),
             pwr_idle_fuel: Default::default(),
             energy_fuel: Default::default(),
@@ -316,6 +330,7 @@ impl Default for FuelConverterState {
             energy_loss: Default::default(),
             energy_idle_fuel: Default::default(),
             engine_on: true,
+            time_on: si::Time::ZERO,
         }
     }
 }

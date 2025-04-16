@@ -11,7 +11,7 @@ import time
 import os
 import seaborn as sns
 
-sns.set_theme()
+sns.set_theme() 
 
 SHOW_PLOTS = alt.utils.show_plots()
 
@@ -33,14 +33,17 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
-bel = alt.Locomotive.build_battery_electric_loco(
-    reversible_energy_storage=res,
-    drivetrain=edrv,
-    loco_params=alt.LocoParams.from_dict(dict(
-        pwr_aux_offset_watts=8.55e3,
-        pwr_aux_traction_coeff_ratio=540.e-6,
-        force_max_newtons=667.2e3,
-)))
+bel: alt.Locomotive = alt.Locomotive.from_pydict({
+    "loco_type": {"BatteryElectricLoco": {
+        "res": res.to_pydict(),
+        "edrv": edrv.to_pydict(),
+    }},
+    "pwr_aux_offset_watts": 8.55e3,
+    "pwr_aux_traction_coeff": 540.e-6,
+    "force_max_newtons": 667.2e3,
+    "mass_kilograms": alt.LocoParams.default().to_pydict()['mass_kilograms'],
+    "save_interval": SAVE_INTERVAL,
+})
 
 # instantiate battery model
 t0 = time.perf_counter()

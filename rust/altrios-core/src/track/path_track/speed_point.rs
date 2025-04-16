@@ -26,6 +26,15 @@ impl ObjState for SpeedLimitPoint {
     }
 }
 
+impl ObjState for Vec<SpeedLimitPoint> {
+    fn is_fake(&self) -> bool {
+        (**self).is_fake()
+    }
+    fn validate(&self) -> ValidationResults {
+        (**self).validate()
+    }
+}
+
 #[ext(InsertSpeed)]
 pub impl Vec<SpeedLimitPoint> {
     /// Add a speed limit to speed points.  
@@ -56,7 +65,7 @@ pub impl Vec<SpeedLimitPoint> {
                 }
                 // If the new speed matches the end location and the new speed equals the one prior
                 else if self.len() > 1 && self[self.len() - 2].speed_limit == speed_new {
-                    //Shift the offset of the last speed
+                    // Shift the offset of the last speed
                     self.last_mut().unwrap().offset = speed_limit.offset_end;
                 }
                 // If the new speed matches the end location and the new speed does not equal the one prior

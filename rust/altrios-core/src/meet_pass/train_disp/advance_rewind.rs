@@ -47,6 +47,15 @@ impl TrainDisp {
                     <= link_disp_front[disp_auth_idx_curr.idx() - 1].offset_back
             );
 
+            assert!(
+                disp_auth_idx_curr.idx() > 0,
+                "Train {} error on disp_auth_idx_curr {}, est_idx {}, time_pass {}, offset {}",
+                self.train_idx.idx(),
+                disp_auth_idx_curr.idx(),
+                disp_node_front.est_idx,
+                disp_node_front.time_pass.value,
+                disp_node_front.offset.value
+            );
             !link_disp_front[disp_auth_idx_curr.idx() - 1]
                 .offset_back
                 .is_infinite()
@@ -109,7 +118,6 @@ impl TrainDisp {
                 // following contents:
                 // [build]
                 // rustflags = "--cfg debug_advance_rewind"
-                // TODO:  Might be simpler to make this a feature, if it's still necessary
                 // Verify that free path is in fact free
                 #[cfg(debug_advance_rewind)]
                 {
@@ -270,7 +278,6 @@ impl TrainDisp {
             self.disp_node_idx_free = (self.disp_node_idx_free.idx() + 1).try_from_idx().unwrap();
 
             if self.disp_node_idx_free.idx() == self.disp_path.len() {
-                // TODO:  Don't use unwrap here
                 self.offset_free = self.disp_path.last().unwrap().offset;
                 break;
             }

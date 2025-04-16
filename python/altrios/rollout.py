@@ -1,8 +1,9 @@
 from altrios import sim_manager
-from altrios import metric_calculator, train_planner, defaults
+from altrios import metric_calculator, defaults
 from altrios.metric_calculator import ScenarioInfo
 
 import altrios as alt
+from altrios.train_planner import planner, planner_config
 import numpy as np
 import time
 import pandas as pd
@@ -23,7 +24,7 @@ def simulate_prescribed_rollout(
     save_interval: Optional[int] = None,
     freight_demand_percent_growth:float = 0.0,
     demand_file: Union[pl.DataFrame, Path, str] = defaults.DEMAND_FILE,
-    train_planner_config: train_planner.TrainPlannerConfig = train_planner.TrainPlannerConfig(),
+    train_planner_config: planner_config.TrainPlannerConfig = planner_config.TrainPlannerConfig(),
     count_unused_locomotives = False,
     write_complete_results: Optional[bool] = False,
     write_metrics: Optional[bool] = False,
@@ -59,22 +60,22 @@ def simulate_prescribed_rollout(
         else:
             demand_paths.append(demand_file)
 
-    rail_vehicle_map = alt.import_rail_vehicles(
-        str(alt.resources_root() / "rolling_stock/rail_vehicles.csv")
-    )
+    rail_vehicles=[alt.RailVehicle.from_file(vehicle_file, skip_init=False) 
+                for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob('*.yaml')]
+
     location_map = alt.import_locations(
         str(alt.resources_root() / "networks/default_locations.csv")
     )
-    network = alt.Network.from_file(network_filename_path)
+    network = alt.Network.from_file(network_filename_path, skip_init=False)
     sim_days = defaults.SIMULATION_DAYS
     scenarios = []
     for idx, scenario_year in enumerate(years):
         t0 = time.perf_counter()
         (
-            train_consist_plan, loco_pool, refuel_facilities, grid_emissions_factors, nodal_energy_prices, speed_limit_train_sims, timed_paths
+            train_consist_plan, loco_pool, refuel_facilities, grid_emissions_factors, nodal_energy_prices, speed_limit_train_sims, timed_paths, train_consist_plan_untrimmed
         ) = sim_manager.main(
             network=network,
-            rail_vehicle_map=rail_vehicle_map,
+            rail_vehicles=rail_vehicles,
             location_map=location_map,
             simulation_days=sim_days,
             scenario_year=scenario_year,

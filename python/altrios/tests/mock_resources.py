@@ -62,9 +62,6 @@ def mock_hybrid_loco(
     res: Optional[alt.ReversibleEnergyStorage] = None,
     edrv: Optional[alt.ElectricDrivetrain] = None,
     save_interval: Optional[int] = 1,
-    fuel_res_split: float = 0.5,
-    fuel_res_ratio: float = 3.0,
-    gss_interval: int = 60,
     pwr_aux_offset_watts: float = 0.0,
     pwr_aux_traction_coeff: float = 0.0,
     force_max_newtons: float = 150000.0,
@@ -78,21 +75,21 @@ def mock_hybrid_loco(
     if not res:
         res = mock_reversible_energy_storage(save_interval)
 
-    loco_unit = alt.Locomotive.build_hybrid_loco(
-        fuel_converter=fc,
-        generator=gen,
-        reversible_energy_storage=res,
-        drivetrain=edrv,
-        save_interval=save_interval,
-        fuel_res_split=fuel_res_split,
-        fuel_res_ratio=fuel_res_ratio,
-        gss_interval=gss_interval,
-        loco_params=alt.LocoParams(
-            pwr_aux_offset_watts=pwr_aux_offset_watts,
-            pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
-            force_max_newtons=force_max_newtons,
-        )
-    )
+    loco_unit = alt.Locomotive.from_pydict({
+        "loco_type": {
+            "HybridLoco": {
+                "fc": fc.to_pydict(),
+                "gen": gen.to_pydict(),
+                "res": res.to_pydict(),
+                "edrv": edrv.to_pydict(),
+            }
+        },
+        "save_interval": save_interval,
+        "pwr_aux_offset_watts": pwr_aux_offset_watts,
+        "pwr_aux_traction_coeff": pwr_aux_traction_coeff,
+        "force_max_newtons": force_max_newtons,
+    })
+
     return loco_unit
 
 
@@ -108,16 +105,19 @@ def mock_battery_electric_locomotive(
         edrv = mock_electric_drivetrain(save_interval)
     if not res:
         res = mock_reversible_energy_storage(save_interval)
-    loco_unit = alt.Locomotive.build_battery_electric_loco(
-        reversible_energy_storage=res,
-        drivetrain=edrv,
-        save_interval=save_interval,
-        loco_params=alt.LocoParams(
-            pwr_aux_offset_watts=pwr_aux_offset_watts,
-            pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
-            force_max_newtons=force_max_newtons,
-        )
-    )
+    loco_unit = alt.Locomotive.from_pydict({
+        "loco_type": {
+            "BatteryElectricLoco": {
+                "res": res.to_pydict(),
+                "edrv": edrv.to_pydict(),
+            }
+        },
+        "save_interval": save_interval,
+        "pwr_aux_offset_watts": pwr_aux_offset_watts,
+        "pwr_aux_traction_coeff": pwr_aux_traction_coeff,
+        "force_max_newtons": force_max_newtons,
+    })
+
     return loco_unit
 
 

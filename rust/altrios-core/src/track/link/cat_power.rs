@@ -43,6 +43,15 @@ impl ObjState for CatPowerLimit {
     }
 }
 
+impl ObjState for Vec<CatPowerLimit> {
+    fn is_fake(&self) -> bool {
+        (**self).is_fake()
+    }
+    fn validate(&self) -> ValidationResults {
+        (**self).validate()
+    }
+}
+
 impl Valid for Vec<CatPowerLimit> {
     fn valid() -> Self {
         vec![CatPowerLimit::valid()]

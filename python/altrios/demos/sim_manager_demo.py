@@ -1,8 +1,10 @@
 # %%
 from altrios import sim_manager
-from altrios import utilities, defaults, train_planner
+from altrios import utilities, defaults
 import altrios as alt
+from altrios.train_planner import planner_config
 import numpy as np
+import polars as pl
 import matplotlib.pyplot as plt
 import time
 import seaborn as sns
@@ -23,7 +25,9 @@ plot_dir.mkdir(exist_ok=True)
 t0_import = time.perf_counter()
 t0_total = time.perf_counter()
 
-rail_vehicle_map = alt.import_rail_vehicles(alt.resources_root() / "rolling_stock/rail_vehicles.csv")
+rail_vehicles=[alt.RailVehicle.from_file(vehicle_file, skip_init=False) 
+               for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob('*.yaml')]
+
 location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")
 network = alt.Network.from_file(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 
@@ -32,9 +36,10 @@ print(
     f"Elapsed time to import rail vehicles, locations, and network: {t1_import - t0_import:.3g} s"
 )
 
-train_planner_config = train_planner.TrainPlannerConfig(
-            cars_per_locomotive=50,
-            target_cars_per_train=90)
+train_planner_config = planner_config.TrainPlannerConfig(
+            cars_per_locomotive={"Default": 50},
+            target_cars_per_train={"Default": 90},
+            require_diesel=True)
 
 t0_main = time.perf_counter()
 
@@ -45,10 +50,11 @@ t0_main = time.perf_counter()
     grid_emissions_factors, 
     nodal_energy_prices, 
     speed_limit_train_sims, 
-    timed_paths
+    timed_paths,
+    train_consist_plan_untrimmed
 ) = sim_manager.main(
     network=network,
-    rail_vehicle_map=rail_vehicle_map,
+    rail_vehicles=rail_vehicles,
     location_map=location_map,
     train_planner_config=train_planner_config,
     debug=True,
@@ -70,6 +76,10 @@ speed_limit_train_sims.set_save_interval(100)
 )
 t1_train_sims = time.perf_counter()
 print(f"Elapsed time to run train sims: {t1_train_sims-t0_train_sims:.3g} s")
+t_train_time = sum([
+    sim.state.time_seconds for sim in sims.tolist()
+])
+print(f"Total train-seconds simulated: {t_train_time} s")
 
 # %%
 t0_summary_sims = time.perf_counter()
@@ -178,3 +188,5 @@ if SHOW_PLOTS:
         plt.tight_layout()
         plt.savefig(plot_dir / f"sim num {idx}.png")
         plt.savefig(plot_dir / f"sim num {idx}.svg")
+
+# %%

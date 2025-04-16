@@ -3,19 +3,17 @@ Module for getting the output of the Train Consist Planner and Meet Pass Planner
 """
 
 import polars as pl
-from typing import Any, Union, Dict, List, Optional, Tuple
+from typing import Any, Union, Dict, List, Tuple
 from pathlib import Path
 import time
 from altrios import defaults
 
-
-# from __future__ import annotations # TODO: uncomment and propagate
 import altrios as alt
-from altrios import train_planner as planner
+from altrios.train_planner import planner, planner_config
 from altrios import metric_calculator as metrics
 
 def main(
-    rail_vehicle_map: Dict[str, alt.RailVehicle],
+    rail_vehicles: List[alt.RailVehicle],
     location_map: Dict[str, List[alt.Location]],
     network: List[alt.Link],
     simulation_days: int = defaults.SIMULATION_DAYS,
@@ -27,7 +25,7 @@ def main(
     refuelers: pl.DataFrame = None,
     grid_emissions_factors: pl.DataFrame = None,
     nodal_energy_prices: pl.DataFrame = None,
-    train_planner_config: planner.TrainPlannerConfig = planner.TrainPlannerConfig(),
+    train_planner_config: planner_config.TrainPlannerConfig = planner_config.TrainPlannerConfig(),
     train_type: alt.TrainType = alt.TrainType.Freight, 
     demand_file: Union[pl.DataFrame, Path, str] = str(defaults.DEMAND_FILE),
     network_charging_guidelines: pl.DataFrame = None
@@ -66,13 +64,15 @@ def main(
                                  str(loc.link_idx.idx) + " is invalid for network!")
             
     train_planner_config.loco_info = metrics.add_battery_costs(train_planner_config.loco_info, scenario_year)
+    train_planner_config.simulation_days = simulation_days + 2 * warm_start_days
 
-    if loco_pool is None: loco_pool = planner.build_locopool(
-            config = train_planner_config,
-            method="shares_twoway",
-            shares=[1-target_bel_share, target_bel_share],
-            demand_file=demand_file
-            )
+    # TODO mbruchon: un-comment this and move it out into rollout.py so rollouts still work
+    #if loco_pool is None: loco_pool = planner.data_prep.build_locopool(
+    #        config = train_planner_config,
+    #       method="shares_twoway",
+    #        shares=[1-target_bel_share, target_bel_share],
+    #        demand_file=demand_file
+    #       )
         
     t0_ptc = time.perf_counter()
     (
@@ -82,12 +82,11 @@ def main(
         speed_limit_train_sims, 
         est_time_nets
     ) = planner.run_train_planner(
-        rail_vehicle_map = rail_vehicle_map,
+        rail_vehicles = rail_vehicles,
         location_map = location_map,
         network = network,
         loco_pool= loco_pool,
         refuelers = refuelers,
-        simulation_days=simulation_days + 2 * warm_start_days,
         scenario_year = scenario_year,
         config = train_planner_config,
         demand_file = demand_file,
@@ -131,7 +130,7 @@ def main(
         )
 
     train_times = pl.DataFrame(
-        {'Train_ID': pl.Series([sim.train_id for sim in speed_limit_train_sims], dtype=pl.Int32).cast(pl.UInt32),
+        {'Train_ID': pl.Series([int(sim.train_id) for sim in speed_limit_train_sims], dtype=pl.Int32).cast(pl.UInt32),
          'Origin_ID': pl.Series([sim.origs[0].location_id for sim in speed_limit_train_sims], dtype=str),
          'Destination_ID': pl.Series([sim.dests[0].location_id for sim in speed_limit_train_sims], dtype=str),
          'Departure_Time_Actual_Hr': pl.Series([this[0].time_hours for this in timed_paths], dtype=pl.Float64),
@@ -141,11 +140,12 @@ def main(
     train_consist_plan = (train_consist_plan
         .join(train_times,on=["Train_ID","Origin_ID","Destination_ID"],how="left")
     )
+    train_consist_plan_untrimmed = train_consist_plan.clone()
     if train_planner_config.single_train_mode is False:
         train_consist_plan = (train_consist_plan
             .filter(
-                pl.col("Departure_Time_Actual_Hr") >= pl.lit(24*warm_start_days),
-                pl.col("Departure_Time_Actual_Hr") < pl.lit(24*(simulation_days+warm_start_days))
+                pl.col("Departure_Time_Planned_Hr") >= pl.lit(24*warm_start_days),
+                pl.col("Departure_Time_Planned_Hr") < pl.lit(24*(simulation_days+warm_start_days))
             )
         )
     train_consist_plan = (train_consist_plan
@@ -166,4 +166,5 @@ def main(
         nodal_energy_prices,
         train_sims,
         timed_paths,
+        train_consist_plan_untrimmed
     )

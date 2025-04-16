@@ -1,4 +1,3 @@
-// TODO: uncomment when docs are somewhat mature to check for missing docs
 // #![warn(missing_docs)]
 // #![warn(missing_docs_in_private_items)]
 
@@ -24,6 +23,7 @@ pub mod testing;
 
 pub mod combo_error;
 pub mod consist;
+pub mod error;
 pub mod imports;
 pub mod lin_search_hint;
 pub mod meet_pass;

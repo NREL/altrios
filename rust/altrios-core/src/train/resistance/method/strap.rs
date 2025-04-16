@@ -41,8 +41,13 @@ impl ResMethod for Strap {
         path_tpc: &PathTpc,
         dir: &Dir,
     ) -> anyhow::Result<()> {
+        // TODO: think about pulling the next one or two lines out to somewhere else
         state.offset_back = state.offset - state.length;
-        state.weight_static = state.mass_static * uc::ACC_GRAV;
+        state.weight_static = state
+            .mass()
+            .with_context(|| format_dbg!())?
+            .with_context(|| "{}\nExpected `Some`.")?
+            * uc::ACC_GRAV;
         state.res_bearing = self.bearing.calc_res();
         state.res_rolling = self.rolling.calc_res(state);
         state.res_davis_b = self.davis_b.calc_res(state);
@@ -50,8 +55,9 @@ impl ResMethod for Strap {
         state.res_grade = self.grade.calc_res(path_tpc.grades(), state, dir)?;
         state.res_curve = self.curve.calc_res(path_tpc.curves(), state, dir)?;
         state.grade_front = self.grade.res_coeff_front(path_tpc.grades());
-        state.grade_back = self.grade.res_coeff_front(path_tpc.grades());
+        state.grade_back = self.grade.res_coeff_back(path_tpc.grades());
         state.elev_front = self.grade.res_net_front(path_tpc.grades(), state);
+        state.elev_back = self.grade.res_net_back(path_tpc.grades(), state);
         Ok(())
     }
 

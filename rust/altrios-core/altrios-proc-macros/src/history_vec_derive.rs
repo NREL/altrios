@@ -21,20 +21,9 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
         .map(|f| {
             let ident = f.ident.as_ref().unwrap();
             let ty = &f.ty;
-            let doc_attrs = &f
-                .attrs
-                .iter()
-                .filter(|attr| {
-                    if attr.path.is_ident("doc") {
-                        attr.parse_meta()
-                            .is_ok_and(|meta| matches!(meta, syn::Meta::NameValue(_)))
-                    } else {
-                        false
-                    }
-                })
-                .collect::<Vec<&syn::Attribute>>();
+            let attrs = &f.attrs.iter().collect::<Vec<&syn::Attribute>>();
             quote! {
-                #(#doc_attrs)*
+                #(#attrs)*
                 pub #ident: Vec<#ty>,
             }
         })
@@ -64,7 +53,6 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
         .parse()
         .unwrap();
     generated.append_all(quote! {
-        #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
         #[altrios_api(
             #[pyo3(name = "len")]
             fn len_py(&self) -> usize {
@@ -75,10 +63,14 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
                 self.len()
             }
         )]
+        #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
         #struct_doc
         pub struct #new_name {
             #vec_fields
         }
+
+        impl Init for #new_name { }
+        impl SerdeAPI for #new_name { }
 
         impl #new_name {
             /// Creates new emtpy vec container
@@ -89,8 +81,8 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
             }
 
             #push_doc
-            pub fn push(&mut self, value: #original_name) {
-                #(self.#field_names.push(value.#field_names);)*
+            pub fn push(&mut self, state: #original_name) {
+                #(self.#field_names.push(state.#field_names.clone());)*
             }
 
             /// clear all history vecs
@@ -106,7 +98,7 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
                     #(
                         let #field_names = self.#field_names.pop().unwrap();
                     )*
-                    Some(#original_name{#(#field_names: #field_names),*})
+                    Some(#original_name{#(#field_names: #field_names.clone()),*})
                 }
             }
 
@@ -126,12 +118,18 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
                 for i in 0..self.len() {
                     state_vec.push(
                         #original_name{
-                            #(#field_names: self.#field_names[i],)*
+                            #(#field_names: self.#field_names[i].clone(),)*
                         }
                     )
                 }
                 state_vec
             }
+
+            // TODO: flesh this out
+            // /// Returns fieldnames of any fields that are constant throughout history
+            // pub fn names_of_static_fields(&self) -> Vec<String> {
+
+            // }
         }
 
         impl Default for #new_name {
@@ -139,8 +137,6 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
                 #new_name::new()
             }
         }
-
-        impl SerdeAPI for #original_name { }
     });
     generated.into()
 }

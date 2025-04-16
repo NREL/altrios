@@ -1,6 +1,6 @@
 use super::{braking_point::BrakingPoints, friction_brakes::*, train_imports::*};
 use crate::imports::*;
-use crate::track::link::link_impl::Network;
+use crate::track::link::network::Network;
 use crate::track::{LinkPoint, Location};
 
 #[altrios_api(
@@ -33,6 +33,13 @@ impl LinkIdxTime {
 /// `Vec<LinkIdxTime>` in Python
 pub struct TimedLinkPath(pub Vec<LinkIdxTime>);
 
+impl TimedLinkPath {
+    /// Implement the non-Python `new` method.
+    pub fn new(value: Vec<LinkIdxTime>) -> Self {
+        Self(value)
+    }
+}
+
 impl AsRef<[LinkIdxTime]> for TimedLinkPath {
     fn as_ref(&self) -> &[LinkIdxTime] {
         &self.0
@@ -47,6 +54,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 
 #[altrios_api(
     #[pyo3(name = "set_save_interval")]
+    #[pyo3(signature = (save_interval=None))]
     /// Set save interval and cascade to nested components.
     fn set_save_interval_py(&mut self, save_interval: Option<usize>) {
         self.set_save_interval(save_interval);
@@ -57,14 +65,24 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
         Ok(self.get_save_interval())
     }
 
+    #[pyo3(name = "get_kilometers")]
+    pub fn get_kilometers_py(&self, annualize: bool)  -> f64 {
+        self.get_kilometers(annualize)
+    }
+
     #[pyo3(name = "get_megagram_kilometers")]
     pub fn get_megagram_kilometers_py(&self, annualize: bool)  -> f64 {
         self.get_megagram_kilometers(annualize)
     }
 
-    #[pyo3(name = "get_kilometers")]
-    pub fn get_kilometers_py(&self, annualize: bool)  -> f64 {
-        self.get_kilometers(annualize)
+    #[pyo3(name = "get_car_kilometers")]
+    pub fn get_car_kilometers_py(&self, annualize: bool)  -> f64 {
+        self.get_car_kilometers(annualize)
+    }
+
+    #[pyo3(name = "get_cars_moved")]
+    pub fn get_cars_moved_py(&self, annualize: bool)  -> f64 {
+        self.get_cars_moved(annualize)
     }
 
     #[pyo3(name = "get_res_kilometers")]
@@ -87,6 +105,11 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
         self.get_energy_fuel(annualize).get::<si::joule>()
     }
 
+    #[pyo3(name = "get_energy_fuel_soc_corrected_joules")]
+    pub fn get_energy_fuel_soc_corrected_py(&self) -> PyResult<f64> {
+        Ok(self.get_energy_fuel_soc_corrected().map_err(|err| anyhow!("{:?}", err))?.get::<si::joule>())
+    }
+
     #[pyo3(name = "walk")]
     fn walk_py(&mut self) -> anyhow::Result<()> {
         self.walk()
@@ -100,7 +123,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 
     #[pyo3(name = "extend_path")]
     pub fn extend_path_py(&mut self, network_file_path: String, link_path: Vec<LinkIdx>) -> anyhow::Result<()> {
-        let network = Vec::<Link>::from_file(network_file_path).unwrap();
+        let network = Vec::<Link>::from_file(network_file_path, false).unwrap();
 
         self.extend_path(&network, &link_path)?;
         Ok(())
@@ -109,14 +132,14 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     #[pyo3(name = "walk_timed_path")]
     pub fn walk_timed_path_py(
         &mut self,
-        network: &PyAny,
-        timed_path: &PyAny,
+        network: &Bound<PyAny>,
+        timed_path: &Bound<PyAny>,
     ) -> anyhow::Result<()> {
         let network = match network.extract::<Network>() {
             Ok(n) => n,
             Err(_) => {
                 let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network(n)
+                Network( Default::default(), n)
             }
         };
 
@@ -132,13 +155,17 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 )]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 /// Train simulation in which speed is allowed to vary according to train capabilities and speed
-/// limit
+/// limit.  Note that this is not guaranteed to produce identical results to [super::SetSpeedTrainSim]
+/// because of differences in braking controls but should generally be very close (i.e. error in cumulative
+/// fuel/battery energy should be less than 0.1%)
 pub struct SpeedLimitTrainSim {
     #[api(skip_set)]
     pub train_id: String,
     pub origs: Vec<Location>,
     pub dests: Vec<Location>,
     pub loco_con: Consist,
+    /// Number of railcars by type on the train
+    pub n_cars_by_type: HashMap<String, u32>,
     #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: TrainState,
@@ -149,8 +176,8 @@ pub struct SpeedLimitTrainSim {
     #[api(skip_set)]
     pub braking_points: BrakingPoints,
     pub fric_brake: FricBrake,
-    #[serde(default)]
     /// Custom vector of [Self::state]
+    #[serde(default, skip_serializing_if = "TrainStateHistoryVec::is_empty")]
     pub history: TrainStateHistoryVec,
     #[api(skip_set, skip_get)]
     save_interval: Option<usize>,
@@ -165,6 +192,7 @@ impl SpeedLimitTrainSim {
         origs: &[Location],
         dests: &[Location],
         loco_con: Consist,
+        n_cars_by_type: HashMap<String, u32>,
         state: TrainState,
         train_res: TrainRes,
         path_tpc: PathTpc,
@@ -178,6 +206,7 @@ impl SpeedLimitTrainSim {
             origs: origs.to_vec(),
             dests: dests.to_vec(),
             loco_con,
+            n_cars_by_type,
             state,
             train_res,
             path_tpc,
@@ -206,14 +235,25 @@ impl SpeedLimitTrainSim {
         }
     }
 
+    pub fn get_kilometers(&self, annualize: bool) -> f64 {
+        self.state.total_dist.get::<si::kilometer>() * self.get_scaling_factor(annualize)
+    }
+
     pub fn get_megagram_kilometers(&self, annualize: bool) -> f64 {
         self.state.mass_freight.get::<si::megagram>()
             * self.state.total_dist.get::<si::kilometer>()
             * self.get_scaling_factor(annualize)
     }
 
-    pub fn get_kilometers(&self, annualize: bool) -> f64 {
-        self.state.total_dist.get::<si::kilometer>() * self.get_scaling_factor(annualize)
+    pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
+        let n_cars = self.get_cars_moved(annualize);
+        // Note: n_cars already includes an annualization scaling factor; no need to multiply twice.
+        self.state.total_dist.get::<si::kilometer>() * n_cars
+    }
+
+    pub fn get_cars_moved(&self, annualize: bool) -> f64 {
+        let n_cars: f64 = self.n_cars_by_type.values().fold(0, |acc, n| *n + acc) as f64;
+        n_cars * self.get_scaling_factor(annualize)
     }
 
     pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {
@@ -230,6 +270,77 @@ impl SpeedLimitTrainSim {
 
     pub fn get_energy_fuel(&self, annualize: bool) -> si::Energy {
         self.loco_con.get_energy_fuel() * self.get_scaling_factor(annualize)
+    }
+
+    /// Returns total fuel and fuel-equivalent battery energy used for consist
+    pub fn get_energy_fuel_soc_corrected(&self) -> Result<si::Energy, Error> {
+        if self.save_interval != Some(1) && self.history.is_empty() {
+            return Err(Error::Other(
+                "Expected `save_interval = Some(1)` and non-empty history".into(),
+            ));
+        }
+        let eta_eng_mean_consist: si::Ratio = self
+            .loco_con
+            .loco_vec
+            .iter()
+            .filter(|loco| loco.fuel_converter().is_some())
+            .map(|loco| {
+                let fc = loco.fuel_converter().unwrap();
+                let eta_mean_for_loco = fc
+                    .history
+                    .eta
+                    .iter()
+                    .filter(|eta| eta > &&si::Ratio::ZERO)
+                    .fold(si::Ratio::ZERO, |acc, eta_for_loco| acc + *eta_for_loco)
+                    / (fc.history.len() as f64);
+                eta_mean_for_loco
+            })
+            .fold(si::Ratio::ZERO, |acc, eta_for_loco_vec| {
+                acc + eta_for_loco_vec
+            })
+            / (self.loco_con.loco_vec.len() as f64);
+        let res_fuel_equiv = self
+            .loco_con
+            .loco_vec
+            .iter()
+            .map(|loco| {
+                if let Some(res) = loco.reversible_energy_storage() {
+                    let delta_soc: si::Ratio =
+                        *res.history.soc.last().unwrap() - *res.history.soc.first().unwrap();
+                    let loco_res_fuel_equiv: si::Energy = if delta_soc < si::Ratio::ZERO {
+                        // net discharge
+                        let eta_pos: si::Ratio = res
+                            .history
+                            .eta
+                            .iter()
+                            .zip(res.history.pwr_out_electrical.clone())
+                            .filter(|(_, pwr_out)| pwr_out > &si::Power::ZERO)
+                            .fold(si::Ratio::ZERO, |acc, (eta, _)| acc + *eta)
+                            / (res.history.len() as f64);
+                        // net discharge is equivalent to using fuel
+                        -delta_soc * res.energy_capacity_usable() * eta_pos / eta_eng_mean_consist
+                    } else if delta_soc > si::Ratio::ZERO {
+                        // net charge
+                        let eta_neg: si::Ratio = res
+                            .history
+                            .eta
+                            .iter()
+                            .zip(res.history.pwr_out_electrical.clone())
+                            .filter(|(_, pwr_out)| pwr_out < &si::Power::ZERO)
+                            .fold(si::Ratio::ZERO, |acc, (eta, _)| acc + *eta)
+                            / (res.history.len() as f64);
+                        // net charge is equivalent to making fuel fuel
+                        -delta_soc * res.energy_capacity_usable() / eta_neg / eta_eng_mean_consist
+                    } else {
+                        si::Energy::ZERO
+                    };
+                    loco_res_fuel_equiv
+                } else {
+                    si::Energy::ZERO
+                }
+            })
+            .sum::<si::Energy>();
+        Ok(res_fuel_equiv + self.loco_con.get_energy_fuel())
     }
 
     pub fn get_net_energy_res(&self, annualize: bool) -> si::Energy {
@@ -288,31 +399,38 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
+        // set catenary power limit
         self.loco_con
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
+        // set aux power for the consist
         self.loco_con.set_pwr_aux(Some(true))?;
-        self.loco_con.set_cur_pwr_max_out(None, self.state.dt)?;
+        // set the maximum power out based on dt.
+        self.loco_con.set_curr_pwr_max_out(
+            None,
+            Some(self.state.mass_compound()?),
+            Some(self.state.speed),
+            self.state.dt,
+        )?;
+        // calculate new resistance
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
+        set_link_and_offset(&mut self.state, &self.path_tpc)?;
+        // solve the required power
         self.solve_required_pwr()?;
-        #[cfg(feature = "logging")]
-        log::debug!(
-            "{}\ntime step: {}",
-            format_dbg!(),
-            self.state.time.get::<si::second>().format_eng(Some(9))
-        );
+
         self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
+            Some(self.state.mass_compound()?),
+            Some(self.state.speed),
             self.state.dt,
             Some(true),
         )?;
-        set_link_and_offset(&mut self.state, &self.path_tpc)?;
         Ok(())
     }
 
     fn save_state(&mut self) {
         if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 || 1 == self.state.i {
+            if self.state.i % interval == 0 {
                 self.history.push(self.state);
                 self.loco_con.save_state();
                 self.fric_brake.save_state();
@@ -326,15 +444,6 @@ impl SpeedLimitTrainSim {
             || (self.state.offset < self.path_tpc.offset_end()
                 && self.state.speed != si::Velocity::ZERO)
         {
-            #[cfg(feature = "logging")]
-            log::debug!(
-                "{}",
-                format_dbg!(
-                    self.state.offset < self.path_tpc.offset_end() - 1000.0 * uc::FT
-                        || (self.state.offset < self.path_tpc.offset_end()
-                            && self.state.speed != si::Velocity::ZERO)
-                )
-            );
             self.step()?;
         }
         Ok(())
@@ -364,8 +473,6 @@ impl SpeedLimitTrainSim {
         let mut idx_prev = 0;
         while idx_prev != timed_path.len() - 1 {
             let mut idx_next = idx_prev + 1;
-            #[cfg(feature = "logging")]
-            log::debug!("Solving idx: {}", idx_next);
             while idx_next + 1 < timed_path.len() - 1 && timed_path[idx_next].time < self.state.time
             {
                 idx_next += 1;
@@ -395,23 +502,43 @@ impl SpeedLimitTrainSim {
     pub fn solve_required_pwr(&mut self) -> anyhow::Result<()> {
         let res_net = self.state.res_net();
 
-        // Verify that train can slow down
-        // TODO: figure out if dynamic braking needs to be separately accounted for here
-
+        // Verify that train can slow down -- if `self.state.res_net()`, which
+        // includes grade, is negative (negative `res_net` means the downgrade
+        // is steep enough that the train is overcoming bearing, rolling,
+        // drag, ... all resistive forces to accelerate downhill in the absence
+        // of any braking), and if `self.state.res_net()` is negative and has
+        // a higher magnitude than `self.fric_brake.force_max`, then the train
+        // cannot slow down.
+        // TODO: dial this back to just show `self.state` via debug print
         ensure!(
             self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO,
             format!(
-                "Insufficient braking force.\n{}\n{}\n{}\n{}\n{}\n{}",
+                "Insufficient braking force.\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
                 format_dbg!(self.fric_brake.force_max + self.state.res_net() > si::Force::ZERO),
                 format_dbg!(self.fric_brake.force_max),
                 format_dbg!(self.state.res_net()),
                 format_dbg!(self.state.res_grade),
                 format_dbg!(self.state.grade_front),
                 format_dbg!(self.state.grade_back),
+                format_dbg!(self.state.elev_front),
+                format_dbg!(self.state.offset),
+                format_dbg!(self.state.offset_back),
+                format_dbg!(self.state.speed),
+                format_dbg!(self.state.speed_limit),
+                format_dbg!(self.state.speed_target),
+                format_dbg!(self.state.time),
+                format_dbg!(self.state.dt),
+                format_dbg!(self.state.i),
+                format_dbg!(self.state.total_dist),
+                format_dbg!(self.state.link_idx_front),
+                format_dbg!(self.state.offset_in_link)
             )
         );
 
         // TODO: Validate that this makes sense considering friction brakes
+        // this figures out when to start braking in advance of a speed limit
+        // drop.  Takes into account air brake dynamics. I have not reviewed
+        // this code, but that is my understanding.
         let (speed_limit, speed_target) = self.braking_points.calc_speeds(
             self.state.offset,
             self.state.speed,
@@ -420,11 +547,14 @@ impl SpeedLimitTrainSim {
         self.state.speed_limit = speed_limit;
         self.state.speed_target = speed_target;
 
-        let f_applied_target =
-            res_net + self.state.mass_static * (speed_target - self.state.speed) / self.state.dt;
+        let f_applied_target = res_net
+            + self.state.mass_compound().with_context(|| format_dbg!())?
+                * (speed_target - self.state.speed)
+                / self.state.dt;
 
+        // calculate the max positive tractive effort.  this is the same as set_speed_train_sim
         let pwr_pos_max = self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
-            // TODO: the effect of rate may already be accounted for in this snippet
+            // NOTE: the effect of rate may already be accounted for in this snippet
             // from fuel_converter.rs:
 
             // ```
@@ -435,16 +565,20 @@ impl SpeedLimitTrainSim {
             // ```
             self.state.pwr_whl_out + self.loco_con.state.pwr_rate_out_max * self.state.dt,
         ));
+
+        // calculate the max braking that a consist can apply
         let pwr_neg_max = self.loco_con.state.pwr_dyn_brake_max.max(si::Power::ZERO);
         ensure!(
             pwr_pos_max >= si::Power::ZERO,
             format_dbg!(pwr_pos_max >= si::Power::ZERO)
         );
-        let time_per_mass = self.state.dt / self.state.mass_static;
+        let time_per_mass =
+            self.state.dt / self.state.mass_compound().with_context(|| format_dbg!())?;
 
         // Concept: calculate the final speed such that the worst case
         // (i.e. maximum) acceleration force does not exceed `power_max`
         // Base equation: m * (v_max - v_curr) / dt = p_max / v_max – f_res
+        // figuring out how fast we can be be going by next timestep.
         let v_max = 0.5
             * (self.state.speed - res_net * time_per_mass
                 + ((self.state.speed - res_net * time_per_mass)
@@ -460,10 +594,8 @@ impl SpeedLimitTrainSim {
             .min(pwr_pos_max / speed_target.min(v_max));
         // Verify that train has sufficient power to move
         if self.state.speed < uc::MPH * 0.1 && f_pos_max <= res_net {
-            #[cfg(feature = "logging")]
-            log::debug!("{}", format_dbg!(self.path_tpc));
             bail!(
-                "{}\nTrain does not have sufficient power to move!\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", // ,\nlink={:?}
+                "{}\nTrain does not have sufficient power to move!\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", // ,\nlink={:?}
                 format_dbg!(),
                 // force_max
                 format!(
@@ -477,7 +609,7 @@ impl SpeedLimitTrainSim {
                     // force based on speed target
                     format!("pwr_pos_max / speed_target.min(v_max): {} N", (pwr_pos_max / speed_target.min(v_max)).get::<si::newton>().format_eng(Some(5))),
                     // pwr_pos_max
-                    format!("pwr_pos_max: {} W", pwr_pos_max.get::<si::watt>().format_eng(Some(5))
+                    format!("pwr_pos_max: {} W", pwr_pos_max.get::<si::watt>().format_eng(Some(5)),
                 ),
                 // SOC across all RES-equipped locomotives
                 format!(
@@ -501,7 +633,7 @@ impl SpeedLimitTrainSim {
                         .iter()
                         .map(|loco| {
                             loco.reversible_energy_storage()
-                                .map(|res| res.state.min_soc.get::<si::ratio>().format_eng(Some(5)))
+                                .map(|res| res.min_soc.get::<si::ratio>().format_eng(Some(5)))
                                 .unwrap_or_else(|| "N/A".into())
                         })
                         .collect::<Vec<String>>()
@@ -511,22 +643,41 @@ impl SpeedLimitTrainSim {
                 // grade at rear of train
                 format!("grade_back: {}", self.state.grade_back.get::<si::ratio>().format_eng(Some(5))),
                 format!("f_pos_max: {} N", f_pos_max.get::<si::newton>().format_eng(Some(5))),
-                format!("res_net: {} N", res_net.get::<si::newton>().format_eng(Some(5)))
+                format!("res_net: {} N", res_net.get::<si::newton>().format_eng(Some(5))),
+                format_dbg!(self.fric_brake.force_max),
+                format_dbg!(self.state.res_grade),
+                format_dbg!(self.state.elev_front),
+                format_dbg!(self.state.elev_back),
+                format_dbg!(self.state.offset),
+                format_dbg!(self.state.offset_back),
+                format_dbg!(self.state.speed),
+                format_dbg!(self.state.speed_limit),
+                format_dbg!(self.state.speed_target),
+                format_dbg!(self.state.time),
+                format_dbg!(self.state.dt),
+                format_dbg!(self.state.i),
+                format_dbg!(self.state.total_dist),
+                format_dbg!(self.state.link_idx_front),
+                format_dbg!(self.state.offset_in_link)
             )
         }
 
+        // set the maximum friction braking force that is possible.
         self.fric_brake.set_cur_force_max_out(self.state.dt)?;
 
         // Transition speed between force and power limited negative traction
+        // figure out the velocity where power and force limits coincide
         let v_neg_trac_lim: si::Velocity =
             self.loco_con.state.pwr_dyn_brake_max / self.loco_con.force_max()?;
 
-        // TODO: Make sure that train handling rules consist dynamic braking force limit is respected!
+        // TODO: Make sure that train handling rules for consist dynamic braking force limit is respected!
+        // figure out how much dynamic braking can be used as regenerative
+        // braking to recharge the [ReversibleEnergyStorage]
         let f_max_consist_regen_dyn = if self.state.speed > v_neg_trac_lim {
             // If there is enough braking to slow down at v_max
             let f_max_dyn_fast = self.loco_con.state.pwr_dyn_brake_max / v_max;
             if res_net + self.fric_brake.state.force_max_curr + f_max_dyn_fast >= si::Force::ZERO {
-                self.loco_con.state.pwr_dyn_brake_max / v_max //self.state.speed
+                self.loco_con.state.pwr_dyn_brake_max / v_max // self.state.speed
             } else {
                 f_max_dyn_fast
             }
@@ -535,15 +686,19 @@ impl SpeedLimitTrainSim {
         };
 
         // total impetus force applied to control train speed
+        // calculating the applied drawbar force based on targets and enfrocing limits.
         let f_applied = f_pos_max.min(
             f_applied_target.max(-self.fric_brake.state.force_max_curr - f_max_consist_regen_dyn),
         );
 
+        // physics......
         let vel_change = time_per_mass * (f_applied - res_net);
         let vel_avg = self.state.speed + 0.5 * vel_change;
 
+        // updating states of the train.
         self.state.pwr_res = res_net * vel_avg;
-        self.state.pwr_accel = self.state.mass_adj / (2.0 * self.state.dt)
+        self.state.pwr_accel = self.state.mass_compound().with_context(|| format_dbg!())?
+            / (2.0 * self.state.dt)
             * ((self.state.speed + vel_change) * (self.state.speed + vel_change)
                 - self.state.speed * self.state.speed);
 
@@ -555,33 +710,6 @@ impl SpeedLimitTrainSim {
             self.state.speed = speed_target;
         }
 
-        // Questions:
-        // - do we need to update the brake points model to account for ramp-up time?
-        // - do we need a brake model?
-        //     - how do we respect ramp up rates of friction brakes?
-        //     - how do we respect ramp down rates of friction brakes?
-        // - how do we control the friction brakes?
-        // - how do we make sure that the consist does not exceed e-drive braking capability?
-        // - does friction braking get sent from both ends of the train?  Yes, per Tyler and
-        //     Nathan, maybe from locomotive and end-of-train (EOT) device.  BNSF says
-        //     their EOTs don't send a signal from the end of the train.  There may or may not
-        //     be locomotives at the end of the train. Sometimes they run 4 at head and none on rear,
-        //     sometimes 2 in front and 2 in rear.  Could base it on tonnage and car count.
-
-        // TODO: figure out some reasonable split of regen and friction braking
-        // and make sure it's applied here
-
-        // Dynamic vs friction brake apportioning controls
-        // These controls need to make sure that adequate braking force is achieved
-        // which means they need to respect the dynamics of the friction braking system.
-        // They also need to ensure that a reasonable amount of energy is available for
-        // regenerative braking.
-
-        // Whenever braking starting happens, do as much as possible with dyn/regen (respecting limitations of track, traction, etc.),
-        // and when braking needs exceed consist capabilities, then add in friction braking.
-        // Retain level of friction braking until braking is no longer needed and won't be
-        // needed for some time.
-
         let f_consist = if f_applied >= si::Force::ZERO {
             self.fric_brake.state.force = si::Force::ZERO;
             f_applied
@@ -591,7 +719,8 @@ impl SpeedLimitTrainSim {
             if f_consist >= si::Force::ZERO {
                 si::Force::ZERO
             }
-            // If the current friction brakes and consist regen + dyn can handle things, don't add friction braking
+            // If the current friction brakes and consist regen + dyn can handle
+            // things, don't add friction braking
             else if f_consist + f_max_consist_regen_dyn >= si::Force::ZERO {
                 f_consist
             }
@@ -656,8 +785,8 @@ impl SpeedLimitTrainSim {
     }
 }
 
-impl SerdeAPI for SpeedLimitTrainSim {
-    fn init(&mut self) -> anyhow::Result<()> {
+impl Init for SpeedLimitTrainSim {
+    fn init(&mut self) -> Result<(), Error> {
         self.origs.init()?;
         self.dests.init()?;
         self.loco_con.init()?;
@@ -670,7 +799,7 @@ impl SerdeAPI for SpeedLimitTrainSim {
         Ok(())
     }
 }
-
+impl SerdeAPI for SpeedLimitTrainSim {}
 impl Default for SpeedLimitTrainSim {
     fn default() -> Self {
         let mut slts = Self {
@@ -678,6 +807,7 @@ impl Default for SpeedLimitTrainSim {
             origs: Default::default(),
             dests: Default::default(),
             loco_con: Default::default(),
+            n_cars_by_type: Default::default(),
             state: TrainState::valid(),
             train_res: TrainRes::valid(),
             path_tpc: PathTpc::default(),
@@ -689,6 +819,7 @@ impl Default for SpeedLimitTrainSim {
             scenario_year: None,
         };
         slts.set_save_interval(None);
+        slts.init().unwrap();
         slts
     }
 }

@@ -260,7 +260,7 @@ pub fn run_dispatch<N: AsRef<[Link]>>(
 #[cfg(feature = "pyo3")]
 #[cfg_attr(feature = "pyo3", pyfunction(name = "run_dispatch"))]
 pub fn run_dispatch_py(
-    network: &PyAny,
+    network: &Bound<PyAny>,
     speed_limit_train_sims: crate::train::SpeedLimitTrainSimVec,
     est_time_vec: Vec<EstTimeNet>,
     print_train_move: bool,
@@ -272,7 +272,7 @@ pub fn run_dispatch_py(
             let n = network
                 .extract::<Vec<Link>>()
                 .map_err(|_| anyhow!("{}", format_dbg!()))?;
-            Network(n)
+            Network(Default::default(), n)
         }
     };
 
@@ -304,7 +304,14 @@ mod test_dispatch {
         let network_file_path = project_root::get_project_root()
             .unwrap()
             .join("../python/altrios/resources/networks/Taconite.yaml");
-        let network = Network::from_file(network_file_path).unwrap();
+        let network = {
+            let network = Network::from_file(network_file_path, false);
+            if let Err(err) = &network {
+                panic!("{err}");
+            }
+            network
+        }
+        .unwrap();
 
         let train_sims = vec![
             crate::train::speed_limit_train_sim_fwd(),
@@ -323,7 +330,7 @@ mod test_dispatch {
 
         let est_time_vec = train_sims
             .iter()
-            .map(|slts| make_est_times(slts, &network).unwrap().0)
+            .map(|slts| make_est_times(slts.clone(), &network, None).unwrap().0)
             .collect::<Vec<EstTimeNet>>();
         let _output = run_dispatch(&network, &train_sims, est_time_vec, true, true).unwrap();
     }

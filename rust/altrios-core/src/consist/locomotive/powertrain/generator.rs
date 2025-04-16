@@ -7,6 +7,12 @@ use crate::pyo3::*;
 #[altrios_api(
     /// Initialize a fuel converter object
     #[new]
+    #[pyo3(signature = (
+        pwr_out_frac_interp,
+        eta_interp,
+        pwr_out_max_watts,
+        save_interval=None,
+    ))]
     fn __new__(
         pwr_out_frac_interp: Vec<f64>,
         eta_interp: Vec<f64>,
@@ -52,13 +58,6 @@ use crate::pyo3::*;
         Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
     }
 
-    // TODO: uncomment and fix
-    // #[setter("__mass_kg")]
-    // fn set_mass_py(&mut self, side_effect: String, mass_kg: Option<f64>) -> anyhow::Result<()> {
-    //     // self.set_mass(mass_kg.map(|m| m * uc::KG), MassSideEffect::try_from(side_effect)?)?;
-    //     Ok(())
-    // }
-
     #[getter("mass_kg")]
     fn get_mass_py(&mut self) -> anyhow::Result<Option<f64>> {
         Ok(self.mass()?.map(|m| m.get::<si::kilogram>()))
@@ -99,22 +98,24 @@ pub struct Generator {
     #[api(skip_set)]
     pub pwr_in_frac_interp: Vec<f64>,
     /// Generator max power out
-    #[serde(rename = "pwr_out_max_watts")]
     pub pwr_out_max: si::Power,
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "GeneratorStateHistoryVec::is_empty")]
     pub history: GeneratorStateHistoryVec,
 }
 
-impl SerdeAPI for Generator {
-    fn init(&mut self) -> anyhow::Result<()> {
-        let _ = self.mass().with_context(|| format_dbg!())?;
+impl Init for Generator {
+    fn init(&mut self) -> Result<(), Error> {
+        let _ = self
+            .mass()
+            .map_err(|err| Error::InitError(format_dbg!(err)))?;
         self.state.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for Generator {}
 
 impl Mass for Generator {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
@@ -139,11 +140,6 @@ impl Mass for Generator {
         let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
         if let (Some(derived_mass), Some(new_mass)) = (derived_mass, new_mass) {
             if derived_mass != new_mass {
-                #[cfg(feature = "logging")]
-                log::info!(
-                    "Derived mass from `self.specific_pwr` and `self.pwr_out_max` does not match {}",
-                    "provided mass. Updating based on `side_effect`"
-                );
                 match side_effect {
                     MassSideEffect::Extensive => {
                         self.pwr_out_max = self.specific_pwr.with_context(|| {
@@ -162,8 +158,6 @@ impl Mass for Generator {
                 }
             }
         } else if new_mass.is_none() {
-            #[cfg(feature = "logging")]
-            log::debug!("Provided mass is None, setting `self.specific_pwr` to None");
             self.specific_pwr = None;
         }
         self.mass = new_mass;
@@ -255,6 +249,7 @@ impl Generator {
         &mut self,
         pwr_prop_req: si::Power,
         pwr_aux: si::Power,
+        engine_on: bool,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         // generator cannot regen
@@ -275,9 +270,26 @@ impl Generator {
             ),
         );
 
+        // if the engine is not on, `pwr_out_req` should be 0.0
+        ensure!(
+            engine_on || (pwr_prop_req + pwr_aux == si::Power::ZERO),
+            format!(
+                "{}\nEngine is off but `pwr_prop_req + pwr_aux` is non-zero\n`pwr_out_req`: {} kW
+{} kW
+{} kW",
+                format_dbg!(engine_on || (pwr_prop_req + pwr_aux == si::Power::ZERO))
+                    .replace("\"", ""),
+                format_dbg!((pwr_prop_req + pwr_aux).get::<si::kilowatt>()).replace("\"", ""),
+                format_dbg!(pwr_prop_req.get::<si::kilowatt>()).replace("\"", ""),
+                format_dbg!(pwr_aux.get::<si::kilowatt>()).replace("\"", ""),
+            )
+        );
+
         self.state.eta = uc::R
             * interp1d(
-                &(pwr_prop_req / self.pwr_out_max).get::<si::ratio>().abs(),
+                &((pwr_prop_req + pwr_aux) / self.pwr_out_max)
+                    .get::<si::ratio>()
+                    .abs(),
                 &self.pwr_out_frac_interp,
                 &self.eta_interp,
                 false,
@@ -300,6 +312,13 @@ impl Generator {
 
         self.state.pwr_mech_in =
             (self.state.pwr_elec_prop_out + self.state.pwr_elec_aux) / self.state.eta;
+        ensure!(
+            self.state.pwr_mech_in >= si::Power::ZERO,
+            format!(
+                "{}\nfc can only produce positive power",
+                format_dbg!(self.state.pwr_mech_in >= si::Power::ZERO)
+            ),
+        );
         self.state.energy_mech_in += self.state.pwr_mech_in * dt;
 
         self.state.pwr_loss =
@@ -315,7 +334,9 @@ impl Generator {
 impl Default for Generator {
     fn default() -> Self {
         let file_contents = include_str!("generator.default.yaml");
-        serde_yaml::from_str::<Generator>(file_contents).unwrap()
+        let mut gen = Self::from_yaml(file_contents, false).unwrap();
+        gen.init().unwrap();
+        gen
     }
 }
 
@@ -337,6 +358,16 @@ impl ElectricMachine for Generator {
                 false,
             )?;
         self.state.pwr_elec_out_max = (pwr_in_max * eta).min(self.pwr_out_max);
+        ensure!(
+            self.state.pwr_elec_out_max >= si::Power::ZERO,
+            format_dbg!(self.state.pwr_elec_out_max.get::<si::kilowatt>())
+        );
+        if let Some(pwr_aux) = pwr_aux {
+            ensure!(
+                pwr_aux >= si::Power::ZERO,
+                format_dbg!(pwr_aux.get::<si::kilowatt>())
+            )
+        };
         self.state.pwr_elec_prop_out_max = self.state.pwr_elec_out_max - pwr_aux.unwrap();
 
         Ok(())
@@ -383,6 +414,9 @@ pub struct GeneratorState {
     pub energy_loss: si::Energy,
 }
 
+impl Init for GeneratorState {}
+impl SerdeAPI for GeneratorState {}
+
 impl Default for GeneratorState {
     fn default() -> Self {
         Self {
@@ -422,19 +456,19 @@ mod tests {
         let mut gen = test_gen();
         gen.save_interval = Some(1);
         gen.save_state();
-        gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, uc::S * 1.0)
+        gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
         gen.step();
         gen.save_state();
-        gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, uc::S * 1.0)
+        gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
         gen.step();
         gen.save_state();
-        gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, uc::S * 1.0)
+        gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
         gen.step();
         gen.save_state();
-        gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, uc::S * 1.0)
+        gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
         gen.step();
         let energy_loss_j = gen

@@ -10,14 +10,14 @@ pub type ValidationError = anyhow::Error;
 pub type ValidationErrors = ComboErrors<ValidationError>;
 pub type ValidationResults = Result<(), ValidationErrors>;
 
-///Generate valid default-like input for use in other objects
+/// Generate valid default-like input for use in other objects
 pub trait Valid: Sized + Default {
     fn valid() -> Self {
         Default::default()
     }
 }
 
-///Specify when an object is valid, real, and fake
+/// Specify when an object is valid, real, and fake
 pub trait ObjState {
     fn is_fake(&self) -> bool {
         false
@@ -45,18 +45,6 @@ impl<T: ObjState> ObjStateConst for T {
             return None;
         }
         Some(self)
-    }
-}
-
-impl<T> ObjState for Vec<T>
-where
-    [T]: ObjState,
-{
-    fn is_fake(&self) -> bool {
-        (**self).is_fake()
-    }
-    fn validate(&self) -> ValidationResults {
-        (**self).validate()
     }
 }
 
@@ -162,6 +150,7 @@ where
     }
 }
 
+/// Check if si quantity is a number (i.e. not nan)
 pub fn si_chk_num<D, U>(
     errors: &mut ValidationErrors,
     field_val: &Quantity<D, U, f64>,
@@ -179,6 +168,7 @@ pub fn si_chk_num<D, U>(
     }
 }
 
+/// Check if si quantity is finite
 pub fn si_chk_num_fin<D, U>(
     errors: &mut ValidationErrors,
     field_val: &uom::si::Quantity<D, U, f64>,
@@ -196,7 +186,7 @@ pub fn si_chk_num_fin<D, U>(
     }
 }
 
-/// Check that SI value is greater than or equal to zero
+/// Check that SI quantity is greater than or equal to zero
 pub fn si_chk_num_gez<T>(errors: &mut ValidationErrors, field_val: &T, field_name: &str)
 where
     T: Debug + PartialOrd + ConstZero,
@@ -210,6 +200,7 @@ where
     }
 }
 
+/// Check if si quanity is greater than zero
 pub fn si_chk_num_gtz<T>(errors: &mut ValidationErrors, field_val: &T, field_name: &str)
 where
     T: Debug + PartialOrd + ConstZero,
@@ -223,6 +214,7 @@ where
     }
 }
 
+/// Check if si quantity is greater than or equal zero and finite
 pub fn si_chk_num_gez_fin<D, U>(
     errors: &mut ValidationErrors,
     field_val: &uom::si::Quantity<D, U, f64>,
@@ -240,6 +232,7 @@ pub fn si_chk_num_gez_fin<D, U>(
     }
 }
 
+/// Check if si quantity is greater than zero and finite
 pub fn si_chk_num_gtz_fin<D, U>(
     errors: &mut ValidationErrors,
     field_val: &uom::si::Quantity<D, U, f64>,
@@ -257,6 +250,7 @@ pub fn si_chk_num_gtz_fin<D, U>(
     }
 }
 
+/// Check if si quanity is equal to zero
 pub fn si_chk_num_eqz<T>(errors: &mut ValidationErrors, field_val: &T, field_name: &str)
 where
     T: Debug + PartialEq + ConstZero,

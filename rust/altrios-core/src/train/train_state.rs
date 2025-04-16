@@ -4,6 +4,11 @@ use crate::track::PathTpc;
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, HistoryVec)]
 #[altrios_api(
     #[new]
+    #[pyo3(signature = (
+        time_seconds=None,
+        offset_meters=None,
+        speed_meters_per_second=None,
+    ))]
     fn __new__(
         time_seconds: Option<f64>,
         offset_meters: Option<f64>,
@@ -22,6 +27,9 @@ pub struct InitTrainState {
     pub offset: si::Length,
     pub speed: si::Velocity,
 }
+
+impl Init for InitTrainState {}
+impl SerdeAPI for InitTrainState {}
 
 impl Default for InitTrainState {
     fn default() -> Self {
@@ -52,20 +60,32 @@ impl InitTrainState {
 #[altrios_api(
     #[new]
     #[allow(clippy::too_many_arguments)]
+    #[pyo3(signature = (
+        length_meters,
+        mass_static_kilograms,
+        mass_rot_kilograms,
+        mass_freight_kilograms,
+        init_train_state=None,
+    ))]
     fn __new__(
         length_meters: f64,
         mass_static_kilograms: f64,
-        mass_adj_kilograms: f64,
+        mass_rot_kilograms: f64,
         mass_freight_kilograms: f64,
         init_train_state: Option<InitTrainState>,
     ) -> Self {
         Self::new(
             length_meters * uc::M,
             mass_static_kilograms * uc::KG,
-            mass_adj_kilograms * uc::KG,
+            mass_rot_kilograms * uc::KG,
             mass_freight_kilograms * uc::KG,
             init_train_state,
         )
+    }
+
+    #[getter("res_net")]
+    fn res_net_py(&self) -> PyResult<f64> {
+        Ok(self.res_net().get::<si::newton>())
     }
 )]
 pub struct TrainState {
@@ -73,16 +93,21 @@ pub struct TrainState {
     pub time: si::Time,
     /// index for time steps
     pub i: usize,
-    /// Linear-along-track, directional distance from initial starting position.
+    /// Linear-along-track, directional distance of front of train from original
+    /// starting position of back of train.
     ///
     /// If this is provided in [InitTrainState::new], it gets set as the train length or the value,
     /// whichever is larger, and if it is not provided, then it defaults to the train length.
     pub offset: si::Length,
+    /// Linear-along-track, directional distance of back of train from original
+    /// starting position of back of train.
     pub offset_back: si::Length,
     /// Linear-along-track, cumulative, absolute distance from initial starting position.
     pub total_dist: si::Length,
     /// Current link containing head end (i.e. pulling locomotives) of train
     pub link_idx_front: u32,
+    /// Current link containing tail/back end of train
+    pub link_idx_back: u32,
     /// Offset from start of current link
     pub offset_in_link: si::Length,
     /// Achieved speed based on consist capabilities and train resistance
@@ -91,39 +116,56 @@ pub struct TrainState {
     pub speed_limit: si::Velocity,
     /// Speed target from meet-pass planner
     pub speed_target: si::Velocity,
+    /// Time step size
     pub dt: si::Time,
+    /// Train length
     pub length: si::Length,
+    /// Static mass of train, including freight
     pub mass_static: si::Mass,
-    pub mass_adj: si::Mass,
+    /// Effective additional mass of train due to rotational inertia
+    pub mass_rot: si::Mass,
+    /// Mass of freight being hauled by the train (not including railcar empty weight)
     pub mass_freight: si::Mass,
+    /// Static weight of train
     pub weight_static: si::Force,
+    /// Rolling resistance force
     pub res_rolling: si::Force,
+    /// Bearing resistance force
     pub res_bearing: si::Force,
+    /// Davis B term resistance force
     pub res_davis_b: si::Force,
+    /// Aerodynamic resistance force
     pub res_aero: si::Force,
+    /// Grade resistance force
     pub res_grade: si::Force,
+    /// Curvature resistance force
     pub res_curve: si::Force,
 
     /// Grade at front of train
     pub grade_front: si::Ratio,
     /// Grade at back of train of train if strap method is used
-    // TODO: make this an option
     pub grade_back: si::Ratio,
     /// Elevation at front of train
     pub elev_front: si::Length,
+    /// Elevation at back of train
+    pub elev_back: si::Length,
 
     /// Power to overcome train resistance forces
     pub pwr_res: si::Power,
     /// Power to overcome inertial forces
     pub pwr_accel: si::Power,
-
+    /// Total tractive power exerted by locomotive consist
     pub pwr_whl_out: si::Power,
+    /// Integral of [Self::pwr_whl_out]
     pub energy_whl_out: si::Energy,
     /// Energy out during positive or zero traction
     pub energy_whl_out_pos: si::Energy,
     /// Energy out during negative traction (positive value means negative traction)
     pub energy_whl_out_neg: si::Energy,
 }
+
+impl Init for TrainState {}
+impl SerdeAPI for TrainState {}
 
 impl Default for TrainState {
     fn default() -> Self {
@@ -134,15 +176,17 @@ impl Default for TrainState {
             offset_back: Default::default(),
             total_dist: si::Length::ZERO,
             link_idx_front: Default::default(),
+            link_idx_back: Default::default(),
             offset_in_link: Default::default(),
             speed: Default::default(),
             speed_limit: Default::default(),
             dt: uc::S,
             length: Default::default(),
             mass_static: Default::default(),
-            mass_adj: Default::default(),
+            mass_rot: Default::default(),
             mass_freight: Default::default(),
             elev_front: Default::default(),
+            elev_back: Default::default(),
             energy_whl_out: Default::default(),
             grade_front: Default::default(),
             grade_back: Default::default(),
@@ -163,12 +207,33 @@ impl Default for TrainState {
     }
 }
 
+impl Mass for TrainState {
+    /// Static mass of train, not including effective rotational mass
+    fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        self.derived_mass()
+    }
+
+    fn set_mass(
+        &mut self,
+        _new_mass: Option<si::Mass>,
+        _side_effect: MassSideEffect,
+    ) -> anyhow::Result<()> {
+        bail!("`set_mass` is not enabled for `TrainState`")
+    }
+
+    fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
+        Ok(Some(self.mass_static))
+    }
+
+    fn expunge_mass_fields(&mut self) {}
+}
+
 impl TrainState {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         length: si::Length,
         mass_static: si::Mass,
-        mass_adj: si::Mass,
+        mass_rot: si::Mass,
         mass_freight: si::Mass,
         init_train_state: Option<InitTrainState>,
     ) -> Self {
@@ -186,7 +251,7 @@ impl TrainState {
             speed_limit: init_train_state.speed,
             length,
             mass_static,
-            mass_adj,
+            mass_rot,
             mass_freight,
             ..Self::default()
         }
@@ -200,6 +265,15 @@ impl TrainState {
             + self.res_grade
             + self.res_curve
     }
+
+    /// All base, freight, and rotational mass
+    pub fn mass_compound(&self) -> anyhow::Result<si::Mass> {
+        Ok(self
+            .mass()
+            .with_context(|| format_dbg!())?
+            .with_context(|| format!("{}\nExpected `Some`", format_dbg!()))?
+            + self.mass_rot)
+    }
 }
 
 impl Valid for TrainState {
@@ -209,7 +283,7 @@ impl Valid for TrainState {
             offset: 2000.0 * uc::M,
             offset_back: si::Length::ZERO,
             mass_static: 6000.0 * uc::TON,
-            mass_adj: 6200.0 * uc::TON,
+            mass_rot: 200.0 * uc::TON,
 
             dt: uc::S,
             ..Self::default()
@@ -225,7 +299,7 @@ impl ObjState for TrainState {
         si_chk_num_gtz_fin(&mut errors, &self.length, "Length");
         // si_chk_num_gtz_fin(&mut errors, &self.res_bearing, "Resistance bearing");
         // si_chk_num_fin(&mut errors, &self.res_davis_b, "Resistance Davis B");
-        // si_chk_num_gtz_fin(&mut errors, &self.drag_area, "Drag area");
+        // si_chk_num_gtz_fin(&mut errors, &self.cd_area, "cd area");
         errors.make_err()
     }
 }
@@ -234,25 +308,37 @@ impl ObjState for TrainState {
 ///
 /// Assumes that `offset` in `link_points()` is monotically increasing, which may not always be true.
 pub fn set_link_and_offset(state: &mut TrainState, path_tpc: &PathTpc) -> anyhow::Result<()> {
+    // index of current link within `path_tpc`
+    // if the link_point.offset is greater than the train `state` offset, then
+    // the train is in the previous link
     let idx_curr_link = path_tpc
         .link_points()
         .iter()
-        .position(|&lp| lp.offset >= state.offset)
+        .position(|&lp| lp.offset > state.offset)
         // if None, assume that it's the last element
         .unwrap_or_else(|| path_tpc.link_points().len())
         - 1;
-    state.link_idx_front = path_tpc
+    let link_point = path_tpc
         .link_points()
         .get(idx_curr_link)
+        .with_context(|| format_dbg!())?;
+    state.link_idx_front = link_point.link_idx.idx() as u32;
+    state.offset_in_link = state.offset - link_point.offset;
+
+    // link index of back of train at current time step
+    let idx_back_link = path_tpc
+        .link_points()
+        .iter()
+        .position(|&lp| lp.offset > state.offset_back)
+        // if None, assume that it's the last element
+        .unwrap_or_else(|| path_tpc.link_points().len())
+        - 1;
+    state.link_idx_back = path_tpc
+        .link_points()
+        .get(idx_back_link)
         .with_context(|| format_dbg!())?
         .link_idx
         .idx() as u32;
-    state.offset_in_link = state.offset
-        - path_tpc
-            .link_points()
-            .get(idx_curr_link)
-            .with_context(|| format_dbg!())?
-            .offset;
 
     Ok(())
 }

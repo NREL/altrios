@@ -6,7 +6,7 @@ use crate::track::Network;
 use uc::SPEED_DIFF_JOIN;
 use uc::TIME_NAN;
 
-mod est_time_structs;
+pub(crate) mod est_time_structs;
 mod update_times;
 
 use est_time_structs::*;
@@ -14,7 +14,7 @@ use update_times::*;
 
 /// Estimated time node for dispatching
 /// Specifies the expected time of arrival when taking the shortest path with no delays
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, SerdeAPI)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, SerdeAPI, PartialEq)]
 pub struct EstTime {
     /// Scheduled time of arrival at the node
     pub time_sched: si::Time,
@@ -27,7 +27,7 @@ pub struct EstTime {
 
     /// Index of link leaving the next node in the network when traveling along the shortest path from this node
     pub idx_next: EstIdx,
-    /// Index of alternative link leaving next node (if it exists)  
+    /// Index of alternative link leaving next node (if it exists)
     /// Used if the shortest path is blocked up ahead
     pub idx_next_alt: EstIdx,
     /// Index of link leaving the previous node if the shortest path was taken to reach this node
@@ -61,7 +61,7 @@ impl Default for EstTime {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, SerdeAPI)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, SerdeAPI, PartialEq)]
 #[altrios_api(
     pub fn get_running_time_hours(&self) -> f64 {
         (self.val.last().unwrap().time_sched - self.val.first().unwrap().time_sched).get::<si::hour>()
@@ -473,26 +473,76 @@ fn add_new_join_paths(
     }
 }
 
+/// `make_est_times` function creates an estimated-time network (`EstTimeNet`) and train consist (`Consist`) from a
+/// given `SpeedLimitTrainSim` and rail `network`. This function performs the following
+/// major steps in a loop, until all trains (in `saved_sims`) are processed:
+///
+/// 1. **Initialize** a train simulation for each origin node and add it to the `saved_sims` stack.
+/// 1. **Pop** a train from `saved_sims`, then:
+///     1. Run the simulation (`update_movement`) until a condition in `saved_sim.update_movement()`
+///        in `saved_sims.update_movement()` is met.
+///     1. Convert the results into `EstTime` nodes.
+///         - If the path diverges from the existing network, insert new `EstTime` events and
+///           set `has_split = true`.
+///         - If `has_split` is set, attempt to **join** back to an existing sequence in the
+///           `EstTime` network (the “space and speed match” check). If successful, **break**
+///           out of this train's processing loop.
+///     1. If the simulation reaches the final destination, add the last node to `est_idxs_end` and **break**.
+///     1. Otherwise, add the next link(s) that continues the path toward the destination. If
+///        multiple branches exist, clone the train sim for the alternate path and push it to
+///        `saved_sims`. (Processing continues until we reach a break.)
+///
+/// 1. **Post-process** the resulting `EstTimeNet` by fixing references, linking final nodes,
+///    and updating times forward and backward.
+/// 1. **Return** the completed `EstTimeNet` and the `Consist`.
+///
+/// # Arguments
+///
+/// * `speed_limit_train_sim` - `SpeedLimitTrainSim` is an instance of
+///    train simulation in which speed is allowed to vary according to train
+///    capabilities and speed limit.
+/// * `network` - Network comprises an ensemble of links (path between junctions
+///    along the rail with heading, grade, and location) this simulation
+///    operates on.
+/// * `path_for_failed_sim` - if provided, saves failed `speed_limit_train_sim` at Path
+///
+/// # Returns
+///
+/// A tuple of:
+/// * `EstTimeNet` - The fully built estimated-time network,
+/// * `Consist` - The locomotive consist associated with the simulation.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * The provided origins or next link options are invalid.
+/// * The path is unexpectedly truncated.
+/// * The simulation fails internally while updating movements or extending paths.
 pub fn make_est_times<N: AsRef<[Link]>>(
-    speed_limit_train_sim: &SpeedLimitTrainSim,
+    mut speed_limit_train_sim: SpeedLimitTrainSim,
     network: N,
+    path_for_failed_sim: Option<PathBuf>,
 ) -> anyhow::Result<(EstTimeNet, Consist)> {
+    speed_limit_train_sim.set_save_interval(None);
     let network = network.as_ref();
     let dests = &speed_limit_train_sim.dests;
+    // Step 1a: Gather valid next-link indices for each origin/destination.
     let (link_idx_options, origs) =
         get_link_idx_options(&speed_limit_train_sim.origs, dests, network)
             .with_context(|| format_dbg!())?;
-
+    // We'll store our estimated times and a map of link events here.
     let mut est_times = Vec::with_capacity(network.len() * 10);
     let mut consist_out = None;
-    let mut saved_sims = Vec::<SavedSim>::with_capacity(16.max(network.len() / 10));
+    let mut saved_sims: Vec<SavedSim> = vec![];
     let mut link_event_map =
         LinkEventMap::with_capacity_and_hasher(est_times.capacity(), Default::default());
+    // The departure time for all initial events
     let time_depart = speed_limit_train_sim.state.time;
 
-    // Push initial fake nodes
-    #[cfg(feature = "logging")]
-    log::debug!("{}", format_dbg!("Push initial fake nodes."));
+    // -----------------------------------------------------------------------
+    // Push initial "fake" nodes.
+    // These help define the start of our `EstTime` sequence.
+    // -----------------------------------------------------------------------
     est_times.push(EstTime {
         idx_next: 1,
         ..Default::default()
@@ -503,9 +553,11 @@ pub fn make_est_times<N: AsRef<[Link]>>(
         ..Default::default()
     });
 
-    // Add origin estimated times
-    #[cfg(feature = "logging")]
-    log::debug!("{}", format_dbg!("Add origin estimated times."));
+    // -----------------------------------------------------------------------
+    // Add origin estimated times:
+    // For each origin, we ensure offset=0, is_front_end=false, and a real link_idx.
+    // Then create two `EstTime` events: (Arrive + Clear) for the train's tail and head.
+    // -----------------------------------------------------------------------
     for orig in origs {
         ensure!(
             orig.offset == si::Length::ZERO,
@@ -524,8 +576,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
             ..Default::default()
         };
 
-        #[cfg(feature = "logging")]
-        log::debug!("{}", format_dbg!());
+        // Arrive event
         insert_est_time(
             &mut est_times,
             &mut est_alt,
@@ -541,8 +592,8 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                 ..Default::default()
             },
         );
-        #[cfg(feature = "logging")]
-        log::debug!("{}", format_dbg!());
+
+        // Clear event
         insert_est_time(
             &mut est_times,
             &mut est_alt,
@@ -559,6 +610,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
             },
         );
 
+        // Save this train simulator state to be processed.
         saved_sims.push(SavedSim {
             train_sim: {
                 let mut train_sim = Box::new(speed_limit_train_sim.clone());
@@ -572,9 +624,10 @@ pub fn make_est_times<N: AsRef<[Link]>>(
         });
     }
 
-    // Fix distances for different origins
-    #[cfg(feature = "logging")]
-    log::debug!("{}", format_dbg!("Fix distances for different origins"));
+    // -----------------------------------------------------------------------
+    // Reset distance to zero for any alternate "fake" nodes.
+    // This helps unify distance offsets for subsequent processing.
+    // -----------------------------------------------------------------------
     {
         let mut est_idx_fix = 1;
         while est_idx_fix != EST_IDX_NA {
@@ -589,9 +642,9 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     let mut est_join_paths_save = Vec::<EstJoinPath>::with_capacity(16);
     let mut est_idxs_end = Vec::<EstIdx>::with_capacity(8);
 
-    // Iterate and process all saved sims
-    #[cfg(feature = "logging")]
-    log::debug!("{}", format_dbg!("Iterate and process all saved sims"));
+    // -----------------------------------------------------------------------
+    // Main loop: process each saved simulation until `saved_sims` is empty.
+    // -----------------------------------------------------------------------
     while let Some(mut sim) = saved_sims.pop() {
         let mut has_split = false;
         ensure!(
@@ -600,9 +653,18 @@ pub fn make_est_times<N: AsRef<[Link]>>(
             sim.train_sim.link_points()
         );
 
+        // -----------------------
+        // 'path loop: keep updating this train's movement until:
+        //   - we find a join
+        //   - the train finishes
+        //   - or the path unexpectedly ends.
+        // -----------------------
+
         'path: loop {
+            // Step 2a: simulate the train for one cycle of movement.
             sim.update_movement(&mut movement)
                 .with_context(|| format_dbg!())?;
+            // Convert the new movement states into `EstTime` additions.
             update_est_times_add(
                 &mut est_times_add,
                 &movement,
@@ -610,9 +672,12 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                 sim.train_sim.state.length,
             );
 
+            // Step 2b: for each new EstTime, either insert it or try to join an existing path.
             for est_time_add in &est_times_add {
-                // Check for joins only if it has split from an old path
+                // Only check for joins if we've already split from the main path.
                 if has_split {
+                    // Attempt to join existing paths if there's a "space match".
+                    // This checks alignment of Arrive events and ensures speeds match.
                     update_join_paths_space(
                         &sim.join_paths,
                         &mut est_join_paths_save,
@@ -629,6 +694,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                         break 'path;
                     }
 
+                    // If not joined, record new potential join paths.
                     add_new_join_paths(
                         &est_time_add.link_event,
                         &link_event_map,
@@ -638,6 +704,8 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                     std::mem::swap(&mut sim.join_paths, &mut est_join_paths_save);
                     est_join_paths_save.clear();
                 }
+
+                // Insert event into the network. If it's a new branch, set `has_split = true`.
                 if insert_est_time(
                     &mut est_times,
                     &mut sim.est_alt,
@@ -648,7 +716,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                 }
             }
 
-            // If finished, add destination node to final processing (all links should be clear)
+            // If the train_sim finished, add destination node to final processing (all links should be clear)
             if sim.train_sim.is_finished() {
                 est_idxs_end.push((est_times.len() - 1).try_into().unwrap());
                 if consist_out.is_none() {
@@ -656,7 +724,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                 }
                 break;
             }
-            // Otherwise, append the next link options and continue simulating
+            // Step 2d: Otherwise, append the next link options and continue simulating
             else {
                 let link_idx_prev = &sim.train_sim.link_idx_last().unwrap();
                 let link_idx_next = network[link_idx_prev.idx()].idx_next;
@@ -666,34 +734,55 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                     "Link idx next cannot be fake when making est times! link_idx_prev={link_idx_prev:?}"
                 );
 
-                if !link_idx_options.contains(&link_idx_next) {
-                    ensure!(
-                        link_idx_options.contains(&link_idx_next_alt),
-                        "Unexpected end of path reached! prev={link_idx_prev:?}, next={link_idx_next:?}, next_alt={link_idx_next_alt:?}"
-                    );
-                    sim.train_sim
-                        .extend_path(network, &[link_idx_next_alt])
-                        .with_context(|| format_dbg!())?;
-                } else {
-                    if link_idx_options.contains(&link_idx_next_alt) {
+                // Collect the valid links that will allow reaching destination
+                let link_idxs_next_valid = [link_idx_next, link_idx_next_alt]
+                    .into_iter()
+                    .filter(|link_idx| link_idx_options.contains(link_idx))
+                    .collect::<Vec<_>>();
+                let link_idx_next = match link_idxs_next_valid[..] {
+                    // extract out the next link that this train will travel on
+                    [link_idx_next] => link_idx_next,
+                    // extract out the next link thit this train will travel on
+                    // and create a new train sim that will travel the alternate branch
+                    [link_idx_next, link_idx_next_alt] => {
                         let mut new_sim = sim.clone();
-                        new_sim
+                        if let Err(err) = new_sim
                             .train_sim
                             .extend_path(network, &[link_idx_next_alt])
-                            .with_context(|| format_dbg!())?;
+                            .with_context(|| format_dbg!())
+                        {
+                            if let Some(save_path) = path_for_failed_sim {
+                                new_sim.to_file(save_path)?;
+                            }
+
+                            bail!(err)
+                        }
                         new_sim.check_dests(dests);
                         saved_sims.push(new_sim);
+                        link_idx_next
                     }
-                    sim.train_sim
-                        .extend_path(network, &[link_idx_next])
-                        .with_context(|| format_dbg!())?;
-                }
+                    _ => {
+                        bail!(
+                                            "{}
+                Unexpected end of path reached! prev={link_idx_prev:?}, next={link_idx_next:?}, next_alt={link_idx_next_alt:?}",
+                                            format_dbg!()
+                                        );
+                    }
+                };
+                // Extend the path for the current sim with the chosen next link.
+                sim.train_sim
+                    .extend_path(network, &[link_idx_next])
+                    .with_context(|| format_dbg!())?;
                 sim.check_dests(dests);
             }
         }
     }
 
-    // Finish the estimated time network
+    // -----------------------------------------------------------------------
+    // Link up the final "end" nodes into the estimated time network.
+    // Here, we add one node per end index and link them together as a chain,
+    // then mark the final arrival distances/times as zero.
+    // -----------------------------------------------------------------------
     ensure!(est_times.len() < (EstIdx::MAX as usize) - est_idxs_end.len());
 
     let mut est_idx_alt = EST_IDX_NA;
@@ -710,12 +799,16 @@ pub fn make_est_times<N: AsRef<[Link]>>(
         est_times[est_idx_end.idx()].dist_to_next = si::Length::ZERO;
     }
 
+    // Add the final (fake) node and shrink `est_times` to free unused capacity.
     est_times.push(EstTime {
         idx_prev: est_times.len() as EstIdx - 1,
         ..Default::default()
     });
     est_times.shrink_to_fit();
 
+    // -----------------------------------------------------------------------
+    // Validate that all linked indices are correct and consistent.
+    // -----------------------------------------------------------------------
     for (idx, est_time) in est_times.iter().enumerate() {
         // Verify that all prev idxs are valid
         assert!((est_time.idx_prev != EST_IDX_NA) != (idx <= 1));
@@ -732,16 +825,16 @@ pub fn make_est_times<N: AsRef<[Link]>>(
         let est_time_next = est_times[est_time.idx_next.idx()];
         let est_idx = idx as EstIdx;
         // Verify that prev est time is linked to current est time
-        assert!(est_time_prev.idx_next == est_idx || est_time_prev.idx_next_alt == est_idx);
+        ensure!(est_time_prev.idx_next == est_idx || est_time_prev.idx_next_alt == est_idx);
         // Verify that next est time is linked to current est time
-        assert!(
+        ensure!(
             est_time_next.idx_prev == est_idx
                 || est_time_next.idx_prev_alt == est_idx
                 || idx == est_times.len() - 1
         );
 
         // Verify that current est time is not the alternate of both the previous and next est times
-        assert!(
+        ensure!(
             est_time_prev.idx_next_alt != est_idx
                 || est_time_next.idx_prev_alt != est_idx
                 || idx == 0
@@ -749,24 +842,32 @@ pub fn make_est_times<N: AsRef<[Link]>>(
         );
     }
 
+    // -----------------------------------------------------------------------
+    // Update times forward and backward to generate final scheduling info.
+    // -----------------------------------------------------------------------
     update_times_forward(&mut est_times, time_depart);
     update_times_backward(&mut est_times);
 
+    // Construct the final EstTimeNet.
     let est_time_net = EstTimeNet::new(est_times);
+
+    // Sanity check: ensure not all times are zero.
     ensure!(
         !est_time_net.val.iter().all(|x| x.time_sched == 0. * uc::S),
         "All times are 0.0 so something went wrong.\n{}",
         format_dbg!()
     );
-
+    // Return the finished network and the locomotive consist.
     Ok((est_time_net, consist_out.unwrap()))
 }
 
 #[cfg(feature = "pyo3")]
 #[pyfunction(name = "make_est_times")]
+#[pyo3(signature=(speed_limit_train_sim, network, path_for_failed_sim=None))]
 pub fn make_est_times_py(
     speed_limit_train_sim: SpeedLimitTrainSim,
-    network: &PyAny,
+    network: &Bound<PyAny>,
+    path_for_failed_sim: Option<&Bound<PyAny>>,
 ) -> anyhow::Result<(EstTimeNet, Consist)> {
     let network = match network.extract::<Network>() {
         Ok(n) => n,
@@ -774,9 +875,14 @@ pub fn make_est_times_py(
             let n = network
                 .extract::<Vec<Link>>()
                 .map_err(|_| anyhow!("{}", format_dbg!()))?;
-            Network(n)
+            Network(Default::default(), n)
         }
     };
 
-    make_est_times(&speed_limit_train_sim, network)
+    let path_for_failed_sim = match path_for_failed_sim {
+        Some(pffs) => Some(PathBuf::extract_bound(pffs)?),
+        None => None,
+    };
+
+    make_est_times(speed_limit_train_sim, network, path_for_failed_sim)
 }

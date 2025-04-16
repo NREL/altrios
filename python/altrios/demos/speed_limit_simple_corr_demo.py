@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from typing import Tuple
 
 import altrios as alt 
 def extract_bel_from_train_sim(ts: alt.SetSpeedTrainSim) -> list:
@@ -792,17 +793,29 @@ sns.set_theme()
 SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 1
-res = alt.ReversibleEnergyStorage.from_file(
-    alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
-)
+
+# Build the train config
+rail_vehicle_loaded = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Loaded.yaml")
+rail_vehicle_empty = alt.RailVehicle.from_file(
+    alt.resources_root() / "rolling_stock/Manifest_Empty.yaml")
+
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
 train_config = alt.TrainConfig(
-    cars_empty=50,
-    cars_loaded=50,
-    rail_vehicle_type="Manifest",
-    train_type=None, 
+    rail_vehicles=[rail_vehicle_loaded, rail_vehicle_empty],
+    n_cars_by_type={
+        "Manifest_Loaded": 50,
+        "Manifest_Empty": 50,
+    },
     train_length_meters=None,
     train_mass_kilograms=None,
+)
+
+# Build the locomotive consist model
+# instantiate battery model
+# https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/reversible_energy_storage/struct.ReversibleEnergyStorage.html#
+res = alt.ReversibleEnergyStorage.from_file(
+    alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
 )
 
 edrv = alt.ElectricDrivetrain(
@@ -812,24 +825,29 @@ edrv = alt.ElectricDrivetrain(
     save_interval=SAVE_INTERVAL,
 )
 
-bel: alt.Locomotive = alt.Locomotive.build_battery_electric_loco(
-    reversible_energy_storage=res,
-    drivetrain=edrv,
-    loco_params=alt.LocoParams.from_dict(dict(
-        pwr_aux_offset_watts=8.55e3,
-        pwr_aux_traction_coeff_ratio=540.e-6,
-        force_max_newtons=667.2e3,
-)))
+bel: alt.Locomotive = alt.Locomotive.from_pydict({
+    "loco_type": {"BatteryElectricLoco": {
+        "res": res.to_pydict(),
+        "edrv": edrv.to_pydict(),
+    }},
+    "pwr_aux_offset_watts": 8.55e3,
+    "pwr_aux_traction_coeff": 540.e-6,
+    "force_max_newtons": 667.2e3,
+    "mass_kilograms": alt.LocoParams.default().to_pydict()['mass_kilograms'],
+    "save_interval": SAVE_INTERVAL,
+})
+
 hel: alt.Locomotive = alt.Locomotive.default_hybrid_electric_loco()
 
 # construct a vector of one BEL and several conventional locomotives
-loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7 + [hel.clone()]
+loco_vec = [bel.clone()] + [hel.clone()] + [alt.Locomotive.default()] * 7
+
 # instantiate consist
 loco_con = alt.Consist(
     loco_vec
 )
 
-
+# Instantiate the intermediate `TrainSimBuilder`
 tsb = alt.TrainSimBuilder(
     train_id="0",
     origin_id="A",
@@ -838,16 +856,13 @@ tsb = alt.TrainSimBuilder(
     loco_con=loco_con,
 )
 
-rail_vehicle_file = "rolling_stock/rail_vehicles.csv"
-rail_vehicle_map = alt.import_rail_vehicles(alt.resources_root() / rail_vehicle_file)
-rail_vehicle = rail_vehicle_map[train_config.rail_vehicle_type]
-
+# Load the network and construct the timed link path through the network.
 network = alt.Network.from_file(
     alt.resources_root() / 'networks/simple_corridor_network.yaml')
 
-location_map = alt.import_locations(alt.resources_root() / "networks/simple_corridor_locations.csv")
+location_map = alt.import_locations(
+    alt.resources_root() / "networks/simple_corridor_locations.csv")
 train_sim: alt.SetSpeedTrainSim = tsb.make_speed_limit_train_sim(
-    rail_vehicle=rail_vehicle,
     location_map=location_map,
     save_interval=1,
 )
@@ -872,7 +887,7 @@ print(f'Time to simulate: {t1 - t0:.5g}')
 assert len(train_sim.history) > 1
 
 # pull out solved locomotive for plotting convenience
-loco0:alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
+loco0: alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 
 # fig, ax = plt.subplots(4, 1, sharex=True)
 # ax[0].plot(

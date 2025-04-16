@@ -108,15 +108,50 @@ pub trait Linspace {
 
 impl Linspace for Vec<f64> {}
 
-pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
-    const ACCEPTED_BYTE_FORMATS: &'static [&'static str] = &["yaml", "json", "bin"];
-    const ACCEPTED_STR_FORMATS: &'static [&'static str] = &["yaml", "json"];
-
-    /// Specialized code to execute upon initialization
-    // TODO: make sure that init methods cascades down the hierarchy.
-    // This could be done via proc macro.
-    fn init(&mut self) -> anyhow::Result<()> {
+pub trait Init {
+    /// Specialized code to execute upon initialization.  For any struct with fields
+    /// that implement `Init`, this should propagate down the hierarchy.
+    fn init(&mut self) -> Result<(), Error> {
         Ok(())
+    }
+}
+
+pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
+    const ACCEPTED_BYTE_FORMATS: &'static [&'static str] = &[
+        #[cfg(feature = "yaml")]
+        "yaml",
+        #[cfg(feature = "json")]
+        "json",
+        #[cfg(feature = "toml")]
+        "toml",
+    ];
+    const ACCEPTED_STR_FORMATS: &'static [&'static str] = &[
+        #[cfg(feature = "yaml")]
+        "yaml",
+        #[cfg(feature = "json")]
+        "json",
+        #[cfg(feature = "toml")]
+        "toml",
+    ];
+    #[cfg(feature = "resources")]
+    const RESOURCE_PREFIX: &'static str = "";
+
+    /// Read (deserialize) an object from a resource file packaged with the `altrios-core` crate
+    ///
+    /// # Arguments:
+    ///
+    /// * `filepath` - Filepath, relative to the top of the `resources` folder (excluding any relevant prefix), from which to read the object
+    #[cfg(feature = "resources")]
+    fn from_resource<P: AsRef<Path>>(filepath: P, skip_init: bool) -> anyhow::Result<Self> {
+        let filepath = Path::new(Self::RESOURCE_PREFIX).join(filepath);
+        let extension = filepath
+            .extension()
+            .and_then(OsStr::to_str)
+            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
+        let file = crate::resources::RESOURCES_DIR
+            .get_file(&filepath)
+            .with_context(|| format!("File not found in resources: {filepath:?}"))?;
+        Self::from_reader(&mut file.contents(), extension, skip_init)
     }
 
     /// Write (serialize) an object to a file.
@@ -133,16 +168,7 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
             .extension()
             .and_then(OsStr::to_str)
             .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        match extension.trim_start_matches('.').to_lowercase().as_str() {
-            "yaml" | "yml" => serde_yaml::to_writer(&File::create(filepath)?, self)?,
-            "json" => serde_json::to_writer(&File::create(filepath)?, self)?,
-            "bin" => bincode::serialize_into(&File::create(filepath)?, self)?,
-            _ => bail!(
-                "Unsupported format {extension:?}, must be one of {:?}",
-                Self::ACCEPTED_BYTE_FORMATS
-            ),
-        }
-        Ok(())
+        self.to_writer(File::create(filepath)?, extension)
     }
 
     /// Read (deserialize) an object from a file.
@@ -152,20 +178,51 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     ///
     /// * `filepath`: The filepath from which to read the object
     ///
-    fn from_file<P: AsRef<Path>>(filepath: P) -> anyhow::Result<Self> {
+    fn from_file<P: AsRef<Path>>(filepath: P, skip_init: bool) -> Result<Self, Error> {
         let filepath = filepath.as_ref();
         let extension = filepath
             .extension()
             .and_then(OsStr::to_str)
-            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        let file = File::open(filepath).with_context(|| {
-            if !filepath.exists() {
-                format!("File not found: {filepath:?}")
-            } else {
-                format!("Could not open file: {filepath:?}")
-            }
+            .ok_or_else(|| {
+                Error::SerdeError(format!("File extension could not be parsed: {filepath:?}"))
+            })?;
+        let mut file = File::open(filepath).map_err(|err| {
+            Error::SerdeError(format!(
+                "{err}\n{}",
+                if !filepath.exists() {
+                    format!("File not found: {filepath:?}")
+                } else {
+                    format!("Could not open file: {filepath:?}")
+                }
+            ))
         })?;
-        Self::from_reader(file, extension)
+        Self::from_reader(&mut file, extension, skip_init)
+    }
+
+    /// Write (serialize) an object into anything that implements [`std::io::Write`]
+    ///
+    /// # Arguments:
+    ///
+    /// * `wtr` - The writer into which to write object data
+    /// * `format` - The target format, any of those listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`)
+    ///
+    fn to_writer<W: std::io::Write>(&self, mut wtr: W, format: &str) -> anyhow::Result<()> {
+        match format.trim_start_matches('.').to_lowercase().as_str() {
+            #[cfg(feature = "yaml")]
+            "yaml" | "yml" => serde_yaml::to_writer(wtr, self)?,
+            #[cfg(feature = "json")]
+            "json" => serde_json::to_writer(wtr, self)?,
+            #[cfg(feature = "toml")]
+            "toml" => {
+                let toml_string = self.to_toml()?;
+                wtr.write_all(toml_string.as_bytes())?;
+            }
+            _ => bail!(
+                "Unsupported format {format:?}, must be one of {:?}",
+                Self::ACCEPTED_BYTE_FORMATS
+            ),
+        }
+        Ok(())
     }
 
     /// Write (serialize) an object into a string
@@ -176,8 +233,12 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     ///
     fn to_str(&self, format: &str) -> anyhow::Result<String> {
         match format.trim_start_matches('.').to_lowercase().as_str() {
+            #[cfg(feature = "yaml")]
             "yaml" | "yml" => self.to_yaml(),
+            #[cfg(feature = "json")]
             "json" => self.to_json(),
+            #[cfg(feature = "toml")]
+            "toml" => self.to_toml(),
             _ => bail!(
                 "Unsupported format {format:?}, must be one of {:?}",
                 Self::ACCEPTED_STR_FORMATS
@@ -192,11 +253,15 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     /// * `contents` - The string containing the object data
     /// * `format` - The source format, any of those listed in [`ACCEPTED_STR_FORMATS`](`SerdeAPI::ACCEPTED_STR_FORMATS`)
     ///
-    fn from_str<S: AsRef<str>>(contents: S, format: &str) -> anyhow::Result<Self> {
+    fn from_str<S: AsRef<str>>(contents: S, format: &str, skip_init: bool) -> anyhow::Result<Self> {
         Ok(
             match format.trim_start_matches('.').to_lowercase().as_str() {
-                "yaml" | "yml" => Self::from_yaml(contents)?,
-                "json" => Self::from_json(contents)?,
+                #[cfg(feature = "yaml")]
+                "yaml" | "yml" => Self::from_yaml(contents, skip_init)?,
+                #[cfg(feature = "json")]
+                "json" => Self::from_json(contents, skip_init)?,
+                #[cfg(feature = "toml")]
+                "toml" => Self::from_toml(contents, skip_init)?,
                 _ => bail!(
                     "Unsupported format {format:?}, must be one of {:?}",
                     Self::ACCEPTED_STR_FORMATS
@@ -212,41 +277,97 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     /// * `rdr` - The reader from which to read object data
     /// * `format` - The source format, any of those listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`)
     ///
-    fn from_reader<R>(rdr: R, format: &str) -> anyhow::Result<Self>
-    where
-        R: std::io::Read,
-    {
+    fn from_reader<R: std::io::Read>(
+        rdr: &mut R,
+        format: &str,
+        skip_init: bool,
+    ) -> Result<Self, Error> {
         let mut deserialized: Self = match format.trim_start_matches('.').to_lowercase().as_str() {
-            "yaml" | "yml" => serde_yaml::from_reader(rdr)?,
-            "json" => serde_json::from_reader(rdr)?,
-            "bin" => bincode::deserialize_from(rdr)?,
-            _ => bail!(
-                "Unsupported format {format:?}, must be one of {:?}",
-                Self::ACCEPTED_BYTE_FORMATS
-            ),
+            "yaml" | "yml" => serde_yaml::from_reader(rdr)
+                .map_err(|err| Error::SerdeError(format!("{err} while reading `yaml`")))?,
+            "json" => serde_json::from_reader(rdr)
+                .map_err(|err| Error::SerdeError(format!("{err} while reading `json`")))?,
+            #[cfg(feature = "msgpack")]
+            "msgpack" => rmp_serde::decode::from_read(rdr)
+                .map_err(|err| Error::SerdeError(format!("{err} while reading `msgpack`")))?,
+            _ => {
+                return Err(Error::SerdeError(format!(
+                    "Unsupported format {format:?}, must be one of {:?}",
+                    Self::ACCEPTED_BYTE_FORMATS
+                )))
+            }
         };
-        deserialized.init()?;
+        if !skip_init {
+            deserialized.init()?;
+        }
         Ok(deserialized)
     }
 
     /// Write (serialize) an object to a JSON string
+    #[cfg(feature = "json")]
     fn to_json(&self) -> anyhow::Result<String> {
         Ok(serde_json::to_string(&self)?)
     }
 
-    /// Read (deserialize) an object to a JSON string
+    /// Read (deserialize) an object from a JSON string
     ///
     /// # Arguments
     ///
     /// * `json_str` - JSON-formatted string to deserialize from
     ///
-    fn from_json<S: AsRef<str>>(json_str: S) -> anyhow::Result<Self> {
+    #[cfg(feature = "json")]
+    fn from_json<S: AsRef<str>>(json_str: S, skip_init: bool) -> anyhow::Result<Self> {
         let mut json_de: Self = serde_json::from_str(json_str.as_ref())?;
-        json_de.init()?;
+        if !skip_init {
+            json_de.init()?;
+        }
         Ok(json_de)
     }
 
+    /// Write (serialize) an object to a message pack
+    #[cfg(feature = "msgpack")]
+    fn to_msg_pack(&self) -> anyhow::Result<Vec<u8>> {
+        Ok(rmp_serde::encode::to_vec_named(&self)?)
+    }
+
+    /// Read (deserialize) an object from a message pack
+    ///
+    /// # Arguments
+    ///
+    /// * `msg_pack` - message pack object
+    ///
+    #[cfg(feature = "msgpack")]
+    fn from_msg_pack(msg_pack: &[u8], skip_init: bool) -> anyhow::Result<Self> {
+        let mut msg_pack_de: Self = rmp_serde::decode::from_slice(msg_pack)?;
+        if !skip_init {
+            msg_pack_de.init()?;
+        }
+        Ok(msg_pack_de)
+    }
+
+    /// Write (serialize) an object to a TOML string
+    #[cfg(feature = "toml")]
+    fn to_toml(&self) -> anyhow::Result<String> {
+        Ok(toml::to_string(&self)?)
+    }
+
+    /// Read (deserialize) an object from a TOML string
+    ///
+    /// # Arguments
+    ///
+    /// * `toml_str` - TOML-formatted string to deserialize from
+    ///
+    #[cfg(feature = "toml")]
+    fn from_toml<S: AsRef<str>>(toml_str: S, skip_init: bool) -> anyhow::Result<Self> {
+        let mut toml_de: Self = toml::from_str(toml_str.as_ref())?;
+        if !skip_init {
+            toml_de.init()?;
+        }
+        Ok(toml_de)
+    }
+
     /// Write (serialize) an object to a YAML string
+    #[cfg(feature = "yaml")]
     fn to_yaml(&self) -> anyhow::Result<String> {
         Ok(serde_yaml::to_string(&self)?)
     }
@@ -257,38 +378,25 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> {
     ///
     /// * `yaml_str` - YAML-formatted string to deserialize from
     ///
-    fn from_yaml<S: AsRef<str>>(yaml_str: S) -> anyhow::Result<Self> {
+    #[cfg(feature = "yaml")]
+    fn from_yaml<S: AsRef<str>>(yaml_str: S, skip_init: bool) -> anyhow::Result<Self> {
         let mut yaml_de: Self = serde_yaml::from_str(yaml_str.as_ref())?;
-        yaml_de.init()?;
+        if !skip_init {
+            yaml_de.init()?;
+        }
         Ok(yaml_de)
-    }
-
-    /// Write (serialize) an object to bincode-encoded bytes
-    fn to_bincode(&self) -> anyhow::Result<Vec<u8>> {
-        Ok(bincode::serialize(&self)?)
-    }
-
-    /// Read (deserialize) an object from bincode-encoded bytes
-    ///
-    /// # Arguments
-    ///
-    /// * `encoded` - Encoded bytes to deserialize from
-    ///
-    fn from_bincode(encoded: &[u8]) -> anyhow::Result<Self> {
-        let mut bincode_de: Self = bincode::deserialize(encoded)?;
-        bincode_de.init()?;
-        Ok(bincode_de)
     }
 }
 
-impl<T: SerdeAPI> SerdeAPI for Vec<T> {
-    fn init(&mut self) -> anyhow::Result<()> {
+impl<T: Init> Init for Vec<T> {
+    fn init(&mut self) -> Result<(), Error> {
         for val in self {
             val.init()?
         }
         Ok(())
     }
 }
+impl<T: SerdeAPI> SerdeAPI for Vec<T> {}
 
 /// Provides method for checking if an instance of `Self` is equal to `Self::default`
 pub trait EqDefault: Default + PartialEq {
@@ -298,3 +406,63 @@ pub trait EqDefault: Default + PartialEq {
     }
 }
 impl<T: Default + PartialEq> EqDefault for T {}
+
+#[derive(Default, Deserialize, Serialize, Debug, Clone, PartialEq)]
+/// Governs which side effect to trigger when setting mass
+pub enum MassSideEffect {
+    /// To be used when [MassSideEffect] is not applicable
+    #[default]
+    None,
+    /// Set the extensive parameter -- e.g. energy, power -- as a side effect
+    Extensive,
+    /// Set the intensive parameter -- e.g. specific power, specific energy -- as a side effect
+    Intensive,
+}
+
+impl TryFrom<String> for MassSideEffect {
+    type Error = anyhow::Error;
+    fn try_from(value: String) -> anyhow::Result<MassSideEffect> {
+        let mass_side_effect = match value.as_str() {
+            "None" => Self::None,
+            "Extensive" => Self::Extensive,
+            "Intensive" => Self::Intensive,
+            _ => {
+                bail!(format!(
+                    "`MassSideEffect` must be 'Intensive', 'Extensive', or 'None'. "
+                ))
+            }
+        };
+        Ok(mass_side_effect)
+    }
+}
+
+pub trait Mass {
+    /// Returns mass of Self, either from `self.mass` or
+    /// the derived from fields that store mass data. `Mass::mass` also checks that
+    /// derived mass, if Some, is same as `self.mass`.
+    fn mass(&self) -> anyhow::Result<Option<si::Mass>>;
+
+    /// Sets component mass to `mass`, or if `None` is provided for `mass`,
+    /// sets mass based on other component parameters (e.g. power and power
+    /// density, sum of fields containing mass)
+    fn set_mass(
+        &mut self,
+        new_mass: Option<si::Mass>,
+        side_effect: MassSideEffect,
+    ) -> anyhow::Result<()>;
+
+    /// Returns derived mass (e.g. sum of mass fields, or
+    /// calculation involving mass specific properties).  If
+    fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>>;
+
+    /// Sets all fields that are used in calculating derived mass to `None`.
+    /// Does not touch `self.mass`.
+    fn expunge_mass_fields(&mut self);
+
+    /// Sets any mass-specific property with appropriate side effects
+    fn set_mass_specific_property(&mut self) -> anyhow::Result<()> {
+        // TODO: remove this default implementation when this method has been universally implemented.
+        // For structs without specific properties, return an error
+        Ok(())
+    }
+}

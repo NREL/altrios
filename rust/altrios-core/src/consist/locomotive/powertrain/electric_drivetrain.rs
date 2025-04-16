@@ -6,6 +6,7 @@ use crate::pyo3::*;
 
 #[altrios_api(
     #[new]
+    #[pyo3(signature = (pwr_out_frac_interp, eta_interp, pwr_out_max_watts, save_interval=None))]
     fn __new__(
         pwr_out_frac_interp: Vec<f64>,
         eta_interp: Vec<f64>,
@@ -70,13 +71,15 @@ pub struct ElectricDrivetrain {
     #[api(skip_set)]
     pub pwr_in_frac_interp: Vec<f64>,
     /// ElectricDrivetrain maximum output power assuming that positive and negative tractive powers have same magnitude
-    #[serde(rename = "pwr_out_max_watts")]
     pub pwr_out_max: si::Power,
     // TODO: add `mass` here
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
-    #[serde(default)]
+    #[serde(
+        default,
+        skip_serializing_if = "ElectricDrivetrainStateHistoryVec::is_empty"
+    )]
     pub history: ElectricDrivetrainStateHistoryVec,
 }
 
@@ -169,12 +172,22 @@ impl ElectricDrivetrain {
     /// Set `pwr_in_req` required to achieve desired `pwr_out_req` with time step size `dt`.
     pub fn set_pwr_in_req(&mut self, pwr_out_req: si::Power, dt: si::Time) -> anyhow::Result<()> {
         ensure!(
-            pwr_out_req <= self.pwr_out_max,
+            almost_le_uom(&pwr_out_req.abs(), &self.pwr_out_max, None),
             format!(
                 "{}\nedrv required power ({:.6} MW) exceeds static max power ({:.6} MW)",
                 format_dbg!(pwr_out_req.abs() <= self.pwr_out_max),
-                pwr_out_req.get::<si::megawatt>(),
+                pwr_out_req.abs().get::<si::megawatt>(),
                 self.pwr_out_max.get::<si::megawatt>()
+            ),
+        );
+
+        ensure!(
+            almost_le_uom(&pwr_out_req, &self.state.pwr_mech_out_max, Some(1e-5)),
+            format!(
+                "{}\nedrv required power ({:.6} MW) exceeds dynamic max power ({:.6} MW)",
+                format_dbg!(pwr_out_req.abs() <= self.state.pwr_mech_out_max),
+                pwr_out_req.get::<si::megawatt>(),
+                self.state.pwr_mech_out_max.get::<si::megawatt>()
             ),
         );
 
@@ -236,18 +249,21 @@ impl ElectricDrivetrain {
 //     "/src/consist/locomotive/powertrain/electric_drivetrain.default.yaml"
 // ));
 
-impl SerdeAPI for ElectricDrivetrain {
-    fn init(&mut self) -> anyhow::Result<()> {
+impl Init for ElectricDrivetrain {
+    fn init(&mut self) -> Result<(), Error> {
         self.state.init()?;
         Ok(())
     }
 }
+impl SerdeAPI for ElectricDrivetrain {}
 
 impl Default for ElectricDrivetrain {
     fn default() -> Self {
         // let file_contents = include_str!(EDRV_DEFAULT_PATH_STR);
         let file_contents = include_str!("electric_drivetrain.default.yaml");
-        serde_yaml::from_str::<ElectricDrivetrain>(file_contents).unwrap()
+        let mut edrv = Self::from_yaml(file_contents, false).unwrap();
+        edrv.init().unwrap();
+        edrv
     }
 }
 
@@ -271,7 +287,7 @@ impl ElectricMachine for ElectricDrivetrain {
                 false,
             )?;
 
-        self.state.pwr_mech_out_max = self.pwr_out_max.min(pwr_in_max * eta);
+        self.state.pwr_mech_out_max = self.pwr_out_max.min(pwr_in_max * eta).max(si::Power::ZERO);
         Ok(())
     }
 
@@ -332,6 +348,8 @@ pub struct ElectricDrivetrainState {
     pub energy_loss: si::Energy,
 }
 
+impl Init for ElectricDrivetrainState {}
+impl SerdeAPI for ElectricDrivetrainState {}
 impl Default for ElectricDrivetrainState {
     fn default() -> Self {
         Self {
@@ -372,28 +390,29 @@ mod tests {
     #[test]
     fn test_that_loss_is_monotonic() {
         let mut edrv = test_edrv();
+        edrv.state.pwr_mech_out_max = edrv.pwr_out_max;
         edrv.save_interval = Some(1);
         edrv.save_state();
-        edrv.set_pwr_in_req(uc::W * 2_000e3, uc::S * 1.0).unwrap();
+        edrv.set_pwr_in_req(uc::W * 1_000e3, uc::S * 1.0).unwrap();
         edrv.step();
         edrv.save_state();
-        edrv.set_pwr_in_req(uc::W * -2_000e3, uc::S * 1.0).unwrap();
+        edrv.set_pwr_in_req(uc::W * 1_100e3, uc::S * 1.0).unwrap();
         edrv.step();
         edrv.save_state();
-        edrv.set_pwr_in_req(uc::W * 1_500e3, uc::S * 1.0).unwrap();
+        edrv.set_pwr_in_req(uc::W * 1_000e3, uc::S * 1.0).unwrap();
+        edrv.step();
+        edrv.save_state();
+        edrv.set_pwr_in_req(uc::W * -500e3, uc::S * 1.0).unwrap();
         edrv.step();
         edrv.save_state();
         edrv.set_pwr_in_req(uc::W * -1_500e3, uc::S * 1.0).unwrap();
         edrv.step();
-        let energy_loss_j = edrv
+        edrv.save_state();
+        assert!(edrv
             .history
             .energy_loss
-            .iter()
-            .map(|x| x.get::<si::joule>())
-            .collect::<Vec<_>>();
-        for i in 1..energy_loss_j.len() {
-            assert!(energy_loss_j[i] >= energy_loss_j[i - 1]);
-        }
+            .windows(2)
+            .all(|w| w[1] - w[0] >= si::Energy::ZERO));
     }
 
     #[test]

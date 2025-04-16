@@ -1,20 +1,18 @@
 ---
-Car Type: Intermodal_Empty
-Length (m): 18.0
-Axle Count: 4
-Brake Count: 1
-Mass Static Empty (kg): 28500.0
-Mass Static Loaded (kg): 130000.0
-Speed Max Empty (m/s): 20.0
-Speed Max Loaded (m/s): 20.0
-Braking Ratio Empty: 0.25
-Braking Ratio Loaded: 0.11
-Mass Extra per Axle (kg): 750.0
-Bearing Res per Axle (N): 80.0
-Rolling Ratio: 0.00075
-Davis B (s/m): 0.0
-Drag Area Cd*A Empty (m^2): 4.0
-Drag Area Cd*A Loaded (m^2): 4.0
-Curve Coefficient 0: 0.0
-Curve Coefficient 1: 0.0
-Curve Coefficient 2: 0.0
+car_type: Intermodal_Empty
+freight_type: Intermodal_Empty
+length: 18.0
+axle_count: 4
+brake_count: 1
+mass_static_base: 28500.0
+mass_freight: 0.0
+speed_max: 20.0
+braking_ratio: 0.25
+mass_rot_per_axle: 750.0
+bearing_res_per_axle: 80.0
+rolling_ratio: 0.00075
+davis_b: 0.0
+cd_area: 4.0
+curve_coeff_0: 0.0
+curve_coeff_1: 0.0
+curve_coeff_2: 0.0

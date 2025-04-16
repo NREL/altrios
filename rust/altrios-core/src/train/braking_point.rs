@@ -22,17 +22,16 @@ impl ObjState for BrakingPoint {
 #[altrios_api]
 pub struct BrakingPoints {
     points: Vec<BrakingPoint>,
+    /// index within [Self::points]
     idx_curr: usize,
 }
 
 impl BrakingPoints {
-    /// TODO: complete this doc string
     /// Arguments:
-    /// - offset: si::Length -- ???
-    /// - speed: si::Velocity -- ???
-    /// - adj_ramp_up_time: si::Time -- corrected ramp up time to account
-    ///     for approximately linear brake build up
-
+    /// - offset: location along the current TPC path since train started moving
+    /// - speed: current train speed
+    /// - adj_ramp_up_time: corrected ramp up time to account for approximately
+    ///     linear brake build up
     pub fn calc_speeds(
         &mut self,
         offset: si::Length,
@@ -48,8 +47,11 @@ impl BrakingPoints {
         }
         assert!(
             speed <= self.points[self.idx_curr].speed_limit,
-            "Speed limit violated! speed={speed:?}, speed_limit={:?}",
-            self.points[self.idx_curr].speed_limit
+            "Speed limit violated! idx_curr={:?}, offset={:?}, speed={speed:?}, speed_limit={:?}, speed_target={:?}",
+            self.idx_curr,
+            self.points[self.idx_curr].offset,
+            self.points[self.idx_curr].speed_limit,
+            self.points[self.idx_curr].speed_target
         );
 
         // need to make a way for this to never decrease until a stop happens or maybe never at all
@@ -64,6 +66,8 @@ impl BrakingPoints {
 
         (self.points[self.idx_curr].speed_limit, speed_target)
     }
+
+    /// Any time [PathTpc] is updated, everything is recalculated
     pub fn recalc(
         &mut self,
         train_state: &TrainState,
@@ -85,7 +89,7 @@ impl BrakingPoints {
         let speed_points = path_tpc.speed_points();
         let mut idx = path_tpc.speed_points().len();
 
-        //Iterate backwards through all the speed points
+        // Iterate backwards through all the speed points
         while 0 < idx {
             idx -= 1;
             if speed_points[idx].speed_limit.abs() > self.points.last().unwrap().speed_limit {
@@ -106,7 +110,7 @@ impl BrakingPoints {
                     ensure!(
                         fric_brake.force_max + train_state.res_net() > si::Force::ZERO,
                         format!(
-                            "{}\n{}\n{}\n{}\n{}\n{}",
+                            "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
                             format_dbg!(
                                 fric_brake.force_max + train_state.res_net() > si::Force::ZERO
                             ),
@@ -115,14 +119,26 @@ impl BrakingPoints {
                             format_dbg!(train_state.res_grade),
                             format_dbg!(train_state.grade_front),
                             format_dbg!(train_state.grade_back),
+                            format_dbg!(train_state.elev_front),
+                            format_dbg!(train_state.elev_back),
+                            format_dbg!(train_state.offset),
+                            format_dbg!(train_state.offset_back),
+                            format_dbg!(train_state.speed),
+                            format_dbg!(train_state.speed_limit),
+                            format_dbg!(train_state.speed_target),
+                            format_dbg!(train_state.time),
+                            format_dbg!(train_state.dt),
+                            format_dbg!(train_state.i),
+                            format_dbg!(train_state.total_dist),
+                            format_dbg!(train_state.link_idx_front),
+                            format_dbg!(train_state.offset_in_link)
                         )
                     );
                     let vel_change = train_state.dt
                         * (fric_brake.force_max + train_state.res_net())
-                        // TODO: maybe add rotating mass in denominator
-                        / train_state.mass_static;
+                        / train_state.mass_compound().with_context(|| format_dbg!())?;
 
-                    // Exit after adding a couple of points if the next braking curve point will exceed the speed limit
+                    // exit after adding a couple of points if the next braking curve point will exceed the speed limit
                     if speed_limit < bp_curr.speed_limit + vel_change {
                         self.points.push(BrakingPoint {
                             offset: bp_curr.offset - train_state.dt * speed_limit,

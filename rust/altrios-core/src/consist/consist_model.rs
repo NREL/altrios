@@ -2,6 +2,7 @@ use super::*;
 
 #[altrios_api(
     #[new]
+    #[pyo3(signature = (loco_vec, save_interval=None))]
     fn __new__(
         loco_vec: Vec<Locomotive>,
         save_interval: Option<usize>
@@ -26,6 +27,7 @@ use super::*;
     }
 
     #[pyo3(name = "set_save_interval")]
+    #[pyo3(signature = (save_interval=None))]
     /// Set save interval and cascade to nested components.
     fn set_save_interval_py(&mut self, save_interval: Option<usize>) -> anyhow::Result<()> {
         self.set_save_interval(save_interval);
@@ -49,19 +51,12 @@ use super::*;
     fn set_pdct_resgreedy(&mut self) {
         self.pdct = PowerDistributionControlType::RESGreedy(RESGreedy);
     }
-    /// Set hct to PowerDistributionControlType::GoldenSectionSearch(fuel_res_ratio, gss_interval)
-    fn set_pdct_gss(&mut self, fuel_res_ratio: f64, gss_interval: usize) {
-        self.pdct = PowerDistributionControlType::GoldenSectionSearch(
-            GoldenSectionSearch{fuel_res_ratio, gss_interval}
-        );
-    }
 
-    fn get_hct(&self) -> String {
+    fn get_pdct(&self) -> String {
         // make a `describe` function
         match &self.pdct {
             PowerDistributionControlType::RESGreedy(val) => format!("{val:?}"),
             PowerDistributionControlType::Proportional(val) => format!("{val:?}"),
-            PowerDistributionControlType::GoldenSectionSearch(val) => format!("{val:?}"),
             PowerDistributionControlType::FrontAndBack(val) => format!("{val:?}"),
         }
     }
@@ -113,6 +108,7 @@ pub struct Consist {
     #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ConsistState,
+    #[serde(default, skip_serializing_if = "ConsistStateHistoryVec::is_empty")]
     /// Custom vector of [Self::state]
     pub history: ConsistStateHistoryVec,
     #[api(skip_set, skip_get)] // custom needed for this
@@ -122,9 +118,11 @@ pub struct Consist {
     n_res_equipped: Option<u8>,
 }
 
-impl SerdeAPI for Consist {
-    fn init(&mut self) -> anyhow::Result<()> {
-        let _mass = self.mass().with_context(|| format_dbg!())?;
+impl Init for Consist {
+    fn init(&mut self) -> Result<(), Error> {
+        let _mass = self
+            .mass()
+            .map_err(|err| Error::InitError(format_dbg!(err)))?;
         self.set_pwr_dyn_brake_max();
         self.loco_vec.init()?;
         self.pdct.init()?;
@@ -133,6 +131,7 @@ impl SerdeAPI for Consist {
         Ok(())
     }
 }
+impl SerdeAPI for Consist {}
 
 impl Consist {
     pub fn new(
@@ -179,11 +178,19 @@ impl Consist {
     }
 
     pub fn force_max(&self) -> anyhow::Result<si::Force> {
-        self.loco_vec
-            .iter()
-            .try_fold(0. * uc::N, |f_sum, loco| -> anyhow::Result<si::Force> {
-                Ok(loco.force_max().with_context(|| format_dbg!())? + f_sum)
-            })
+        self.loco_vec.iter().enumerate().try_fold(
+            0. * uc::N,
+            |f_sum, (i, loco)| -> anyhow::Result<si::Force> {
+                Ok(loco.force_max().with_context(|| {
+                    format!(
+                        "{}\nloco #: {}\nloco type: {}",
+                        format_dbg!(),
+                        i,
+                        loco.loco_type.to_string()
+                    )
+                })? + f_sum)
+            },
+        )
     }
 
     pub fn get_loco_vec(&self) -> Vec<Locomotive> {
@@ -254,11 +261,12 @@ impl Consist {
     pub fn solve_energy_consumption(
         &mut self,
         pwr_out_req: si::Power,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
         dt: si::Time,
         engine_on: Option<bool>,
     ) -> anyhow::Result<()> {
         // TODO: account for catenary in here
-        // TODO: add in `eng_fmt` in the error messages
         if self.assert_limits {
             ensure!(
                 -pwr_out_req <= self.state.pwr_dyn_brake_max,
@@ -293,12 +301,20 @@ impl Consist {
 
         let pwr_out_vec: Vec<si::Power> = if pwr_out_req > si::Power::ZERO {
             // positive tractive power `pwr_out_vec`
-            self.pdct
-                .solve_positive_traction(&self.loco_vec, &self.state)?
+            self.pdct.solve_positive_traction(
+                &self.loco_vec,
+                &self.state,
+                train_mass,
+                train_speed,
+            )?
         } else if pwr_out_req < si::Power::ZERO {
             // negative tractive power `pwr_out_vec`
-            self.pdct
-                .solve_negative_traction(&self.loco_vec, &self.state)?
+            self.pdct.solve_negative_traction(
+                &self.loco_vec,
+                &self.state,
+                train_mass,
+                train_speed,
+            )?
         } else {
             // zero tractive power `pwr_out_vec`
             vec![si::Power::ZERO; self.loco_vec.len()]
@@ -329,19 +345,14 @@ impl Consist {
         // maybe put logic for toggling `engine_on` here
 
         for (i, (loco, pwr_out)) in self.loco_vec.iter_mut().zip(pwr_out_vec.iter()).enumerate() {
-            #[cfg(feature = "logging")]
-            log::info!(
-                "Solving locomotive #{}\n`pwr_out: `{} MW",
-                i,
-                pwr_out.get::<si::megawatt>().format_eng(None)
-            );
-            loco.solve_energy_consumption(*pwr_out, dt, engine_on)
-                .map_err(|err| {
-                    err.context(format!(
-                        "loco idx: {}, loco type: {}",
+            loco.solve_energy_consumption(*pwr_out, dt, engine_on, train_mass, train_speed)
+                .with_context(|| {
+                    format!(
+                        "{}\nloco idx: {}, loco type: {}",
+                        format_dbg!(),
                         i,
                         loco.loco_type.to_string()
-                    ))
+                    )
                 })?;
         }
 
@@ -395,16 +406,13 @@ impl Consist {
 
 impl Default for Consist {
     fn default() -> Self {
-        let bel_type = PowertrainType::BatteryElectricLoco(BatteryElectricLoco::default());
-        let mut bel = Locomotive::default();
-        bel.loco_type = bel_type;
-        bel.set_save_interval(Some(1));
         let mut consist = Self {
             state: Default::default(),
             history: Default::default(),
             loco_vec: vec![
                 Locomotive::default(),
-                bel,
+                Locomotive::default_battery_electric_loco(),
+                Locomotive::default_hybrid_electric_loco(),
                 Locomotive::default(),
                 Locomotive::default(),
                 Locomotive::default(),
@@ -417,14 +425,17 @@ impl Default for Consist {
         // ensure propagation to nested components
         consist.set_save_interval(Some(1));
         let _mass = consist.mass().unwrap();
+        consist.init().unwrap();
         consist
     }
 }
 
 impl LocoTrait for Consist {
-    fn set_cur_pwr_max_out(
+    fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        train_mass: Option<si::Mass>,
+        train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
         // TODO: this will need to account for catenary power
@@ -433,14 +444,37 @@ impl LocoTrait for Consist {
         // is operating with the same catenary power availability at the train position for which this
         // method is called
         ensure!(pwr_aux.is_none(), format_dbg!(pwr_aux.is_none()));
+
+        // calculate mass assigned to each locomotive such that the buffer
+        // calculations can be based on mass weighted proportionally to the
+        // relative battery capacity
+        let res_total_usable_energy = self.loco_vec.iter().fold(si::Energy::ZERO, |m_tot, l| {
+            m_tot
+                + l.reversible_energy_storage()
+                    .map(|res| res.energy_capacity_usable())
+                    .unwrap_or(si::Energy::ZERO)
+        });
         for (i, loco) in self.loco_vec.iter_mut().enumerate() {
-            loco.set_cur_pwr_max_out(None, dt).map_err(|err| {
-                err.context(format!(
-                    "loco idx: {} loco type: {}",
-                    i,
-                    loco.loco_type.to_string()
-                ))
-            })?;
+            // assign locomotive-specific mass for hybrid controls
+            let mass: Option<si::Mass> = if res_total_usable_energy > si::Energy::ZERO {
+                train_mass.map(|tm| {
+                    loco.reversible_energy_storage()
+                        .map(|res| res.energy_capacity_usable())
+                        .unwrap_or(si::Energy::ZERO)
+                        / res_total_usable_energy
+                        * tm
+                })
+            } else {
+                None
+            };
+            loco.set_curr_pwr_max_out(None, mass, train_speed, dt)
+                .map_err(|err| {
+                    err.context(format!(
+                        "loco idx: {} loco type: {}",
+                        i,
+                        loco.loco_type.to_string()
+                    ))
+                })?;
         }
         self.state.pwr_out_max = self
             .loco_vec
@@ -479,7 +513,7 @@ impl LocoTrait for Consist {
 
     fn save_state(&mut self) {
         if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 || self.state.i == 1 {
+            if self.state.i % interval == 0 {
                 self.history.push(self.state);
                 for loco in self.loco_vec.iter_mut() {
                     loco.save_state();
@@ -615,6 +649,9 @@ pub struct ConsistState {
     /// Time-integrated energy form of [pwr_fuel](Self::pwr_fuel)
     pub energy_fuel: si::Energy,
 }
+
+impl Init for ConsistState {}
+impl SerdeAPI for ConsistState {}
 
 impl Default for ConsistState {
     fn default() -> Self {

@@ -29,7 +29,6 @@ def extract_hel_from_train_sim(ts: alt.SetSpeedTrainSim) -> list:
     loco_list = []
     for loco in ts_list:
         if "HybridLoco" in loco.loco_type():
-            # default_hybrid_electric_loco() is not in this repo, but it is in altrios, "HybridLoco" is the loco_type() value
             loco_list.append(loco)
     if not loco_list:
         print("NO HYBRID LOCO IS FOUND IN CONSIST")
@@ -345,7 +344,7 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
             ts.history.speed_meters_per_second,
             label='achieved speed'
         )
-        if isinstance(ts,alt.SpeedLimitTrainSim):
+        if isinstance(train_sim,alt.SpeedLimitTrainSim):
             ax[-1].plot(
                 x_axis,
                 ts.history.speed_limit_meters_per_second,
@@ -415,12 +414,12 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         fig3, ax3 = plt.subplots(3, 1, sharex=True)
         ax3[0].plot(
             x_axis,
-            np.array(first_hel['history']['pwr_out_watts']) / 1e3,
+            np.array(first_hel.history.pwr_out_watts) / 1e3,
             label='hybrid tract. pwr.'
         )
         ax3[0].plot(
             x_axis,
-            np.array(first_hel.res.history.pwr_out_pwr_out_electrical_watts) / 1e3,
+            np.array(first_hel.res.history.pwr_out_electrical_watts) / 1e3,
             label='hybrid batt. elec. pwr.'
         )
         ax3[0].set_ylabel('Power [kW]')
@@ -451,4 +450,3 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str, y:str):
         plt.suptitle(plot_name + " " + "Hybrid Loco Power and Buffer Profile")
         plt.tight_layout()
         plt.show()
-    return 

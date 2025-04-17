@@ -744,12 +744,12 @@ def plot_locos_from_ts(ts:alt.SetSpeedTrainSim,x:str):
         fig3, ax3 = plt.subplots(3, 1, sharex=True)
         ax3[0].plot(
             x_axis,
-            np.array(first_hel['history']['pwr_out_watts']) / 1e3,
+            np.array(first_hel.history.pwr_out_watts) / 1e3,
             label='hybrid tract. pwr.'
         )
         ax3[0].plot(
             x_axis,
-            np.array(first_hel.res.history.pwr_out_pwr_out_electrical_watts) / 1e3,
+            np.array(first_hel.res.history.pwr_out_electrical_watts) / 1e3,
             #np.array(hybrid_loco['loco_type']['HybridLoco']['res']
             #        ['history']['pwr_out_electrical_watts']) / 1e3,
             label='hybrid batt. elec. pwr.'
@@ -952,4 +952,4 @@ loco0: alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 #     plt.tight_layout()
 #     plt.show()
 
-plot_locos_from_ts(train_sim,"Time",0)
+plot_locos_from_ts(train_sim,"Time")

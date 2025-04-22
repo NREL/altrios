@@ -2,6 +2,9 @@ import pandas as pd
 import utilities
 from single_track_parameters import *
 from pathlib import Path
+import altrios.lifts.distances_single_track as layout
+
+K, k, M, N, n_t, n_p, n_r= layout.load_layout_config_from_json()
 
 package_root = utilities.package_root()
 out_path = package_root / 'demos' / 'single_track_results'
@@ -85,7 +88,7 @@ def save_energy_to_excel(state):
                                'OC Time': 'OC Processing Time',
                                'Total Time': 'Total Processing Time'}, inplace=True)
 
-    file_name = f"vehicle_log_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx"
+    file_name = f"vehicle_throughput_{K}_batch_size_{k}.xlsx"
     file_path = out_path / file_name
 
     with pd.ExcelWriter(file_path) as writer:
@@ -94,18 +97,60 @@ def save_energy_to_excel(state):
         performance_df.to_excel(writer, sheet_name='performance', index=True)
 
 
-def calculate_container_processing_time(container_excel_path):
+# def calculate_container_processing_time(container_excel_path):
+#     df = pd.read_excel(container_excel_path)
+#     df['type'] = df['container_id'].apply(lambda x: 'IC' if str(x).isdigit() else 'OC' if str(x).startswith('OC-') else 'Unknown')
+#     # df = df[(df["train_arrival"] >= 24) & (df["train_arrival"] < 144)]
+#
+#     ic_df = df[df['type'] == 'IC']
+#     oc_df = df[df['type'] == 'OC']
+#     # ic_df = df[(df['type'] == 'IC') & (df["train_arrival"] >= 24) & (df["train_arrival"] < 144)]
+#     # oc_df = df[(df['type'] == 'OC') & (df["truck_arrival"] >= 24) & (df["truck_arrival"] < 144)]
+#
+#     ic_avg_time = ic_df['container_processing_time'].mean() if not ic_df.empty else 0
+#     oc_avg_time = oc_df['container_processing_time'].mean() if not oc_df.empty else 0
+#     total_avg_time = df['container_processing_time'].mean() if not df.empty else 0
+#
+#     return ic_avg_time, oc_avg_time, total_avg_time
+
+
+import pandas as pd
+
+def calculate_container_processing_time(container_excel_path, num_trains, train_batch_size, daily_throughput):
     df = pd.read_excel(container_excel_path)
-    df['type'] = df['container_id'].apply(lambda x: 'IC' if str(x).isdigit() else 'OC' if str(x).startswith('OC-') else 'Unknown')
 
-    ic_df = df[df['type'] == 'IC']
-    oc_df = df[df['type'] == 'OC']
+    # 标记类型
+    df['type'] = df['container_id'].apply(
+        lambda x: 'IC' if str(x).isdigit() else 'OC' if str(x).startswith('OC-') else 'Unknown')
 
-    ic_avg_time = ic_df['container_processing_time'].mean() if not ic_df.empty else 0
-    oc_avg_time = oc_df['container_processing_time'].mean() if not oc_df.empty else 0
-    total_avg_time = df['container_processing_time'].mean() if not df.empty else 0
+    full_load_limit = (num_trains - 1) * train_batch_size
+
+    # 处理 IC
+    ic_df = df[df['type'] == 'IC'].copy()
+    ic_df.loc[:, 'numeric_id'] = ic_df['container_id'].astype(int)
+    ic_full = ic_df[ic_df['numeric_id'] <= full_load_limit]
+    ic_remaining = ic_df[ic_df['numeric_id'] > full_load_limit]
+    ic_full_avg = ic_full['container_processing_time'].mean()
+    ic_remain_avg = ic_remaining['container_processing_time'].mean()
+    ic_avg_time = (ic_full_avg if not ic_full.empty else 0) + (ic_remain_avg if not ic_remaining.empty else 0)
+
+    print(f"full_ic_avg_time: {ic_full_avg}, remaining_ic_avg_time: {ic_remain_avg}")
+
+    # 处理 OC
+    oc_df = df[df['type'] == 'OC'].copy()
+    oc_df.loc[:, 'numeric_id'] = oc_df['container_id'].str.replace('OC-', '', regex=False).astype(int)
+    oc_full = oc_df[oc_df['numeric_id'] <= full_load_limit]
+    oc_remaining = oc_df[oc_df['numeric_id'] > full_load_limit]
+    oc_full_avg = oc_full['container_processing_time'].mean()
+    oc_remain_avg = oc_remaining['container_processing_time'].mean()
+    oc_avg_time = (oc_full_avg if not oc_full.empty else 0) + (oc_remain_avg if not oc_remaining.empty else 0)
+
+    print(f"full_oc_avg_time: {oc_full_avg}, remaining_oc_avg_time: {oc_remain_avg}")
+
+    total_avg_time = (ic_avg_time + oc_avg_time)/2
 
     return ic_avg_time, oc_avg_time, total_avg_time
+
 
 
 def calculate_vehicle_energy(vehicle_excel_path):
@@ -119,9 +164,10 @@ def calculate_vehicle_energy(vehicle_excel_path):
     return ic_energy, oc_energy, total_energy
 
 
-def print_and_save_metrics(ic_time, oc_time, total_time, ic_energy, oc_energy, total_energy):
+def print_and_save_metrics(average_container_delay_time, ic_time, oc_time, total_time, ic_energy, oc_energy, total_energy):
     print("*" * 100)
     print("Intermodal Terminal Performance Matrix")
+    print(f"Average Container Delay Time: {average_container_delay_time:.4f}")
     print(f"IC average processing time: {ic_time:.4f}")
     print(f"OC average processing time: {oc_time:.4f}")
     print(f"Average container processing time: {total_time:.4f}")
@@ -130,5 +176,5 @@ def print_and_save_metrics(ic_time, oc_time, total_time, ic_energy, oc_energy, t
     print(f"Average container energy consumption: {total_energy:.4f}")
     print("*" * 100)
 
-    single_run = [ic_time, oc_time, total_time, ic_energy, oc_energy, total_energy]
+    single_run = [average_container_delay_time, ic_time, oc_time, total_time, ic_energy, oc_energy, total_energy]
     return single_run

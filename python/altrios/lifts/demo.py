@@ -55,8 +55,8 @@ def record_event(container_id, event_type, timestamp):
 def save_vehicle_and_performance_metrics(state):
     out_path = utilities.package_root() / 'demos' / 'single_track_results'
 
-    container_excel_path = out_path / f"simulation_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx"
-    vehicle_excel_path = out_path / f"vehicle_log_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx"
+    container_excel_path = out_path / f"single_track_throughput_{daily_throughput}_train_{train_batch_size}_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx"
+    vehicle_excel_path = out_path / f"single_track_vehicle_crane_{state.CRANE_NUMBER}_hostler_{state.HOSTLER_NUMBER}.xlsx"
 
     if not container_excel_path.exists():
         print(f"[Error] Container Excel not found: {container_excel_path}")
@@ -71,16 +71,23 @@ def save_vehicle_and_performance_metrics(state):
     return print_and_save_metrics(ic_time, oc_time, total_time, ic_energy, oc_energy, total_energy)
 
 
-def emission_calculation(status, vehicle, id, travel_time):
+def emission_calculation(status, move, vehicle, id, travel_time):
     global state
     vehicle = vehicle.capitalize()
     vehicle_type = id[1]
     vehicle_type = vehicle_type.capitalize()
-    if status == 'loaded':
-        emission_unit = state.FULL_EMISSIONS_RATES[vehicle][vehicle_type]
-    if status == 'empty':
-        emission_unit = state.IDLE_EMISSIONS_RATES[vehicle][vehicle_type]
-    emissions = emission_unit * travel_time
+    if status == 'loaded' and move == 'load':
+        emission_unit = state.FULL_LOAD_EMISSIONS_RATES[vehicle][vehicle_type]
+        emissions = emission_unit
+    elif status == 'empty' and move == 'load':
+        emission_unit = state.IDLE_LOAD_EMISSIONS_RATES[vehicle][vehicle_type]
+        emissions = emission_unit
+    elif status == 'loaded' and move == 'trip':
+        emission_unit = state.FULL_TRIP_EMISSIONS_RATES[vehicle][vehicle_type]
+        emissions = emission_unit * travel_time
+    elif status == 'empty' and move == 'trip':
+        emission_unit = state.IDLE_TRIP_EMISSIONS_RATES[vehicle][vehicle_type]
+        emissions = emission_unit * travel_time
 
     return emissions
 
@@ -472,6 +479,8 @@ def run_simulation(train_consist_plan: pl.DataFrame, terminal: str, out_path = N
 
     train_timetable = [{'train_id': 840, 'arrival_time': 0, 'departure_time': 6, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 7, 'arrival_time': 6, 'departure_time': 12, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 82, 'arrival_time': 12, 'departure_time': 18, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 414, 'arrival_time': 18, 'departure_time': 18, 'empty_cars': 0, 'full_cars': 50, 'oc_number': 50, 'truck_number': 50}]
 
+    with open("train_timetable.json", "r") as f:
+        train_timetable = json.load(f)
 
     # train_timetable = [{'train_id': 403, 'arrival_time': 0, 'departure_time': 6, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 629, 'arrival_time': 6, 'departure_time': 12, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 912, 'arrival_time': 12, 'departure_time': 18, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 170, 'arrival_time': 18, 'departure_time': 24, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 980, 'arrival_time': 24, 'departure_time': 30, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 937, 'arrival_time': 30, 'departure_time': 36, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 640, 'arrival_time': 36, 'departure_time': 42, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 267, 'arrival_time': 42, 'departure_time': 48, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 86, 'arrival_time': 48, 'departure_time': 54, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 451, 'arrival_time': 54, 'departure_time': 60, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 271, 'arrival_time': 60, 'departure_time': 66, 'empty_cars': 0, 'full_cars': 150, 'oc_number': 150, 'truck_number': 150}, {'train_id': 77, 'arrival_time': 66, 'departure_time': 66, 'empty_cars': 0, 'full_cars': -150, 'oc_number': -150, 'truck_number': -150}]
 

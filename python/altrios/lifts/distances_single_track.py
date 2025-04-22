@@ -6,25 +6,23 @@ import json
 
 def load_layout_config_from_json(path="sim_config.json"):
     import json
-    global k, M, N, n_t, n_p, n_r
+    global K, k, M, N, n_t, n_p, n_r
     with open(path, "r") as f:
         config = json.load(f)
         layout = config["layout"]
-        k = layout["k"]
-        M = layout["M"]
-        N = layout["N"]
-        n_t = layout["n_t"]
-        n_p = layout["n_p"]
-        n_r = layout["n_r"]
+        K = layout["K"] # dailythroughput
+        k = layout["k"] # train batch size
+        M = layout["M"] # number of rows of parking blocks in the layout
+        N = layout["N"] # number of columns of parking blocks in the layout
+        n_t = layout["n_t"] # numbers of train side aisles per group
+        n_p = layout["n_p"] # numbers of parking area aisles per group
+        n_r = layout["n_r"] # pairs of parking slots per block
+    return K, k, M, N, n_t, n_p, n_r
 
 # Yard setting: optimal layout output
 YARD_TYPE = 'parallel'  # choose 'perpendicular' or 'parallel'
-k = 200 # train batch size
-M = 2 # decide the number of rows of parking blocks in the layout
-N = 3 # decide the number of columns of parking blocks in the layout
-n_t = 2 # decide the numbers of train side aisles per group
-n_p = 2 # decide the numbers of parking area aisles per group
-n_r = 17  # decide the number of spots within each parking block (10 * n_r = BL_l, the length of each parking block)
+
+load_layout_config_from_json()
 
 # Fixed yard parameters
 P = 10  # fixed aisle width
@@ -67,11 +65,11 @@ def simulate_truck_travel(truck_id, train_schedule, terminal, total_lane_length,
 
     # Compute truck speed based on density
     truck_speed = speed_density(veh_density, 'truck')
-    print(f"Current truck {truck_id} speed is {truck_speed} (m/s)")
+    # print(f"Current truck {truck_id} speed is {truck_speed} (m/s)")
 
     # Compute truck travel time in hours and convert to seconds
     truck_travel_time = (d_t_dist/3.2) / (2 * truck_speed * 3600)  # (ft -> m) / (m/hr)
-    print(f"Truck {truck_id} travel time {truck_travel_time} (hr)")
+    # print(f"Truck {truck_id} travel time {truck_travel_time} (hr)")
 
     return truck_travel_time
 
@@ -86,11 +84,11 @@ def simulate_hostler_travel(hostler_id, current_veh_num, total_lane_length, d_h_
 
     # Compute hostler speed based on density
     hostler_speed = speed_density(veh_density, 'hostler')
-    print(f"Current hostler {hostler_id} speed is {hostler_speed} (m/s)")
+    # print(f"Current hostler {hostler_id} speed is {hostler_speed} (m/s)")
 
     # Compute hostler travel time in hours and convert to seconds
     hostler_travel_time = (d_h_dist/3.2) / (2 * hostler_speed * 3600)     # (ft -> m) / (m/hr)
-    print(f"hostler {hostler_id} travel time {hostler_travel_time} (hr)")
+    # print(f"hostler {hostler_id} travel time {hostler_travel_time} (hr)")
 
     return hostler_travel_time
 
@@ -104,11 +102,11 @@ def simulate_reposition_travel(hostler_id, current_veh_num, total_lane_length, d
 
     # Compute reposition speed based on density
     hostler_speed = speed_density(veh_density, 'hostler')
-    print(f"Current hostler {hostler_id} speed is {hostler_speed} (m/s)")
+    # print(f"Current hostler {hostler_id} speed is {hostler_speed} (m/s)")
 
     # Compute hostler travel time in hours and convert to seconds
     hostler_reposition_travel_time = (d_r_dist/3.2) / (2 * hostler_speed * 3600)      # (ft -> m) / (m/hr)
-    print(f"hostler {hostler_id} travel time {hostler_reposition_travel_time} (hr)")
+    # print(f"hostler {hostler_id} travel time {hostler_reposition_travel_time} (hr)")
 
     return hostler_reposition_travel_time
 

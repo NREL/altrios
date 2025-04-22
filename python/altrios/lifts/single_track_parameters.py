@@ -1,6 +1,16 @@
 from dataclasses import dataclass, field
 from altrios.lifts.schedule import *
 from enum import IntEnum
+import json
+
+CONFIG_PATH = 'sim_config.json'
+
+def load_config():
+    try:
+        with open(CONFIG_PATH, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"[Error] sim_config.json not found at: {CONFIG_PATH}")
 
 
 def train_arrival_parameters(train_consist_plan, terminal):
@@ -19,9 +29,12 @@ class LiftsState:
     # Fixed: Simulation files and hyperparameters
     log_level: loggingLevel = loggingLevel.DEBUG
     random_seed: int = 42
-    sim_time: int = 24
+    sim_time: int = 72
     terminal: str = 'Allouez'  # Choose 'Hibbing' or 'Allouez'
     train_consist_plan: pl.DataFrame = field(default_factory=lambda: pl.DataFrame())
+
+    # Train delay list
+    delay_list = {}
 
     # Fixed: Train parameters
     ## Train timetable: train_units, train arrival time
@@ -39,13 +52,13 @@ class LiftsState:
     CONTAINER_TAL: float = 8.6
     # crane moving distance = 2 * CONTAINER_WID + CONTAINER_WID = 24.6 ft
     # crane movement speed mean value: 10ft/min = 600 ft/hr
-    CRANE_NUMBER: int = 2
+    CRANE_NUMBER: int = 1
     CRANE_DIESEL_PERCENTAGE: float = 1
     CONTAINERS_PER_CRANE_MOVE_MEAN: float = 1/60  # crane movement avg time: distance / speed = hr
     CRANE_MOVE_DEV_TIME: float = 1 / 3600  # crane movement speed deviation value: hr
 
     # Fixed: Hostler parameters
-    HOSTLER_NUMBER: int = 4
+    HOSTLER_NUMBER: int = 1
     HOSTLER_DIESEL_PERCENTAGE: float = 1
     # Fixed hostler travel time (** will update with density-speed/time functions later soon)
     CONTAINERS_PER_HOSTLER: int = 1  # hostler capacity
@@ -121,6 +134,10 @@ class LiftsState:
             self.initialize_from_consist_plan(self.train_consist_plan)
 
     def __post_init__(self):
-        self.initialize()
+        config = load_config()
+        vehicles = config.get("vehicles", {})
+        self.sim_time = vehicles["simulation_duration"]
+        self.CRANE_NUMBER = vehicles["CRANE_NUMBER"]
+        self.HOSTLER_NUMBER = vehicles["HOSTLER_NUMBER"]
 
 state = LiftsState()

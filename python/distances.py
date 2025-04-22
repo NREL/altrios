@@ -3,14 +3,25 @@ from demo_parameters import *
 from scipy.stats import triang, uniform
 import math
 
+
 # Yard setting: optimal layout output
 YARD_TYPE = 'parallel'  # choose 'perpendicular' or 'parallel'
-k = 200 # train batch size
+k = 20 # train batch size
 M = 2 # decide the number of rows of parking blocks in the layout
 N = 3 # decide the number of columns of parking blocks in the layout
 n_t = 2 # decide the numbers of train side aisles per group
 n_p = 2 # decide the numbers of parking area aisles per group
 n_r = 17  # decide the number of spots within each parking block (10 * n_r = BL_l, the length of each parking block)
+
+# Track setting
+l_track = 1000   # The length of the whole track (ft)
+l_c = 20        # The length of a railcar and joint (ft)
+n_max = 10      # The maximum allowed railcars per track
+d_f = 15        # The offset distance between crossing and train (ft)
+d_x = 10        # The distance between two tracks (ft)
+n = 6           # The actual railcars on the track TODO: Match with batch size; Expand to decoupling
+mu = n / n_max        # Ratio of train length and track length
+
 
 # Fixed yard parameters
 P = 10  # fixed aisle width
@@ -92,6 +103,26 @@ def simulate_hostler_travel(hostler_id, current_veh_num, total_lane_length, d_h_
 
     return hostler_travel_time
 
+
+def simulate_hostler_track_travel(hostler_id, current_veh_num, total_lane_length, d_tr_min, d_tr_mean, d_tr_max):
+    global state
+
+    c = (d_tr_mean - d_tr_min) / (d_tr_max - d_tr_min)  # standardization
+    d_tr_dist = triang(c, loc=d_tr_min, scale=d_tr_max - d_tr_min).rvs()
+
+    # Calculate vehicle density
+    veh_density = current_veh_num / total_lane_length
+
+    # Compute hostler speed based on density
+    hostler_speed = speed_density(veh_density, 'hostler')
+    print(f"Current hostler {hostler_id} speed is {hostler_speed} (m/s)")
+
+    # Compute hostler travel time in hours and convert to seconds
+    hostler_travel_time = (d_tr_dist/3.2) / (2 * hostler_speed * 3600)     # (ft -> m) / (m/hr)
+    print(f"hostler {hostler_id} travel time {hostler_travel_time} (hr)")
+
+    return hostler_travel_time
+
 def simulate_reposition_travel(hostler_id, current_veh_num, total_lane_length, d_r_min, d_r_max):
     global state
     # Generate reposition travel distance from uniform distribution
@@ -109,17 +140,6 @@ def simulate_reposition_travel(hostler_id, current_veh_num, total_lane_length, d
     print(f"hostler {hostler_id} travel time {hostler_reposition_travel_time} (hr)")
 
     return hostler_reposition_travel_time
-
-
-def triang_distribution(min_val, avg_val, max_val):
-    c = (avg_val - min_val) / (max_val - min_val)
-    return triang(c, loc=min_val, scale=(max_val - min_val))
-
-def uniform_distribution(min_val, max_val):
-    return uniform(loc=min_val, scale=(max_val - min_val))
-
-def uniform_mean(min_val, max_val):
-    return (max_val + min_val) / 2
 
 def ugly_sigma(x):
     total_sum = 0
@@ -151,6 +171,12 @@ if YARD_TYPE == 'parallel':
     d_t_max = B(N, n_p) - n_p * P + A(M, n_r, n_p) - n_p * P
     d_t_avg = (d_t_max + d_t_min) / 2
 
+    # d_tr
+    d_tr_min = 0.5 * l_c + d_f + d_x + 0.5 * n_p * P
+    term = max(0, ((mu - 0.5) * (1 - mu)) / mu)
+    d_tr_mean = term * n_max * l_c + ((n - 1) / 2) * l_c + d_f + d_x + 0.5 * n_p * P
+    d_tr_max = n_max * l_c + d_f + d_x + 0.5 * n_p * P
+
 
 elif YARD_TYPE == 'perpendicular':
     # d_h
@@ -167,3 +193,9 @@ elif YARD_TYPE == 'perpendicular':
     d_t_min = 1.5 * n_p * P
     d_t_avg = 0.5 * (B(N, n_p) + A(M, n_r, n_p) - 0.5 * n_p * P)
     d_t_max = B(N, n_p) + A(M, n_r, n_p) - 2 * n_p * P
+
+    # d_tr
+    d_tr_min = 0.5 * l_c + d_f + d_x + 0.5 * n_p * P
+    term = max(0, ((mu - 0.5) * (1 - mu)) / mu)
+    d_tr_mean = term * n_max * l_c + ((n - 1) / 2) * l_c + d_f + d_x + 0.5 * n_p * P
+    d_tr_max = n_max * l_c + d_f + d_x + 0.5 * n_p * P

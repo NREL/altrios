@@ -53,7 +53,7 @@ class LiftsState:
     # Fixed: Simulation files and hyperparameters
     log_level: loggingLevel = loggingLevel.DEBUG
     random_seed: int = 42
-    sim_time: int = 1100
+    sim_time: int = 24
     terminal: str = 'Allouez'    # Choose 'Hibbing' or 'Allouez'
     train_consist_plan: pl.DataFrame = field(default_factory=lambda: pl.DataFrame())
 
@@ -75,11 +75,11 @@ class LiftsState:
     CRANE_NUMBER: int = 1
     CRANE_HYBRID_PERCENTAGE: float = 0.5
     CONTAINERS_PER_CRANE_MOVE_MEAN: float = 1/60   # crane movement speed mean value: 10ft/min = 600 ft/hr, crane speed
-    CRANE_MOVE_DEV_TIME: float = 1/6000 # crane movement speed deviation value: hr
+    CRANE_MOVE_DEV_TIME: float = 1/3600 # crane movement speed deviation value: hr
 
     # Fixed: Hostler parameters
     # HOSTLER_NUMBER = int(input("Enter the number of hostler: "))
-    HOSTLER_NUMBER: int = 1
+    HOSTLER_NUMBER: int = 10
     HOSTLER_DIESEL_PERCENTAGE: float = 0.6
     # Fixed hostler travel time (** will update with density-speed/time functions later soon)
     CONTAINERS_PER_HOSTLER: int = 1  # hostler capacity
@@ -92,8 +92,8 @@ class LiftsState:
     # TRUCK_ARRIVAL_MEAN: float = 40/60   # hr, arrival rate depends on the gap between last train departure and next train arrival
     TRUCK_INGATE_TIME: float = 1/60    # hr
     TRUCK_OUTGATE_TIME: float = 2/60    # hr
-    TRUCK_INGATE_TIME_DEV: float = 1/60    # hr
-    TRUCK_OUTGATE_TIME_DEV: float = 1/60    # hr
+    TRUCK_INGATE_TIME_DEV: float = 1/360    # hr
+    TRUCK_OUTGATE_TIME_DEV: float = 1/360    # hr
     TRUCK_TO_PARKING: float = 2/60    # hr
     TRUCK_SPEED_LIMIT: float = 20*5280   # ft/hr
     TRUCK_TRANSPORT_CONTAINER_TIME: float = 1/6  # hr, triangular distribution, will be updated with truck density-speed function
@@ -137,24 +137,6 @@ class LiftsState:
     def initialize_from_consist_plan(self, train_consist_plan):
         self.train_consist_plan = train_consist_plan
         self.TRAIN_TIMETABLE = train_arrival_parameters(self.train_consist_plan, self.terminal) # a dictionary
-        # self.CARS_LOADED_ARRIVAL = int(float(self.TRAIN_TIMETABLE['full_cars']))
-        # self.CARS_EMPTY_ARRIVAL = int(float(self.TRAIN_TIMETABLE['empty_cars']))
-        # self.TRAIN_ARRIVAL_HR = self.TRAIN_TIMETABLE['arrival_time']
-        # self.TRAIN_DEPARTURE_HR = self.TRAIN_TIMETABLE['departure_time']
-        # self.TRAIN_UNITS = self.CARS_LOADED_ARRIVAL + self.CARS_EMPTY_ARRIVAL
-        # self.TRAIN_SPOTS = self.TRAIN_UNITS
-        #
-        # # Containers
-        # self.INBOUND_CONTAINER_NUMBER = self.CARS_LOADED_ARRIVAL
-        # #df = outbound_containers()
-        # # TODO: confirm expected source of Outbound_Num; expected input file not available
-        # self.OUTBOUND_CONTAINER_NUMBER = self.INBOUND_CONTAINER_NUMBER  #df.loc[df['Train_ID'] == TRAIN_ID, 'Outbound_Num'].values[0]
-        #
-        # # Chassis
-        # self.CHASSIS_NUMBER = self.TRAIN_UNITS
-        #
-        # # Trucks
-        # self.TRUCK_NUMBERS = max(self.INBOUND_CONTAINER_NUMBER, self.OUTBOUND_CONTAINER_NUMBER)
 
     def initialize(self):
         self.CRANE_LOAD_CONTAINER_TIME_MEAN = (self.CONTAINERS_PER_CAR*(2*self.CONTAINER_TAL+self.CONTAINER_WID))/self.CONTAINERS_PER_CRANE_MOVE_MEAN   # hr

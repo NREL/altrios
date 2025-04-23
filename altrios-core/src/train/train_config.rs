@@ -1,5 +1,3 @@
-use std::default;
-
 use super::resistance::kind as res_kind;
 use super::resistance::method as res_method;
 #[cfg(feature = "pyo3")]

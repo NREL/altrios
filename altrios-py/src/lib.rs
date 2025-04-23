@@ -67,6 +67,7 @@ fn altrios_pyo3(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<SpeedLimitTrainSimVec>()?;
     m.add_class::<SpeedSet>()?;
     m.add_class::<SpeedTrace>()?;
+    m.add_class::<TemperatureTrace>()?;
     m.add_class::<TimedLinkPath>()?;
     m.add_class::<TrainConfig>()?;
     m.add_class::<TrainParams>()?;

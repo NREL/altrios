@@ -413,7 +413,15 @@ impl SpeedLimitTrainSim {
         self.loco_con.set_pwr_aux(Some(true))?;
 
         let elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)> =
-            Some((self.state.elev_front, todo!()));
+            if let Some(tt) = self.temp_trace {
+                todo!("verify that it should be `get(self.state.i - 1)`");
+                Some((
+                    self.state.elev_front,
+                    tt.get_at_t(self.state.i - 1).with_cont,
+                ))
+            } else {
+                None
+            };
 
         // set the maximum power out based on dt.
         self.loco_con.set_curr_pwr_max_out(

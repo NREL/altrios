@@ -132,9 +132,6 @@ impl LocoTrait for Box<HybridLoco> {
                     self.state.fc_on_causes.push(FCOnCause::OnTimeTooShort)
                 }
             }
-            HybridPowertrainControls::Placeholder => {
-                todo!("placeholder")
-            }
         };
 
         self.fc.set_cur_pwr_out_max(elev_and_temp, dt)?;
@@ -151,9 +148,6 @@ impl LocoTrait for Box<HybridLoco> {
                         .speed_soc_disch_buffer_coeff
                         .with_context(|| format_dbg!())?
             }
-            HybridPowertrainControls::Placeholder => {
-                todo!()
-            }
         };
         let chrg_buffer: si::Energy = match &self.pt_cntrl {
             HybridPowertrainControls::RGWDB(rgwb) => {
@@ -167,9 +161,6 @@ impl LocoTrait for Box<HybridLoco> {
                     * rgwb
                         .speed_soc_regen_buffer_coeff
                         .with_context(|| format_dbg!())?
-            }
-            HybridPowertrainControls::Placeholder => {
-                todo!()
             }
         };
 
@@ -500,8 +491,6 @@ pub enum HybridPowertrainControls {
     /// and discharge power inside of static min and max SOC range.  Also, includes
     /// buffer for forcing [FuelConverter] to be active/on.
     RGWDB(Box<RESGreedyWithDynamicBuffers>),
-    /// place holder for future variants
-    Placeholder,
 }
 
 impl Default for HybridPowertrainControls {
@@ -514,9 +503,6 @@ impl Init for HybridPowertrainControls {
     fn init(&mut self) -> Result<(), Error> {
         match self {
             Self::RGWDB(rgwb) => rgwb.init()?,
-            Self::Placeholder => {
-                todo!()
-            }
         }
         Ok(())
     }
@@ -687,7 +673,6 @@ impl HybridPowertrainControls {
                     (gen_pwr, res_pwr_corrected)
                 }
             }
-            Self::Placeholder => todo!(),
         };
 
         ensure!(

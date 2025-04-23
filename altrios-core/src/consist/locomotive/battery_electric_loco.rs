@@ -128,9 +128,6 @@ impl LocoTrait for BatteryElectricLoco {
                         .speed_soc_disch_buffer_coeff
                         .with_context(|| format_dbg!())?
             }
-            BatteryPowertrainControls::Placeholder => {
-                todo!()
-            }
         };
         let chrg_buffer: si::Energy = match &self.pt_cntrl {
             BatteryPowertrainControls::RGWDB(rgwb) => {
@@ -144,9 +141,6 @@ impl LocoTrait for BatteryElectricLoco {
                     * rgwb
                         .speed_soc_regen_buffer_coeff
                         .with_context(|| format_dbg!())?
-            }
-            BatteryPowertrainControls::Placeholder => {
-                todo!()
             }
         };
 
@@ -200,8 +194,6 @@ pub enum BatteryPowertrainControls {
     /// and discharge power inside of static min and max SOC range.  Also, includes
     /// buffer for forcing [FuelConverter] to be active/on.
     RGWDB(Box<RESGreedyWithDynamicBuffersBEL>),
-    /// place holder for future variants
-    Placeholder,
 }
 
 impl Default for BatteryPowertrainControls {
@@ -214,9 +206,6 @@ impl Init for BatteryPowertrainControls {
     fn init(&mut self) -> Result<(), Error> {
         match self {
             Self::RGWDB(rgwb) => rgwb.init()?,
-            Self::Placeholder => {
-                todo!()
-            }
         }
         Ok(())
     }
@@ -226,18 +215,12 @@ impl BatteryPowertrainControls {
     fn step(&mut self) {
         match self {
             Self::RGWDB(rgwdb) => rgwdb.step(),
-            Self::Placeholder => {
-                todo!()
-            }
         }
     }
 
     fn save_state(&mut self) {
         match self {
             Self::RGWDB(rgwdb) => rgwdb.save_state(),
-            Self::Placeholder => {
-                todo!()
-            }
         }
     }
 }

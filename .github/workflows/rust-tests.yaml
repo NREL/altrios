@@ -35,7 +35,6 @@ jobs:
 
     - name: Rust unit tests
       run: |
-        cd rust/
         cargo test --workspace
         cd altrios-core/
         cargo test

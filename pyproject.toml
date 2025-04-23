@@ -72,14 +72,14 @@ profile = "release"
 python-source = "python"
 features = ["pyo3/extension-module"]
 module-name = "altrios.altrios_pyo3"
-manifest-path = "rust/altrios-py/Cargo.toml"
+manifest-path = "altrios-py/Cargo.toml"
 include = [
-    { format = "sdist", path = "rust/altrios-core/Cargo.toml" },
-    { format = "sdist", path = "rust/altrios-core/src/*" },
-    { format = "sdist", path = "rust/altrios-py/Cargo.toml" },
-    { format = "sdist", path = "rust/altrios-py/src/*" },
-    { format = "sdist", path = "rust/altrios-core/proc-macros/Cargo.toml" },
-    { format = "sdist", path = "rust/altrios-core/proc-macros/src/*" },
+    { format = "sdist", path = "altrios-core/Cargo.toml" },
+    { format = "sdist", path = "altrios-core/src/*" },
+    { format = "sdist", path = "altrios-py/Cargo.toml" },
+    { format = "sdist", path = "altrios-py/src/*" },
+    { format = "sdist", path = "altrios-core/proc-macros/Cargo.toml" },
+    { format = "sdist", path = "altrios-core/proc-macros/src/*" },
 ]
 
 [tool.pixi.project]
@@ -94,7 +94,7 @@ default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
 
 [tool.pixi.tasks]
-cargo_test = "(cd rust && cargo test)"
+cargo_test = "cargo test"
 py_test = "maturin develop --release && pixi run -e dev pytest -v"
 build_and_test = { depends-on = ["cargo_test", "py_test"] }
 

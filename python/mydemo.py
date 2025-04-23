@@ -662,3 +662,4 @@ if __name__ == "__main__":
         terminal="Allouez",
         out_path=utilities.package_root() / 'demos' / 'double_track_results'
     )
+    print(f"output root is {utilities.package_root()}")

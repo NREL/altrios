@@ -1,3 +1,5 @@
+use std::default;
+
 use super::resistance::kind as res_kind;
 use super::resistance::method as res_method;
 #[cfg(feature = "pyo3")]
@@ -6,7 +8,7 @@ use crate::consist::locomotive::locomotive_model::PowertrainType;
 
 use super::{
     friction_brakes::*, rail_vehicle::RailVehicle, train_imports::*, InitTrainState, LinkIdxTime,
-    SetSpeedTrainSim, SpeedLimitTrainSim, SpeedTrace, TrainState,
+    SetSpeedTrainSim, SpeedLimitTrainSim, SpeedLimitTrainSimBuilder, SpeedTrace, TrainState,
 };
 use crate::track::link::link_idx::LinkPath;
 use crate::track::link::network::Network;
@@ -664,10 +666,10 @@ impl TrainSimBuilder {
             "`TrainSimBuilder` for `make_speed_limit_train_sim` to work."
         );
 
-        Ok(SpeedLimitTrainSim::new(
-            self.train_id.clone(),
+        Ok(SpeedLimitTrainSimBuilder {
+            train_id: self.train_id.clone(),
             // `self.origin_id` verified to be `Some` earlier
-            location_map
+            origs: location_map
                 .get(self.origin_id.as_ref().unwrap())
                 .with_context(|| {
                     anyhow!(format!(
@@ -676,9 +678,10 @@ impl TrainSimBuilder {
                         self.origin_id.as_ref().unwrap(),
                         location_map.keys(),
                     ))
-                })?,
+                })?
+                .to_vec(),
             // `self.destination_id` verified to be `Some` earlier
-            location_map
+            dests: location_map
                 .get(self.destination_id.as_ref().unwrap())
                 .with_context(|| {
                     anyhow!(format!(
@@ -687,9 +690,10 @@ impl TrainSimBuilder {
                         self.destination_id.as_ref().unwrap(),
                         location_map.keys(),
                     ))
-                })?,
-            self.loco_con.clone(),
-            self.train_config.n_cars_by_type.clone(),
+                })?
+                .to_vec(),
+            loco_con: self.loco_con.clone(),
+            n_cars_by_type: self.train_config.n_cars_by_type.clone(),
             state,
             train_res,
             path_tpc,
@@ -697,7 +701,9 @@ impl TrainSimBuilder {
             save_interval,
             simulation_days,
             scenario_year,
-        ))
+            temp_trace: Default::default(),
+        }
+        .into())
     }
 
     pub fn make_speed_limit_train_sim_and_parts(
@@ -718,10 +724,10 @@ impl TrainSimBuilder {
             "`TrainSimBuilder` for `make_speed_limit_train_sim` to work."
         );
 
-        let ts = SpeedLimitTrainSim::new(
-            self.train_id.clone(),
+        let ts = SpeedLimitTrainSimBuilder {
+            train_id: self.train_id.clone(),
             // `self.origin_id` verified to be `Some` earlier
-            location_map
+            origs: location_map
                 .get(self.origin_id.as_ref().unwrap())
                 .with_context(|| {
                     anyhow!(format!(
@@ -730,9 +736,10 @@ impl TrainSimBuilder {
                         self.origin_id.as_ref().unwrap(),
                         location_map.keys(),
                     ))
-                })?,
+                })?
+                .to_vec(),
             // `self.destination_id` verified to be `Some` earlier
-            location_map
+            dests: location_map
                 .get(self.destination_id.as_ref().unwrap())
                 .with_context(|| {
                     anyhow!(format!(
@@ -741,18 +748,20 @@ impl TrainSimBuilder {
                         self.destination_id.as_ref().unwrap(),
                         location_map.keys(),
                     ))
-                })?,
-            self.loco_con.clone(),
-            self.train_config.n_cars_by_type.clone(),
+                })?
+                .to_vec(),
+            loco_con: self.loco_con.clone(),
+            n_cars_by_type: self.train_config.n_cars_by_type.clone(),
             state,
-            train_res.clone(),
-            path_tpc.clone(),
-            fric_brake.clone(),
+            train_res: train_res.clone(),
+            path_tpc: path_tpc.clone(),
+            fric_brake: fric_brake.clone(),
             save_interval,
             simulation_days,
             scenario_year,
-        );
-        Ok((ts, path_tpc, train_res, fric_brake))
+            temp_trace: Default::default(),
+        };
+        Ok((ts.into(), path_tpc, train_res, fric_brake))
     }
 }
 

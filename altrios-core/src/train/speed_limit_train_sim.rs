@@ -188,6 +188,46 @@ pub struct SpeedLimitTrainSim {
     temp_trace: Option<TemperatureTrace>,
 }
 
+pub struct SpeedLimitTrainSimBuilder {
+    pub train_id: String,
+    pub origs: Vec<Location>,
+    pub dests: Vec<Location>,
+    pub loco_con: Consist,
+    /// Number of railcars by type on the train
+    pub n_cars_by_type: HashMap<String, u32>,
+    pub state: TrainState,
+    pub train_res: TrainRes,
+    pub path_tpc: PathTpc,
+    pub fric_brake: FricBrake,
+    pub save_interval: Option<usize>,
+    pub simulation_days: Option<i32>,
+    pub scenario_year: Option<i32>,
+    /// Time-dependent temperature at sea level that can be corrected for altitude using a standard model
+    pub temp_trace: Option<TemperatureTrace>,
+}
+
+impl From<SpeedLimitTrainSimBuilder> for SpeedLimitTrainSim {
+    fn from(value: SpeedLimitTrainSimBuilder) -> Self {
+        SpeedLimitTrainSim {
+            train_id: value.train_id,
+            origs: value.origs,
+            dests: value.dests,
+            loco_con: value.loco_con,
+            n_cars_by_type: value.n_cars_by_type,
+            state: value.state,
+            train_res: value.train_res,
+            path_tpc: value.path_tpc,
+            braking_points: Default::default(),
+            fric_brake: value.fric_brake,
+            history: Default::default(),
+            save_interval: value.save_interval,
+            simulation_days: value.simulation_days,
+            scenario_year: value.scenario_year,
+            temp_trace: value.temp_trace,
+        }
+    }
+}
+
 impl SpeedLimitTrainSim {
     /// Returns the scaling factor to be used when converting partial-year
     /// simulations to a full year of output metrics.

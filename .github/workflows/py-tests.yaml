@@ -5,11 +5,13 @@ on:
     branches: [ main ]
     paths:
       - "python/**"
-      - "rust/**"
+      - "altrios-core/**"
+      - "altrios-py/**"
   pull_request:
     paths:
       - "python/**"
-      - "rust/**"
+      - "altrios-core/**"
+      - "altrios-py/**"
   workflow_dispatch:
   workflow_call:
 

@@ -2,12 +2,12 @@
 1. Install mypy: `pip install mypy`
 2. Get the html documentation: 
 ```bash
-    cd ALTRIOS/rust/altrios-core
+    cd ALTRIOS/altrios-core
     cargo doc --open
 ```
 3. Go to the python folder in Altrios: 
 ```bash
-    cd ALTRIOS/rust/altrios-py/python/
+    cd ALTRIOS/altrios-py/python/
 ```
 4. Generate a new pyi file:
 ```bash

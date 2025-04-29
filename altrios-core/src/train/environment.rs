@@ -13,26 +13,22 @@ use super::train_imports::*;
 )]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, SerdeAPI)]
 /// Container
-pub struct TemperatureTrace {
+pub struct TemperatureTraceBuilder {
     /// simulation elapsed time
     pub time: Vec<si::Time>,
     /// ambient temperature at sea level
     pub temp_at_sea_level: Vec<si::ThermodynamicTemperature>,
 }
 
-impl TemperatureTrace {
-    pub fn empty() -> Self {
+impl TemperatureTraceBuilder {
+    fn empty() -> Self {
         Self {
             time: Vec::new(),
             temp_at_sea_level: Vec::new(),
         }
     }
 
-    pub fn dt(&self, i: usize) -> si::Time {
-        self.time[i] - self.time[i - 1]
-    }
-
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         self.time.len()
     }
 
@@ -77,7 +73,7 @@ impl TemperatureTrace {
     }
 }
 
-impl Default for TemperatureTrace {
+impl Default for TemperatureTraceBuilder {
     fn default() -> Self {
         let time_s: Vec<f64> = (0..1).map(|x| x as f64).collect();
         let mut tt = Self {
@@ -97,3 +93,115 @@ pub struct TemperatureTraceElement {
     /// ambient temperature at sea level
     pub temp_at_sea_level: si::ThermodynamicTemperature,
 }
+
+#[altrios_api]
+#[derive(Clone, Debug, PartialEq, SerdeAPI)]
+/// Container for an interpolator of temperature at sea level (to be corrected for altitude)
+pub struct TemperatureTrace(pub(crate) Interpolator);
+
+impl TemperatureTrace {
+    pub fn get_temp_at_time_and_elev(
+        &self,
+        time: si::Time,
+        elev: si::Length,
+    ) -> anyhow::Result<si::ThermodynamicTemperature> {
+        Ok(self.get_temp_at_elev(self.get_temp_at_time_and_sea_level(time)?, elev))
+    }
+
+    fn get_temp_at_time_and_sea_level(
+        &self,
+        time: si::Time,
+    ) -> anyhow::Result<si::ThermodynamicTemperature> {
+        Ok(self
+            .0
+            .interpolate(&[time.get::<si::second>()])
+            .map(|te| (te + uc::CELSIUS_TO_KELVIN) * uc::KELVIN)?)
+    }
+
+    /// Source: <https://www.grc.nasa.gov/WWW/K-12/rocket/atmosmet.html>  
+    ///
+    /// # Equations used
+    /// T = 15.04 - .00649 * h  
+    fn get_temp_at_elev(
+        &self,
+        temp_at_sea_level: si::ThermodynamicTemperature,
+        elev: si::Length,
+    ) -> si::ThermodynamicTemperature {
+        (((15.04 - 0.00649 * elev.get::<si::meter>())
+            + (temp_at_sea_level.get::<si::degree_celsius>() - 15.04))
+            + uc::CELSIUS_TO_KELVIN)
+            * uc::KELVIN
+    }
+}
+
+impl Serialize for TemperatureTrace {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let builder: TemperatureTraceBuilder = self
+            .clone()
+            .try_into()
+            .map_err(|e| serde::ser::Error::custom(format!("{:?}", e)))?;
+        builder.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for TemperatureTrace {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value: TemperatureTraceBuilder = TemperatureTraceBuilder::deserialize(deserializer)?;
+        let tt: Self = value
+            .try_into()
+            .map_err(|e| serde::de::Error::custom(format!("{:?}", e)))?;
+        Ok(tt)
+    }
+}
+
+impl TryFrom<TemperatureTraceBuilder> for TemperatureTrace {
+    type Error = anyhow::Error;
+    fn try_from(value: TemperatureTraceBuilder) -> anyhow::Result<Self> {
+        Ok(Self(Interpolator::new_1d(
+            value.time.iter().map(|t| t.get::<si::second>()).collect(),
+            value
+                .temp_at_sea_level
+                .iter()
+                .map(|te| te.get::<si::degree_celsius>())
+                .collect(),
+            Strategy::Linear,
+            Extrapolate::Error,
+        )?))
+    }
+}
+
+impl TryFrom<TemperatureTrace> for TemperatureTraceBuilder {
+    type Error = anyhow::Error;
+    fn try_from(value: TemperatureTrace) -> anyhow::Result<Self> {
+        Ok(Self {
+            time: value
+                .0
+                .x()
+                .with_context(|| format_dbg!())?
+                .iter()
+                .map(|x| *x * uc::S)
+                .collect(),
+            temp_at_sea_level: value
+                .0
+                .y()
+                .with_context(|| format_dbg!())?
+                .iter()
+                .map(|y| (*y + uc::CELSIUS_TO_KELVIN) * uc::KELVIN)
+                .collect(),
+        })
+    }
+}
+
+impl Default for TemperatureTrace {
+    fn default() -> Self {
+        Self::try_from(TemperatureTraceBuilder::default()).unwrap()
+    }
+}
+
+impl TemperatureTrace {}

@@ -1,3 +1,4 @@
+use super::environment::TemperatureTrace;
 use super::train_imports::*;
 
 #[altrios_api(
@@ -185,39 +186,6 @@ pub struct SpeedTraceElement {
 }
 
 #[altrios_api(
-    // TODO: consider whether this method should exist after verifying that it is not used anywhere
-    // and should be superseded by `make_set_speed_train_sim`
-    #[new]
-    #[pyo3(signature = (
-        loco_con,
-        n_cars_by_type,
-        state,
-        speed_trace,
-        train_res_file=None,
-        path_tpc_file=None,
-        save_interval=None,
-    ))]
-    fn __new__(
-        loco_con: Consist,
-        n_cars_by_type: HashMap<String, u32>,
-        state: TrainState,
-        speed_trace: SpeedTrace,
-        train_res_file: Option<String>,
-        path_tpc_file: Option<String>,
-        save_interval: Option<usize>,
-    ) -> Self {
-        let path_tpc = match path_tpc_file {
-            Some(file) => PathTpc::from_file(file, false).unwrap(),
-            None => PathTpc::valid()
-        };
-        let train_res = match train_res_file {
-            Some(file) => TrainRes::from_file(file, false).unwrap(),
-            None => TrainRes::valid()
-        };
-
-        Self::new(loco_con, n_cars_by_type, state, speed_trace, train_res, path_tpc, save_interval)
-    }
-
     #[setter]
     pub fn set_res_strap(&mut self, res_strap: method::Strap) -> anyhow::Result<()> {
         self.train_res = TrainRes::Strap(res_strap);
@@ -297,33 +265,41 @@ pub struct SetSpeedTrainSim {
     pub history: TrainStateHistoryVec,
     #[api(skip_set, skip_get)]
     save_interval: Option<usize>,
+    /// Time-dependent temperature at sea level that can be corrected for
+    /// altitude using a standard model
+    temp_trace: Option<TemperatureTrace>,
+}
+
+pub struct SetSpeedTrainSimBuilder {
+    pub loco_con: Consist,
+    /// Number of railcars by type on the train
+    pub n_cars_by_type: HashMap<String, u32>,
+    pub state: TrainState,
+    pub speed_trace: SpeedTrace,
+    pub train_res: TrainRes,
+    pub path_tpc: PathTpc,
+    pub save_interval: Option<usize>,
+    /// Time-dependent temperature at sea level that can be corrected for altitude using a standard model
+    pub temp_trace: Option<TemperatureTrace>,
+}
+
+impl From<SetSpeedTrainSimBuilder> for SetSpeedTrainSim {
+    fn from(value: SetSpeedTrainSimBuilder) -> Self {
+        SetSpeedTrainSim {
+            loco_con: value.loco_con,
+            n_cars_by_type: value.n_cars_by_type,
+            state: value.state,
+            speed_trace: value.speed_trace,
+            train_res: value.train_res,
+            path_tpc: value.path_tpc,
+            history: Default::default(),
+            save_interval: value.save_interval,
+            temp_trace: value.temp_trace,
+        }
+    }
 }
 
 impl SetSpeedTrainSim {
-    pub fn new(
-        loco_con: Consist,
-        n_cars_by_type: HashMap<String, u32>,
-        state: TrainState,
-        speed_trace: SpeedTrace,
-        train_res: TrainRes,
-        path_tpc: PathTpc,
-        save_interval: Option<usize>,
-    ) -> Self {
-        let mut train_sim = Self {
-            loco_con,
-            n_cars_by_type,
-            state,
-            train_res,
-            path_tpc,
-            speed_trace,
-            history: Default::default(),
-            save_interval,
-        };
-        train_sim.set_save_interval(save_interval);
-
-        train_sim
-    }
-
     /// Trims off any portion of the trip that failed to run
     pub fn trim_failed_steps(&mut self) -> anyhow::Result<()> {
         if self.state.i <= 1 {
@@ -373,7 +349,15 @@ impl SetSpeedTrainSim {
         let train_mass = Some(self.state.mass_compound().with_context(|| format_dbg!())?);
 
         let elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)> =
-            Some((self.state.elev_front, todo!()));
+            if let Some(tt) = &self.temp_trace {
+                Some((
+                    self.state.elev_front,
+                    tt.get_temp_at_time_and_elev(self.state.time, self.state.elev_front)
+                        .with_context(|| format_dbg!())?,
+                ))
+            } else {
+                None
+            };
 
         // set the max power out for the consist based on calculation of each loco state
         self.loco_con.set_curr_pwr_max_out(
@@ -499,6 +483,7 @@ impl Default for SetSpeedTrainSim {
             speed_trace: SpeedTrace::default(),
             history: TrainStateHistoryVec::default(),
             save_interval: None,
+            temp_trace: Default::default(),
         }
     }
 }

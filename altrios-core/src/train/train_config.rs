@@ -6,7 +6,8 @@ use crate::consist::locomotive::locomotive_model::PowertrainType;
 
 use super::{
     friction_brakes::*, rail_vehicle::RailVehicle, train_imports::*, InitTrainState, LinkIdxTime,
-    SetSpeedTrainSim, SpeedLimitTrainSim, SpeedLimitTrainSimBuilder, SpeedTrace, TrainState,
+    SetSpeedTrainSim, SetSpeedTrainSimBuilder, SpeedLimitTrainSim, SpeedLimitTrainSimBuilder,
+    SpeedTrace, TrainState,
 };
 use crate::track::link::link_idx::LinkPath;
 use crate::track::link::network::Network;
@@ -600,15 +601,17 @@ impl TrainSimBuilder {
             .with_context(|| format_dbg!())?;
 
         path_tpc.extend(network, link_path)?;
-        Ok(SetSpeedTrainSim::new(
-            self.loco_con.clone(),
-            self.train_config.n_cars_by_type.clone(),
+        Ok(SetSpeedTrainSimBuilder {
+            loco_con: self.loco_con.clone(),
+            n_cars_by_type: self.train_config.n_cars_by_type.clone(),
             state,
             speed_trace,
             train_res,
             path_tpc,
             save_interval,
-        ))
+            temp_trace: Default::default(),
+        }
+        .into())
     }
 
     pub fn make_set_speed_train_sim_and_parts<Q: AsRef<[Link]>, R: AsRef<[LinkIdx]>>(
@@ -630,15 +633,17 @@ impl TrainSimBuilder {
 
         path_tpc.extend(network, link_path)?;
         Ok((
-            SetSpeedTrainSim::new(
-                self.loco_con.clone(),
-                self.train_config.n_cars_by_type.clone(),
+            SetSpeedTrainSimBuilder {
+                loco_con: self.loco_con.clone(),
+                n_cars_by_type: self.train_config.n_cars_by_type.clone(),
                 state,
                 speed_trace,
-                train_res.clone(),
-                path_tpc.clone(),
+                train_res: train_res.clone(),
+                path_tpc: path_tpc.clone(),
                 save_interval,
-            ),
+                temp_trace: Default::default(),
+            }
+            .into(),
             train_params,
             path_tpc,
             train_res,

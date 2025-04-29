@@ -97,7 +97,7 @@ impl LocoTrait for BatteryElectricLoco {
     fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
-        elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
+        _elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         train_mass: Option<si::Mass>,
         train_speed: Option<si::Velocity>,
         dt: si::Time,

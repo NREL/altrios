@@ -76,6 +76,7 @@ unit_const!(
     9.801_548_494_963_14
 );
 
+pub const CELSIUS_TO_KELVIN: f64 = 273.15;
 unit_const!(KELVIN, ThermodynamicTemperature, 1.0);
 unit_const!(KELVIN_INT, TemperatureInterval, 1.0);
 unit_const!(M2PS2K, SpecificHeatCapacity, 1.0);

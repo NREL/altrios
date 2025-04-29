@@ -1,5 +1,3 @@
-use ninterp::InterpMethods;
-
 use super::*;
 
 // FUTURE: think about how to incorporate life modeling for Fuel Cells and other tech
@@ -102,15 +100,6 @@ impl Default for FuelConverter {
 impl Init for FuelConverter {
     fn init(&mut self) -> Result<(), Error> {
         self.state.init()?;
-        match &mut self.elev_and_temp_derate {
-            Some(Interpolator::Interp2D(..)) => {}
-            _ => {
-                return Err(Error::InitError(format!(
-                    "{}\nExpected `Interp2d` to interpolate fraction of engine peak power as a function of altitude and ambient temperature",
-                    format_dbg!()
-                )));
-            }
-        }
         Ok(())
     }
 }

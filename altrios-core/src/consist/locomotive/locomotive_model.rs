@@ -1,6 +1,7 @@
 use super::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, From, IsVariant, TryInto)]
+#[allow(clippy::large_enum_variant)]
 pub enum PowertrainType {
     ConventionalLoco(ConventionalLoco),
     HybridLoco(Box<HybridLoco>),

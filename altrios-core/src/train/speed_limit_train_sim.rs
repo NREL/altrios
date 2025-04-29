@@ -184,7 +184,8 @@ pub struct SpeedLimitTrainSim {
     save_interval: Option<usize>,
     simulation_days: Option<i32>,
     scenario_year: Option<i32>,
-    /// Time-dependent temperature at sea level that can be corrected for altitude using a standard model
+    /// Time-dependent temperature at sea level that can be corrected for
+    /// altitude using a standard model
     temp_trace: Option<TemperatureTrace>,
 }
 
@@ -413,11 +414,11 @@ impl SpeedLimitTrainSim {
         self.loco_con.set_pwr_aux(Some(true))?;
 
         let elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)> =
-            if let Some(tt) = self.temp_trace {
-                todo!("verify that it should be `get(self.state.i - 1)`");
+            if let Some(tt) = &self.temp_trace {
                 Some((
                     self.state.elev_front,
-                    tt.get_at_t(self.state.i - 1).with_cont,
+                    tt.get_temp_at_time_and_elev(self.state.time, self.state.elev_front)
+                        .with_context(|| format_dbg!())?,
                 ))
             } else {
                 None

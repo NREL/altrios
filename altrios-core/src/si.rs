@@ -22,6 +22,6 @@ pub use si::power::{kilowatt, megawatt, watt};
 pub use si::power_rate::watt_per_second;
 pub use si::ratio::{percent, ratio};
 pub use si::specific_power::kilowatt_per_kilogram;
-pub use si::thermodynamic_temperature::degree_celsius;
+pub use si::thermodynamic_temperature::{degree_celsius, kelvin};
 pub use si::time::{hour, second};
 pub use si::volume::cubic_meter;

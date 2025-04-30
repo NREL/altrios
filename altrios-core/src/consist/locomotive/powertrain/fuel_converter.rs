@@ -40,6 +40,11 @@ const TOL: f64 = 1e-3;
     fn get_specific_pwr_kw_per_kg(&self) -> Option<f64> {
         self.specific_pwr.map(|sp| sp.get::<si::kilowatt_per_kilogram>())
     }
+
+    #[pyo3(name = "set_default_elev_and_temp_derate")]
+    fn set_default_elev_and_temp_derate_py(&mut self) {
+        self.set_default_elev_and_temp_derate()
+    }
 )]
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
 /// Struct for modeling Fuel Converter (e.g. engine, fuel cell.)
@@ -75,7 +80,10 @@ pub struct FuelConverter {
     pub(crate) pwr_for_peak_eff: si::Power,
     /// idle fuel power to overcome internal friction (not including aux load)
     pub pwr_idle_fuel: si::Power,
-    /// interpolator for derating dynamic engine peak power based on altitude and temperature
+    /// Interpolator for derating dynamic engine peak power based on altitude
+    /// and temperature. When interpolating, this returns fraction of normal
+    /// peak power, e.g. a value of 1 means no derating and a value of 0 means
+    /// the engine is completely disabled.
     #[api(skip_get, skip_set)]
     pub elev_and_temp_derate: Option<Interpolator>,
     /// time step interval between saves. 1 is a good option. If None, no saving occurs.
@@ -307,6 +315,24 @@ impl FuelConverter {
 
     impl_get_set_eta_max_min!();
     impl_get_set_eta_range!();
+
+    fn set_default_elev_and_temp_derate(&mut self) {
+        self.elev_and_temp_derate = Some(
+            Interpolator::new_2d(
+                vec![0.0, 3_000.0, 6_000.0],
+                vec![0.0, 35.0, 45.0, 50.0],
+                vec![
+                    vec![1.0, 0.95, 0.8],
+                    vec![1.0, 0.95, 0.8],
+                    vec![0.95, 0.9025, 0.76],
+                    vec![0.8, 0.76, 0.64],
+                ],
+                Strategy::Linear,
+                Extrapolate::Clamp,
+            )
+            .unwrap(),
+        );
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]

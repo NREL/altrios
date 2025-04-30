@@ -1,3 +1,4 @@
+use super::environment::TemperatureTrace;
 use super::resistance::kind as res_kind;
 use super::resistance::method as res_method;
 #[cfg(feature = "pyo3")]
@@ -282,6 +283,7 @@ impl Valid for TrainConfig {
             link_path,
             speed_trace,
             save_interval=None,
+            temp_trace=None,
         )
     )]
     fn make_set_speed_train_sim_py(
@@ -289,7 +291,8 @@ impl Valid for TrainConfig {
         network: &Bound<PyAny>,
         link_path: &Bound<PyAny>,
         speed_trace: SpeedTrace,
-        save_interval: Option<usize>
+        save_interval: Option<usize>,
+        temp_trace: Option<TemperatureTrace>
     ) -> anyhow::Result<SetSpeedTrainSim> {
         let network = match network.extract::<Network>() {
             Ok(n) => n,
@@ -311,7 +314,8 @@ impl Valid for TrainConfig {
             network,
             link_path,
             speed_trace,
-            save_interval
+            save_interval,
+            temp_trace
         )
     }
 
@@ -322,6 +326,7 @@ impl Valid for TrainConfig {
             link_path,
             speed_trace,
             save_interval=None,
+            temp_trace=None,
         )
     )]
     fn make_set_speed_train_sim_and_parts_py(
@@ -329,7 +334,8 @@ impl Valid for TrainConfig {
         network: &Bound<PyAny>,
         link_path: &Bound<PyAny>,
         speed_trace: SpeedTrace,
-        save_interval: Option<usize>
+        save_interval: Option<usize>,
+        temp_trace: Option<TemperatureTrace>
     ) -> anyhow::Result<(SetSpeedTrainSim, TrainParams, PathTpc, TrainResWrapper, FricBrake)> {
         let network = match network.extract::<Network>() {
             Ok(n) => n,
@@ -351,7 +357,8 @@ impl Valid for TrainConfig {
             network,
             link_path,
             speed_trace,
-            save_interval
+            save_interval,
+            temp_trace
         ).with_context(|| format_dbg!())?;
 
         let trw = TrainResWrapper(tr);
@@ -365,6 +372,7 @@ impl Valid for TrainConfig {
             save_interval=None,
             simulation_days=None,
             scenario_year=None,
+            temp_trace=None,
         )
     )]
     fn make_speed_limit_train_sim_py(
@@ -373,12 +381,14 @@ impl Valid for TrainConfig {
         save_interval: Option<usize>,
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<SpeedLimitTrainSim> {
         self.make_speed_limit_train_sim(
             &location_map,
             save_interval,
             simulation_days,
             scenario_year,
+            temp_trace,
         )
     }
 
@@ -389,6 +399,7 @@ impl Valid for TrainConfig {
             save_interval=None,
             simulation_days=None,
             scenario_year=None,
+            temp_trace=None,
         )
     )]
     fn make_speed_limit_train_sim_and_parts_py(
@@ -397,12 +408,14 @@ impl Valid for TrainConfig {
         save_interval: Option<usize>,
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<(SpeedLimitTrainSim, PathTpc, TrainResWrapper, FricBrake)> {
         let (ts, path_tpc, tr, fb) =  self.make_speed_limit_train_sim_and_parts(
             &location_map,
             save_interval,
             simulation_days,
             scenario_year,
+            temp_trace,
         )?;
 
         let trw = TrainResWrapper(tr);
@@ -589,6 +602,7 @@ impl TrainSimBuilder {
         link_path: R,
         speed_trace: SpeedTrace,
         save_interval: Option<usize>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<SetSpeedTrainSim> {
         ensure!(
             self.origin_id.is_none() & self.destination_id.is_none(),
@@ -609,7 +623,7 @@ impl TrainSimBuilder {
             train_res,
             path_tpc,
             save_interval,
-            temp_trace: Default::default(),
+            temp_trace,
         }
         .into())
     }
@@ -620,6 +634,7 @@ impl TrainSimBuilder {
         link_path: R,
         speed_trace: SpeedTrace,
         save_interval: Option<usize>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<(SetSpeedTrainSim, TrainParams, PathTpc, TrainRes, FricBrake)> {
         ensure!(
             self.origin_id.is_none() & self.destination_id.is_none(),
@@ -641,7 +656,7 @@ impl TrainSimBuilder {
                 train_res: train_res.clone(),
                 path_tpc: path_tpc.clone(),
                 save_interval,
-                temp_trace: Default::default(),
+                temp_trace,
             }
             .into(),
             train_params,
@@ -657,6 +672,7 @@ impl TrainSimBuilder {
         save_interval: Option<usize>,
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<SpeedLimitTrainSim> {
         let (_, state, path_tpc, train_res, fric_brake) = self
             .make_train_sim_parts(save_interval)
@@ -704,7 +720,7 @@ impl TrainSimBuilder {
             save_interval,
             simulation_days,
             scenario_year,
-            temp_trace: Default::default(),
+            temp_trace,
         }
         .into())
     }
@@ -715,6 +731,7 @@ impl TrainSimBuilder {
         save_interval: Option<usize>,
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<(SpeedLimitTrainSim, PathTpc, TrainRes, FricBrake)> {
         let (_, state, path_tpc, train_res, fric_brake) = self
             .make_train_sim_parts(save_interval)
@@ -762,39 +779,10 @@ impl TrainSimBuilder {
             save_interval,
             simulation_days,
             scenario_year,
-            temp_trace: Default::default(),
+            temp_trace,
         };
         Ok((ts.into(), path_tpc, train_res, fric_brake))
     }
-}
-
-/// This may be deprecated soon! Slts building occurs in train planner.
-#[cfg(feature = "pyo3")]
-#[pyfunction]
-#[pyo3(signature = (
-    train_sim_builders,
-    location_map,
-    save_interval=None,
-    simulation_days=None,
-    scenario_year=None,
-))]
-pub fn build_speed_limit_train_sims(
-    train_sim_builders: Vec<TrainSimBuilder>,
-    location_map: LocationMap,
-    save_interval: Option<usize>,
-    simulation_days: Option<i32>,
-    scenario_year: Option<i32>,
-) -> anyhow::Result<SpeedLimitTrainSimVec> {
-    let mut speed_limit_train_sims = Vec::with_capacity(train_sim_builders.len());
-    for tsb in train_sim_builders.iter() {
-        speed_limit_train_sims.push(tsb.make_speed_limit_train_sim(
-            &location_map,
-            save_interval,
-            simulation_days,
-            scenario_year,
-        )?);
-    }
-    Ok(SpeedLimitTrainSimVec(speed_limit_train_sims))
 }
 
 /// Converts either `Column::Series` or `Column::Scalar` to `Series`

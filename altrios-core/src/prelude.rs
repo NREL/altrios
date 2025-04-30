@@ -32,12 +32,12 @@ pub use crate::track::{
     TrainParams, TrainType,
 };
 #[cfg(feature = "pyo3")]
-pub use crate::train::TrainResWrapper;
+pub use crate::train::run_speed_limit_train_sims;
 #[cfg(feature = "pyo3")]
-pub use crate::train::{build_speed_limit_train_sims, run_speed_limit_train_sims};
+pub use crate::train::TrainResWrapper;
 pub use crate::train::{
     InitTrainState, LinkIdxTime, RailVehicle, SetSpeedTrainSim, SpeedLimitTrainSim,
-    SpeedLimitTrainSimVec, SpeedTrace, TemperatureTraceBuilder, TimedLinkPath, TrainConfig,
-    TrainRes, TrainSimBuilder, TrainState, TrainStateHistoryVec,
+    SpeedLimitTrainSimVec, SpeedTrace, TemperatureTrace, TemperatureTraceBuilder, TimedLinkPath,
+    TrainConfig, TrainRes, TrainSimBuilder, TrainState, TrainStateHistoryVec,
 };
 pub use crate::utils::{Pyo3Vec2Wrapper, Pyo3Vec3Wrapper, Pyo3VecBoolWrapper, Pyo3VecWrapper};

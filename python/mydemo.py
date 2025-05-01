@@ -587,9 +587,15 @@ def run_simulation(train_consist_plan: pl.DataFrame, terminal: str, out_path=Non
     train_timetable = [
         {"train_id": 19, "arrival_time": 0, "departure_time": 10, "empty_cars": 3, "full_cars": 5, "oc_number": 2,
          "truck_number": 5},  # test: ic > oc
+        {"train_id": 9, "arrival_time": 0, "departure_time": 10, "empty_cars": 3, "full_cars": 5, "oc_number": 2,
+         "truck_number": 5},  # test: ic > oc
         {"train_id": 12, "arrival_time": 1, "departure_time": 10, "empty_cars": 5, "full_cars": 4, "oc_number": 4,
          "truck_number": 4},  # test: ic = oc
+        {"train_id": 2, "arrival_time": 1, "departure_time": 10, "empty_cars": 5, "full_cars": 4, "oc_number": 4,
+         "truck_number": 4},  # test: ic = oc
         {"train_id": 70, "arrival_time": 2, "departure_time": 20, "empty_cars": 5, "full_cars": 3, "oc_number": 5,
+         "truck_number": 5},  # test: ic < oc
+        {"train_id": 7, "arrival_time": 2, "departure_time": 20, "empty_cars": 5, "full_cars": 3, "oc_number": 5,
          "truck_number": 5},  # test: ic < oc
     ]
 

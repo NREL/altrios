@@ -76,7 +76,7 @@ tsb = alt.TrainSimBuilder(
 
 # Load the network and construct the timed link path through the network.  
 network = alt.Network.from_file(
-    alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
+    alt.resources_root() / "/Users/qianqiantong/PycharmProjects/altrios-private/python/altrios/demo.yaml")
 
 location_map = alt.import_locations(
     alt.resources_root() / "networks/default_locations.csv")

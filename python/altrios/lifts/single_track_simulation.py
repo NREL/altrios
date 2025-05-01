@@ -3,12 +3,14 @@ import random
 import json
 import polars as pl
 from altrios.lifts import utilities
+# from altrios.lifts.main_single_track_npf import single_run
 from altrios.lifts.single_track_parameters import *
 from altrios.lifts.distances_single_track import *
 from altrios.lifts.dictionary import *
 from altrios.lifts.schedule import *
 from altrios.lifts.single_track_vehicle_performance import *
 import altrios.lifts.distances_single_track as layout
+from altrios.lifts.single_track_vehicle_performance import vehicle_events
 
 K, k, M, N, n_t, n_p, n_r= layout.load_layout_config_from_json()
 
@@ -22,7 +24,7 @@ class Terminal:
         self.in_gates = simpy.Resource(env, state.IN_GATE_NUMBERS)
         self.out_gates = simpy.Resource(env, state.OUT_GATE_NUMBERS)
         self.oc_store = simpy.Store(env)
-        self.parking_slots = simpy.Store(env)
+        self.parking_slots = simpy.Store(env)   # todo: parking_slots capacity
         self.chassis = simpy.FilterStore(env, capacity=chassis_count)
         self.hostlers = simpy.Store(env, capacity=state.HOSTLER_NUMBER)
         self.truck_store = simpy.Store(env, capacity=truck_capacity)
@@ -35,7 +37,6 @@ class Terminal:
                  [(i + num_diesel_crane, "hybrid") for i in range(num_hybrid_crane)]
         for crane_id in cranes:
             self.cranes.put(crane_id)
-        # print(f"crane {cranes}")
 
         # hostler
         num_diesel = round(state.HOSTLER_NUMBER * state.HOSTLER_DIESEL_PERCENTAGE)
@@ -57,14 +58,14 @@ def handle_train_departure(env, train_schedule, train_id, track_id):
     global state
 
     if env.now < train_schedule["departure_time"]:
-        print(f"Time {env.now}: [EARLY] Train {train_schedule['train_id']} departs from the track {track_id}.")
+        # print(f"Time {env.now}: [EARLY] Train {train_schedule['train_id']} departs from the track {track_id}.")
         delay_time = 0
     elif env.now == train_schedule["departure_time"]:
-        print(f"Time {env.now}: [In Time] Train {train_schedule['train_id']} departs from the track {track_id}.")
+        # print(f"Time {env.now}: [In Time] Train {train_schedule['train_id']} departs from the track {track_id}.")
         delay_time = 0
     else:
         delay_time = env.now - train_schedule["departure_time"]
-        print(f"Time {env.now}: [DELAYED] Train {train_schedule['train_id']} has been delayed for {delay_time} hours from the track {track_id}.")
+        # print(f"Time {env.now}: [DELAYED] Train {train_schedule['train_id']} has been delayed for {delay_time} hours from the track {track_id}.")
 
     state.delay_list[train_id] = delay_time
 
@@ -88,8 +89,6 @@ def save_vehicle_and_performance_metrics(state, average_container_delay_time):
         print(f"[Error] Vehicle Excel not found: {vehicle_excel_path}")
         return
 
-    # ic_time, oc_time, total_time = calculate_container_processing_time(container_excel_path)
-
     ic_time, oc_time, total_time = calculate_container_processing_time(
         container_excel_path,
         train_batch_size=k,
@@ -99,7 +98,9 @@ def save_vehicle_and_performance_metrics(state, average_container_delay_time):
 
     ic_energy, oc_energy, total_energy = calculate_vehicle_energy(vehicle_excel_path)
 
-    return print_and_save_metrics(average_container_delay_time, ic_time, oc_time, total_time, ic_energy, oc_energy, total_energy)
+    single_run = [average_container_delay_time, ic_time, oc_time, total_time, ic_energy, oc_energy, total_energy]
+
+    return single_run
 
 
 def emission_calculation(status, move, vehicle, id, travel_time):
@@ -537,14 +538,6 @@ def run_simulation(train_consist_plan: pl.DataFrame, terminal: str, out_path=Non
     # Simulation hyperparameters
     env.run(until=state.sim_time)
 
-    # Performance Matrix
-    # Train processing time
-    # avg_time_per_train = sum(state.time_per_train.values()) / len(state.time_per_train)
-    # print(f"Average train processing time: {sum(state.time_per_train) / len(state.time_per_train) if state.time_per_train else 0:.2f}")
-    # print("Simulation completed. ")
-    # with open("avg_time_per_train.txt", "w") as f:
-    #    f.write(str(avg_time_per_train))
-
     # Create DataFrame for container events
 
     container_data = (
@@ -557,13 +550,13 @@ def run_simulation(train_consist_plan: pl.DataFrame, terminal: str, out_path=Non
                 pl.col("truck_exit").is_not_null() & pl.col("train_arrival").is_not_null()
             )
             .then(
-                pl.col("truck_exit") - pl.col("train_arrival")
+                pl.col("truck_exit") - pl.col("train_arrival")  # IC
             )
             .when(
                 pl.col("train_depart").is_not_null()
             )
             .then(
-                pl.col("train_depart") - pl.col("hostler_pickup")
+                pl.col("train_depart") - pl.col("hostler_pickup")   # OC
             )
             .otherwise(None)
             .alias("container_processing_time")
@@ -580,25 +573,34 @@ def run_simulation(train_consist_plan: pl.DataFrame, terminal: str, out_path=Non
     num_processed_trains = len(state.delay_list)
     processed_containers = sum(train['full_cars'] + train['oc_number'] for train in train_timetable[:num_processed_trains])
     average_container_delay_time = total_delay_time / processed_containers
-    save_vehicle_and_performance_metrics(state, average_container_delay_time)
+
+    single_run = save_vehicle_and_performance_metrics(state, average_container_delay_time)
 
     print("Done!")
 
-    return total_delay_time, average_container_delay_time
+    return total_delay_time, average_container_delay_time, single_run
 
 
 if __name__ == "__main__":
-    total_delay_time, average_container_delay_time = run_simulation(
+    total_delay_time, average_container_delay_time, single_run = run_simulation(
         train_consist_plan=pl.read_csv(utilities.package_root() / 'demos' / 'starter_demo' / 'train_consist_plan.csv'),
         terminal="Allouez",
         out_path=utilities.package_root() / 'demos' / 'single_track_results'
     )
     print(f"Average delay time for each container is {average_container_delay_time} hours.")
 
+    # Performance Matrix
     output = {
         "total_delay_time": total_delay_time,
-        "average_container_delay_time": average_container_delay_time
+        "average_container_delay_time": average_container_delay_time,
+        "single_run": single_run,
+        "ic_avg_time": single_run[1],
+        "oc_avg_time": single_run[2],
+        "total_avg_time": single_run[3],
+        "ic_energy": single_run[4],
+        "oc_energy": single_run[5],
+        "total_energy": single_run[6]
     }
 
-    with open("delay_output.json", "w") as f:
+    with open("performance_matrix.json", "w") as f:
         json.dump(output, f)

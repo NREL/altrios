@@ -191,11 +191,12 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
 def check_ic_picked_complete(env, terminal, train_schedule):
     inbound_count = sum(getattr(item, 'type', None) == 'Inbound' and getattr(item, 'train_id', None) == train_schedule['train_id'] for
         item in terminal.chassis.items)
-    print(f"ic for train-{train_schedule['train_id']} on chassis:", inbound_count)
+    print(f"Time {env.now:.3f}: IC for train-{train_schedule['train_id']} on chassis:", inbound_count)
     if inbound_count == 0:
         if terminal.train_ic_unload_events[train_schedule['train_id']].triggered:
             terminal.train_ic_picked_events[train_schedule['train_id']].succeed()
-            print(f"Time {env.now:.3f}: All ICs for {train_schedule['train_id']} are picked up by hostlers.")
+            print(f"Time {env.now:.3f}: All ICs for train {train_schedule['train_id']} are picked up by hostlers.") 
+
 
 
 def crane_unload_process(env, terminal, train_schedule, track_id):
@@ -203,7 +204,7 @@ def crane_unload_process(env, terminal, train_schedule, track_id):
     terminal.train_ic_unload_count[train_schedule['train_id']] = 0
 
     terminal.total_ic[train_schedule['train_id']] = train_schedule["full_cars"]
-    print(f"ic_item on train {train_schedule['train_id']} train_ic_stores has {terminal.train_ic_stores.items}")
+    print(f"Time {env.now:.3f}: ic_item on train {train_schedule['train_id']} train_ic_stores has {terminal.train_ic_stores.items}")
 
     start_id = terminal.IC_COUNT[train_schedule['train_id']]
     end_id = terminal.IC_COUNT[train_schedule['train_id']] + terminal.total_ic[train_schedule['train_id']]
@@ -337,12 +338,15 @@ def container_process(env, terminal, train_schedule):
         hostler_travel_time_to_track = simulate_hostler_track_travel(assigned_hostler.to_string(), current_veh_num, total_lane_length, d_tr_min, d_tr_mean, d_tr_max)
         yield env.timeout(hostler_travel_time_to_chassis + hostler_travel_time_to_track)
         emissions = emission_calculation('empty', 'hostler', assigned_hostler, hostler_travel_time_to_chassis)
+        print(terminal.chassis.items)
         yield terminal.chassis.put(oc)
+        print(terminal.chassis.items)
         print(f"Time {env.now:.3f}: Hostler {assigned_hostler} dropped off OC {oc} onto chassis")
         record_container_event(oc, 'hostler_dropoff', env.now)
         record_vehicle_event('hostler', assigned_hostler, f'dropoff_{oc}', 'loaded', hostler_travel_time_to_chassis, emissions, 'end', env.now)
-
         outbound_count = sum((getattr(item, 'type', None) == 'Outbound') and (getattr(item, 'train_id', None) == train_schedule['train_id']) for item in terminal.chassis.items)
+        print(f"Time {env.now:.3f}, container_process: For {train_schedule['train_id']}, {outbound_count} OCs are ready on chassis.")
+        print(terminal.chassis.items)
         if outbound_count == train_schedule['oc_number'] and (terminal.train_oc_prepared_events[train_schedule['train_id']].triggered == False):
             terminal.train_oc_prepared_events[train_schedule['train_id']].succeed()
             print(f"Time {env.now:.3f}: All OCs for {train_schedule['train_id']} are ready on chassis.")
@@ -416,7 +420,7 @@ def handle_remaining_oc(env, terminal, train_schedule):
             terminal.train_oc_prepared_events[train_schedule['train_id']].succeed()
             print("chassis (all_oc_prepared):", terminal.chassis.items)
             print(f"hostler (all_oc_prepared): {terminal.parked_hostlers.items}")
-            print(f"Time {env.now:.3f}: All OCs are ready on chassis.")
+            print(f"Time {env.now:.3f}, handle_remaining_oc: All OCs are ready on chassis.")
 
 def truck_exit(env, terminal, truck, ic, train_schedule):
     global state
@@ -436,6 +440,7 @@ def truck_exit(env, terminal, truck, ic, train_schedule):
 def crane_load_process(env, terminal, track_id, train_schedule):
     global state
 
+    print(f"Time {env.now:.3f}: Preparing to start loading process for train-{train_schedule['train_id']}.")
     yield terminal.train_start_load_events[train_schedule['train_id']]
     print(f"Time {env.now:.3f}: Starting loading process onto the train-{train_schedule['train_id']}.")
 
@@ -526,9 +531,11 @@ def process_train_arrival(env, terminal, train_schedule):
     # yield all_ic_picked & all_oc_prepared
 
     yield terminal.train_ic_picked_events[train_schedule['train_id']]
+    print(f"Time {env.now:.3f}: All {train_schedule['full_cars']} IC picked events are finished for train {train_schedule['train_id']}.")
     env.process(handle_remaining_oc(env, terminal, train_schedule))
+    print(f"Time {env.now:.3f}: All {oc_needed} OC handled for train {train_schedule['train_id']}.")
     yield terminal.train_oc_prepared_events[train_schedule['train_id']]
-    print(f"Time {env.now:.3f}: All {oc_needed} OCs are ready on chassis.")
+    print(f"Time {env.now:.3f}: All {oc_needed} OCs are ready on chassis for train {train_schedule['train_id']}.")
     terminal.train_start_load_events[train_schedule['train_id']].succeed()
 
     env.process(crane_load_process(env, terminal, track_id=track_id, train_schedule=train_schedule))

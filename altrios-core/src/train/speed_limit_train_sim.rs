@@ -1,3 +1,4 @@
+use super::environment::TemperatureTrace;
 use super::{braking_point::BrakingPoints, friction_brakes::*, train_imports::*};
 use crate::imports::*;
 use crate::track::link::network::Network;
@@ -183,45 +184,52 @@ pub struct SpeedLimitTrainSim {
     save_interval: Option<usize>,
     simulation_days: Option<i32>,
     scenario_year: Option<i32>,
+    /// Time-dependent temperature at sea level that can be corrected for
+    /// altitude using a standard model
+    temp_trace: Option<TemperatureTrace>,
+}
+
+pub struct SpeedLimitTrainSimBuilder {
+    pub train_id: String,
+    pub origs: Vec<Location>,
+    pub dests: Vec<Location>,
+    pub loco_con: Consist,
+    /// Number of railcars by type on the train
+    pub n_cars_by_type: HashMap<String, u32>,
+    pub state: TrainState,
+    pub train_res: TrainRes,
+    pub path_tpc: PathTpc,
+    pub fric_brake: FricBrake,
+    pub save_interval: Option<usize>,
+    pub simulation_days: Option<i32>,
+    pub scenario_year: Option<i32>,
+    /// Time-dependent temperature at sea level that can be corrected for altitude using a standard model
+    pub temp_trace: Option<TemperatureTrace>,
+}
+
+impl From<SpeedLimitTrainSimBuilder> for SpeedLimitTrainSim {
+    fn from(value: SpeedLimitTrainSimBuilder) -> Self {
+        SpeedLimitTrainSim {
+            train_id: value.train_id,
+            origs: value.origs,
+            dests: value.dests,
+            loco_con: value.loco_con,
+            n_cars_by_type: value.n_cars_by_type,
+            state: value.state,
+            train_res: value.train_res,
+            path_tpc: value.path_tpc,
+            braking_points: Default::default(),
+            fric_brake: value.fric_brake,
+            history: Default::default(),
+            save_interval: value.save_interval,
+            simulation_days: value.simulation_days,
+            scenario_year: value.scenario_year,
+            temp_trace: value.temp_trace,
+        }
+    }
 }
 
 impl SpeedLimitTrainSim {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        train_id: String,
-        origs: &[Location],
-        dests: &[Location],
-        loco_con: Consist,
-        n_cars_by_type: HashMap<String, u32>,
-        state: TrainState,
-        train_res: TrainRes,
-        path_tpc: PathTpc,
-        fric_brake: FricBrake,
-        save_interval: Option<usize>,
-        simulation_days: Option<i32>,
-        scenario_year: Option<i32>,
-    ) -> Self {
-        let mut train_sim = Self {
-            train_id,
-            origs: origs.to_vec(),
-            dests: dests.to_vec(),
-            loco_con,
-            n_cars_by_type,
-            state,
-            train_res,
-            path_tpc,
-            braking_points: Default::default(),
-            fric_brake,
-            history: Default::default(),
-            save_interval,
-            simulation_days,
-            scenario_year,
-        };
-        train_sim.set_save_interval(save_interval);
-
-        train_sim
-    }
-
     /// Returns the scaling factor to be used when converting partial-year
     /// simulations to a full year of output metrics.
     pub fn get_scaling_factor(&self, annualize: bool) -> f64 {
@@ -404,9 +412,22 @@ impl SpeedLimitTrainSim {
             .set_cat_power_limit(&self.path_tpc, self.state.offset);
         // set aux power for the consist
         self.loco_con.set_pwr_aux(Some(true))?;
+
+        let elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)> =
+            if let Some(tt) = &self.temp_trace {
+                Some((
+                    self.state.elev_front,
+                    tt.get_temp_at_time_and_elev(self.state.time, self.state.elev_front)
+                        .with_context(|| format_dbg!())?,
+                ))
+            } else {
+                None
+            };
+
         // set the maximum power out based on dt.
         self.loco_con.set_curr_pwr_max_out(
             None,
+            elev_and_temp,
             Some(self.state.mass_compound()?),
             Some(self.state.speed),
             self.state.dt,
@@ -814,6 +835,7 @@ impl Default for SpeedLimitTrainSim {
             braking_points: Default::default(),
             fric_brake: Default::default(),
             history: Default::default(),
+            temp_trace: Default::default(),
             save_interval: None,
             simulation_days: None,
             scenario_year: None,

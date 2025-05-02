@@ -67,6 +67,8 @@ fn altrios_pyo3(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<SpeedLimitTrainSimVec>()?;
     m.add_class::<SpeedSet>()?;
     m.add_class::<SpeedTrace>()?;
+    m.add_class::<TemperatureTraceBuilder>()?;
+    m.add_class::<TemperatureTrace>()?;
     m.add_class::<TimedLinkPath>()?;
     m.add_class::<TrainConfig>()?;
     m.add_class::<TrainParams>()?;
@@ -79,7 +81,6 @@ fn altrios_pyo3(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(make_est_times_py, m)?)?;
     m.add_function(wrap_pyfunction!(run_dispatch_py, m)?)?;
     m.add_function(wrap_pyfunction!(check_od_pair_valid, m)?)?;
-    m.add_function(wrap_pyfunction!(build_speed_limit_train_sims, m)?)?;
     m.add_function(wrap_pyfunction!(run_speed_limit_train_sims, m)?)?;
     Ok(())
 }

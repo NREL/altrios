@@ -7,12 +7,14 @@ pub trait LocoTrait {
     ///
     /// # Arguments:
     /// - `pwr_aux`: aux power
+    /// - `elev_and_temp`: elevation and temperature
     /// - `train_speed`: current train speed
     /// - `train_mass`: portion of total train mass handled by `self`
     /// - `dt`: time step size
     fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         train_mass: Option<si::Mass>,
         train_speed: Option<si::Velocity>,
         dt: si::Time,

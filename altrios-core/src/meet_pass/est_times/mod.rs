@@ -724,7 +724,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                 }
                 break;
             }
-            // Step 2d: Otherwise, append the next link options and continue simulating
+            // Otherwise, append the next link options and continue simulating
             else {
                 let link_idx_prev = &sim.train_sim.link_idx_last().unwrap();
                 let link_idx_next = network[link_idx_prev.idx()].idx_next;

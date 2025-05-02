@@ -40,6 +40,11 @@ const TOL: f64 = 1e-3;
     fn get_specific_pwr_kw_per_kg(&self) -> Option<f64> {
         self.specific_pwr.map(|sp| sp.get::<si::kilowatt_per_kilogram>())
     }
+
+    #[pyo3(name = "set_default_elev_and_temp_derate")]
+    fn set_default_elev_and_temp_derate_py(&mut self) {
+        self.set_default_elev_and_temp_derate()
+    }
 )]
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
 /// Struct for modeling Fuel Converter (e.g. engine, fuel cell.)
@@ -75,6 +80,12 @@ pub struct FuelConverter {
     pub(crate) pwr_for_peak_eff: si::Power,
     /// idle fuel power to overcome internal friction (not including aux load)
     pub pwr_idle_fuel: si::Power,
+    /// Interpolator for derating dynamic engine peak power based on altitude
+    /// and temperature. When interpolating, this returns fraction of normal
+    /// peak power, e.g. a value of 1 means no derating and a value of 0 means
+    /// the engine is completely disabled.
+    #[api(skip_get, skip_set)]
+    pub elev_and_temp_derate: Option<Interp2DOwned<f64, strategy::Linear>>,
     /// time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
@@ -164,7 +175,11 @@ impl Mass for FuelConverter {
 // non-py methods
 impl FuelConverter {
     /// Get fuel converter max power output given time step, dt
-    pub fn set_cur_pwr_out_max(&mut self, dt: si::Time) -> anyhow::Result<()> {
+    pub fn set_cur_pwr_out_max(
+        &mut self,
+        elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
+        dt: si::Time,
+    ) -> anyhow::Result<()> {
         ensure!(
             dt > si::Time::ZERO,
             format!(
@@ -172,10 +187,30 @@ impl FuelConverter {
                 format_dbg!(dt > si::Time::ZERO)
             )
         );
+
+        let pwr_max_derated = match (&mut self.elev_and_temp_derate, elev_and_temp) {
+            (Some(elev_and_temp_derate), Some(elev_and_temp)) => {
+                elev_and_temp_derate.interpolate(&[
+                    elev_and_temp.0.get::<si::meter>(),
+                    elev_and_temp.1.get::<si::degree_celsius>(),
+                ])? * self.pwr_out_max
+            }
+            (None, Some(_)) => bail!(
+                "{}\nExpected (self.elev_and_temp_derate, elev_and_temp) to both be Some or None",
+                format_dbg!()
+            ),
+            (Some(_), None) => bail!(
+                "{}\nExpected (self.elev_and_temp_derate, elev_and_temp) to both be Some or None",
+                format_dbg!()
+            ),
+            (None, None) => self.pwr_out_max,
+        };
+
         self.pwr_out_max_init = self.pwr_out_max_init.max(self.pwr_out_max / 10.);
         self.state.pwr_out_max = (self.state.pwr_mech_out
             + (self.pwr_out_max / self.pwr_ramp_lag) * dt)
             .min(self.pwr_out_max)
+            .min(pwr_max_derated)
             .max(self.pwr_out_max_init);
         Ok(())
     }
@@ -280,6 +315,23 @@ impl FuelConverter {
 
     impl_get_set_eta_max_min!();
     impl_get_set_eta_range!();
+
+    fn set_default_elev_and_temp_derate(&mut self) {
+        self.elev_and_temp_derate = Some(
+            Interp2D::new(
+                array![0.0, 3_000.0, 6_000.0],
+                array![0.0, 35.0, 45.0, 50.0],
+                array![
+                    [1.0, 1.0, 0.95, 0.8],
+                    [0.95, 0.95, 0.9025, 0.76],
+                    [0.8, 0.8, 0.76, 0.64],
+                ],
+                strategy::Linear,
+                Extrapolate::Clamp,
+            )
+            .unwrap(),
+        );
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
@@ -368,7 +420,7 @@ mod tests {
     #[test]
     fn test_that_max_power_includes_rate() {
         let mut fc = test_fc();
-        fc.set_cur_pwr_out_max(uc::S * 1.0).unwrap();
+        fc.set_cur_pwr_out_max(None, uc::S * 1.0).unwrap();
         let pwr_out_max = fc.state.pwr_out_max;
         assert!(pwr_out_max < fc.pwr_out_max);
     }

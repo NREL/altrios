@@ -237,6 +237,7 @@ impl LocomotiveSimulation {
         };
         self.loco_unit.set_curr_pwr_max_out(
             None,
+            None,
             train_mass,
             train_speed,
             self.power_trace.dt(self.i),

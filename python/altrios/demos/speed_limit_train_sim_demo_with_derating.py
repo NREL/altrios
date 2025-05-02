@@ -13,7 +13,6 @@ import altrios as alt
 sns.set_theme()
 
 
-
 SHOW_PLOTS = alt.utils.show_plots()
 
 SAVE_INTERVAL = 1
@@ -36,47 +35,6 @@ train_config = alt.TrainConfig(
 )
 
 # Build the locomotive consist model
-# instantiate battery model
-# https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/reversible_energy_storage/struct.ReversibleEnergyStorage.html#
-res = alt.ReversibleEnergyStorage.from_file(
-    alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
-)
-# instantiate electric drivetrain (motors and any gearboxes)
-# https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/electric_drivetrain/struct.ElectricDrivetrain.html
-edrv = alt.ElectricDrivetrain(
-    pwr_out_frac_interp=[0., 1.],
-    eta_interp=[0.98, 0.98],
-    pwr_out_max_watts=5e9,
-    save_interval=SAVE_INTERVAL,
-)
-
-bel: alt.Locomotive = alt.Locomotive.from_pydict({
-    "loco_type": {"BatteryElectricLoco": {
-        "res": res.to_pydict(),
-        "edrv": edrv.to_pydict(),
-    }},
-    "pwr_aux_offset_watts": 8.55e3,
-    "pwr_aux_traction_coeff": 540.e-6,
-    "force_max_newtons": 667.2e3,
-    "mass_kilograms": alt.LocoParams.default().to_pydict()['mass_kilograms'],
-    "save_interval": SAVE_INTERVAL,
-})
-bel_dict = bel.to_pydict()
-bel_pt_cntrl = bel_dict['loco_type']['BatteryElectricLoco']['pt_cntrl']['RGWDB']
-bel_pt_cntrl['speed_soc_disch_buffer_meters_per_second'] = 10
-bel_pt_cntrl['speed_soc_regen_buffer_meters_per_second'] = 15
-bel_dict = copy(bel_dict)
-bel_dict['loco_type']['BatteryElectricLoco']['pt_cntrl']['RGWDB'] = bel_pt_cntrl
-bel = alt.Locomotive.from_pydict(bel_dict)
-
-bel_new_pt_cntrl = copy(bel_pt_cntrl)
-# effectively turn off the buffers
-bel_new_pt_cntrl['speed_soc_disch_buffer_meters_per_second'] = 0
-bel_new_pt_cntrl['speed_soc_regen_buffer_meters_per_second'] = 100
-bel_new_dict = copy(bel_dict)
-bel_new_dict['loco_type']['BatteryElectricLoco']['pt_cntrl']['RGWDB'] = bel_new_pt_cntrl
-bel_sans_buffers = alt.Locomotive.from_pydict(bel_new_dict)
-
 hel: alt.Locomotive = alt.Locomotive.default_hybrid_electric_loco()
 hel_dict = hel.to_pydict()
 hel_pt_cntrl = hel_dict['loco_type']['HybridLoco']['pt_cntrl']['RGWDB']
@@ -99,17 +57,13 @@ conv_with_derate = alt.Locomotive.from_pydict(conv_new_dict)
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
 loco_vec = (
-    []
-    # + [bel.clone()]
-    + [hel.clone()]
+    [hel.clone()]
     + [alt.Locomotive.default()] * 1
 )
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
 loco_vec_with_derating = (
-    []
-    # + [bel_sans_buffers.clone()]
-    + [hel_with_derate.clone()]
+    [hel_with_derate.clone()]
     + [conv_with_derate] * 1
 )
 
@@ -211,7 +165,7 @@ print(
     f"Total raw fuel used without engine derating in BEL and HEL: {raw_fuel_gigajoules:.6g} GJ")
 corrected_fuel_gigajoules = train_sim.get_energy_fuel_soc_corrected_joules() / 1e9
 print(
-    f"Total SOC-corrected fuel used with altitude and temperature derating in BEL and HEL: {corrected_fuel_gigajoules:.6g} GJ")
+    f"Total SOC-corrected fuel used without engine derating in BEL and HEL: {corrected_fuel_gigajoules:.6g} GJ")
 assert len(train_sim.history) > 1
 
 t0 = time.perf_counter()
@@ -224,10 +178,10 @@ t1 = time.perf_counter()
 print(f'\nTime to simulate with altitude and temperature derating of engine: {t1 - t0:.5g}')
 raw_fuel_with_derating_gigajoules = train_sim_with_derating.get_energy_fuel_joules(False) / 1e9
 print(
-    f"Total raw fuel used with BEL and HEL buffers inactive: {raw_fuel_with_derating_gigajoules:.6g} GJ")
+    f"Total raw fuel used with altitude and temperature derating in BEL and HEL: {raw_fuel_with_derating_gigajoules:.6g} GJ")
 corrected_fuel_with_derating_gigajoules = train_sim_with_derating.get_energy_fuel_soc_corrected_joules() / 1e9
 print(
-    f"Total SOC-corrected fuel used with BEL and HEL buffers inactive: {corrected_fuel_with_derating_gigajoules:.6g} GJ")
+    f"Total SOC-corrected fuel used with altitude and temperature derating in BEL and HEL: {corrected_fuel_with_derating_gigajoules:.6g} GJ")
 assert len(train_sim_with_derating.history) > 1
 
 fuel_increase = (raw_fuel_with_derating_gigajoules - raw_fuel_gigajoules) / raw_fuel_gigajoules * 100
@@ -509,19 +463,19 @@ def plot_bel_pwr_and_soc(ts: alt.SpeedLimitTrainSim, mod_str: str) -> Tuple[plt.
     return fig, ax
 
 
-fig0, ax0 = plot_train_level_powers(train_sim, "With Buffers")
-fig1, ax1 = plot_train_network_info(train_sim, "With Buffers")
-fig2, ax2 = plot_consist_pwr(train_sim, "With Buffers")
-fig3, ax3 = plot_hel_pwr_and_soc(train_sim, "With Buffers")
+fig0, ax0 = plot_train_level_powers(train_sim, "No Derating")
+fig1, ax1 = plot_train_network_info(train_sim, "No Derating")
+fig2, ax2 = plot_consist_pwr(train_sim, "No Derating")
+fig3, ax3 = plot_hel_pwr_and_soc(train_sim, "No Derating")
 # fig3.savefig("plots/hel with buffers.svg")
-# fig4, ax4 = plot_bel_pwr_and_soc(train_sim, "With Buffers")
+# fig4, ax4 = plot_bel_pwr_and_soc(train_sim, "No Derating")
 
-fig0_sans_buffers, ax0_sans_buffers = plot_train_level_powers(train_sim_with_derating, "Without Buffers")
-fig1_sans_buffers, ax1_sans_buffers = plot_train_network_info(train_sim_with_derating, "Without Buffers")
-fig2_sans_buffers, ax2_sans_buffers = plot_consist_pwr(train_sim_with_derating, "Without Buffers")
-fig3_sans_buffers, ax3_sans_buffers = plot_hel_pwr_and_soc(train_sim_with_derating, "Without Buffers")
+fig0_sans_buffers, ax0_sans_buffers = plot_train_level_powers(train_sim_with_derating, "With Altitude and Temperature Derating")
+fig1_sans_buffers, ax1_sans_buffers = plot_train_network_info(train_sim_with_derating, "With Altitude and Temperature Derating")
+fig2_sans_buffers, ax2_sans_buffers = plot_consist_pwr(train_sim_with_derating, "With Altitude and Temperature Derating")
+fig3_sans_buffers, ax3_sans_buffers = plot_hel_pwr_and_soc(train_sim_with_derating, "With Altitude and Temperature Derating")
 # fig3_sans_buffers.savefig("plots/hel sans buffers.svg")
-# fig4_sans_buffers, ax4_sans_buffers = plot_bel_pwr_and_soc(train_sim_sans_buffers, "Without Buffers")
+# fig4_sans_buffers, ax4_sans_buffers = plot_bel_pwr_and_soc(train_sim_sans_buffers, "With Altitude and Temperature Derating")
 
 if SHOW_PLOTS:
     plt.tight_layout()

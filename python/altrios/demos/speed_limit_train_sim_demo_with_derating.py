@@ -12,7 +12,7 @@ from copy import copy
 import altrios as alt
 sns.set_theme()
 
-# alt.utils.set_log_level("DEBUG")
+
 
 SHOW_PLOTS = alt.utils.show_plots()
 

@@ -1196,12 +1196,14 @@ dependencies = [
 
 [[package]]
 name = "ninterp"
-version = "0.2.7"
+version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54398c46523c3a1810cb93987c045d49323ed19b4ea7b2d8ade89822ba36ed83"
+checksum = "ceca4920b81f8382039b967f60925427cc061946a0cb95ef943170ec3eafac2c"
 dependencies = [
+ "dyn-clone",
  "itertools",
  "ndarray",
+ "num-traits",
  "serde",
  "thiserror 1.0.69",
 ]

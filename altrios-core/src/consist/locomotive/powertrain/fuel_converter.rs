@@ -85,7 +85,7 @@ pub struct FuelConverter {
     /// peak power, e.g. a value of 1 means no derating and a value of 0 means
     /// the engine is completely disabled.
     #[api(skip_get, skip_set)]
-    pub elev_and_temp_derate: Option<Interpolator>,
+    pub elev_and_temp_derate: Option<Interp2DOwned<f64, strategy::Linear>>,
     /// time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
@@ -318,15 +318,15 @@ impl FuelConverter {
 
     fn set_default_elev_and_temp_derate(&mut self) {
         self.elev_and_temp_derate = Some(
-            Interpolator::new_2d(
-                vec![0.0, 3_000.0, 6_000.0],
-                vec![0.0, 35.0, 45.0, 50.0],
-                vec![
-                    vec![1.0, 1.0, 0.95, 0.8],
-                    vec![0.95, 0.95, 0.9025, 0.76],
-                    vec![0.8, 0.8, 0.76, 0.64],
+            Interp2D::new(
+                array![0.0, 3_000.0, 6_000.0],
+                array![0.0, 35.0, 45.0, 50.0],
+                array![
+                    [1.0, 1.0, 0.95, 0.8],
+                    [0.95, 0.95, 0.9025, 0.76],
+                    [0.8, 0.8, 0.76, 0.64],
                 ],
-                Strategy::Linear,
+                strategy::Linear,
                 Extrapolate::Clamp,
             )
             .unwrap(),

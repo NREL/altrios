@@ -97,7 +97,7 @@ pub struct TemperatureTraceElement {
 #[altrios_api]
 #[derive(Clone, Debug, PartialEq, SerdeAPI)]
 /// Container for an interpolator of temperature at sea level (to be corrected for altitude)
-pub struct TemperatureTrace(pub(crate) Interpolator);
+pub struct TemperatureTrace(pub(crate) Interp1DOwned<f64, strategy::Linear>);
 
 impl TemperatureTrace {
     pub fn get_temp_at_time_and_elev(
@@ -139,9 +139,7 @@ impl Serialize for TemperatureTrace {
     where
         S: serde::Serializer,
     {
-        let builder: TemperatureTraceBuilder = self
-            .clone()
-            .try_into()
+        let builder: TemperatureTraceBuilder = TemperatureTraceBuilder::try_from(self.clone())
             .map_err(|e| serde::ser::Error::custom(format!("{:?}", e)))?;
         builder.serialize(serializer)
     }
@@ -153,9 +151,8 @@ impl<'de> Deserialize<'de> for TemperatureTrace {
         D: serde::Deserializer<'de>,
     {
         let value: TemperatureTraceBuilder = TemperatureTraceBuilder::deserialize(deserializer)?;
-        let tt: Self = value
-            .try_into()
-            .map_err(|e| serde::de::Error::custom(format!("{:?}", e)))?;
+        let tt: Self =
+            Self::try_from(value).map_err(|e| serde::de::Error::custom(format!("{:?}", e)))?;
         Ok(tt)
     }
 }
@@ -163,15 +160,15 @@ impl<'de> Deserialize<'de> for TemperatureTrace {
 impl TryFrom<TemperatureTraceBuilder> for TemperatureTrace {
     type Error = anyhow::Error;
     fn try_from(value: TemperatureTraceBuilder) -> anyhow::Result<Self> {
-        Ok(Self(Interpolator::new_1d(
+        Ok(Self(Interp1D::new(
             value.time.iter().map(|t| t.get::<si::second>()).collect(),
             value
                 .temp_at_sea_level
                 .iter()
                 .map(|te| te.get::<si::degree_celsius>())
                 .collect(),
-            Strategy::Linear,
-            Extrapolate::Error,
+            strategy::Linear,
+            Extrapolate::Clamp,
         )?))
     }
 }
@@ -180,17 +177,11 @@ impl TryFrom<TemperatureTrace> for TemperatureTraceBuilder {
     type Error = anyhow::Error;
     fn try_from(value: TemperatureTrace) -> anyhow::Result<Self> {
         Ok(Self {
-            time: value
-                .0
-                .x()
-                .with_context(|| format_dbg!())?
-                .iter()
-                .map(|x| *x * uc::S)
-                .collect(),
+            time: value.0.data.grid[0].iter().map(|x| *x * uc::S).collect(),
             temp_at_sea_level: value
                 .0
-                .y()
-                .with_context(|| format_dbg!())?
+                .data
+                .values
                 .iter()
                 .map(|y| (*y + uc::CELSIUS_TO_KELVIN) * uc::KELVIN)
                 .collect(),

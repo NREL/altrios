@@ -35,7 +35,7 @@ opt-level = 0
 opt-level = 3
 
 [workspace.dependencies]
-ninterp = { version = "0.2.4", features = ["serde"] }
+ninterp = { version = "0.6.4", features = ["serde"] }
 document-features = "0.2.10"
 anyhow = "1.0.71"
 pyo3 = "0.22"

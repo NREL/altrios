@@ -4,7 +4,7 @@ from altrios.train_planner import data_prep, schedulers, planner_config, train_d
 import numpy as np
 import polars as pl
 import polars.selectors as cs
-from typing import Union, Tuple, List, Dict
+from typing import Union, Tuple, List, Dict, Optional
 from itertools import repeat
 import altrios as alt
 from altrios import defaults
@@ -270,13 +270,14 @@ def run_train_planner(
     rail_vehicles: List[alt.RailVehicle],
     location_map: Dict[str, List[alt.Location]],
     network: List[alt.Link],
-    loco_pool: pl.DataFrame,
-    refuelers: pl.DataFrame,
+    # TODO: figure out why this input, which is not provided anywhere, needs to exist
+    loco_pool: Optional[pl.DataFrame],
+    refuelers: Optional[pl.DataFrame],
     scenario_year: int,
     train_type: alt.TrainType = alt.TrainType.Freight, 
     config: planner_config.TrainPlannerConfig = planner_config.TrainPlannerConfig(),
     demand_file: Union[pl.DataFrame, Path, str] = defaults.DEMAND_FILE,
-    network_charging_guidelines: pl.DataFrame = None,
+    network_charging_guidelines: Optional[pl.DataFrame] = None,
 ) -> Tuple[
     pl.DataFrame, 
     pl.DataFrame, 

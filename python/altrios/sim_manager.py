@@ -3,7 +3,7 @@ Module for getting the output of the Train Consist Planner and Meet Pass Planner
 """
 
 import polars as pl
-from typing import Any, Union, Dict, List, Tuple
+from typing import Optional, Union, Dict, List, Tuple
 from pathlib import Path
 import time
 from altrios import defaults
@@ -13,22 +13,24 @@ from altrios.train_planner import planner, planner_config
 from altrios import metric_calculator as metrics
 
 def main(
-    rail_vehicles: List[alt.RailVehicle],
-    location_map: Dict[str, List[alt.Location]],
-    network: List[alt.Link],
-    simulation_days: int = defaults.SIMULATION_DAYS,
-    warm_start_days: int = defaults.WARM_START_DAYS,
-    scenario_year: int = defaults.BASE_ANALYSIS_YEAR,
-    target_bel_share: float = 0.5,
-    debug: bool = False,
-    loco_pool: pl.DataFrame = None,
-    refuelers: pl.DataFrame = None,
-    grid_emissions_factors: pl.DataFrame = None,
-    nodal_energy_prices: pl.DataFrame = None,
-    train_planner_config: planner_config.TrainPlannerConfig = planner_config.TrainPlannerConfig(),
-    train_type: alt.TrainType = alt.TrainType.Freight, 
-    demand_file: Union[pl.DataFrame, Path, str] = str(defaults.DEMAND_FILE),
-    network_charging_guidelines: pl.DataFrame = None
+    rail_vehicles: List[alt.RailVehicle], # NOTE: probably need this
+    location_map: Dict[str, List[alt.Location]], # NOTE: probably need this
+    network: List[alt.Link], # NOTE: probably need this
+    simulation_days: int = defaults.SIMULATION_DAYS, # NOTE: probably do not need this
+    warm_start_days: int = defaults.WARM_START_DAYS, # NOTE: probably do not need this
+    scenario_year: int = defaults.BASE_ANALYSIS_YEAR, # NOTE: probably do not need this
+    target_bel_share: float = 0.5, # NOTE: probably do not need this
+    debug: bool = False, # NOTE: probably do not need this
+    # TODO: figure out why this input, which is not provided anywhere, needs to exist
+    loco_pool: Optional[pl.DataFrame ]= None, # NOTE: probably do not need this
+    # TODO: figure out why this input, which is not provided anywhere, needs to exist
+    refuelers: Optional[pl.DataFrame ]= None, # NOTE: probably do not need this
+    grid_emissions_factors: Optional[pl.DataFrame ]= None, # NOTE: probably can use this
+    nodal_energy_prices: Optional[pl.DataFrame ]= None, # NOTE: probably can use this
+    train_planner_config: planner_config.TrainPlannerConfig = planner_config.TrainPlannerConfig(), # NOTE: probably do not need this
+    train_type: alt.TrainType = alt.TrainType.Freight, # NOTE: probably do not need this 
+    demand_file: Union[pl.DataFrame, Path, str] = str(defaults.DEMAND_FILE), # NOTE: probably do not need this
+    network_charging_guidelines: Optional[pl.DataFrame ]= None, # NOTE: probably can use this
 ) -> Tuple[
     pl.DataFrame,
     pl.DataFrame,
@@ -82,16 +84,16 @@ def main(
         speed_limit_train_sims, 
         est_time_nets
     ) = planner.run_train_planner(
-        rail_vehicles = rail_vehicles,
-        location_map = location_map,
-        network = network,
-        loco_pool= loco_pool,
-        refuelers = refuelers,
-        scenario_year = scenario_year,
-        config = train_planner_config,
-        demand_file = demand_file,
-        train_type = train_type,
-        network_charging_guidelines = network_charging_guidelines,
+        rail_vehicles=rail_vehicles,
+        location_map=location_map,
+        network=network,
+        loco_pool=loco_pool,
+        refuelers=refuelers,
+        scenario_year=scenario_year,
+        config=train_planner_config,
+        demand_file=demand_file,
+        train_type=train_type,
+        network_charging_guidelines=network_charging_guidelines,
     )
     t1_ptc = time.perf_counter()
 
@@ -159,7 +161,7 @@ def main(
     timed_paths = [timed_paths[i-1] for i in to_keep]
 
     return (
-        train_consist_plan,
+        train_consist_plan, # NOTE: we generate this and therefore don't need it
         loco_pool,
         refuelers,
         grid_emissions_factors,

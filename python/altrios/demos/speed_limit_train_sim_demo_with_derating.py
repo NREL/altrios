@@ -463,6 +463,52 @@ def plot_bel_pwr_and_soc(ts: alt.SpeedLimitTrainSim, mod_str: str) -> Tuple[plt.
     return fig, ax
 
 
+df_no_derate = train_sim.to_dataframe()
+df_with_derate = train_sim_with_derating.to_dataframe()
+
+fig, ax = plt.subplots(3, 1, sharex=True)
+fig.suptitle("Derate Comparison")
+ax[0].plot(
+    df_no_derate['history.time_seconds'],
+    df_no_derate['loco_con.history.energy_fuel_joules'] / 1e9,
+    label='no derating',
+)
+ax[0].plot(
+    df_with_derate['history.time_seconds'],
+    df_with_derate['loco_con.history.energy_fuel_joules'] / 1e9,
+    label='with derate',
+)
+ax[0].legend()
+ax[0].set_ylabel("Cumulative Fuel [GJ]")
+
+ax[1].plot(
+    df_no_derate['history.time_seconds'],
+    df_no_derate['loco_con.history.pwr_out_max_watts'] / 1e6,
+    label='no derating pwr max',
+)
+ax[1].plot(
+    df_with_derate['history.time_seconds'],
+    df_with_derate['loco_con.history.pwr_out_max_watts'] / 1e6,
+    label='with derate pwr max',
+)
+ax[1].legend()
+ax[1].set_ylabel("Engine Power [MW]")
+
+ax[2].plot(
+    df_no_derate['history.time_seconds'],
+    df_no_derate['history.speed_meters_per_second'],
+    label='no derating',
+)
+ax[2].plot(
+    df_with_derate['history.time_seconds'],
+    df_with_derate['history.speed_meters_per_second'],
+    label='with derate',
+)
+ax[2].legend()
+ax[2].set_ylabel("Speed [m/s]")
+ax[2].set_xlabel("Times [s]")
+plt.tight_layout()
+
 fig0, ax0 = plot_train_level_powers(train_sim, "No Derating")
 fig1, ax1 = plot_train_network_info(train_sim, "No Derating")
 fig2, ax2 = plot_consist_pwr(train_sim, "No Derating")

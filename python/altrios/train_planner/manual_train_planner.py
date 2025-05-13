@@ -1,9 +1,9 @@
 import pandas as pd
 import polars as pl
 from typing import Dict, Tuple, List
+import numpy as np
 
 import altrios as alt
-from altrios import defaults
 from altrios.train_planner.planner_config import TrainPlannerConfig
 
 
@@ -44,7 +44,9 @@ def manual_train_planner(
     node_list = pl.concat(
         [train_consist_plan.get_column("Origin_ID"),
         train_consist_plan.get_column("Destination_ID")]).unique().sort()
-    loco_pool = build_loco_pool_from_model_list() # TODO: make this function
+    loco_pool = build_loco_pool_from_model_list(
+        train_consist_plan,
+    ) 
 
     refuelers = data_prep.build_refuelers(
         node_list, 
@@ -59,3 +61,38 @@ def manual_train_planner(
         speed_limit_train_sims,
         est_time_nets
     )
+
+def build_loco_pool_from_model_list(
+    train_consist_plan: pl.DataFrame,
+) -> pl.DataFrame:
+
+    loco_numbers = train_consist_plan["Locomotive_ID"]
+    types = train_consist_plan['Locomotive_Type']
+    # TODO: check this line
+    sorted_nodes = train_consist_plan['Origin_ID']
+    rows = initial_size * num_nodes # number of locomotives in total
+
+    loco_pool = pl.DataFrame(
+        {'Locomotive_ID': pl.Series(loco_numbers, dtype=pl.UInt32),
+         'Locomotive_Type': pl.Series(types, dtype=pl.Categorical),
+         'Node': pl.Series(sorted_nodes, dtype=pl.Categorical),
+         'Arrival_Time': pl.Series(np.zeros(rows), dtype=pl.Float64),
+         'Servicing_Done_Time': pl.Series(np.zeros(rows), dtype=pl.Float64),
+         'Refueling_Done_Time': pl.Series(np.tile(0, rows), dtype=pl.Float64),
+         'Status': pl.Series(np.tile("Ready", rows), dtype=pl.Categorical),
+         'SOC_Target_J': pl.Series(np.zeros(rows), dtype=pl.Float64),
+         'Refuel_Duration': pl.Series(np.zeros(rows), dtype=pl.Float64),
+         'Refueler_J_Per_Hr': pl.Series(np.zeros(rows), dtype=pl.Float64), 
+         'Refueler_Efficiency': pl.Series(np.zeros(rows), dtype=pl.Float64), 
+         'Port_Count': pl.Series(np.zeros(rows), dtype=pl.UInt32)}
+    )
+
+    loco_info_pl = pl.from_pandas(config.loco_info.drop(labels='Rust_Loco',axis=1),
+        schema_overrides={'Locomotive_Type': pl.Categorical,
+                          'Fuel_Type': pl.Categorical}
+    )
+
+    loco_pool = loco_pool.join(loco_info_pl, on="Locomotive_Type")
+
+    return loco_pool
+

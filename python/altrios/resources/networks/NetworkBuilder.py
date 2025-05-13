@@ -4,7 +4,7 @@ Created on Wed Apr  2 10:19:07 2025
 
 @author: ganderson
 """
-
+# %%
 import pandas as pd
 import geopandas as gpd
 import fiona
@@ -241,7 +241,7 @@ class NetworkBuilder:
         input_locations_layer_name : String
             This is the name of a point layer in the input geopackage that contains the network
             locations for all possible networks in the input geopackage.  This layer must contain
-            a field called location_name.
+            a field called Location.
 
         Returns
         -------
@@ -283,8 +283,11 @@ class NetworkBuilder:
 
         """
         if self.geopackage_path.exists():
-            if layername in fiona.listlayers(self.geopackage_path.resolve()):
-                fiona.remove(self.geopackage_path, layer=layername)
+            try:  # this will fail if there are no layers in the geopackage
+                if layername in fiona.listlayers(self.geopackage_path.resolve()):
+                    fiona.remove(self.geopackage_path, layer=layername)
+            except:
+                pass
 
         gdf.to_file(self.geopackage_path, driver="GPKG", layer=layername, mode="a")
 
@@ -303,10 +306,13 @@ class NetworkBuilder:
         # check if output geopackage exists.  If it does, we will delete existing
         # layers that need to be replaced
         if self.geopackage_path.exists():
-            for layername in fiona.listlayers(self.geopackage_path.resolve()):
-                # purge previous all layers
-                fiona.remove(self.geopackage_path, layer=layername)
-                print("deleted: {}".format(layername))
+            try:  # this fails with an empyt geopackage for some reason
+                for layername in fiona.listlayers(self.geopackage_path.resolve()):
+                    # purge previous all layers
+                    fiona.remove(self.geopackage_path, layer=layername)
+                    print("deleted: {}".format(layername))
+            except:
+                pass
 
         # Tread the input geopackage region layer
         regions_gdf = gpd.read_file(
@@ -336,16 +342,28 @@ class NetworkBuilder:
         None.
 
         """
-
+        # TODO this needs to happen before the osm data is downloaded or filter out all the other layers
         for layername in fiona.listlayers(self.geopackage_path):
-            print("downloading layer data for layer: {}".format(layername))
-            geolayer = gpd.read_file(self.geopackage_path, layer=layername)
-            # get the bounding box for the layer and add a bit to it.
-            bounds = tuple(geolayer.buffer(0.5).total_bounds)
-            LayerTiffDir = Path(self.data_folder / "Elevation Data" / layername)
-            LayerTiffDir.mkdir(parents=True, exist_ok=True)
-            # Download DEM
-            tiff_files = s3dep.get_dem(bounds, LayerTiffDir)
+            if not (
+                "_osm" in layername
+                or "_switches" in layername
+                or "_split" in layername
+                or "_offhead" in layername
+                or "_bothdir" in layername
+                or "_draped" in layername
+                or "_linked" in layername
+                or "_grouped" in layername
+                or "_TOjoined" in layername
+                or "_TOPoint" in layername
+            ):
+                print("downloading layer data for layer: {}".format(layername))
+                geolayer = gpd.read_file(self.geopackage_path, layer=layername)
+                # get the bounding box for the layer and add a bit to it.
+                bounds = tuple(geolayer.buffer(0.5).total_bounds)
+                LayerTiffDir = Path(self.data_folder / "Elevation Data" / layername)
+                LayerTiffDir.mkdir(parents=True, exist_ok=True)
+                # Download DEM
+                tiff_files = s3dep.get_dem(bounds, LayerTiffDir)
 
         print("Elevation download complete")
 
@@ -517,6 +535,7 @@ class NetworkBuilder:
         # https://gis.stackexchange.com/questions/228920/getting-elevation-at-particular-coordinate-lat-lon-programmatically-but-offli
         buffer = 2
         for layername in fiona.listlayers(self.geopackage_path):
+            print(layername)
             if "_offhead" in layername:
                 print("draping layer: {}".format(layername))
                 vrt_path = (
@@ -556,7 +575,8 @@ class NetworkBuilder:
 
                         line_elevations.append(
                             smooth_link_data(offsets, elevs, window_length=200)
-                        )  # TODO I can probably simplify some stuff here since the for loop was removed.
+                            # TODO I can probably simplify some stuff here since the for loop was removed.
+                        )
                         line_elevations_raw.append(elevs)
                     all_elevations.append(line_elevations)
                     all_elevations_raw.append(line_elevations_raw)
@@ -1122,7 +1142,16 @@ class NetworkBuilder:
                     # parse out all the headings and offsets that were lists that got stored as stings.
                     headings = ast.literal_eval(row["smooth headings"])
                     offsets = ast.literal_eval(row.offsets)
-                    elevations = ast.literal_eval(row.elevations)
+                    try:
+                        elevations = ast.literal_eval(row.elevations)
+                    except Exception as e:
+                        # placed this try statement here because sometime elevation data is not available.
+                        # nans get placed in the draping operation.  This is to make the code work.  The
+                        # Example I came across was track in mexico that we don't care about yet. The current
+                        # work is focused within the US.  Long term it may be worth falling back to SRTM data maybe.
+                        # This needs to be solved, but I don't have an immediate solution.
+                        elevations = [0.0] * len(offsets)
+
                     lats = []
                     lons = []
                     for coord in row.geometry.coords:
@@ -1183,7 +1212,7 @@ class NetworkBuilder:
                 network_output_dir = Path(
                     self.data_folder
                     / "Generated Networks"
-                    / layername.replace("_TOjoined", "")
+                    / layername.replace("_linked", "")
                 )
                 network_output_dir.mkdir(parents=True, exist_ok=True)
                 print(network_output_dir)
@@ -1382,7 +1411,12 @@ class NetworkBuilder:
 
 if __name__ == "__main__":
 
-    os.chdir(sys.path[0])  # set current working directory to path of this script.
+    # set current working directory to path of this script.
+    # have try statement because spyder throws an error.  VS code needs it.
+    try:
+        os.chdir(sys.path[0])
+    except:
+        pass
 
     MyBuilder = NetworkBuilder(
         "NetworkInput.gpkg",
@@ -1390,8 +1424,12 @@ if __name__ == "__main__":
         "TestBuilder",
     )
 
+    # print(fiona.listlayers(MyBuilder.geopackage_path))
     # MyBuilder.input_geopackage_parsing()
     MyBuilder.build_network()
+    # MyBuilder.drape_geometry()
     # MyBuilder.add_speed_limits()
     # MyBuilder.verify_grade_elev()
     # MyBuilder.convert_to_yaml()
+    # MyBuilder.indentify_links()
+    # MyBuilder.build_links()

@@ -28,6 +28,8 @@ import numpy as np
 from scipy.signal import savgol_filter
 import sys
 
+import altrios as alt
+
 
 def point_from_coord(coord):
     """
@@ -139,7 +141,9 @@ def located_point_value_on_line(
     points_of_interest["line offset"] = points_of_interest.geometry.apply(
         lambda x: shapely.line_locate_point(line_gdf.geometry, x, normalized=True)
     )
-    """selct all to points within 25 m of track, we will then project them onto line using line_locate_point, these values will then go into speed_sets and grade/cruve verification"""
+    # selct all to points within 25 m of track, we will then project them onto
+    # line using line_locate_point, these values will then go into speed_sets and
+    # grade/cruve verification
 
     offset_value_list = []
     for idx, row in points_of_interest.iterrows():
@@ -215,8 +219,8 @@ class NoAliasDumper(yaml.SafeDumper):
 class NetworkBuilder:
     def __init__(
         self,
-        input_geopackage_path,
-        data_folder,
+        input_geopackage_path: Path | str,
+        data_folder: Path | str,
         builder_name,
         input_regions_layer_name="network_regions",
         input_locations_layer_name="network_locations",
@@ -1414,12 +1418,12 @@ if __name__ == "__main__":
     # set current working directory to path of this script.
     # have try statement because spyder throws an error.  VS code needs it.
     try:
-        os.chdir(sys.path[0])
-    except:
+        os.chdir(Path(__file__).parent)
+    except Exception:
         pass
 
     MyBuilder = NetworkBuilder(
-        "NetworkInput.gpkg",
+        alt.resources_root() / "networks/NetworkInput.gpkg",
         "Network Builder Test",
         "TestBuilder",
     )

@@ -5,10 +5,16 @@ Created on Wed Apr  2 10:19:07 2025
 @author: ganderson
 """
 # %%
+# set gdal variables before the import
+import sys
+import os
+
+# os.environ["GDAL_DATA"] = os.path.dirname(sys.executable) + r"\Library\share\gdal"
+# os.environ["PROJ_LIB"] = os.path.dirname(sys.executable) + r"\Library\share"
+
 import pandas as pd
 import geopandas as gpd
 import fiona
-import os
 from pathlib import Path
 import rasterio.mask
 import seamless_3dep as s3dep
@@ -26,9 +32,9 @@ import uuid
 import momepy
 import numpy as np
 from scipy.signal import savgol_filter
-import sys
 
-import altrios as alt
+
+# import altrios as alt
 
 
 def point_from_coord(coord):
@@ -241,11 +247,11 @@ class NetworkBuilder:
         input_regions_layer_name : String
             This is the name of the layer in the input geopackage that contain polygons that
             define the regions that need to be generated.  This layer must contain a field called
-            region_name that will be used to name region.
+            "region_name" that will be used to name region.
         input_locations_layer_name : String
             This is the name of a point layer in the input geopackage that contains the network
             locations for all possible networks in the input geopackage.  This layer must contain
-            a field called Location.
+            a field called "Location".
 
         Returns
         -------
@@ -467,6 +473,8 @@ class NetworkBuilder:
             TrackGDF = TrackGDF[TrackGDF.railway != "construction"]
             TrackGDF = TrackGDF[TrackGDF.railway != "defect_detector"]
             TrackGDF = TrackGDF[TrackGDF.railway != "traverser"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "tram"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "turntable"]
             TrackGDF = TrackGDF[TrackGDF.service != "construction"]
             TrackGDF = TrackGDF[TrackGDF.usage != "military"]
             TrackGDF = TrackGDF[TrackGDF.usage != "industrial"]
@@ -474,7 +482,9 @@ class NetworkBuilder:
             TrackGDF = TrackGDF[TrackGDF.service != "yard"]
             TrackGDF = TrackGDF[TrackGDF.service != "spur"]
 
-            TrackGDF = TrackGDF.drop("Note", axis=1)
+            if "Note" in TrackGDF.columns.values:
+                TrackGDF = TrackGDF.drop("Note", axis=1)
+
             TrackGDF.to_file(
                 self.geopackage_path, driver="GPKG", layer=layername + "_osm", mode="a"
             )
@@ -774,11 +784,11 @@ class NetworkBuilder:
         result = pd.Series()
         result["distances"] = distances
         result["offsets"] = list(
-            np.cumsum(distances)
+            map(float, list(np.cumsum(distances)))
         )  # convert back to list to keep format of data in cell consistent
         result["headings"] = headings
-        result["smooth headings"] = smooth_link_data(
-            result.offsets, headings, unwrap_heading=True
+        result["smooth headings"] = list(
+            map(float, smooth_link_data(result.offsets, headings, unwrap_heading=True))
         )
         return result
 
@@ -1423,9 +1433,10 @@ if __name__ == "__main__":
         pass
 
     MyBuilder = NetworkBuilder(
-        alt.resources_root() / "networks/NetworkInput.gpkg",
-        "Network Builder Test",
-        "TestBuilder",
+        # alt.resources_root() / "networks/NetworkInput_small.gpkg",
+        "resources/networks/NetworkInput_small.gpkg",
+        "Network Builder Test Small",
+        "SmallNetworkBuild",
     )
 
     # print(fiona.listlayers(MyBuilder.geopackage_path))
@@ -1437,3 +1448,5 @@ if __name__ == "__main__":
     # MyBuilder.convert_to_yaml()
     # MyBuilder.indentify_links()
     # MyBuilder.build_links()
+    # MyBuilder.download_elevation()
+    # MyBuilder.create_virtual_raster()

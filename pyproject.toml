@@ -34,7 +34,7 @@ classifiers = [
 ]
 dependencies = [
     "pandas>=2",
-    "numpy~=1.24",
+    "numpy<=2.2.5",
     "pymoo==0.6",
     "openpyxl",
     "xlrd",
@@ -103,4 +103,17 @@ build_and_test = { depends-on = ["cargo_test", "py_test"] }
 fmt = "ruff"
 lint = "pylint"
 style = { depends-on = ["fmt", "lint"] }
+
+[tool.pixi.dependencies]
+geopandas = ">=1.0.1,<2"
+fiona = ">=1.10.1,<2"
+rasterio = ">=1.4.3,<2"
+seamless-3dep = ">=0.3.1,<0.4"
+overpy = ">=0.7,<0.8"
+shapely = ">=2.1.0,<3"
+geographiclib = ">=2.0,<3"
+momepy = ">=0.10.0,<0.11"
+gdal = ">=3.10.3,<4"
+proj-data = ">=1.21,<2"
+pytz = ">=2025.2,<2026"
 

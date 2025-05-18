@@ -445,6 +445,9 @@ impl SpeedLimitTrainSim {
             self.state.dt,
             Some(true),
         )?;
+
+        self.loco_con.set_cumulative()?;
+        self.fric_brake.set_cumulative()?;
         Ok(())
     }
 

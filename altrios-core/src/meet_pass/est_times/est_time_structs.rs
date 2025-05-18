@@ -41,11 +41,11 @@ impl SimpleState {
 #[altrios_api]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, SerdeAPI, PartialEq)]
 pub struct SavedSim {
-    #[api(skip_get, skip_set)]
+
     pub train_sim: Box<SpeedLimitTrainSim>,
-    #[api(skip_get, skip_set)]
+
     pub join_paths: Vec<EstJoinPath>,
-    #[api(skip_get, skip_set)]
+
     pub est_alt: EstTime,
 }
 

@@ -18,7 +18,7 @@ pub struct LinkOld {
     pub elevs: Vec<Elev>,
     #[serde(default)]
     pub headings: Vec<Heading>,
-    #[api(skip_get, skip_set)]
+
     pub speed_sets: Vec<OldSpeedSet>,
     #[serde(default)]
     pub cat_power_limits: Vec<CatPowerLimit>,

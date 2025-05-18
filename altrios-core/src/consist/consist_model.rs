@@ -95,14 +95,14 @@ use super::*;
 /// Struct for simulating power distribution controls and energy usage of locomotive consist.
 pub struct Consist {
     // pretty sure these won't get automatically generated correctly
-    #[api(skip_get, skip_set)]
+
     /// vector of locomotives, must be private to allow for side effects when setting
     pub loco_vec: Vec<Locomotive>,
-    #[api(skip_set, skip_get)]
+
     /// power distribution control type
     pub pdct: PowerDistributionControlType,
     #[serde(default = "utils::return_true")]
-    #[api(skip_set)] // setter needs to also apply to individual locomotives
+ // setter needs to also apply to individual locomotives
     /// whether to panic if TPC requires more power than consist can deliver
     assert_limits: bool,
     #[serde(default)]
@@ -111,10 +111,10 @@ pub struct Consist {
     #[serde(default, skip_serializing_if = "ConsistStateHistoryVec::is_empty")]
     /// Custom vector of [Self::state]
     pub history: ConsistStateHistoryVec,
-    #[api(skip_set, skip_get)] // custom needed for this
+
     save_interval: Option<usize>,
     #[serde(skip)]
-    #[api(skip_get, skip_set)]
+
     n_res_equipped: Option<u8>,
 }
 

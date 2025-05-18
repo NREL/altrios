@@ -5,9 +5,9 @@ use crate::imports::*;
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, SerdeAPI)]
 #[altrios_api]
 pub struct SpeedLimitPoint {
-    #[api(skip_set)]
+
     pub offset: si::Length,
-    #[api(skip_set)]
+
     pub speed_limit: si::Velocity,
 }
 

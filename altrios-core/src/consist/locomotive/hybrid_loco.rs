@@ -22,7 +22,7 @@ pub struct HybridLoco {
     #[has_state]
     pub edrv: ElectricDrivetrain,
     /// control strategy for distributing power demand between `fc` and `res`
-    #[api(skip_get, skip_set)]
+
     #[serde(default)]
     pub pt_cntrl: HybridPowertrainControls,
     /// field for tracking current state
@@ -724,46 +724,46 @@ fn get_pwr_gen_elec_out_for_eff_fc(
 pub struct RESGreedyWithDynamicBuffers {
     /// RES energy delta from minimum SOC corresponding to kinetic energy of
     /// vehicle at this speed that triggers ramp down in RES discharge.
-    #[api(skip_get, skip_set)]
+
     pub speed_soc_disch_buffer: Option<si::Velocity>,
     /// Coefficient for modifying amount of accel buffer
-    #[api(skip_get, skip_set)]
+
     pub speed_soc_disch_buffer_coeff: Option<si::Ratio>,
     /// RES energy delta from minimum SOC corresponding to kinetic energy of
     /// vehicle at this speed that triggers FC to be forced on.
-    #[api(skip_get, skip_set)]
+
     pub speed_soc_fc_on_buffer: Option<si::Velocity>,
     /// Coefficient for modifying amount of [Self::speed_soc_fc_on_buffer]
-    #[api(skip_get, skip_set)]
+
     pub speed_soc_fc_on_buffer_coeff: Option<si::Ratio>,
     /// RES energy delta from maximum SOC corresponding to kinetic energy of
     /// vehicle at current speed minus kinetic energy of vehicle at this speed
     /// triggers ramp down in RES discharge
-    #[api(skip_get, skip_set)]
+
     pub speed_soc_regen_buffer: Option<si::Velocity>,
     /// Coefficient for modifying amount of regen buffer
-    #[api(skip_get, skip_set)]
+
     pub speed_soc_regen_buffer_coeff: Option<si::Ratio>,
     // TODO: make it so that the engine never goes off at all
     /// Minimum time engine must remain on if it was on during the previous
     /// simulation time step.
-    #[api(skip_get, skip_set)]
+
     pub fc_min_time_on: Option<si::Time>,
     /// Speed at which [FuelConverter] is forced on.
-    #[api(skip_get, skip_set)]
+
     pub speed_fc_forced_on: Option<si::Velocity>,
     /// Fraction of total aux and powertrain rated power at which
     /// [FuelConverter] is forced on.
-    #[api(skip_get, skip_set)]
+
     pub frac_pwr_demand_fc_forced_on: Option<si::Ratio>,
     /// Force engine, if on, to run at this fraction of peak power or the
     /// required power, whichever is greater. If SOC is below min buffer or
     /// engine is otherwise forced on and battery has room to receive charge,
     /// engine will run at this level and charge.
-    #[api(skip_get, skip_set)]
+
     pub frac_of_max_pwr_to_run_fc: Option<si::Ratio>,
     /// Force generator, if engine is on, to run at this power to help run engine efficiently
-    #[api(skip_get, skip_set)]
+
     pub pwr_gen_elec_out_for_eff_fc: Option<si::Power>,
     // /// temperature at which engine is forced on to warm up
     // #[serde(default)]

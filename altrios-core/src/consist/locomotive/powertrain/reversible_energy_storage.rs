@@ -125,17 +125,17 @@ pub struct ReversibleEnergyStorage {
     pub state: ReversibleEnergyStorageState,
     /// ReversibleEnergyStorage mass
     #[serde(default)]
-    #[api(skip_get, skip_set)]
+
     mass: Option<si::Mass>,
     /// ReversibleEnergyStorage volume, used as a sanity check
-    #[api(skip_get, skip_set)]
+
     #[serde(default)]
     volume: Option<si::Volume>,
     /// ReversibleEnergyStorage specific energy
-    #[api(skip_get, skip_set)]
+
     specific_energy: Option<si::SpecificEnergy>,
     /// ReversibleEnergyStorage energy density (note that pressure has the same units as energy density)
-    #[api(skip_get, skip_set)]
+
     pub energy_density: Option<si::Pressure>,
     /// efficiency map grid values - indexed temp; soc; c_rate;
     pub eta_interp_grid: [Vec<f64>; 3],

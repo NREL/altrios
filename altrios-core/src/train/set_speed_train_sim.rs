@@ -255,15 +255,15 @@ pub struct SetSpeedTrainSim {
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: TrainState,
     pub speed_trace: SpeedTrace,
-    #[api(skip_get, skip_set)]
+
     /// train resistance calculation
     pub train_res: TrainRes,
-    #[api(skip_set)]
+
     path_tpc: PathTpc,
     /// Custom vector of [Self::state]
     #[serde(default, skip_serializing_if = "TrainStateHistoryVec::is_empty")]
     pub history: TrainStateHistoryVec,
-    #[api(skip_set, skip_get)]
+
     save_interval: Option<usize>,
     /// Time-dependent temperature at sea level that can be corrected for
     /// altitude using a standard model

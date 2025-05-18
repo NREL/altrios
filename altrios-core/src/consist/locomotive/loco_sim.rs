@@ -30,7 +30,7 @@ pub struct PowerTrace {
     /// Speed, needed only if simulating [HybridElectricLocomotive]  
     pub train_speed: Vec<si::Velocity>,
     /// Train mass, needed only if simulating [HybridElectricLocomotive]
-    #[api(skip_get, skip_set)]
+
     pub train_mass: Option<si::Mass>,
 }
 

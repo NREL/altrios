@@ -55,10 +55,10 @@ pub struct FuelConverter {
     pub state: FuelConverterState,
     /// FuelConverter mass
     #[serde(default)]
-    #[api(skip_get, skip_set)]
+
     mass: Option<si::Mass>,
     /// FuelConverter specific power
-    #[api(skip_get, skip_set)]
+
     specific_pwr: Option<si::SpecificPower>,
     /// max rated brake output power
     pub pwr_out_max: si::Power,
@@ -76,7 +76,7 @@ pub struct FuelConverter {
     pub eta_interp: Vec<f64>,
     /// pwr at which peak efficiency occurs
     #[serde(skip)]
-    #[api(skip_get)]
+
     pub(crate) pwr_for_peak_eff: si::Power,
     /// idle fuel power to overcome internal friction (not including aux load)
     pub pwr_idle_fuel: si::Power,
@@ -84,7 +84,7 @@ pub struct FuelConverter {
     /// and temperature. When interpolating, this returns fraction of normal
     /// peak power, e.g. a value of 1 means no derating and a value of 0 means
     /// the engine is completely disabled.
-    #[api(skip_get, skip_set)]
+
     pub elev_and_temp_derate: Option<Interp2DOwned<f64, strategy::Linear>>,
     /// time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,

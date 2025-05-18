@@ -10,18 +10,18 @@ use crate::imports::*;
 #[altrios_api]
 pub struct LinkPoint {
     /// Distance relative to the start of the PathTpc where `link_idx` starts
-    #[api(skip_set)]
+
     pub offset: si::Length,
-    #[api(skip_set)]
+
     /// Number of grade points in the current link
     pub grade_count: usize,
-    #[api(skip_set)]
+
     /// Number of curve points in the current link
     pub curve_count: usize,
-    #[api(skip_set)]
+
     /// Number of catenary power limit points in the current link
     pub cat_power_count: usize,
-    #[api(skip_set)]
+
     /// [LinkIdx] of current link
     pub link_idx: LinkIdx,
 }

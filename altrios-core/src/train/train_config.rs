@@ -103,12 +103,12 @@ pub struct TrainConfig {
     /// Train type matching one of the PTC types
     pub train_type: TrainType,
     /// Train length that overrides the railcar specific value, if provided
-    #[api(skip_get, skip_set)]
+
     pub train_length: Option<si::Length>,
     /// Total train mass that overrides the railcar specific values, if provided
-    #[api(skip_set, skip_get)]
+
     pub train_mass: Option<si::Mass>,
-    #[api(skip_get, skip_set)]
+
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     /// Optional vector of drag areas (i.e. drag coeff. times frontal area)
@@ -434,7 +434,7 @@ pub struct TrainSimBuilder {
     /// Destination_ID from train planner to map to track network locations.  Only needed if
     /// [Self::make_speed_limit_train_sim] will be called.
     pub destination_id: Option<String>,
-    #[api(skip_set)]
+
     init_train_state: Option<InitTrainState>,
 }
 

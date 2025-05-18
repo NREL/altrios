@@ -15,7 +15,7 @@ pub struct BatteryElectricLoco {
     pub edrv: ElectricDrivetrain,
     /// control strategy for distributing power demand between `fc` and `res`
     #[has_state]
-    #[api(skip_get, skip_set)]
+
     #[serde(default)]
     pub pt_cntrl: BatteryPowertrainControls,
     // /// field for tracking current state
@@ -235,18 +235,18 @@ impl BatteryPowertrainControls {
 pub struct RESGreedyWithDynamicBuffersBEL {
     /// RES energy delta from minimum SOC corresponding to kinetic energy of
     /// vehicle at this speed that triggers ramp down in RES discharge.
-    #[api(skip_get, skip_set)]
+
     pub speed_soc_disch_buffer: Option<si::Velocity>,
     /// Coefficient for modifying amount of accel buffer
-    #[api(skip_get, skip_set)]
+
     pub speed_soc_disch_buffer_coeff: Option<si::Ratio>,
     /// RES energy delta from maximum SOC corresponding to kinetic energy of
     /// vehicle at current speed minus kinetic energy of vehicle at this speed
     /// triggers ramp down in RES discharge
-    #[api(skip_get, skip_set)]
+
     pub speed_soc_regen_buffer: Option<si::Velocity>,
     /// Coefficient for modifying amount of regen buffer
-    #[api(skip_get, skip_set)]
+
     pub speed_soc_regen_buffer_coeff: Option<si::Ratio>,
     #[serde(default)]
     pub state: RGWDBStateBEL,

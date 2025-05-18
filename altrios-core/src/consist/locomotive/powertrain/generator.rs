@@ -77,25 +77,25 @@ pub struct Generator {
     pub state: GeneratorState,
     /// Generator mass
     #[serde(default)]
-    #[api(skip_get, skip_set)]
+
     mass: Option<si::Mass>,
     /// Generator specific power
-    #[api(skip_get, skip_set)]
+
     specific_pwr: Option<si::SpecificPower>,
     // no macro-generated setter because derived parameters would get messed up
     /// Generator brake power fraction array at which efficiencies are evaluated.
-    #[api(skip_set)]
+
     pub pwr_out_frac_interp: Vec<f64>,
     // no macro-generated setter because derived parameters would get messed up
     /// Generator efficiency array correpsonding to [Self::pwr_out_frac_interp]
     /// and [Self::pwr_in_frac_interp].
-    #[api(skip_set)]
+
     pub eta_interp: Vec<f64>,
     /// Mechanical input power fraction array at which efficiencies are
     /// evaluated.  This vec is calculated during initialization. Each element
     /// represents the current input power divided by peak output power.
     #[serde(skip)]
-    #[api(skip_set)]
+
     pub pwr_in_frac_interp: Vec<f64>,
     /// Generator max power out
     pub pwr_out_max: si::Power,

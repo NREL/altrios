@@ -68,7 +68,7 @@ impl Default for EstTime {
     }
 )]
 pub struct EstTimeNet {
-    #[api(skip_get, skip_set)]
+
     pub val: Vec<EstTime>,
 }
 impl EstTimeNet {

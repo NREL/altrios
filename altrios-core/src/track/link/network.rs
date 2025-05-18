@@ -56,7 +56,7 @@ pub struct Link {
     pub link_idxs_lockout: Vec<LinkIdx>,
 
     #[serde(skip)]
-    #[api(skip_get, skip_set)]
+
     pub err_tol: Option<NetworkErrTol>,
 }
 
@@ -371,16 +371,16 @@ pub struct Network(pub NetworkErrTol, pub Vec<Link>);
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 /// Network error tolerances used in [Network::init]
 pub struct NetworkErrTol {
-    #[api(skip_get, skip_set)]
+
     /// Maximum absolute grade allowed at any point in the network
     pub max_grade: Option<si::Ratio>,
-    #[api(skip_get, skip_set)]
+
     /// Maximum absolute curvature allowed anywhere in the network
     pub max_curv: Option<si::Curvature>,
-    #[api(skip_get, skip_set)]
+
     /// Maximum allowed step change in heading for coincident nodes in adjacent links
     pub max_heading_step: Option<si::Angle>,
-    #[api(skip_get, skip_set)]
+
     /// Maximum allowed step change in elevation for coincident nodes in
     /// adjacent links, should be very small
     pub max_elev_step: Option<si::Length>,

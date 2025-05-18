@@ -34,7 +34,7 @@ impl ObjState for TrainType {
 #[altrios_api]
 pub struct SpeedSet {
     pub speed_limits: Vec<SpeedLimit>,
-    #[api(skip_get, skip_set)]
+
     #[serde(default)]
     pub speed_params: Vec<SpeedParam>,
     pub is_head_end: bool,
@@ -45,9 +45,9 @@ pub struct SpeedSet {
 /// Helper struct to create [SpeedSet] from deprecated data format
 pub struct OldSpeedSet {
     pub speed_limits: Vec<SpeedLimit>,
-    #[api(skip_get, skip_set)]
+
     pub speed_params: Vec<SpeedParam>,
-    #[api(skip_get, skip_set)]
+
     pub train_type: TrainType,
     pub is_head_end: bool,
 }

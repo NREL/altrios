@@ -160,7 +160,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 /// because of differences in braking controls but should generally be very close (i.e. error in cumulative
 /// fuel/battery energy should be less than 0.1%)
 pub struct SpeedLimitTrainSim {
-    #[api(skip_set)]
+
     pub train_id: String,
     pub origs: Vec<Location>,
     pub dests: Vec<Location>,
@@ -170,17 +170,17 @@ pub struct SpeedLimitTrainSim {
     #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: TrainState,
-    #[api(skip_set, skip_get)]
+
     pub train_res: TrainRes,
-    #[api(skip_set)]
+
     pub path_tpc: PathTpc,
-    #[api(skip_set)]
+
     pub braking_points: BrakingPoints,
     pub fric_brake: FricBrake,
     /// Custom vector of [Self::state]
     #[serde(default, skip_serializing_if = "TrainStateHistoryVec::is_empty")]
     pub history: TrainStateHistoryVec,
-    #[api(skip_set, skip_get)]
+
     save_interval: Option<usize>,
     simulation_days: Option<i32>,
     scenario_year: Option<i32>,

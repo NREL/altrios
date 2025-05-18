@@ -176,7 +176,7 @@ pub struct LocoParams {
     pub pwr_aux_traction_coeff: si::Ratio,
     /// [Locomotive::force_max]
     pub force_max: si::Force,
-    #[api(skip_get, skip_set)]
+
     /// [Locomotive::mass]
     pub mass: Option<si::Mass>,
 }
@@ -534,7 +534,7 @@ impl LocoTrait for DummyLoco {
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 /// Struct for simulating any type of locomotive
 pub struct Locomotive {
-    #[api(skip_get, skip_set)]
+
     /// type of locomotive including contained type-specific parameters
     /// and variables
     pub loco_type: PowertrainType,
@@ -542,26 +542,26 @@ pub struct Locomotive {
     #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: LocomotiveState,
-    #[api(skip_get, skip_set)]
+
     #[serde(default)]
     /// Locomotive mass
     mass: Option<si::Mass>,
     /// Locomotive coefficient of friction between wheels and rail when
     /// stopped (i.e. traction coefficient)
-    #[api(skip_get, skip_set)]
+
     mu: Option<si::Ratio>,
     /// Ballast mass, any mass that must be added to achieve nominal
     /// locomotive weight of 432,000 lb.
-    #[api(skip_get, skip_set)]
+
     ballast_mass: Option<si::Mass>,
     /// Baseline mass, which comprises any non-differentiating
     /// components between technologies, e.g. chassis, motors, trucks,
     /// cabin
-    #[api(skip_get, skip_set)]
+
     baseline_mass: Option<si::Mass>,
     /// time step interval between saves.  1 is a good option.  If None,
     /// no saving occurs.
-    #[api(skip_set, skip_get)]
+
     save_interval: Option<usize>,
     /// Custom vector of [Self::state]
     #[serde(default, skip_serializing_if = "LocomotiveStateHistoryVec::is_empty")]
@@ -576,7 +576,7 @@ pub struct Locomotive {
     /// of aux load, in terms of ratio of aux power per tractive power
     pub pwr_aux_traction_coeff: si::Ratio,
     /// maximum tractive force
-    #[api(skip_get, skip_set)]
+
     force_max: si::Force,
 }
 

@@ -11,19 +11,19 @@ use crate::imports::*;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
 #[altrios_api]
 pub struct PathTpc {
-    #[api(skip_set)]
+
     link_points: Vec<LinkPoint>,
-    #[api(skip_set)]
+
     grades: Vec<PathResCoeff>,
-    #[api(skip_set)]
+
     curves: Vec<PathResCoeff>,
-    #[api(skip_set)]
+
     speed_points: Vec<SpeedLimitPoint>,
-    #[api(skip_set)]
+
     cat_power_limits: Vec<CatPowerLimit>,
-    #[api(skip_set)]
+
     train_params: TrainParams,
-    #[api(skip_set)]
+
     is_finished: bool,
 }
 

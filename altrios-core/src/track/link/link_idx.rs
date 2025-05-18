@@ -16,7 +16,7 @@ use std::io::prelude::*;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default, SerdeAPI)]
 /// See [supplementary documentation.](https://nrel.github.io/altrios/doc/rail-network.html)
 pub struct LinkIdx {
-    #[api(skip_set)]
+
     /// index of link within network
     idx: u32,
 }

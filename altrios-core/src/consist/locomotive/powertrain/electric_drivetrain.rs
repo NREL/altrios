@@ -62,13 +62,13 @@ pub struct ElectricDrivetrain {
     pub state: ElectricDrivetrainState,
     /// Shaft output power fraction array at which efficiencies are evaluated.
     pub pwr_out_frac_interp: Vec<f64>,
-    #[api(skip_set)]
+
     /// Efficiency array corresponding to [Self::pwr_out_frac_interp] and [Self::pwr_in_frac_interp]
     pub eta_interp: Vec<f64>,
     /// Electrical input power fraction array at which efficiencies are evaluated.
     /// Calculated during runtime if not provided.
     #[serde(skip)]
-    #[api(skip_set)]
+
     pub pwr_in_frac_interp: Vec<f64>,
     /// ElectricDrivetrain maximum output power assuming that positive and negative tractive powers have same magnitude
     pub pwr_out_max: si::Power,

@@ -95,14 +95,13 @@ use super::*;
 /// Struct for simulating power distribution controls and energy usage of locomotive consist.
 pub struct Consist {
     // pretty sure these won't get automatically generated correctly
-
     /// vector of locomotives, must be private to allow for side effects when setting
     pub loco_vec: Vec<Locomotive>,
 
     /// power distribution control type
     pub pdct: PowerDistributionControlType,
     #[serde(default = "utils::return_true")]
- // setter needs to also apply to individual locomotives
+    // setter needs to also apply to individual locomotives
     /// whether to panic if TPC requires more power than consist can deliver
     assert_limits: bool,
     #[serde(default)]
@@ -114,7 +113,6 @@ pub struct Consist {
 
     save_interval: Option<usize>,
     #[serde(skip)]
-
     n_res_equipped: Option<u8>,
 }
 
@@ -132,6 +130,14 @@ impl Init for Consist {
     }
 }
 impl SerdeAPI for Consist {}
+impl SetCumulative for Consist {
+    fn set_cumulative(&mut self, dt: si::Time) -> anyhow::Result<()> {
+        for &mut loco in self.loco_vec.iter_mut() {
+            loco.set_cumulative().with_context(|| format_dbg!())?;
+        }
+        Ok(())
+    }
+}
 
 impl Consist {
     pub fn new(

@@ -160,7 +160,6 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 /// because of differences in braking controls but should generally be very close (i.e. error in cumulative
 /// fuel/battery energy should be less than 0.1%)
 pub struct SpeedLimitTrainSim {
-
     pub train_id: String,
     pub origs: Vec<Location>,
     pub dests: Vec<Location>,

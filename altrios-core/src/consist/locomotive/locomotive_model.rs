@@ -275,14 +275,59 @@ impl LocoTrait for DummyLoco {
     }
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+/// Struct for simulating any type of locomotive
+pub struct Locomotive {
+    /// type of locomotive including contained type-specific parameters
+    /// and variables
+    pub loco_type: PowertrainType,
+    /// current state of locomotive
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    pub state: LocomotiveState,
+
+    #[serde(default)]
+    /// Locomotive mass
+    mass: Option<si::Mass>,
+    /// Locomotive coefficient of friction between wheels and rail when
+    /// stopped (i.e. traction coefficient)
+    mu: Option<si::Ratio>,
+    /// Ballast mass, any mass that must be added to achieve nominal
+    /// locomotive weight of 432,000 lb.
+    ballast_mass: Option<si::Mass>,
+    /// Baseline mass, which comprises any non-differentiating
+    /// components between technologies, e.g. chassis, motors, trucks,
+    /// cabin
+    baseline_mass: Option<si::Mass>,
+    /// time step interval between saves.  1 is a good option.  If None,
+    /// no saving occurs.
+    save_interval: Option<usize>,
+    /// Custom vector of [Self::state]
+    #[serde(default, skip_serializing_if = "LocomotiveStateHistoryVec::is_empty")]
+    pub history: LocomotiveStateHistoryVec,
+    #[serde(default = "utils::return_true")]
+    /// If true, requires power demand to not exceed consist
+    /// capabilities.  May be deprecated soon.
+    pub assert_limits: bool,
+    /// constant aux load
+    pub pwr_aux_offset: si::Power,
+    /// gain for linear model on traction power used to compute traction-power-dependent component
+    /// of aux load, in terms of ratio of aux power per tractive power
+    pub pwr_aux_traction_coeff: si::Ratio,
+    /// maximum tractive force
+    force_max: si::Force,
+}
+
+#[named_struct_pyo3_api]
+impl FuelConverter {
     #[new]
     #[pyo3(signature = (loco_type, loco_params, save_interval=None))]
     fn __new__(
         // needs to be variant in PowertrainType
         loco_type: &Bound<PyAny>,
         loco_params: LocoParams,
-        save_interval: Option<usize>
+        save_interval: Option<usize>,
     ) -> anyhow::Result<Self> {
         let loco_type = loco_type
             .extract::<ConventionalLoco>()
@@ -349,20 +394,19 @@ impl LocoTrait for DummyLoco {
 
     #[staticmethod]
     #[pyo3(name = "default_battery_electric_loco")]
-    fn default_battery_electric_loco_py () -> anyhow::Result<Self> {
+    fn default_battery_electric_loco_py() -> anyhow::Result<Self> {
         Ok(Self::default_battery_electric_loco())
     }
 
     #[staticmethod]
     #[pyo3(name = "default_hybrid_electric_loco")]
-    fn default_hybrid_electric_loco_py () -> anyhow::Result<Self> {
+    fn default_hybrid_electric_loco_py() -> anyhow::Result<Self> {
         Ok(Self::default_hybrid_electric_loco())
     }
 
-
     #[staticmethod]
     fn build_dummy_loco() -> Self {
-        let mut dummy  = Self {
+        let mut dummy = Self {
             loco_type: PowertrainType::DummyLoco(DummyLoco::default()),
             state: LocomotiveState::default(),
             save_interval: None,
@@ -402,7 +446,9 @@ impl LocoTrait for DummyLoco {
 
     #[setter(__fc)]
     fn set_fc_hidden(&mut self, fc: FuelConverter) -> anyhow::Result<()> {
-        Ok(self.set_fuel_converter(fc).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
+        Ok(self
+            .set_fuel_converter(fc)
+            .map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
     #[getter]
     fn get_gen(&self) -> Option<Generator> {
@@ -415,7 +461,9 @@ impl LocoTrait for DummyLoco {
     }
     #[setter(__gen)]
     fn set_gen_hidden(&mut self, gen: Generator) -> anyhow::Result<()> {
-        Ok(self.set_generator(gen).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
+        Ok(self
+            .set_generator(gen)
+            .map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
     #[getter]
     fn get_res(&self) -> Option<ReversibleEnergyStorage> {
@@ -428,7 +476,9 @@ impl LocoTrait for DummyLoco {
 
     #[setter(__res)]
     fn set_res_hidden(&mut self, res: ReversibleEnergyStorage) -> anyhow::Result<()> {
-        Ok(self.set_reversible_energy_storage(res).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
+        Ok(self
+            .set_reversible_energy_storage(res)
+            .map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
     #[getter]
     fn get_edrv(&self) -> Option<ElectricDrivetrain> {
@@ -440,7 +490,9 @@ impl LocoTrait for DummyLoco {
     }
     #[setter(__edrv)]
     fn set_edrv_hidden(&mut self, edrv: ElectricDrivetrain) -> anyhow::Result<()> {
-        Ok(self.set_electric_drivetrain(edrv).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
+        Ok(self
+            .set_electric_drivetrain(edrv)
+            .map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
 
     fn loco_type(&self) -> anyhow::Result<String> {
@@ -462,8 +514,8 @@ impl LocoTrait for DummyLoco {
         Ok(self.force_max()?.get::<si::newton>())
     }
 
-    #[pyo3(name="set_force_max_newtons")]
-    /// Sets max tractive force and applies `side_effect`.  Note that this should be 
+    #[pyo3(name = "set_force_max_newtons")]
+    /// Sets max tractive force and applies `side_effect`.  Note that this should be
     /// used only on a standalone `Locomotive` (i.e. not nested in another object).
     /// # Arguments
     /// - `force_max`: max tractive force
@@ -471,25 +523,19 @@ impl LocoTrait for DummyLoco {
     fn set_force_max_newtons_py(
         &mut self,
         force_max: f64,
-        side_effect: String
+        side_effect: String,
     ) -> anyhow::Result<()> {
-        self.set_force_max(
-            force_max * uc::N,
-            side_effect.try_into()?
-        )?;
+        self.set_force_max(force_max * uc::N, side_effect.try_into()?)?;
         Ok(())
     }
 
-    #[pyo3(name="set_force_max_pounds")]
+    #[pyo3(name = "set_force_max_pounds")]
     fn set_force_max_pounds_py(
         &mut self,
         force_max: f64,
-        side_effect: String
+        side_effect: String,
     ) -> anyhow::Result<()> {
-        self.set_force_max(
-            force_max * uc::LBF,
-            side_effect.try_into()?
-        )?;
+        self.set_force_max(force_max * uc::LBF, side_effect.try_into()?)?;
         Ok(())
     }
 
@@ -513,71 +559,16 @@ impl LocoTrait for DummyLoco {
         Ok(self.mu()?.map(|mu| mu.get::<si::ratio>()))
     }
 
-    /// Sets traction coefficient and applies `side_effect`.  Note that this should be 
+    /// Sets traction coefficient and applies `side_effect`.  Note that this should be
     /// used only on a standalone `Locomotive` (i.e. not nested in another object).
     /// # Arguments
     /// - `mu`: tractive coefficient between wheel and rail
     /// - `side_effect`: string form of `MuSideEffect`
-    #[pyo3(name="set_mu")]
-    fn set_mu_py(
-        &mut self,
-        mu: f64,
-        mu_side_effect: String
-    ) -> anyhow::Result<()> {
-        self.set_mu(
-            mu * uc::R,
-            mu_side_effect.try_into()?
-        )?;
+    #[pyo3(name = "set_mu")]
+    fn set_mu_py(&mut self, mu: f64, mu_side_effect: String) -> anyhow::Result<()> {
+        self.set_mu(mu * uc::R, mu_side_effect.try_into()?)?;
         Ok(())
     }
-)]
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-/// Struct for simulating any type of locomotive
-pub struct Locomotive {
-
-    /// type of locomotive including contained type-specific parameters
-    /// and variables
-    pub loco_type: PowertrainType,
-    /// current state of locomotive
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    pub state: LocomotiveState,
-
-    #[serde(default)]
-    /// Locomotive mass
-    mass: Option<si::Mass>,
-    /// Locomotive coefficient of friction between wheels and rail when
-    /// stopped (i.e. traction coefficient)
-
-    mu: Option<si::Ratio>,
-    /// Ballast mass, any mass that must be added to achieve nominal
-    /// locomotive weight of 432,000 lb.
-
-    ballast_mass: Option<si::Mass>,
-    /// Baseline mass, which comprises any non-differentiating
-    /// components between technologies, e.g. chassis, motors, trucks,
-    /// cabin
-
-    baseline_mass: Option<si::Mass>,
-    /// time step interval between saves.  1 is a good option.  If None,
-    /// no saving occurs.
-
-    save_interval: Option<usize>,
-    /// Custom vector of [Self::state]
-    #[serde(default, skip_serializing_if = "LocomotiveStateHistoryVec::is_empty")]
-    pub history: LocomotiveStateHistoryVec,
-    #[serde(default = "utils::return_true")]
-    /// If true, requires power demand to not exceed consist
-    /// capabilities.  May be deprecated soon.
-    pub assert_limits: bool,
-    /// constant aux load
-    pub pwr_aux_offset: si::Power,
-    /// gain for linear model on traction power used to compute traction-power-dependent component
-    /// of aux load, in terms of ratio of aux power per tractive power
-    pub pwr_aux_traction_coeff: si::Ratio,
-    /// maximum tractive force
-
-    force_max: si::Force,
 }
 
 impl Default for Locomotive {

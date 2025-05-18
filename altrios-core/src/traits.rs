@@ -466,3 +466,9 @@ pub trait Mass {
         Ok(())
     }
 }
+
+/// Trait for setting cumulative values based on rate values
+pub trait SetCumulative {
+    /// Sets cumulative values based on rate values
+    fn set_cumulative(&mut self, dt: si::Time) -> anyhow::Result<()>;
+}

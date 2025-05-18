@@ -1,12 +1,13 @@
 use crate::imports::*;
 use crate::utilities::TokenStreamIterator;
 
-pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
+#[allow(unused)]
+pub(crate) fn cycle_derive(input: TokenStream) -> TokenStream {
     let item_struct = syn::parse_macro_input!(input as syn::ItemStruct);
     let original_name = &item_struct.ident;
     let original_name_str: String = original_name.to_string();
     let new_name = Ident::new(
-        &format!("{}HistoryVec", original_name.to_token_stream()),
+        &format!("{}", original_name.to_token_stream()).replace("Element", ""),
         original_name.span(),
     );
     let new_name_str: String = new_name.to_string();
@@ -21,9 +22,7 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
         .map(|f| {
             let ident = f.ident.as_ref().unwrap();
             let ty = &f.ty;
-            let attrs = &f.attrs.iter().collect::<Vec<&syn::Attribute>>();
             quote! {
-                #(#attrs)*
                 pub #ident: Vec<#ty>,
             }
         })
@@ -38,7 +37,7 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
         })
         .concat();
     let mut generated = TokenStream2::new();
-    let struct_doc: TokenStream2 = format!("/// Stores history of {original_name_str}")
+    let struct_doc: TokenStream2 = format!("/// Vector version of {original_name_str}")
         .parse()
         .unwrap();
     let push_doc: TokenStream2 =
@@ -53,16 +52,8 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
         .parse()
         .unwrap();
     generated.append_all(quote! {
-        #[serde_api]
         #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-        #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
-        #struct_doc
-        pub struct #new_name {
-            #vec_fields
-        }
-
-        #[named_struct_pyo3_api]
-        impl #new_name {
+        #[fastsim_api(
             #[pyo3(name = "len")]
             fn len_py(&self) -> usize {
                 self.len()
@@ -71,10 +62,11 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
             fn __len__(&self) -> usize {
                 self.len()
             }
+        )]
+        #struct_doc
+        pub struct #new_name {
+            #vec_fields
         }
-
-        impl Init for #new_name { }
-        impl SerdeAPI for #new_name { }
 
         impl #new_name {
             /// Creates new emtpy vec container
@@ -85,8 +77,8 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
             }
 
             #push_doc
-            pub fn push(&mut self, state: #original_name) {
-                #(self.#field_names.push(state.#field_names.clone());)*
+            pub fn push(&mut self, value: #original_name) {
+                #(self.#field_names.push(value.#field_names);)*
             }
 
             /// clear all history vecs
@@ -102,7 +94,7 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
                     #(
                         let #field_names = self.#field_names.pop().unwrap();
                     )*
-                    Some(#original_name{#(#field_names: #field_names.clone()),*})
+                    Some(#original_name{#(#field_names: #field_names),*})
                 }
             }
 
@@ -122,18 +114,12 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
                 for i in 0..self.len() {
                     state_vec.push(
                         #original_name{
-                            #(#field_names: self.#field_names[i].clone(),)*
+                            #(#field_names: self.#field_names[i],)*
                         }
                     )
                 }
                 state_vec
             }
-
-            // TODO: flesh this out
-            // /// Returns fieldnames of any fields that are constant throughout history
-            // pub fn names_of_static_fields(&self) -> Vec<String> {
-
-            // }
         }
 
         impl Default for #new_name {
@@ -141,6 +127,8 @@ pub(crate) fn history_vec_derive(input: TokenStream) -> TokenStream {
                 #new_name::new()
             }
         }
+
+        impl SerdeAPI for #original_name { }
     });
     generated.into()
 }

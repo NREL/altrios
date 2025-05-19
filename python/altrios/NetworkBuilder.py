@@ -9,8 +9,15 @@ Created on Wed Apr  2 10:19:07 2025
 import sys
 import os
 
-# os.environ["GDAL_DATA"] = os.path.dirname(sys.executable) + r"\Library\share\gdal"
-# os.environ["PROJ_LIB"] = os.path.dirname(sys.executable) + r"\Library\share"
+env_folder_path = os.path.dirname(sys.executable)
+os.environ["GDAL_DATA"] = env_folder_path + "/Library/share/gdal"
+os.environ["GDAL_DRIVER_PATH"] = env_folder_path + "/Library/lib/gdalplugins"
+os.environ["GEOTIFF_CSV"] = env_folder_path + "/Library/share/epsg_csv"
+os.environ["PROJ_LIB"] = env_folder_path + "/Library/share/proj"
+
+# https://pyproj4.github.io/pyproj/stable/api/network.html
+# this is a copy from my base conda environment to see if pixi can be made to work.
+os.environ["PROJ_NETWORK"] = "OFF"
 
 import pandas as pd
 import geopandas as gpd
@@ -1322,7 +1329,7 @@ class NetworkBuilder:
 
         locations = gpd.read_file(
             self.input_geopackage, layer=self.input_locations_layer_name
-        )
+        ).to_crs("ESRI:102009")
 
         for layername in fiona.listlayers(self.geopackage_path):
             if "_linked" in layername:

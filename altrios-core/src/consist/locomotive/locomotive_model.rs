@@ -320,7 +320,7 @@ pub struct Locomotive {
 }
 
 #[named_struct_pyo3_api]
-impl FuelConverter {
+impl Locomotive {
     #[new]
     #[pyo3(signature = (loco_type, loco_params, save_interval=None))]
     fn __new__(

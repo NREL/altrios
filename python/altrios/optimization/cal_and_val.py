@@ -1,3 +1,6 @@
+# TODO: replace this module with https://github.com/NREL/fastsim/blob/fastsim-3/python/fastsim/pymoo_api.py
+# there may not need to be any significant changes, but I'm not sure yet
+
 """
 Module for running train, locomotive, and/or consist models to calibrate and validate 
 against test data.

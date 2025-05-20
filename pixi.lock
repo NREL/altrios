@@ -1682,7 +1682,7 @@ packages:
 - pypi: .
   name: altrios
   version: 0.3.0
-  sha256: a0ec1ea0645563f1959c0ad1d3e11f5741fefc3f49aa52061f81b36a7f24e172
+  sha256: 5786246454040b3a830d8d26b5ef2420d7b09d1c88e45e127705ad88ed469b5a
   requires_dist:
   - pandas>=2
   - pymoo==0.6

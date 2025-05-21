@@ -212,6 +212,9 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
             "yaml" | "yml" => serde_yaml::to_writer(wtr, self)?,
             #[cfg(feature = "json")]
             "json" => serde_json::to_writer(wtr, self)?,
+            #[cfg(feature = "msgpack")]
+            "msgpack" => rmp_serde::encode::write(&mut wtr, self)
+                .map_err(|err| Error::SerdeError(format!("{err}")))?,
             #[cfg(feature = "toml")]
             "toml" => {
                 let toml_string = self.to_toml()?;

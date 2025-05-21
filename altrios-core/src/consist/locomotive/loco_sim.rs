@@ -26,7 +26,7 @@ pub struct PowerTrace {
     pub pwr: Vec<si::Power>,
     /// Whether engine is on
     pub engine_on: Vec<Option<bool>>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     /// Speed, needed only if simulating [HybridElectricLocomotive]  
     pub train_speed: Vec<si::Velocity>,
     /// Train mass, needed only if simulating [HybridElectricLocomotive]

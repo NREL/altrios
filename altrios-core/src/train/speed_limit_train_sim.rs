@@ -178,7 +178,7 @@ pub struct SpeedLimitTrainSim {
     pub braking_points: BrakingPoints,
     pub fric_brake: FricBrake,
     /// Custom vector of [Self::state]
-    #[serde(default, skip_serializing_if = "TrainStateHistoryVec::is_empty")]
+    #[serde(default)]
     pub history: TrainStateHistoryVec,
     #[api(skip_set, skip_get)]
     save_interval: Option<usize>,
@@ -918,8 +918,34 @@ mod tests {
     impl Cases for SpeedLimitTrainSim {}
 
     #[test]
-    fn test_speed_limit_train_sim() {
-        let mut train_sim = SpeedLimitTrainSim::valid();
-        train_sim.walk().unwrap();
+    fn test_to_from_file_for_train_sim() {
+        let ts0 = SOLVED_SPEED_LIM_TRAIN_SIM.clone();
+        let tempdir = tempfile::tempdir().unwrap();
+
+        // // test to and from file for yaml
+        let temp_yaml_path = tempdir.path().join("ts.yaml");
+        ts0.to_file(temp_yaml_path.clone()).unwrap();
+        let ts_yaml = crate::prelude::SpeedLimitTrainSim::from_file(temp_yaml_path, false).unwrap();
+
+        // `to_yaml` is probably needed to get around problems with NAN
+        assert_eq!(ts_yaml.to_yaml().unwrap(), ts0.to_yaml().unwrap());
+
+        // test to and from file for msgpack
+        let temp_msgpack_path = tempdir.path().join("ts.msgpack");
+        ts0.to_file(temp_msgpack_path.clone()).unwrap();
+        let ts_msgpack =
+            crate::prelude::SpeedLimitTrainSim::from_file(temp_msgpack_path, false).unwrap();
+
+        // `to_yaml` is probably needed to get around problems with NAN
+        assert_eq!(ts_msgpack.to_yaml().unwrap(), ts0.to_yaml().unwrap());
+    }
+
+    lazy_static! {
+        static ref SOLVED_SPEED_LIM_TRAIN_SIM: crate::prelude::SpeedLimitTrainSim = {
+            let mut ts = crate::prelude::SpeedLimitTrainSim::valid();
+            ts.init().unwrap();
+            ts.walk().unwrap();
+            ts
+        };
     }
 }

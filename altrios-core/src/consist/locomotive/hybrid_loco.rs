@@ -29,7 +29,7 @@ pub struct HybridLoco {
     #[serde(default)]
     pub state: HELState,
     /// vector of [Self::state]
-    #[serde(default, skip_serializing_if = "HELStateHistoryVec::is_empty")]
+    #[serde(default)]
     pub history: HELStateHistoryVec,
 }
 
@@ -774,7 +774,7 @@ pub struct RESGreedyWithDynamicBuffers {
     /// current state of control variables
     #[serde(default)]
     pub state: RGWDBState,
-    #[serde(default, skip_serializing_if = "RGWDBStateHistoryVec::is_empty")]
+    #[serde(default)]
     /// history of current state
     pub history: RGWDBStateHistoryVec,
 }

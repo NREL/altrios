@@ -22,7 +22,7 @@ pub struct BatteryElectricLoco {
     // #[serde(default)]
     // pub state: BELState,
     // /// vector of [Self::state]
-    // #[serde(default, skip_serializing_if = "BELStateHistoryVec::is_empty")]
+    // #[serde(default)]
     // pub history: BELStateHistoryVec,
 }
 
@@ -250,7 +250,7 @@ pub struct RESGreedyWithDynamicBuffersBEL {
     pub speed_soc_regen_buffer_coeff: Option<si::Ratio>,
     #[serde(default)]
     pub state: RGWDBStateBEL,
-    #[serde(default, skip_serializing_if = "RGWDBStateBELHistoryVec::is_empty")]
+    #[serde(default)]
     /// history of current state
     pub history: RGWDBStateBELHistoryVec,
 }

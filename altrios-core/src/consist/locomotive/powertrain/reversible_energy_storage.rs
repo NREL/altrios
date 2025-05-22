@@ -7,7 +7,7 @@ pub(crate) mod res_legacy;
 
 const TOL: f64 = 1e-3;
 
-#[serde_apit]
+#[serde_api]
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, StateMethods, SetCumulative)]
 /// Struct for modeling technology-naive Reversible Energy Storage (e.g. battery, flywheel).
 pub struct ReversibleEnergyStorage {

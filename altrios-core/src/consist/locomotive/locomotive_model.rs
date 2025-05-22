@@ -283,15 +283,23 @@ impl LocoTrait for DummyLoco {
     ) -> anyhow::Result<()> {
         Ok(())
     }
-    fn save_state(&mut self) {}
-    fn step(&mut self) {}
     fn get_energy_loss(&self) -> si::Energy {
         si::Energy::ZERO
     }
 }
+impl SaveState for DummyLoco {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+impl Step for DummyLoco {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
 
 #[serde_api]
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, SetCumulative)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Struct for simulating any type of locomotive
 pub struct Locomotive {
@@ -583,6 +591,14 @@ impl Locomotive {
     #[pyo3(name = "set_mu")]
     fn set_mu_py(&mut self, mu: f64, mu_side_effect: String) -> anyhow::Result<()> {
         self.set_mu(mu * uc::R, mu_side_effect.try_into()?)?;
+        Ok(())
+    }
+}
+
+impl SetCumulative for Locomotive {
+    fn set_cumulative(&mut self, dt: si::Time) -> anyhow::Result<()> {
+        self.state.set_cumulative(dt)?;
+        self.pt_type.set_cumulative(dt)?;
         Ok(())
     }
 }

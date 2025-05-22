@@ -15,8 +15,7 @@ pub(crate) use crate::utils::{
 };
 pub(crate) use crate::validate::*;
 pub(crate) use altrios_proc_macros::{
-    pyo3_api, serde_api, tuple_struct_pyo3_api, HistoryVec, SetCumulative,
-    StateMethods,
+    pyo3_api, serde_api, HistoryVec, SetCumulative, StateMethods,
 };
 pub(crate) use anyhow::{anyhow, bail, ensure, Context};
 pub(crate) use bincode::{deserialize, serialize};

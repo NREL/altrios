@@ -141,14 +141,6 @@ impl LocoTrait for ConventionalLoco {
         Ok(())
     }
 
-    fn save_state(&mut self) {
-        self.save_state(|| format_dbg!());
-    }
-
-    fn step(&mut self) {
-        self.step(|| format_dbg!())
-    }
-
     fn get_energy_loss(&self) -> si::Energy {
         self.fc.state.energy_loss + self.gen.state.energy_loss + self.edrv.state.energy_loss
     }

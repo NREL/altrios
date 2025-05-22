@@ -193,14 +193,6 @@ impl LocoTrait for Box<HybridLoco> {
         Ok(())
     }
 
-    fn save_state(&mut self) {
-        self.deref_mut().save_state(|| format_dbg!());
-    }
-
-    fn step(&mut self) {
-        self.deref_mut().step(|| format_dbg!())
-    }
-
     fn get_energy_loss(&self) -> si::Energy {
         self.fc.state.energy_loss
             + self.gen.state.energy_loss

@@ -210,11 +210,14 @@ impl FuelConverter {
         };
 
         self.pwr_out_max_init = self.pwr_out_max_init.max(self.pwr_out_max / 10.);
-        self.state.pwr_out_max = (self.state.pwr_mech_out
-            + (self.pwr_out_max / self.pwr_ramp_lag) * dt)
-            .min(self.pwr_out_max)
-            .min(pwr_max_derated)
-            .max(self.pwr_out_max_init);
+        self.state.pwr_out_max.update(
+            *self.state.pwr_mech_out.get_stale(|| format_dbg!())?
+                + ((self.pwr_out_max / self.pwr_ramp_lag) * dt)
+                    .min(self.pwr_out_max)
+                    .min(pwr_max_derated)
+                    .max(self.pwr_out_max_init),
+            || format_dbg!(),
+        )?;
         Ok(())
     }
 
@@ -227,9 +230,11 @@ impl FuelConverter {
         assert_limits: bool,
     ) -> anyhow::Result<()> {
         if engine_on {
-            self.state.time_on += dt;
+            self.state.time_on.increment(dt, || format_dbg!())?;
         } else {
-            self.state.time_on = si::Time::ZERO;
+            self.state
+                .time_on
+                .update(si::Time::ZERO, || format_dbg!())?;
         }
 
         if assert_limits {
@@ -338,35 +343,37 @@ impl FuelConverter {
 }
 
 #[serde_api]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
+#[derive(
+    Clone, Debug, Deserialize, Serialize, PartialEq, HistoryVec, StateMethods, SetCumulative,
+)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct FuelConverterState {
     /// iteration counter
-    pub i: usize,
+    pub i: TrackedState<usize>,
     /// max power fc can produce at current time
-    pub pwr_out_max: si::Power,
+    pub pwr_out_max: TrackedState<si::Power>,
     /// efficiency evaluated at current demand
-    pub eta: si::Ratio,
+    pub eta: TrackedState<si::Ratio>,
     /// instantaneous power going to generator
-    pub pwr_mech_out: si::Power,
+    pub pwr_mech_out: TrackedState<si::Power>,
     /// instantaneous fuel power flow
-    pub pwr_fuel: si::Power,
+    pub pwr_fuel: TrackedState<si::Power>,
     /// loss power, including idle
-    pub pwr_loss: si::Power,
+    pub pwr_loss: TrackedState<si::Power>,
     /// idle fuel flow rate power
-    pub pwr_idle_fuel: si::Power,
+    pub pwr_idle_fuel: TrackedState<si::Power>,
     /// cumulative propulsion energy fc has produced
-    pub energy_brake: si::Energy,
+    pub energy_brake: TrackedState<si::Energy>,
     /// cumulative fuel energy fc has consumed
-    pub energy_fuel: si::Energy,
+    pub energy_fuel: TrackedState<si::Energy>,
     /// cumulative energy fc has lost due to imperfect efficiency
-    pub energy_loss: si::Energy,
+    pub energy_loss: TrackedState<si::Energy>,
     /// cumulative fuel energy fc has lost due to idle
-    pub energy_idle_fuel: si::Energy,
+    pub energy_idle_fuel: TrackedState<si::Energy>,
     /// If true, engine is on, and if false, off (no idle)
-    pub engine_on: bool,
+    pub engine_on: TrackedState<bool>,
     /// elapsed time since engine was turned on
-    pub time_on: si::Time,
+    pub time_on: TrackedState<si::Time>,
 }
 
 #[pyo3_api]

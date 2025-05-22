@@ -283,6 +283,7 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
     }
 }
 
+impl<T: SerdeAPI> SerdeAPI for Vec<T> {}
 impl<T: Init> Init for Vec<T> {
     fn init(&mut self) -> Result<(), Error> {
         for val in self {

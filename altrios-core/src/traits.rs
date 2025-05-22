@@ -110,16 +110,6 @@ pub trait Linspace {
 
 impl Linspace for Vec<f64> {}
 
-pub trait Init {
-    /// Specialized code to execute upon initialization.  For any struct with fields
-    /// that implement `Init`, this should propagate down the hierarchy.
-    fn init(&mut self) -> Result<(), Error> {
-        Ok(())
-    }
-}
-
-impl<T: SerdeAPI> SerdeAPI for Vec<T> {}
-
 /// Provides method for checking if an instance of `Self` is equal to `Self::default`
 pub trait EqDefault: Default + PartialEq {
     /// Checks if an instance of `Self` is equal to `Self::default`

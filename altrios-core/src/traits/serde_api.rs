@@ -1,11 +1,21 @@
 use super::*;
 
+pub trait Init {
+    /// Specialized code to execute upon initialization.  For any struct with fields
+    /// that implement `Init`, this should propagate down the hierarchy.
+    fn init(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
+}
+
 pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
     const ACCEPTED_BYTE_FORMATS: &'static [&'static str] = &[
         #[cfg(feature = "yaml")]
         "yaml",
         #[cfg(feature = "json")]
         "json",
+        #[cfg(feature = "msgpack")]
+        "msgpack",
         #[cfg(feature = "toml")]
         "toml",
     ];
@@ -275,6 +285,7 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
     }
 }
 
+impl<T: SerdeAPI> SerdeAPI for Vec<T> {}
 impl<T: Init> Init for Vec<T> {
     fn init(&mut self) -> Result<(), Error> {
         for val in self {

@@ -1,7 +1,7 @@
 use super::super::disp_imports::*;
 
 #[readonly::make]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, SerdeAPI, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct EstJoinPath {
     pub link_idx_match: LinkIdx,
     pub est_idx_next: EstIdx,
@@ -21,7 +21,7 @@ impl EstJoinPath {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, SerdeAPI)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
 pub struct SimpleState {
     pub time: si::Time,
     pub offset: si::Length,
@@ -38,16 +38,17 @@ impl SimpleState {
     }
 }
 
-#[altrios_api]
-#[derive(Debug, Default, Clone, Serialize, Deserialize, SerdeAPI, PartialEq)]
+#[serde_api]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct SavedSim {
-    #[api(skip_get, skip_set)]
     pub train_sim: Box<SpeedLimitTrainSim>,
-    #[api(skip_get, skip_set)]
     pub join_paths: Vec<EstJoinPath>,
-    #[api(skip_get, skip_set)]
     pub est_alt: EstTime,
 }
+
+#[pyo3_api]
+impl SavedSim {}
 
 impl SavedSim {
     /// Step the train sim forward and save appropriate state data in the movement
@@ -72,7 +73,7 @@ impl SavedSim {
         movement.push(SimpleState::from_train_state(&self.train_sim.state));
         // TODO: Tighten up this bound using braking points.
         while condition(&mut self.train_sim) {
-            self.train_sim.step()?;
+            self.train_sim.step(|| format_dbg!())?;
             movement.push(SimpleState::from_train_state(&self.train_sim.state));
         }
         self.train_sim.clear_path();

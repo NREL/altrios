@@ -1,31 +1,8 @@
 use crate::imports::*;
 
-#[altrios_api(
-    #[new]
-    #[pyo3(signature = (
-        force_max_newtons,
-        ramp_up_time_seconds=None,
-        ramp_up_coeff=None,
-        state=None,
-        save_interval=None,
-    ))]
-    fn __new__(
-        force_max_newtons: f64,
-        ramp_up_time_seconds: Option<f64>,
-        ramp_up_coeff: Option<f64>,
-        state: Option<FricBrakeState>,
-        save_interval: Option<usize>,
-    ) -> Self {
-        Self::new(
-            force_max_newtons * uc::N,
-            ramp_up_time_seconds.map(|ruts| ruts * uc::S),
-            ramp_up_coeff.map(|ruc| ruc * uc::R),
-            state,
-            save_interval,
-        )
-    }
-)]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 // brake propagation rate is ~800 ft/s (about speed of sound)
 // ramp up duration is ~30 s
 pub struct FricBrake {
@@ -49,6 +26,33 @@ pub struct FricBrake {
     /// Custom vector of [Self::state]
     pub history: FricBrakeStateHistoryVec,
     pub save_interval: Option<usize>,
+}
+
+#[pyo3_api]
+impl FricBrake {
+    #[new]
+    #[pyo3(signature = (
+        force_max_newtons,
+        ramp_up_time_seconds=None,
+        ramp_up_coeff=None,
+        state=None,
+        save_interval=None,
+    ))]
+    fn __new__(
+        force_max_newtons: f64,
+        ramp_up_time_seconds: Option<f64>,
+        ramp_up_coeff: Option<f64>,
+        state: Option<FricBrakeState>,
+        save_interval: Option<usize>,
+    ) -> Self {
+        Self::new(
+            force_max_newtons * uc::N,
+            ramp_up_time_seconds.map(|ruts| ruts * uc::S),
+            ramp_up_coeff.map(|ruc| ruc * uc::R),
+            state,
+            save_interval,
+        )
+    }
 }
 
 impl Default for FricBrake {
@@ -99,22 +103,25 @@ impl FricBrake {
 
 // TODO: figure out a way to make the braking reasonably polymorphic (e.g. for autonomous rail
 // vehicles)
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, HistoryVec)]
-#[altrios_api(
-    #[new]
-    fn __new__(
-    ) -> Self {
-        Self::new()
-    }
-)]
+#[serde_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, HistoryVec)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct FricBrakeState {
     /// index counter
-    pub i: usize,
+    pub i: TrackedState<usize>,
     // actual applied force of brakes
-    pub force: si::Force,
+    pub force: TrackedState<si::Force>,
     // time-varying max force of brakes in current time step
-    pub force_max_curr: si::Force,
+    pub force_max_curr: TrackedState<si::Force>,
     // pressure: si::Pressure,
+}
+
+#[pyo3_api]
+impl FricBrakeState {
+    #[new]
+    fn __new__() -> Self {
+        Self::new()
+    }
 }
 
 impl SerdeAPI for FricBrakeState {}
@@ -124,15 +131,5 @@ impl FricBrakeState {
     /// TODO: this method needs to accept arguments
     pub fn new() -> Self {
         Self::default()
-    }
-}
-
-impl Default for FricBrakeState {
-    fn default() -> Self {
-        Self {
-            i: 1,
-            force: Default::default(),
-            force_max_curr: Default::default(),
-        }
     }
 }

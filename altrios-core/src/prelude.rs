@@ -40,4 +40,3 @@ pub use crate::train::{
     SpeedLimitTrainSimVec, SpeedTrace, TemperatureTrace, TemperatureTraceBuilder, TimedLinkPath,
     TrainConfig, TrainRes, TrainSimBuilder, TrainState, TrainStateHistoryVec,
 };
-pub use crate::utils::{Pyo3Vec2Wrapper, Pyo3Vec3Wrapper, Pyo3VecBoolWrapper, Pyo3VecWrapper};

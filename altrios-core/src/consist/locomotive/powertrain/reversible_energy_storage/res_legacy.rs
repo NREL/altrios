@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, StateMethods, SetCumulative)]
 /// Legacy veryion of [ReversibleEnergyStorage]
 ///
 /// Struct for modeling technology-naive Reversible Energy Storage (e.g. battery, flywheel).
@@ -126,7 +126,7 @@ impl SerdeAPI for ReversibleEnergyStorageStateLegacy {}
 impl Default for ReversibleEnergyStorageStateLegacy {
     fn default() -> Self {
         Self {
-            i: 1,
+            i: Default::default(),
             soc: uc::R * 0.95,
             soh: 1.0,
             eta: Default::default(),

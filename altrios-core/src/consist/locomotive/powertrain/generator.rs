@@ -4,7 +4,42 @@ use crate::consist::locomotive::powertrain::ElectricMachine;
 #[cfg(feature = "pyo3")]
 use crate::pyo3::*;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Struct for modeling generator/alternator.
+pub struct Generator {
+    /// Generator mass
+    #[serde(default)]
+    mass: Option<si::Mass>,
+    /// Generator specific power
+    specific_pwr: Option<si::SpecificPower>,
+    // no macro-generated setter because derived parameters would get messed up
+    /// Generator brake power fraction array at which efficiencies are evaluated.
+    pub pwr_out_frac_interp: Vec<f64>,
+    // no macro-generated setter because derived parameters would get messed up
+    /// Generator efficiency array correpsonding to [Self::pwr_out_frac_interp]
+    /// and [Self::pwr_in_frac_interp].
+    pub eta_interp: Vec<f64>,
+    /// Mechanical input power fraction array at which efficiencies are
+    /// evaluated.  This vec is calculated during initialization. Each element
+    /// represents the current input power divided by peak output power.
+    #[serde(skip)]
+    pub pwr_in_frac_interp: Vec<f64>,
+    /// Generator max power out
+    pub pwr_out_max: si::Power,
+    /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
+    pub save_interval: Option<usize>,
+    #[serde(default)]
+    /// struct for tracking current state
+    pub state: GeneratorState,
+    /// Custom vector of [Self::state]
+    #[serde(default)]
+    pub history: GeneratorStateHistoryVec,
+}
+
+#[pyo3_api]
+impl Generator {
     /// Initialize a fuel converter object
     #[new]
     #[pyo3(signature = (
@@ -55,7 +90,9 @@ use crate::pyo3::*;
 
     #[setter("__eta_range")]
     fn set_eta_range_py(&mut self, eta_range: f64) -> anyhow::Result<()> {
-        Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
+        Ok(self
+            .set_eta_range(eta_range)
+            .map_err(PyValueError::new_err)?)
     }
 
     #[getter("mass_kg")]
@@ -65,45 +102,9 @@ use crate::pyo3::*;
 
     #[getter]
     fn get_specific_pwr_kw_per_kg(&self) -> Option<f64> {
-        self.specific_pwr.map(|sp| sp.get::<si::kilowatt_per_kilogram>())
+        self.specific_pwr
+            .map(|sp| sp.get::<si::kilowatt_per_kilogram>())
     }
-)]
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
-/// Struct for modeling generator/alternator.
-pub struct Generator {
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    /// struct for tracking current state
-    pub state: GeneratorState,
-    /// Generator mass
-    #[serde(default)]
-    #[api(skip_get, skip_set)]
-    mass: Option<si::Mass>,
-    /// Generator specific power
-    #[api(skip_get, skip_set)]
-    specific_pwr: Option<si::SpecificPower>,
-    // no macro-generated setter because derived parameters would get messed up
-    /// Generator brake power fraction array at which efficiencies are evaluated.
-    #[api(skip_set)]
-    pub pwr_out_frac_interp: Vec<f64>,
-    // no macro-generated setter because derived parameters would get messed up
-    /// Generator efficiency array correpsonding to [Self::pwr_out_frac_interp]
-    /// and [Self::pwr_in_frac_interp].
-    #[api(skip_set)]
-    pub eta_interp: Vec<f64>,
-    /// Mechanical input power fraction array at which efficiencies are
-    /// evaluated.  This vec is calculated during initialization. Each element
-    /// represents the current input power divided by peak output power.
-    #[serde(skip)]
-    #[api(skip_set)]
-    pub pwr_in_frac_interp: Vec<f64>,
-    /// Generator max power out
-    pub pwr_out_max: si::Power,
-    /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
-    pub save_interval: Option<usize>,
-    /// Custom vector of [Self::state]
-    #[serde(default)]
-    pub history: GeneratorStateHistoryVec,
 }
 
 impl Init for Generator {
@@ -383,59 +384,53 @@ impl ElectricMachine for Generator {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
-#[altrios_api]
+#[serde_api]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Serialize,
+    PartialEq,
+    HistoryVec,
+    StateMethods,
+    SetCumulative,
+)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct GeneratorState {
     /// iteration counter
-    pub i: usize,
+    pub i: TrackedState<usize>,
     /// efficiency evaluated at current power demand
-    pub eta: si::Ratio,
+    pub eta: TrackedState<si::Ratio>,
     /// max possible power output for propulsion
-    pub pwr_elec_prop_out_max: si::Power,
+    pub pwr_elec_prop_out_max: TrackedState<si::Power>,
     /// max possible power output total
-    pub pwr_elec_out_max: si::Power,
+    pub pwr_elec_out_max: TrackedState<si::Power>,
     /// max possible power output rate
-    pub pwr_rate_out_max: si::PowerRate,
+    pub pwr_rate_out_max: TrackedState<si::PowerRate>,
     /// mechanical power input
-    pub pwr_mech_in: si::Power,
+    pub pwr_mech_in: TrackedState<si::Power>,
     /// electrical power output to propulsion
-    pub pwr_elec_prop_out: si::Power,
+    pub pwr_elec_prop_out: TrackedState<si::Power>,
     /// electrical power output to aux loads
-    pub pwr_elec_aux: si::Power,
+    pub pwr_elec_aux: TrackedState<si::Power>,
     /// power lost due to conversion inefficiency
-    pub pwr_loss: si::Power,
+    pub pwr_loss: TrackedState<si::Power>,
     /// cumulative mech energy in from fc
-    pub energy_mech_in: si::Energy,
+    pub energy_mech_in: TrackedState<si::Energy>,
     /// cumulative elec energy out to propulsion
-    pub energy_elec_prop_out: si::Energy,
+    pub energy_elec_prop_out: TrackedState<si::Energy>,
     /// cumulative elec energy to aux loads
-    pub energy_elec_aux: si::Energy,
+    pub energy_elec_aux: TrackedState<si::Energy>,
     /// cumulative energy has lost due to imperfect efficiency
-    pub energy_loss: si::Energy,
+    pub energy_loss: TrackedState<si::Energy>,
 }
+
+#[pyo3_api]
+impl GeneratorState {}
 
 impl Init for GeneratorState {}
 impl SerdeAPI for GeneratorState {}
-
-impl Default for GeneratorState {
-    fn default() -> Self {
-        Self {
-            i: 1,
-            eta: Default::default(),
-            pwr_rate_out_max: Default::default(),
-            pwr_elec_out_max: Default::default(),
-            pwr_elec_prop_out_max: Default::default(),
-            pwr_mech_in: Default::default(),
-            pwr_elec_prop_out: Default::default(),
-            pwr_elec_aux: Default::default(),
-            pwr_loss: Default::default(),
-            energy_mech_in: Default::default(),
-            energy_elec_prop_out: Default::default(),
-            energy_elec_aux: Default::default(),
-            energy_loss: Default::default(),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -447,7 +442,7 @@ mod tests {
     #[test]
     fn test_that_i_increments() {
         let mut gen = test_gen();
-        gen.step();
+        gen.step(|| format_dbg!());
         assert_eq!(2, gen.state.i);
     }
 
@@ -455,22 +450,22 @@ mod tests {
     fn test_that_loss_is_monotonic() {
         let mut gen = test_gen();
         gen.save_interval = Some(1);
-        gen.save_state();
+        gen.save_state(|| format_dbg!());
         gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
-        gen.step();
-        gen.save_state();
+        gen.step(|| format_dbg!());
+        gen.save_state(|| format_dbg!());
         gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
-        gen.step();
-        gen.save_state();
+        gen.step(|| format_dbg!());
+        gen.save_state(|| format_dbg!());
         gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
-        gen.step();
-        gen.save_state();
+        gen.step(|| format_dbg!());
+        gen.save_state(|| format_dbg!());
         gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
-        gen.step();
+        gen.step(|| format_dbg!());
         let energy_loss_j = gen
             .history
             .energy_loss
@@ -488,7 +483,7 @@ mod tests {
         let mut gen: Generator = Generator::default();
         gen.save_interval = Some(1);
         assert!(gen.history.is_empty());
-        gen.save_state();
+        gen.save_state(|| format_dbg!());
         assert_eq!(1, gen.history.len());
     }
 
@@ -496,7 +491,7 @@ mod tests {
     fn test_that_history_has_len_0() {
         let mut gen: Generator = Generator::default();
         assert!(gen.history.is_empty());
-        gen.save_state();
+        gen.save_state(|| format_dbg!());
         assert!(gen.history.is_empty());
     }
 

@@ -4,8 +4,9 @@ use crate::imports::*;
 use crate::track::{LinkPoint, PathResCoeff, PathTpc};
 use crate::train::TrainState;
 
-#[altrios_api]
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Strap {
     bearing: bearing::Basic,
     rolling: rolling::Basic,
@@ -14,6 +15,9 @@ pub struct Strap {
     grade: path_res::Strap,
     curve: path_res::Strap,
 }
+
+#[named_struct_pyo3_api]
+impl Strap {}
 
 impl Strap {
     pub fn new(

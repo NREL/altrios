@@ -20,7 +20,36 @@ use polars_lazy::dsl::max_horizontal;
 use polars_lazy::prelude::*;
 use pyo3_polars::PyDataFrame;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// User-defined train configuration used to generate
+/// [crate::prelude::TrainParams]. Any optional fields will be populated later
+/// in [TrainSimBuilder::make_train_sim_parts]
+pub struct TrainConfig {
+    /// Types of rail vehicle composing the train
+    pub rail_vehicles: Vec<RailVehicle>,
+    /// Number of railcars by type on the train
+    pub n_cars_by_type: HashMap<String, u32>,
+    /// Train type matching one of the PTC types
+    pub train_type: TrainType,
+    /// Train length that overrides the railcar specific value, if provided
+    pub train_length: Option<si::Length>,
+    /// Total train mass that overrides the railcar specific values, if provided
+    pub train_mass: Option<si::Mass>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    /// Optional vector of drag areas (i.e. drag coeff. times frontal area)
+    /// for each car.  If provided, the total drag area (drag coefficient
+    /// times frontal area) calculated from this vector is the sum of these
+    /// coefficients. Otherwise, each rail car's drag contribution based on its
+    /// drag coefficient and frontal area will be summed across the train.
+    pub cd_area_vec: Option<Vec<si::Area>>,
+}
+
+#[named_struct_pyo3_api]
+impl TrainConfig {
     #[new]
     #[pyo3(signature = (
         rail_vehicles,
@@ -44,7 +73,7 @@ use pyo3_polars::PyDataFrame;
             train_type.unwrap_or_default(),
             train_length_meters.map(|v| v * uc::M),
             train_mass_kilograms.map(|v| v * uc::KG),
-            cd_area_vec.map(|dcv| dcv.iter().map(|dc| *dc * uc::M2).collect())
+            cd_area_vec.map(|dcv| dcv.iter().map(|dc| *dc * uc::M2).collect()),
         )
     }
 
@@ -78,11 +107,12 @@ use pyo3_polars::PyDataFrame;
 
     #[getter]
     fn get_cd_area_vec_meters_squared(&self) -> Option<Vec<f64>> {
-        self.cd_area_vec
-            .as_ref()
-                .map(
-                    |dcv| dcv.iter().cloned().map(|x| x.get::<si::square_meter>()).collect()
-                )
+        self.cd_area_vec.as_ref().map(|dcv| {
+            dcv.iter()
+                .cloned()
+                .map(|x| x.get::<si::square_meter>())
+                .collect()
+        })
     }
 
     #[setter]
@@ -90,33 +120,6 @@ use pyo3_polars::PyDataFrame;
         self.cd_area_vec = Some(new_val.iter().map(|x| *x * uc::M2).collect());
         Ok(())
     }
-)]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
-/// User-defined train configuration used to generate
-/// [crate::prelude::TrainParams]. Any optional fields will be populated later
-/// in [TrainSimBuilder::make_train_sim_parts]
-pub struct TrainConfig {
-    /// Types of rail vehicle composing the train
-    pub rail_vehicles: Vec<RailVehicle>,
-    /// Number of railcars by type on the train
-    pub n_cars_by_type: HashMap<String, u32>,
-    /// Train type matching one of the PTC types
-    pub train_type: TrainType,
-    /// Train length that overrides the railcar specific value, if provided
-
-    pub train_length: Option<si::Length>,
-    /// Total train mass that overrides the railcar specific values, if provided
-
-    pub train_mass: Option<si::Mass>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
-    /// Optional vector of drag areas (i.e. drag coeff. times frontal area)
-    /// for each car.  If provided, the total drag area (drag coefficient
-    /// times frontal area) calculated from this vector is the sum of these
-    /// coefficients. Otherwise, each rail car's drag contribution based on its
-    /// drag coefficient and frontal area will be summed across the train.
-    pub cd_area_vec: Option<Vec<si::Area>>,
 }
 
 impl Init for TrainConfig {
@@ -248,7 +251,26 @@ impl Valid for TrainConfig {
     }
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct TrainSimBuilder {
+    /// Unique, user-defined identifier for the train
+    pub train_id: String,
+    pub train_config: TrainConfig,
+    pub loco_con: Consist,
+    /// Origin_ID from train planner to map to track network locations.  Only needed if
+    /// [Self::make_speed_limit_train_sim] will be called.
+    pub origin_id: Option<String>,
+    /// Destination_ID from train planner to map to track network locations.  Only needed if
+    /// [Self::make_speed_limit_train_sim] will be called.
+    pub destination_id: Option<String>,
+
+    init_train_state: Option<InitTrainState>,
+}
+
+#[named_struct_pyo3_api]
+impl TrainSimBuilder {
     #[new]
     #[pyo3(signature = (
         train_id,
@@ -292,31 +314,29 @@ impl Valid for TrainConfig {
         link_path: &Bound<PyAny>,
         speed_trace: SpeedTrace,
         save_interval: Option<usize>,
-        temp_trace: Option<TemperatureTrace>
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<SetSpeedTrainSim> {
         let network = match network.extract::<Network>() {
             Ok(n) => n,
             Err(_) => {
-                let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network( Default::default(), n)
+                let n = network
+                    .extract::<Vec<Link>>()
+                    .map_err(|_| anyhow!("{}", format_dbg!()))?;
+                Network(Default::default(), n)
             }
         };
 
         let link_path = match link_path.extract::<LinkPath>() {
             Ok(lp) => lp,
             Err(_) => {
-                let lp = link_path.extract::<Vec<LinkIdx>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                let lp = link_path
+                    .extract::<Vec<LinkIdx>>()
+                    .map_err(|_| anyhow!("{}", format_dbg!()))?;
                 LinkPath(lp)
             }
         };
 
-        self.make_set_speed_train_sim(
-            network,
-            link_path,
-            speed_trace,
-            save_interval,
-            temp_trace
-        )
+        self.make_set_speed_train_sim(network, link_path, speed_trace, save_interval, temp_trace)
     }
 
     #[pyo3(
@@ -335,31 +355,43 @@ impl Valid for TrainConfig {
         link_path: &Bound<PyAny>,
         speed_trace: SpeedTrace,
         save_interval: Option<usize>,
-        temp_trace: Option<TemperatureTrace>
-    ) -> anyhow::Result<(SetSpeedTrainSim, TrainParams, PathTpc, TrainResWrapper, FricBrake)> {
+        temp_trace: Option<TemperatureTrace>,
+    ) -> anyhow::Result<(
+        SetSpeedTrainSim,
+        TrainParams,
+        PathTpc,
+        TrainResWrapper,
+        FricBrake,
+    )> {
         let network = match network.extract::<Network>() {
             Ok(n) => n,
             Err(_) => {
-                let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network( Default::default(), n)
+                let n = network
+                    .extract::<Vec<Link>>()
+                    .map_err(|_| anyhow!("{}", format_dbg!()))?;
+                Network(Default::default(), n)
             }
         };
 
         let link_path = match link_path.extract::<LinkPath>() {
             Ok(lp) => lp,
             Err(_) => {
-                let lp = link_path.extract::<Vec<LinkIdx>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                let lp = link_path
+                    .extract::<Vec<LinkIdx>>()
+                    .map_err(|_| anyhow!("{}", format_dbg!()))?;
                 LinkPath(lp)
             }
         };
 
-        let (train_sim, train_params, path_tpc, tr, fb) = self.make_set_speed_train_sim_and_parts(
-            network,
-            link_path,
-            speed_trace,
-            save_interval,
-            temp_trace
-        ).with_context(|| format_dbg!())?;
+        let (train_sim, train_params, path_tpc, tr, fb) = self
+            .make_set_speed_train_sim_and_parts(
+                network,
+                link_path,
+                speed_trace,
+                save_interval,
+                temp_trace,
+            )
+            .with_context(|| format_dbg!())?;
 
         let trw = TrainResWrapper(tr);
         Ok((train_sim, train_params, path_tpc, trw, fb))
@@ -410,7 +442,7 @@ impl Valid for TrainConfig {
         scenario_year: Option<i32>,
         temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<(SpeedLimitTrainSim, PathTpc, TrainResWrapper, FricBrake)> {
-        let (ts, path_tpc, tr, fb) =  self.make_speed_limit_train_sim_and_parts(
+        let (ts, path_tpc, tr, fb) = self.make_speed_limit_train_sim_and_parts(
             &location_map,
             save_interval,
             simulation_days,
@@ -421,21 +453,6 @@ impl Valid for TrainConfig {
         let trw = TrainResWrapper(tr);
         Ok((ts, path_tpc, trw, fb))
     }
-)]
-#[derive(Debug, Default, Clone, Deserialize, Serialize, PartialEq, SerdeAPI)]
-pub struct TrainSimBuilder {
-    /// Unique, user-defined identifier for the train
-    pub train_id: String,
-    pub train_config: TrainConfig,
-    pub loco_con: Consist,
-    /// Origin_ID from train planner to map to track network locations.  Only needed if
-    /// [Self::make_speed_limit_train_sim] will be called.
-    pub origin_id: Option<String>,
-    /// Destination_ID from train planner to map to track network locations.  Only needed if
-    /// [Self::make_speed_limit_train_sim] will be called.
-    pub destination_id: Option<String>,
-
-    init_train_state: Option<InitTrainState>,
 }
 
 impl TrainSimBuilder {
@@ -1365,7 +1382,13 @@ pub fn run_speed_limit_train_sims(
 }
 
 // This MUST remain a unit struct to trigger correct tolist() behavior
-#[altrios_api(
+#[serde_api]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct SpeedLimitTrainSimVec(pub Vec<SpeedLimitTrainSim>);
+
+#[named_struct_pyo3_api]
+impl SpeedLimitTrainSimVec {
     #![allow(non_snake_case)]
     #[pyo3(name = "get_energy_fuel_joules")]
     pub fn get_energy_fuel_py(&self, annualize: bool) -> f64 {
@@ -1418,9 +1441,7 @@ pub fn run_speed_limit_train_sims(
     fn __new__(v: Vec<SpeedLimitTrainSim>) -> Self {
         Self(v)
     }
-)]
-#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct SpeedLimitTrainSimVec(pub Vec<SpeedLimitTrainSim>);
+}
 
 impl SpeedLimitTrainSimVec {
     pub fn new(value: Vec<SpeedLimitTrainSim>) -> Self {

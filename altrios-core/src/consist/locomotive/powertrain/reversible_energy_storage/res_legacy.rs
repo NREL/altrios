@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, StateMethods, SetCumulative)]
 /// Legacy veryion of [ReversibleEnergyStorage]
 ///
 /// Struct for modeling technology-naive Reversible Energy Storage (e.g. battery, flywheel).

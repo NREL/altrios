@@ -5,8 +5,9 @@ use super::*;
 use super::{LocoTrait, Mass, MassSideEffect};
 use crate::imports::*;
 
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods)]
-#[altrios_api]
+#[serde_api]
+#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Battery electric locomotive
 pub struct BatteryElectricLoco {
     #[has_state]
@@ -15,16 +16,18 @@ pub struct BatteryElectricLoco {
     pub edrv: ElectricDrivetrain,
     /// control strategy for distributing power demand between `fc` and `res`
     #[has_state]
-
     #[serde(default)]
     pub pt_cntrl: BatteryPowertrainControls,
     // /// field for tracking current state
     // #[serde(default)]
     // pub state: BELState,
     // /// vector of [Self::state]
-    // #[serde(default, skip_serializing_if = "BELStateHistoryVec::is_empty")]
+    // #[serde(default)]
     // pub history: BELStateHistoryVec,
 }
+
+#[named_struct_pyo3_api]
+impl BatteryElectricLoco {}
 
 impl BatteryElectricLoco {
     /// Solve energy consumption for the current power output required
@@ -176,18 +179,6 @@ impl LocoTrait for BatteryElectricLoco {
     }
 }
 
-// #[altrios_api]
-// #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
-// #[non_exhaustive]
-// #[serde(default)]
-// pub struct BELState {
-//     /// time step index
-//     pub i: usize,
-// }
-
-// impl Init for BELState {}
-// impl SerdeAPI for BELState {}
-
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, IsVariant, From, TryInto)]
 pub enum BatteryPowertrainControls {
     /// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge
@@ -229,31 +220,31 @@ impl BatteryPowertrainControls {
 /// and discharge power inside of static min and max SOC range.  Also, includes
 /// buffer for forcing [FuelConverter] to be active/on. See [Self::init] for
 /// default values.
-#[altrios_api]
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default, HistoryMethods)]
+#[serde_api]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 #[non_exhaustive]
 pub struct RESGreedyWithDynamicBuffersBEL {
     /// RES energy delta from minimum SOC corresponding to kinetic energy of
     /// vehicle at this speed that triggers ramp down in RES discharge.
-
     pub speed_soc_disch_buffer: Option<si::Velocity>,
     /// Coefficient for modifying amount of accel buffer
-
     pub speed_soc_disch_buffer_coeff: Option<si::Ratio>,
     /// RES energy delta from maximum SOC corresponding to kinetic energy of
     /// vehicle at current speed minus kinetic energy of vehicle at this speed
     /// triggers ramp down in RES discharge
-
     pub speed_soc_regen_buffer: Option<si::Velocity>,
     /// Coefficient for modifying amount of regen buffer
-
     pub speed_soc_regen_buffer_coeff: Option<si::Ratio>,
     #[serde(default)]
     pub state: RGWDBStateBEL,
-    #[serde(default, skip_serializing_if = "RGWDBStateBELHistoryVec::is_empty")]
+    #[serde(default)]
     /// history of current state
     pub history: RGWDBStateBELHistoryVec,
 }
+
+#[named_struct_pyo3_api]
+impl RESGreedyWithDynamicBuffersBEL {}
 
 impl Init for RESGreedyWithDynamicBuffersBEL {
     fn init(&mut self) -> Result<(), Error> {
@@ -266,14 +257,18 @@ impl Init for RESGreedyWithDynamicBuffersBEL {
 }
 impl SerdeAPI for RESGreedyWithDynamicBuffersBEL {}
 
-#[altrios_api]
+#[serde_api]
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
 #[serde(default)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// State for [RESGreedyWithDynamicBuffers ]
 pub struct RGWDBStateBEL {
     /// time step index
     pub i: usize,
 }
+
+#[named_struct_pyo3_api]
+impl RGWDBStateBEL {}
 
 impl Init for RGWDBStateBEL {}
 impl SerdeAPI for RGWDBStateBEL {}

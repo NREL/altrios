@@ -8,14 +8,18 @@ pub fn min_speed(speed_old: si::Velocity, speed_new: si::Velocity) -> si::Veloci
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct SpeedLimit {
     pub offset_start: si::Length,
     pub offset_end: si::Length,
     /// Speed limit value  
     pub speed: si::Velocity,
 }
+
+#[named_struct_pyo3_api]
+impl SpeedLimit {}
 
 impl Valid for SpeedLimit {
     fn valid() -> Self {

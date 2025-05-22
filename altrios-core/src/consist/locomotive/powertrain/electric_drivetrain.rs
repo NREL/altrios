@@ -4,7 +4,40 @@ use crate::imports::*;
 #[cfg(feature = "pyo3")]
 use crate::pyo3::*;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Struct for modeling electric drivetrain.  This includes power electronics, motor, axle ...
+/// everything involved in converting high voltage electrical power to force exerted by the wheel on the track.  
+pub struct ElectricDrivetrain {
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    /// struct for tracking current state
+    pub state: ElectricDrivetrainState,
+    /// Shaft output power fraction array at which efficiencies are evaluated.
+    pub pwr_out_frac_interp: Vec<f64>,
+
+    /// Efficiency array corresponding to [Self::pwr_out_frac_interp] and [Self::pwr_in_frac_interp]
+    pub eta_interp: Vec<f64>,
+    /// Electrical input power fraction array at which efficiencies are evaluated.
+    /// Calculated during runtime if not provided.
+    #[serde(skip)]
+    pub pwr_in_frac_interp: Vec<f64>,
+    /// ElectricDrivetrain maximum output power assuming that positive and negative tractive powers have same magnitude
+    pub pwr_out_max: si::Power,
+    // TODO: add `mass` here
+    /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
+    pub save_interval: Option<usize>,
+    /// Custom vector of [Self::state]
+    #[serde(
+        default,
+        skip_serializing_if = "ElectricDrivetrainStateHistoryVec::is_empty"
+    )]
+    pub history: ElectricDrivetrainStateHistoryVec,
+}
+
+#[named_struct_pyo3_api]
+impl ElectricDrivetrain {
     #[new]
     #[pyo3(signature = (pwr_out_frac_interp, eta_interp, pwr_out_max_watts, save_interval=None))]
     fn __new__(
@@ -49,38 +82,10 @@ use crate::pyo3::*;
 
     #[setter("__eta_range")]
     fn set_eta_range_py(&mut self, eta_range: f64) -> anyhow::Result<()> {
-        Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
+        Ok(self
+            .set_eta_range(eta_range)
+            .map_err(PyValueError::new_err)?)
     }
-)]
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
-/// Struct for modeling electric drivetrain.  This includes power electronics, motor, axle ...
-/// everything involved in converting high voltage electrical power to force exerted by the wheel on the track.  
-pub struct ElectricDrivetrain {
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    /// struct for tracking current state
-    pub state: ElectricDrivetrainState,
-    /// Shaft output power fraction array at which efficiencies are evaluated.
-    pub pwr_out_frac_interp: Vec<f64>,
-
-    /// Efficiency array corresponding to [Self::pwr_out_frac_interp] and [Self::pwr_in_frac_interp]
-    pub eta_interp: Vec<f64>,
-    /// Electrical input power fraction array at which efficiencies are evaluated.
-    /// Calculated during runtime if not provided.
-    #[serde(skip)]
-
-    pub pwr_in_frac_interp: Vec<f64>,
-    /// ElectricDrivetrain maximum output power assuming that positive and negative tractive powers have same magnitude
-    pub pwr_out_max: si::Power,
-    // TODO: add `mass` here
-    /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
-    pub save_interval: Option<usize>,
-    /// Custom vector of [Self::state]
-    #[serde(
-        default,
-        skip_serializing_if = "ElectricDrivetrainStateHistoryVec::is_empty"
-    )]
-    pub history: ElectricDrivetrainStateHistoryVec,
 }
 
 impl ElectricDrivetrain {
@@ -303,8 +308,9 @@ impl ElectricMachine for ElectricDrivetrain {
     }
 }
 
+#[serde_api]
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
-#[altrios_api]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct ElectricDrivetrainState {
     /// index
     pub i: usize,
@@ -347,6 +353,9 @@ pub struct ElectricDrivetrainState {
     /// Cumulative energy lost in regeneratively converting mechanical power to power that can be absorbed by the battery.
     pub energy_loss: si::Energy,
 }
+
+#[named_struct_pyo3_api]
+impl ElectricDrivetrainState {}
 
 impl Init for ElectricDrivetrainState {}
 impl SerdeAPI for ElectricDrivetrainState {}

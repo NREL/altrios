@@ -2,14 +2,16 @@ use super::super::min_speed;
 use super::super::SpeedLimit;
 use crate::imports::*;
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct SpeedLimitPoint {
-
     pub offset: si::Length,
-
     pub speed_limit: si::Velocity,
 }
+
+#[named_struct_pyo3_api]
+impl SpeedLimitPoint {}
 
 impl GetOffset for SpeedLimitPoint {
     fn get_offset(&self) -> si::Length {

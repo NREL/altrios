@@ -7,8 +7,56 @@ pub(crate) mod res_legacy;
 
 const TOL: f64 = 1e-3;
 
-#[altrios_api(
-   #[allow(clippy::too_many_arguments)]
+#[serde_apit]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, StateMethods, SetCumulative)]
+/// Struct for modeling technology-naive Reversible Energy Storage (e.g. battery, flywheel).
+pub struct ReversibleEnergyStorage {
+    /// struct for tracking current state
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    pub state: ReversibleEnergyStorageState,
+    /// ReversibleEnergyStorage mass
+    #[serde(default)]
+    mass: Option<si::Mass>,
+    /// ReversibleEnergyStorage volume, used as a sanity check
+
+    #[serde(default)]
+    volume: Option<si::Volume>,
+    /// ReversibleEnergyStorage specific energy
+    specific_energy: Option<si::SpecificEnergy>,
+    /// ReversibleEnergyStorage energy density (note that pressure has the same units as energy density)
+    pub energy_density: Option<si::Pressure>,
+    /// efficiency map grid values - indexed temp; soc; c_rate;
+    pub eta_interp_grid: [Vec<f64>; 3],
+
+    /// Values of efficiencies at grid points:
+    /// - temperature
+    /// - soc
+    /// - c_rate
+    pub eta_interp_values: Vec<Vec<Vec<f64>>>,
+    /// Max output (and input) power battery can produce (accept)
+    pub pwr_out_max: si::Power,
+
+    /// Total energy capacity of battery of full discharge SOC of 0.0 and 1.0
+    pub energy_capacity: si::Energy,
+
+    /// Hard limit on minimum SOC, e.g. 0.05
+    pub min_soc: si::Ratio,
+    /// Hard limit on maximum SOC, e.g. 0.95
+    pub max_soc: si::Ratio,
+    /// Time step interval at which history is saved
+    pub save_interval: Option<usize>,
+    #[serde(
+        default,
+        skip_serializing_if = "ReversibleEnergyStorageStateHistoryVec::is_empty"
+    )]
+    /// Custom vector of [Self::state]
+    pub history: ReversibleEnergyStorageStateHistoryVec,
+}
+
+#[named_struct_pyo3_api]
+impl ReversibleEnergyStorage {
+    #[allow(clippy::too_many_arguments)]
     #[new]
     #[pyo3(signature = (
         temperature_interp_grid,
@@ -82,7 +130,7 @@ const TOL: f64 = 1e-3;
         self.set_eta_range(eta_range)
     }
 
-    // TODO: uncomment and fix     
+    // TODO: uncomment and fix
     // #[setter("__mass_kg")]
     // fn set_mass_py(&mut self, mass_kg: Option<f64>) -> anyhow::Result<()> {
     //     self.set_mass(mass_kg.map(|m| m * uc::KG))?;
@@ -96,7 +144,8 @@ const TOL: f64 = 1e-3;
 
     #[getter]
     fn get_specific_energy_kjoules_per_kg(&self) -> Option<f64> {
-        self.specific_energy.map(|se| se.get::<si::kilojoule_per_kilogram>())
+        self.specific_energy
+            .map(|se| se.get::<si::kilojoule_per_kilogram>())
     }
 
     #[setter("__volume_m3")]
@@ -113,56 +162,9 @@ const TOL: f64 = 1e-3;
 
     #[getter]
     fn get_energy_density_kjoules_per_m3(&self) -> Option<f64> {
-        self.specific_energy.map(|se| se.get::<si::kilojoule_per_kilogram>())
+        self.specific_energy
+            .map(|se| se.get::<si::kilojoule_per_kilogram>())
     }
-)]
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
-/// Struct for modeling technology-naive Reversible Energy Storage (e.g. battery, flywheel).
-pub struct ReversibleEnergyStorage {
-    /// struct for tracking current state
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    pub state: ReversibleEnergyStorageState,
-    /// ReversibleEnergyStorage mass
-    #[serde(default)]
-
-    mass: Option<si::Mass>,
-    /// ReversibleEnergyStorage volume, used as a sanity check
-
-    #[serde(default)]
-    volume: Option<si::Volume>,
-    /// ReversibleEnergyStorage specific energy
-
-    specific_energy: Option<si::SpecificEnergy>,
-    /// ReversibleEnergyStorage energy density (note that pressure has the same units as energy density)
-
-    pub energy_density: Option<si::Pressure>,
-    /// efficiency map grid values - indexed temp; soc; c_rate;
-    pub eta_interp_grid: [Vec<f64>; 3],
-
-    /// Values of efficiencies at grid points:
-    /// - temperature
-    /// - soc
-    /// - c_rate
-    pub eta_interp_values: Vec<Vec<Vec<f64>>>,
-    /// Max output (and input) power battery can produce (accept)
-    pub pwr_out_max: si::Power,
-
-    /// Total energy capacity of battery of full discharge SOC of 0.0 and 1.0
-    pub energy_capacity: si::Energy,
-
-    /// Hard limit on minimum SOC, e.g. 0.05
-    pub min_soc: si::Ratio,
-    /// Hard limit on maximum SOC, e.g. 0.95
-    pub max_soc: si::Ratio,
-    /// Time step interval at which history is saved
-    pub save_interval: Option<usize>,
-    #[serde(
-        default,
-        skip_serializing_if = "ReversibleEnergyStorageStateHistoryVec::is_empty"
-    )]
-    /// Custom vector of [Self::state]
-    pub history: ReversibleEnergyStorageStateHistoryVec,
 }
 
 impl Default for ReversibleEnergyStorage {
@@ -821,8 +823,9 @@ impl ReversibleEnergyStorage {
     }
 }
 
+#[serde_api]
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, HistoryVec)]
-#[altrios_api]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 // component limits
 /// ReversibleEnergyStorage state variables
 pub struct ReversibleEnergyStorageState {
@@ -884,6 +887,9 @@ pub struct ReversibleEnergyStorageState {
     /// component temperature
     pub temperature_celsius: f64,
 }
+
+#[named_struct_pyo3_api]
+impl ReversibleEnergyStorageState {}
 
 impl SerdeAPI for ReversibleEnergyStorageState {}
 impl Init for ReversibleEnergyStorageState {}

@@ -3,23 +3,23 @@ use serde::{de::Visitor, Deserializer, Serializer};
 use std::fmt;
 use std::io::prelude::*;
 
-#[altrios_api(
-    #[new]
-    fn __new__(
-        idx: u32
-    ) -> Self {
-        Self::new(
-            idx
-        )
-    }
-)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default, SerdeAPI)]
+#[serde_api]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// See [supplementary documentation.](https://nrel.github.io/altrios/doc/rail-network.html)
 pub struct LinkIdx {
-
     /// index of link within network
     idx: u32,
 }
+
+#[named_struct_pyo3_api]
+impl LinkIdx {
+    #[new]
+    fn __new__(idx: u32) -> Self {
+        Self::new(idx)
+    }
+}
+
 pub const LINK_IDX_NA: LinkIdx = LinkIdx { idx: 0 };
 
 impl LinkIdx {
@@ -101,7 +101,15 @@ impl ObjState for LinkIdx {
     }
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Struct that contains a `Vec<LinkIdx>` for the purpose of providing `SerdeAPI` for
+/// `Vec<LinkIdx>` in Python
+pub struct LinkPath(pub Vec<LinkIdx>);
+
+#[named_struct_pyo3_api]
+impl LinkPath {
     #[staticmethod]
     #[pyo3(name = "from_csv_file")]
     fn from_csv_file_py(filepath: &Bound<PyAny>) -> anyhow::Result<Self> {
@@ -112,11 +120,7 @@ impl ObjState for LinkIdx {
     fn to_csv_file_py(&self, filepath: &Bound<PyAny>) -> anyhow::Result<()> {
         self.to_csv_file(PathBuf::extract_bound(filepath)?)
     }
-)]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
-/// Struct that contains a `Vec<LinkIdx>` for the purpose of providing `SerdeAPI` for
-/// `Vec<LinkIdx>` in Python
-pub struct LinkPath(pub Vec<LinkIdx>);
+}
 
 impl AsRef<[LinkIdx]> for LinkPath {
     fn as_ref(&self) -> &[LinkIdx] {

@@ -1,10 +1,10 @@
 use crate::imports::*;
 
 /// Struct containing heading for a particular offset w.r.t. `Link`
-#[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Heading {
-
     pub offset: si::Length,
 
     pub heading: si::Angle,
@@ -21,6 +21,9 @@ pub struct Heading {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lon: Option<f64>,
 }
+
+#[named_struct_pyo3_api]
+impl Heading {}
 
 impl Valid for Heading {}
 

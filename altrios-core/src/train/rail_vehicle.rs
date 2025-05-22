@@ -1,7 +1,8 @@
 use crate::imports::*;
 
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct RailVehicle {
     /// Unique user-defined identifier for the car type.  This should include
     /// meta information about the car type's weight, e.g. `loaded`, `empty`, `partial`.
@@ -61,6 +62,9 @@ pub struct RailVehicle {
     #[serde(alias = "Curve Coefficient 2")]
     pub curve_coeff_2: si::Ratio,
 }
+
+#[named_struct_pyo3_api]
+impl RailVehicle {}
 
 impl Mass for RailVehicle {
     /// Static mass of rail vehicle, not including effective rotational mass

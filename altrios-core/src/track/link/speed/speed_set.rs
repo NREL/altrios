@@ -3,7 +3,7 @@ use super::speed_param::*;
 use crate::imports::*;
 use std::collections::HashMap;
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI, Hash)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[repr(u8)]
 #[cfg_attr(feature = "pyo3", pyclass(eq))]
 /// Enum with variants representing train types
@@ -30,8 +30,9 @@ impl ObjState for TrainType {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct SpeedSet {
     pub speed_limits: Vec<SpeedLimit>,
 
@@ -40,8 +41,12 @@ pub struct SpeedSet {
     pub is_head_end: bool,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
-#[altrios_api]
+#[named_struct_pyo3_api]
+impl SpeedSet {}
+
+#[serde_api]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Helper struct to create [SpeedSet] from deprecated data format
 pub struct OldSpeedSet {
     pub speed_limits: Vec<SpeedLimit>,
@@ -51,6 +56,9 @@ pub struct OldSpeedSet {
     pub train_type: TrainType,
     pub is_head_end: bool,
 }
+
+#[named_struct_pyo3_api]
+impl OldSpeedSet {}
 
 impl Valid for SpeedSet {
     fn valid() -> Self {

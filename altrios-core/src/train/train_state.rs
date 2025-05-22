@@ -1,8 +1,18 @@
 use crate::imports::*;
 use crate::track::PathTpc;
 
+#[serde_api]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, HistoryVec)]
-#[altrios_api(
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// For `SetSpeedTrainSim`, it is typically best to use the default for this.
+pub struct InitTrainState {
+    pub time: si::Time,
+    pub offset: si::Length,
+    pub speed: si::Velocity,
+}
+
+#[named_struct_pyo3_api]
+impl InitTrainState {
     #[new]
     #[pyo3(signature = (
         time_seconds=None,
@@ -20,12 +30,6 @@ use crate::track::PathTpc;
             speed_meters_per_second.map(|x| x * uc::MPS),
         )
     }
-)]
-/// For `SetSpeedTrainSim`, it is typically best to use the default for this.
-pub struct InitTrainState {
-    pub time: si::Time,
-    pub offset: si::Length,
-    pub speed: si::Velocity,
 }
 
 impl Init for InitTrainState {}
@@ -56,38 +60,8 @@ impl InitTrainState {
     }
 }
 
+#[serde_api]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, HistoryVec, PartialEq)]
-#[altrios_api(
-    #[new]
-    #[allow(clippy::too_many_arguments)]
-    #[pyo3(signature = (
-        length_meters,
-        mass_static_kilograms,
-        mass_rot_kilograms,
-        mass_freight_kilograms,
-        init_train_state=None,
-    ))]
-    fn __new__(
-        length_meters: f64,
-        mass_static_kilograms: f64,
-        mass_rot_kilograms: f64,
-        mass_freight_kilograms: f64,
-        init_train_state: Option<InitTrainState>,
-    ) -> Self {
-        Self::new(
-            length_meters * uc::M,
-            mass_static_kilograms * uc::KG,
-            mass_rot_kilograms * uc::KG,
-            mass_freight_kilograms * uc::KG,
-            init_train_state,
-        )
-    }
-
-    #[getter("res_net")]
-    fn res_net_py(&self) -> PyResult<f64> {
-        Ok(self.res_net().get::<si::newton>())
-    }
-)]
 pub struct TrainState {
     /// time since user-defined datum
     pub time: si::Time,

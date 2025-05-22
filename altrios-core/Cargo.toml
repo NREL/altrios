@@ -59,9 +59,10 @@ tempfile = "3.10.1"
 derive_more = { version = "1.0.0", features = ["from_str", "from", "is_variant", "try_into"] }
 thiserror = "2.0.11"
 ninterp = { workspace = true }
+lazy_static = { workspace = true }
 
 [features]
-default = ["serde-default"]
+default = ["serde-default", "resources", ]
 ## Compiles external resources (e.g. vehicle files or cycle files) to be
 ## available in the binary
 resources = ["dep:include_dir"]

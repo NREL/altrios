@@ -8,24 +8,21 @@ use crate::imports::*;
 /// Vector data used to represent track-dependent train performance parameters along the path the
 /// train will follow.  This contains all the positionally important data for the train resistance
 /// model.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct PathTpc {
-
     link_points: Vec<LinkPoint>,
-
     grades: Vec<PathResCoeff>,
-
     curves: Vec<PathResCoeff>,
-
     speed_points: Vec<SpeedLimitPoint>,
-
     cat_power_limits: Vec<CatPowerLimit>,
-
     train_params: TrainParams,
-
     is_finished: bool,
 }
+
+#[named_struct_pyo3_api]
+impl PathTpc {}
 
 impl PathTpc {
     pub fn link_points(&self) -> &[LinkPoint] {

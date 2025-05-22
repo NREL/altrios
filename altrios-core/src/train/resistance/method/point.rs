@@ -4,8 +4,9 @@ use super::*;
 use crate::imports::*;
 use crate::track::{LinkPoint, PathResCoeff};
 
-#[altrios_api]
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Point {
     bearing: bearing::Basic,
     rolling: rolling::Basic,
@@ -14,6 +15,9 @@ pub struct Point {
     grade: path_res::Point,
     curve: path_res::Point,
 }
+
+#[named_struct_pyo3_api]
+impl Point {}
 
 impl ResMethod for Point {
     fn update_res(

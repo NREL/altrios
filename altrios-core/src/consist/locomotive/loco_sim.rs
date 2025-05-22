@@ -6,7 +6,26 @@ use crate::consist::locomotive::Locomotive;
 use crate::consist::LocoTrait;
 use crate::imports::*;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Container
+pub struct PowerTrace {
+    /// simulation time
+    pub time: Vec<si::Time>,
+    /// simulation power
+    pub pwr: Vec<si::Power>,
+    /// Whether engine is on
+    pub engine_on: Vec<Option<bool>>,
+    #[serde(default)]
+    /// Speed, needed only if simulating [HybridElectricLocomotive]  
+    pub train_speed: Vec<si::Velocity>,
+    /// Train mass, needed only if simulating [HybridElectricLocomotive]
+    pub train_mass: Option<si::Mass>,
+}
+
+#[named_struct_pyo3_api]
+impl PowerTrace {
     #[staticmethod]
     #[pyo3(name = "from_csv_file")]
     fn from_csv_file_py(pathstr: String) -> anyhow::Result<Self> {
@@ -16,23 +35,10 @@ use crate::imports::*;
     fn __len__(&self) -> usize {
         self.len()
     }
-)]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, SerdeAPI)]
-/// Container
-pub struct PowerTrace {
-    /// simulation time
-    pub time: Vec<si::Time>,
-    /// simulation power
-    pub pwr: Vec<si::Power>,
-    /// Whether engine is on
-    pub engine_on: Vec<Option<bool>>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    /// Speed, needed only if simulating [HybridElectricLocomotive]  
-    pub train_speed: Vec<si::Velocity>,
-    /// Train mass, needed only if simulating [HybridElectricLocomotive]
-
-    pub train_mass: Option<si::Mass>,
 }
+
+impl Init for PowerTrace {}
+impl SerdeAPI for PowerTrace {}
 
 impl PowerTrace {
     pub fn empty() -> Self {
@@ -122,7 +128,7 @@ impl Default for PowerTrace {
 }
 
 /// Element of [PowerTrace].  Used for vec-like operations.
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PowerTraceElement {
     /// simulation time
     time: si::Time,
@@ -134,7 +140,18 @@ pub struct PowerTraceElement {
     train_speed: Option<si::Velocity>,
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Struct for simulating operation of a standalone locomotive.
+pub struct LocomotiveSimulation {
+    pub loco_unit: Locomotive,
+    pub power_trace: PowerTrace,
+    pub i: usize,
+}
+
+#[named_struct_pyo3_api]
+impl LocomotiveSimulation {
     #[new]
     #[pyo3(signature = (loco_unit, power_trace, save_interval=None))]
     fn __new__(
@@ -174,13 +191,6 @@ pub struct PowerTraceElement {
         self.trim_failed_steps()?;
         Ok(())
     }
-)]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-/// Struct for simulating operation of a standalone locomotive.
-pub struct LocomotiveSimulation {
-    pub loco_unit: Locomotive,
-    pub power_trace: PowerTrace,
-    pub i: usize,
 }
 
 impl LocomotiveSimulation {
@@ -324,26 +334,30 @@ impl Default for LocomotiveSimulation {
     }
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
+impl LocomotiveSimulationVec {
+    pub fn new(value: Vec<LocomotiveSimulation>) -> Self {
+        Self(value)
+    }
+}
+
+#[named_struct_pyo3_api]
+impl LocomotiveSimulationVec {
     #[new]
     /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
     fn __new__(v: Vec<LocomotiveSimulation>) -> Self {
         Self(v)
     }
 
-    #[pyo3(name="walk")]
+    #[pyo3(name = "walk")]
     #[pyo3(signature = (b_parallelize=None))]
     /// Exposes `walk` to Python.
     fn walk_py(&mut self, b_parallelize: Option<bool>) -> anyhow::Result<()> {
         let b_par = b_parallelize.unwrap_or(false);
         self.walk(b_par)
-    }
-)]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
-impl LocomotiveSimulationVec {
-    pub fn new(value: Vec<LocomotiveSimulation>) -> Self {
-        Self(value)
     }
 }
 

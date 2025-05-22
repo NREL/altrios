@@ -31,16 +31,21 @@ pub trait LocoTrait {
     fn get_energy_loss(&self) -> si::Energy;
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Wrapper struct for `Vec<Locomotive>` to expose various methods to Python.
+pub struct Pyo3VecLocoWrapper(pub Vec<Locomotive>);
+
+#[named_struct_pyo3_api]
+impl Pyo3VecLocoWrapper {
     #[new]
     /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
     fn __new__(v: Vec<Locomotive>) -> Self {
         Self(v)
     }
-)]
-#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
-/// Wrapper struct for `Vec<Locomotive>` to expose various methods to Python.
-pub struct Pyo3VecLocoWrapper(pub Vec<Locomotive>);
+}
+
 impl Pyo3VecLocoWrapper {
     pub fn new(value: Vec<Locomotive>) -> Self {
         Self(value)
@@ -73,7 +78,7 @@ pub trait SolvePower {
     ) -> anyhow::Result<Vec<si::Power>>;
 }
 
-#[derive(PartialEq, Eq, Clone, Deserialize, Serialize, Debug, SerdeAPI)]
+#[derive(PartialEq, Eq, Clone, Deserialize, Serialize, Debug)]
 /// Similar to [self::Proportional], but positive traction conditions use locomotives with
 /// ReversibleEnergyStorage preferentially, within their power limits.  Recharge is same as
 /// `Proportional` variant.
@@ -217,7 +222,7 @@ fn solve_negative_traction(
     Ok(pwr_out_vec)
 }
 
-#[derive(PartialEq, Eq, Clone, Deserialize, Serialize, Debug, SerdeAPI)]
+#[derive(PartialEq, Eq, Clone, Deserialize, Serialize, Debug)]
 /// During positive traction, power is proportional to each locomotive's current max
 /// available power.  During negative traction, any power that's less negative than the total
 /// sum of the regen capacity is distributed to each locomotive with regen capacity, proportionally
@@ -284,7 +289,7 @@ impl SolvePower for FrontAndBack {
 
 /// Variants of this enum are used to determine what control strategy gets used for distributing
 /// power required from or delivered to during negative tractive power each locomotive.
-#[derive(PartialEq, Clone, Deserialize, Serialize, Debug, SerdeAPI)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug)]
 pub enum PowerDistributionControlType {
     RESGreedy(RESGreedy),
     Proportional(Proportional),

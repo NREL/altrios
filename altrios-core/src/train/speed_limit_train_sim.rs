@@ -4,22 +4,20 @@ use crate::imports::*;
 use crate::track::link::network::Network;
 use crate::track::{LinkPoint, Location};
 
-#[altrios_api(
-    #[new]
-    fn __new__(
-        link_idx: LinkIdx,
-        time_seconds: f64,
-    ) -> Self {
-        Self::new(
-            link_idx,
-            time_seconds * uc::S
-        )
-    }
-)]
-#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct LinkIdxTime {
     pub link_idx: LinkIdx,
     pub time: si::Time,
+}
+
+#[named_struct_pyo3_api]
+impl LinkIdxTime {
+    #[new]
+    fn __new__(link_idx: LinkIdx, time_seconds: f64) -> Self {
+        Self::new(link_idx, time_seconds * uc::S)
+    }
 }
 
 impl LinkIdxTime {
@@ -28,11 +26,15 @@ impl LinkIdxTime {
     }
 }
 
-#[altrios_api]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Struct that contains a `Vec<LinkIdxTime>` for the purpose of providing `SerdeAPI` for
 /// `Vec<LinkIdxTime>` in Python
 pub struct TimedLinkPath(pub Vec<LinkIdxTime>);
+
+#[named_struct_pyo3_api]
+impl TimedLinkPath {}
 
 impl TimedLinkPath {
     /// Implement the non-Python `new` method.
@@ -53,7 +55,45 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     }
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, StateMethods)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Train simulation in which speed is allowed to vary according to train capabilities and speed
+/// limit.  Note that this is not guaranteed to produce identical results to [super::SetSpeedTrainSim]
+/// because of differences in braking controls but should generally be very close (i.e. error in cumulative
+/// fuel/battery energy should be less than 0.1%)
+pub struct SpeedLimitTrainSim {
+    pub train_id: String,
+    pub origs: Vec<Location>,
+    pub dests: Vec<Location>,
+    #[has_state]
+    pub loco_con: Consist,
+    /// Number of railcars by type on the train
+    pub n_cars_by_type: HashMap<String, u32>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    pub state: TrainState,
+
+    pub train_res: TrainRes,
+
+    pub path_tpc: PathTpc,
+
+    pub braking_points: BrakingPoints,
+    pub fric_brake: FricBrake,
+    /// Custom vector of [Self::state]
+    #[serde(default)]
+    pub history: TrainStateHistoryVec,
+
+    save_interval: Option<usize>,
+    simulation_days: Option<i32>,
+    scenario_year: Option<i32>,
+    /// Time-dependent temperature at sea level that can be corrected for
+    /// altitude using a standard model
+    temp_trace: Option<TemperatureTrace>,
+}
+
+#[named_struct_pyo3_api]
+impl SpeedLimitTrainSim {
     #[pyo3(name = "set_save_interval")]
     #[pyo3(signature = (save_interval=None))]
     /// Set save interval and cascade to nested components.
@@ -67,32 +107,32 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     }
 
     #[pyo3(name = "get_kilometers")]
-    pub fn get_kilometers_py(&self, annualize: bool)  -> f64 {
+    pub fn get_kilometers_py(&self, annualize: bool) -> f64 {
         self.get_kilometers(annualize)
     }
 
     #[pyo3(name = "get_megagram_kilometers")]
-    pub fn get_megagram_kilometers_py(&self, annualize: bool)  -> f64 {
+    pub fn get_megagram_kilometers_py(&self, annualize: bool) -> f64 {
         self.get_megagram_kilometers(annualize)
     }
 
     #[pyo3(name = "get_car_kilometers")]
-    pub fn get_car_kilometers_py(&self, annualize: bool)  -> f64 {
+    pub fn get_car_kilometers_py(&self, annualize: bool) -> f64 {
         self.get_car_kilometers(annualize)
     }
 
     #[pyo3(name = "get_cars_moved")]
-    pub fn get_cars_moved_py(&self, annualize: bool)  -> f64 {
+    pub fn get_cars_moved_py(&self, annualize: bool) -> f64 {
         self.get_cars_moved(annualize)
     }
 
     #[pyo3(name = "get_res_kilometers")]
-    pub fn get_res_kilometers_py(&mut self, annualize: bool)  -> f64 {
+    pub fn get_res_kilometers_py(&mut self, annualize: bool) -> f64 {
         self.get_res_kilometers(annualize)
     }
 
     #[pyo3(name = "get_non_res_kilometers")]
-    pub fn get_non_res_kilometers_py(&mut self, annualize: bool)  -> f64 {
+    pub fn get_non_res_kilometers_py(&mut self, annualize: bool) -> f64 {
         self.get_non_res_kilometers(annualize)
     }
 
@@ -108,7 +148,10 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 
     #[pyo3(name = "get_energy_fuel_soc_corrected_joules")]
     pub fn get_energy_fuel_soc_corrected_py(&self) -> PyResult<f64> {
-        Ok(self.get_energy_fuel_soc_corrected().map_err(|err| anyhow!("{:?}", err))?.get::<si::joule>())
+        Ok(self
+            .get_energy_fuel_soc_corrected()
+            .map_err(|err| anyhow!("{:?}", err))?
+            .get::<si::joule>())
     }
 
     #[pyo3(name = "walk")]
@@ -123,7 +166,11 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     }
 
     #[pyo3(name = "extend_path")]
-    pub fn extend_path_py(&mut self, network_file_path: String, link_path: Vec<LinkIdx>) -> anyhow::Result<()> {
+    pub fn extend_path_py(
+        &mut self,
+        network_file_path: String,
+        link_path: Vec<LinkIdx>,
+    ) -> anyhow::Result<()> {
         let network = Vec::<Link>::from_file(network_file_path, false).unwrap();
 
         self.extend_path(&network, &link_path)?;
@@ -139,53 +186,24 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
         let network = match network.extract::<Network>() {
             Ok(n) => n,
             Err(_) => {
-                let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network( Default::default(), n)
+                let n = network
+                    .extract::<Vec<Link>>()
+                    .map_err(|_| anyhow!("{}", format_dbg!()))?;
+                Network(Default::default(), n)
             }
         };
 
         let timed_path = match timed_path.extract::<TimedLinkPath>() {
             Ok(tp) => tp,
             Err(_) => {
-                let tp = timed_path.extract::<Vec<LinkIdxTime>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                let tp = timed_path
+                    .extract::<Vec<LinkIdxTime>>()
+                    .map_err(|_| anyhow!("{}", format_dbg!()))?;
                 TimedLinkPath(tp)
             }
         };
         self.walk_timed_path(&network, timed_path)
     }
-)]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-/// Train simulation in which speed is allowed to vary according to train capabilities and speed
-/// limit.  Note that this is not guaranteed to produce identical results to [super::SetSpeedTrainSim]
-/// because of differences in braking controls but should generally be very close (i.e. error in cumulative
-/// fuel/battery energy should be less than 0.1%)
-pub struct SpeedLimitTrainSim {
-    pub train_id: String,
-    pub origs: Vec<Location>,
-    pub dests: Vec<Location>,
-    pub loco_con: Consist,
-    /// Number of railcars by type on the train
-    pub n_cars_by_type: HashMap<String, u32>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    pub state: TrainState,
-
-    pub train_res: TrainRes,
-
-    pub path_tpc: PathTpc,
-
-    pub braking_points: BrakingPoints,
-    pub fric_brake: FricBrake,
-    /// Custom vector of [Self::state]
-    #[serde(default, skip_serializing_if = "TrainStateHistoryVec::is_empty")]
-    pub history: TrainStateHistoryVec,
-
-    save_interval: Option<usize>,
-    simulation_days: Option<i32>,
-    scenario_year: Option<i32>,
-    /// Time-dependent temperature at sea level that can be corrected for
-    /// altitude using a standard model
-    temp_trace: Option<TemperatureTrace>,
 }
 
 pub struct SpeedLimitTrainSimBuilder {
@@ -920,8 +938,34 @@ mod tests {
     impl Cases for SpeedLimitTrainSim {}
 
     #[test]
-    fn test_speed_limit_train_sim() {
-        let mut train_sim = SpeedLimitTrainSim::valid();
-        train_sim.walk().unwrap();
+    fn test_to_from_file_for_train_sim() {
+        let ts0 = SOLVED_SPEED_LIM_TRAIN_SIM.clone();
+        let tempdir = tempfile::tempdir().unwrap();
+
+        // // test to and from file for yaml
+        let temp_yaml_path = tempdir.path().join("ts.yaml");
+        ts0.to_file(temp_yaml_path.clone()).unwrap();
+        let ts_yaml = crate::prelude::SpeedLimitTrainSim::from_file(temp_yaml_path, false).unwrap();
+
+        // `to_yaml` is probably needed to get around problems with NAN
+        assert_eq!(ts_yaml.to_yaml().unwrap(), ts0.to_yaml().unwrap());
+
+        // test to and from file for msgpack
+        let temp_msgpack_path = tempdir.path().join("ts.msgpack");
+        ts0.to_file(temp_msgpack_path.clone()).unwrap();
+        let ts_msgpack =
+            crate::prelude::SpeedLimitTrainSim::from_file(temp_msgpack_path, false).unwrap();
+
+        // `to_yaml` is probably needed to get around problems with NAN
+        assert_eq!(ts_msgpack.to_yaml().unwrap(), ts0.to_yaml().unwrap());
+    }
+
+    lazy_static! {
+        static ref SOLVED_SPEED_LIM_TRAIN_SIM: crate::prelude::SpeedLimitTrainSim = {
+            let mut ts = crate::prelude::SpeedLimitTrainSim::valid();
+            ts.init().unwrap();
+            ts.walk().unwrap();
+            ts
+        };
     }
 }

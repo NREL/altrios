@@ -8,8 +8,9 @@ use super::powertrain::ElectricMachine;
 use super::{LocoTrait, Mass, MassSideEffect};
 use crate::imports::*;
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, HistoryMethods)]
-#[altrios_api]
+#[serde_api]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Hybrid locomotive with both engine and reversible energy storage (aka battery)  
 /// This type of locomotive is not likely to be widely prevalent due to modularity of consists.
 pub struct HybridLoco {
@@ -29,9 +30,12 @@ pub struct HybridLoco {
     #[serde(default)]
     pub state: HELState,
     /// vector of [Self::state]
-    #[serde(default, skip_serializing_if = "HELStateHistoryVec::is_empty")]
+    #[serde(default)]
     pub history: HELStateHistoryVec,
 }
+
+#[named_struct_pyo3_api]
+impl HybridLoco {}
 
 impl Default for HybridLoco {
     fn default() -> Self {
@@ -313,41 +317,20 @@ impl HybridLoco {
     }
 }
 
-#[altrios_api]
-#[derive(Clone, Debug, Default, PartialEq)]
-#[non_exhaustive]
-pub struct FCOnCauses(Vec<FCOnCause>);
-impl Init for FCOnCauses {}
-impl SerdeAPI for FCOnCauses {}
-impl FCOnCauses {
-    fn clear(&mut self) {
-        self.0.clear();
-    }
-
-    #[allow(dead_code)]
-    pub fn pop(&mut self) -> Option<FCOnCause> {
-        self.0.pop()
-    }
-
-    pub fn push(&mut self, new: FCOnCause) {
-        self.0.push(new)
-    }
-
-    pub fn is_empty(&mut self) -> bool {
-        self.0.is_empty()
-    }
-}
-
-#[altrios_api]
+#[serde_api]
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
 #[non_exhaustive]
 #[serde(default)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct HELState {
     /// time step index
     pub i: usize,
     /// Vector of posssible reasons the fc is forced on
     pub fc_on_causes: FCOnCauses,
 }
+
+#[named_struct_pyo3_api]
+impl HELState {}
 
 impl Init for HELState {}
 impl SerdeAPI for HELState {}
@@ -445,36 +428,31 @@ impl std::fmt::Display for FCOnCauses {
     }
 }
 
-#[altrios_enum_api]
-#[derive(
-    Clone, Copy, Debug, Deserialize, Serialize, PartialEq, IsVariant, From, TryInto, FromStr,
-)]
-pub enum FCOnCause {
+#[serde_api]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct FCOnCauses {
     /// Engine must be on to self heat if thermal model is enabled
-    FCTemperatureTooLow,
+    fctemperature_too_low: bool,
     /// Engine must be on for high vehicle speed to ensure powertrain can meet
     /// any spikes in power demand
-    VehicleSpeedTooHigh,
+    vehicle_speed_too_high: bool,
     /// Engine has not been on long enough (usually 30 s)
-    OnTimeTooShort,
+    on_time_too_short: bool,
     /// Powertrain power demand exceeds motor and/or battery capabilities
-    PropulsionPowerDemand,
+    propulsion_power_demand: bool,
     /// Powertrain power demand exceeds optimal motor and/or battery output
-    PropulsionPowerDemandSoft,
+    propulsion_power_demand_soft: bool,
     /// Aux power demand exceeds battery capability
-    AuxPowerDemand,
+    aux_power_demand: bool,
     /// SOC is below min buffer so FC is charging RES
-    ChargingForLowSOC,
+    charging_for_low_soc: bool,
 }
-impl SerdeAPI for FCOnCause {}
-impl Init for FCOnCause {}
-impl fmt::Display for FCOnCause {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-        // or, alternatively:
-        // fmt::Debug::fmt(self, f)
-    }
-}
+impl SerdeAPI for FCOnCauses {}
+impl Init for FCOnCauses {}
+
+#[named_struct_pyo3_api]
+impl FCOnCauses {}
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default, IsVariant, From, TryInto)]
 pub enum HEVAuxControls {
@@ -718,52 +696,41 @@ fn get_pwr_gen_elec_out_for_eff_fc(
 /// and discharge power inside of static min and max SOC range.  Also, includes
 /// buffer for forcing [FuelConverter] to be active/on. See [Self::init] for
 /// default values.
-#[altrios_api]
+#[serde_api]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default)]
 #[non_exhaustive]
 pub struct RESGreedyWithDynamicBuffers {
     /// RES energy delta from minimum SOC corresponding to kinetic energy of
     /// vehicle at this speed that triggers ramp down in RES discharge.
-
     pub speed_soc_disch_buffer: Option<si::Velocity>,
     /// Coefficient for modifying amount of accel buffer
-
     pub speed_soc_disch_buffer_coeff: Option<si::Ratio>,
     /// RES energy delta from minimum SOC corresponding to kinetic energy of
     /// vehicle at this speed that triggers FC to be forced on.
-
     pub speed_soc_fc_on_buffer: Option<si::Velocity>,
     /// Coefficient for modifying amount of [Self::speed_soc_fc_on_buffer]
-
     pub speed_soc_fc_on_buffer_coeff: Option<si::Ratio>,
     /// RES energy delta from maximum SOC corresponding to kinetic energy of
     /// vehicle at current speed minus kinetic energy of vehicle at this speed
     /// triggers ramp down in RES discharge
-
     pub speed_soc_regen_buffer: Option<si::Velocity>,
     /// Coefficient for modifying amount of regen buffer
-
     pub speed_soc_regen_buffer_coeff: Option<si::Ratio>,
     // TODO: make it so that the engine never goes off at all
     /// Minimum time engine must remain on if it was on during the previous
     /// simulation time step.
-
     pub fc_min_time_on: Option<si::Time>,
     /// Speed at which [FuelConverter] is forced on.
-
     pub speed_fc_forced_on: Option<si::Velocity>,
     /// Fraction of total aux and powertrain rated power at which
     /// [FuelConverter] is forced on.
-
     pub frac_pwr_demand_fc_forced_on: Option<si::Ratio>,
     /// Force engine, if on, to run at this fraction of peak power or the
     /// required power, whichever is greater. If SOC is below min buffer or
     /// engine is otherwise forced on and battery has room to receive charge,
     /// engine will run at this level and charge.
-
     pub frac_of_max_pwr_to_run_fc: Option<si::Ratio>,
     /// Force generator, if engine is on, to run at this power to help run engine efficiently
-
     pub pwr_gen_elec_out_for_eff_fc: Option<si::Power>,
     // /// temperature at which engine is forced on to warm up
     // #[serde(default)]
@@ -774,10 +741,13 @@ pub struct RESGreedyWithDynamicBuffers {
     /// current state of control variables
     #[serde(default)]
     pub state: RGWDBState,
-    #[serde(default, skip_serializing_if = "RGWDBStateHistoryVec::is_empty")]
+    #[serde(default)]
     /// history of current state
     pub history: RGWDBStateHistoryVec,
 }
+
+#[named_struct_pyo3_api]
+impl RESGreedyWithDynamicBuffers {}
 
 impl RESGreedyWithDynamicBuffers {
     fn set_soc_fc_on_buffer(
@@ -825,9 +795,10 @@ impl Init for RESGreedyWithDynamicBuffers {
 }
 impl SerdeAPI for RESGreedyWithDynamicBuffers {}
 
-#[altrios_api]
+#[serde_api]
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
 #[serde(default)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// State for [RESGreedyWithDynamicBuffers ]
 pub struct RGWDBState {
     /// time step index
@@ -840,6 +811,9 @@ pub struct RGWDBState {
     /// buffer at which FC is forced on
     pub soc_fc_on_buffer: si::Ratio,
 }
+
+#[named_struct_pyo3_api]
+impl RGWDBState {}
 
 impl Init for RGWDBState {}
 impl SerdeAPI for RGWDBState {}

@@ -4,7 +4,56 @@ use super::*;
 
 const TOL: f64 = 1e-3;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Struct for modeling Fuel Converter (e.g. engine, fuel cell.)
+pub struct FuelConverter {
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    /// struct for tracking current state
+    pub state: FuelConverterState,
+    /// FuelConverter mass
+    #[serde(default)]
+    mass: Option<si::Mass>,
+    /// FuelConverter specific power
+    specific_pwr: Option<si::SpecificPower>,
+    /// max rated brake output power
+    pub pwr_out_max: si::Power,
+    /// starting/baseline transient power limit
+    #[serde(default)]
+    pub pwr_out_max_init: si::Power,
+    // TODO: consider a ramp down rate, which may be needed for fuel cells
+    /// lag time for ramp up
+    pub pwr_ramp_lag: si::Time,
+    /// Fuel converter brake power fraction array at which efficiencies are evaluated.
+    /// This fuel converter efficiency model assumes that speed and load (or voltage and current) will
+    /// always be controlled for operating at max possible efficiency for the power demand
+    pub pwr_out_frac_interp: Vec<f64>,
+    /// fuel converter efficiency array
+    pub eta_interp: Vec<f64>,
+    /// pwr at which peak efficiency occurs
+    #[serde(skip)]
+    pub(crate) pwr_for_peak_eff: si::Power,
+    /// idle fuel power to overcome internal friction (not including aux load)
+    pub pwr_idle_fuel: si::Power,
+    /// Interpolator for derating dynamic engine peak power based on altitude
+    /// and temperature. When interpolating, this returns fraction of normal
+    /// peak power, e.g. a value of 1 means no derating and a value of 0 means
+    /// the engine is completely disabled.
+    pub elev_and_temp_derate: Option<Interp2DOwned<f64, strategy::Linear>>,
+    /// time step interval between saves. 1 is a good option. If None, no saving occurs.
+    pub save_interval: Option<usize>,
+    /// Custom vector of [Self::state]
+    #[serde(
+        default,
+        skip_serializing_if = "FuelConverterStateHistoryVec::is_empty"
+    )]
+    pub history: FuelConverterStateHistoryVec, // TODO: spec out fuel tank size and track kg of fuel
+}
+
+#[named_struct_pyo3_api]
+impl FuelConverter {
     // optional, custom, struct-specific pymethods
     #[getter("eta_max")]
     fn get_eta_max_py(&self) -> f64 {
@@ -28,7 +77,9 @@ const TOL: f64 = 1e-3;
 
     #[setter("__eta_range")]
     fn set_eta_range_py(&mut self, eta_range: f64) -> anyhow::Result<()> {
-        Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
+        Ok(self
+            .set_eta_range(eta_range)
+            .map_err(PyValueError::new_err)?)
     }
 
     #[getter("mass_kg")]
@@ -38,62 +89,14 @@ const TOL: f64 = 1e-3;
 
     #[getter]
     fn get_specific_pwr_kw_per_kg(&self) -> Option<f64> {
-        self.specific_pwr.map(|sp| sp.get::<si::kilowatt_per_kilogram>())
+        self.specific_pwr
+            .map(|sp| sp.get::<si::kilowatt_per_kilogram>())
     }
 
     #[pyo3(name = "set_default_elev_and_temp_derate")]
     fn set_default_elev_and_temp_derate_py(&mut self) {
         self.set_default_elev_and_temp_derate()
     }
-)]
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
-/// Struct for modeling Fuel Converter (e.g. engine, fuel cell.)
-pub struct FuelConverter {
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    /// struct for tracking current state
-    pub state: FuelConverterState,
-    /// FuelConverter mass
-    #[serde(default)]
-
-    mass: Option<si::Mass>,
-    /// FuelConverter specific power
-
-    specific_pwr: Option<si::SpecificPower>,
-    /// max rated brake output power
-    pub pwr_out_max: si::Power,
-    /// starting/baseline transient power limit
-    #[serde(default)]
-    pub pwr_out_max_init: si::Power,
-    // TODO: consider a ramp down rate, which may be needed for fuel cells
-    /// lag time for ramp up
-    pub pwr_ramp_lag: si::Time,
-    /// Fuel converter brake power fraction array at which efficiencies are evaluated.
-    /// This fuel converter efficiency model assumes that speed and load (or voltage and current) will
-    /// always be controlled for operating at max possible efficiency for the power demand
-    pub pwr_out_frac_interp: Vec<f64>,
-    /// fuel converter efficiency array
-    pub eta_interp: Vec<f64>,
-    /// pwr at which peak efficiency occurs
-    #[serde(skip)]
-
-    pub(crate) pwr_for_peak_eff: si::Power,
-    /// idle fuel power to overcome internal friction (not including aux load)
-    pub pwr_idle_fuel: si::Power,
-    /// Interpolator for derating dynamic engine peak power based on altitude
-    /// and temperature. When interpolating, this returns fraction of normal
-    /// peak power, e.g. a value of 1 means no derating and a value of 0 means
-    /// the engine is completely disabled.
-
-    pub elev_and_temp_derate: Option<Interp2DOwned<f64, strategy::Linear>>,
-    /// time step interval between saves. 1 is a good option. If None, no saving occurs.
-    pub save_interval: Option<usize>,
-    /// Custom vector of [Self::state]
-    #[serde(
-        default,
-        skip_serializing_if = "FuelConverterStateHistoryVec::is_empty"
-    )]
-    pub history: FuelConverterStateHistoryVec, // TODO: spec out fuel tank size and track kg of fuel
 }
 
 impl Default for FuelConverter {
@@ -334,8 +337,9 @@ impl FuelConverter {
     }
 }
 
+#[serde_api]
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
-#[altrios_api]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct FuelConverterState {
     /// iteration counter
     pub i: usize,
@@ -364,6 +368,9 @@ pub struct FuelConverterState {
     /// elapsed time since engine was turned on
     pub time_on: si::Time,
 }
+
+#[named_struct_pyo3_api]
+impl FuelConverterState {}
 
 impl Init for FuelConverterState {}
 impl SerdeAPI for FuelConverterState {}

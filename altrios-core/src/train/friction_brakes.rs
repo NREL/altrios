@@ -1,6 +1,35 @@
 use crate::imports::*;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+// brake propagation rate is ~800 ft/s (about speed of sound)
+// ramp up duration is ~30 s
+pub struct FricBrake {
+    /// max static force achievable
+    pub force_max: si::Force,
+    /// time to go from zero to max braking force
+    pub ramp_up_time: si::Time,
+    /// ramp-up correction factor
+    pub ramp_up_coeff: si::Ratio,
+    // commented out.  This stuff needs refinement but
+    // added complexity is probably worthwhile
+    // /// time to go from max braking force to zero braking force
+    // pub ramp_down_time: si::Time,
+    // /// rate at which brakes can be recovered after full release
+    // pub recharge_rate_pa_per_sec: f64,
+    // TODO: add in whatever is needed to estimate aux load impact
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    pub state: FricBrakeState,
+    #[serde(default)]
+    /// Custom vector of [Self::state]
+    pub history: FricBrakeStateHistoryVec,
+    pub save_interval: Option<usize>,
+}
+
+#[named_struct_pyo3_api]
+impl FricBrake {
     #[new]
     #[pyo3(signature = (
         force_max_newtons,
@@ -24,31 +53,6 @@ use crate::imports::*;
             save_interval,
         )
     }
-)]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, HistoryMethods, SerdeAPI)]
-// brake propagation rate is ~800 ft/s (about speed of sound)
-// ramp up duration is ~30 s
-pub struct FricBrake {
-    /// max static force achievable
-    pub force_max: si::Force,
-    /// time to go from zero to max braking force
-    pub ramp_up_time: si::Time,
-    /// ramp-up correction factor
-    pub ramp_up_coeff: si::Ratio,
-    // commented out.  This stuff needs refinement but
-    // added complexity is probably worthwhile
-    // /// time to go from max braking force to zero braking force
-    // pub ramp_down_time: si::Time,
-    // /// rate at which brakes can be recovered after full release
-    // pub recharge_rate_pa_per_sec: f64,
-    // TODO: add in whatever is needed to estimate aux load impact
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    pub state: FricBrakeState,
-    #[serde(default, skip_serializing_if = "FricBrakeStateHistoryVec::is_empty")]
-    /// Custom vector of [Self::state]
-    pub history: FricBrakeStateHistoryVec,
-    pub save_interval: Option<usize>,
 }
 
 impl Default for FricBrake {
@@ -99,14 +103,9 @@ impl FricBrake {
 
 // TODO: figure out a way to make the braking reasonably polymorphic (e.g. for autonomous rail
 // vehicles)
+#[serde_api]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, HistoryVec)]
-#[altrios_api(
-    #[new]
-    fn __new__(
-    ) -> Self {
-        Self::new()
-    }
-)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct FricBrakeState {
     /// index counter
     pub i: usize,
@@ -115,6 +114,14 @@ pub struct FricBrakeState {
     // time-varying max force of brakes in current time step
     pub force_max_curr: si::Force,
     // pressure: si::Pressure,
+}
+
+#[named_struct_pyo3_api]
+impl FricBrakeState {
+    #[new]
+    fn __new__() -> Self {
+        Self::new()
+    }
 }
 
 impl SerdeAPI for FricBrakeState {}

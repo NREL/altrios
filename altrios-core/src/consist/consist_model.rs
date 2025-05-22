@@ -1,13 +1,42 @@
 use super::*;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Struct for simulating power distribution controls and energy usage of locomotive consist.
+pub struct Consist {
+    // pretty sure these won't get automatically generated correctly
+    /// vector of locomotives, must be private to allow for side effects when setting
+    pub loco_vec: Vec<Locomotive>,
+
+    /// power distribution control type
+    pub pdct: PowerDistributionControlType,
+    #[serde(default = "utils::return_true")]
+    // setter needs to also apply to individual locomotives
+    /// whether to panic if TPC requires more power than consist can deliver
+    assert_limits: bool,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    pub state: ConsistState,
+    #[serde(default)]
+    /// Custom vector of [Self::state]
+    pub history: ConsistStateHistoryVec,
+
+    save_interval: Option<usize>,
+    #[serde(skip)]
+    n_res_equipped: Option<u8>,
+}
+
+#[named_struct_pyo3_api]
+impl Consist {
     #[new]
     #[pyo3(signature = (loco_vec, save_interval=None))]
-    fn __new__(
-        loco_vec: Vec<Locomotive>,
-        save_interval: Option<usize>
-    ) -> anyhow::Result<Self> {
-        Ok(Self::new(loco_vec, save_interval, PowerDistributionControlType::default()))
+    fn __new__(loco_vec: Vec<Locomotive>, save_interval: Option<usize>) -> anyhow::Result<Self> {
+        Ok(Self::new(
+            loco_vec,
+            save_interval,
+            PowerDistributionControlType::default(),
+        ))
     }
 
     #[getter("loco_vec")]
@@ -21,8 +50,12 @@ use super::*;
         Ok(())
     }
 
-    #[pyo3(name="drain_loco_vec")]
-    fn drain_loco_vec_py(&mut self, start: usize, end: usize) -> anyhow::Result<Pyo3VecLocoWrapper> {
+    #[pyo3(name = "drain_loco_vec")]
+    fn drain_loco_vec_py(
+        &mut self,
+        start: usize,
+        end: usize,
+    ) -> anyhow::Result<Pyo3VecLocoWrapper> {
         Ok(Pyo3VecLocoWrapper(self.drain_loco_vec(start, end)))
     }
 
@@ -90,30 +123,6 @@ use super::*;
     fn get_mass_kg_py(&self) -> anyhow::Result<Option<f64>> {
         Ok(self.mass()?.map(|m| m.get::<si::kilogram>()))
     }
-)]
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-/// Struct for simulating power distribution controls and energy usage of locomotive consist.
-pub struct Consist {
-    // pretty sure these won't get automatically generated correctly
-    /// vector of locomotives, must be private to allow for side effects when setting
-    pub loco_vec: Vec<Locomotive>,
-
-    /// power distribution control type
-    pub pdct: PowerDistributionControlType,
-    #[serde(default = "utils::return_true")]
-    // setter needs to also apply to individual locomotives
-    /// whether to panic if TPC requires more power than consist can deliver
-    assert_limits: bool,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    pub state: ConsistState,
-    #[serde(default, skip_serializing_if = "ConsistStateHistoryVec::is_empty")]
-    /// Custom vector of [Self::state]
-    pub history: ConsistStateHistoryVec,
-
-    save_interval: Option<usize>,
-    #[serde(skip)]
-    n_res_equipped: Option<u8>,
 }
 
 impl Init for Consist {
@@ -601,8 +610,9 @@ impl Mass for Consist {
 }
 /// Locomotive State
 /// probably reusable across all powertrain types
+#[serde_api]
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
-#[altrios_api]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct ConsistState {
     /// current time index
     pub i: usize,
@@ -656,6 +666,9 @@ pub struct ConsistState {
     /// Time-integrated energy form of [pwr_fuel](Self::pwr_fuel)
     pub energy_fuel: si::Energy,
 }
+
+#[named_struct_pyo3_api]
+impl ConsistState {}
 
 impl Init for ConsistState {}
 impl SerdeAPI for ConsistState {}

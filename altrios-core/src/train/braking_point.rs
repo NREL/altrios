@@ -1,12 +1,16 @@
 use super::{friction_brakes::FricBrake, train_imports::*};
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct BrakingPoint {
     pub offset: si::Length,
     pub speed_limit: si::Velocity,
     pub speed_target: si::Velocity,
 }
+
+#[named_struct_pyo3_api]
+impl BrakingPoint {}
 
 impl ObjState for BrakingPoint {
     fn validate(&self) -> ValidationResults {
@@ -18,13 +22,17 @@ impl ObjState for BrakingPoint {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct BrakingPoints {
     points: Vec<BrakingPoint>,
     /// index within [Self::points]
     idx_curr: usize,
 }
+
+#[named_struct_pyo3_api]
+impl BrakingPoints {}
 
 impl BrakingPoints {
     /// Arguments:

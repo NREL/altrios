@@ -1,7 +1,20 @@
 use super::environment::TemperatureTrace;
 use super::train_imports::*;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct SpeedTrace {
+    /// simulation time
+    pub time: Vec<si::Time>,
+    /// simulation speed
+    pub speed: Vec<si::Velocity>,
+    /// Whether engine is on
+    pub engine_on: Option<Vec<bool>>,
+}
+
+#[named_struct_pyo3_api]
+impl SpeedTrace {
     #[new]
     #[pyo3(signature = (
         time_seconds,
@@ -11,7 +24,7 @@ use super::train_imports::*;
     fn __new__(
         time_seconds: Vec<f64>,
         speed_meters_per_second: Vec<f64>,
-        engine_on: Option<Vec<bool>>
+        engine_on: Option<Vec<bool>>,
     ) -> anyhow::Result<Self> {
         Ok(Self::new(time_seconds, speed_meters_per_second, engine_on))
     }
@@ -30,15 +43,6 @@ use super::train_imports::*;
     fn to_csv_file_py(&self, filepath: &Bound<PyAny>) -> anyhow::Result<()> {
         self.to_csv_file(PathBuf::extract_bound(filepath)?)
     }
-)]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerdeAPI)]
-pub struct SpeedTrace {
-    /// simulation time
-    pub time: Vec<si::Time>,
-    /// simulation speed
-    pub speed: Vec<si::Velocity>,
-    /// Whether engine is on
-    pub engine_on: Option<Vec<bool>>,
 }
 
 impl SpeedTrace {
@@ -173,7 +177,7 @@ impl Default for SpeedTrace {
 }
 
 /// Element of [SpeedTrace].  Used for vec-like operations.
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SpeedTraceElement {
     /// simulation time
     #[serde(alias = "time_seconds")]
@@ -185,7 +189,37 @@ pub struct SpeedTraceElement {
     engine_on: Option<bool>,
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Train simulation in which speed is prescribed.  Note that this is not guaranteed to
+/// produce identical results to [super::SpeedLimitTrainSim] because of differences in braking
+/// controls but should generally be very close (i.e. error in cumulative fuel/battery energy
+/// should be less than 0.1%)
+pub struct SetSpeedTrainSim {
+    pub loco_con: Consist,
+    pub n_cars_by_type: HashMap<String, u32>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    pub state: TrainState,
+    pub speed_trace: SpeedTrace,
+
+    /// train resistance calculation
+    pub train_res: TrainRes,
+
+    path_tpc: PathTpc,
+    /// Custom vector of [Self::state]
+    #[serde(default)]
+    pub history: TrainStateHistoryVec,
+
+    save_interval: Option<usize>,
+    /// Time-dependent temperature at sea level that can be corrected for
+    /// altitude using a standard model
+    temp_trace: Option<TemperatureTrace>,
+}
+
+#[named_struct_pyo3_api]
+impl SetSpeedTrainSim {
     #[setter]
     pub fn set_res_strap(&mut self, res_strap: method::Strap) -> anyhow::Result<()> {
         self.train_res = TrainRes::Strap(res_strap);
@@ -242,32 +276,6 @@ pub struct SpeedTraceElement {
         self.trim_failed_steps()?;
         Ok(())
     }
-)]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-/// Train simulation in which speed is prescribed.  Note that this is not guaranteed to
-/// produce identical results to [super::SpeedLimitTrainSim] because of differences in braking
-/// controls but should generally be very close (i.e. error in cumulative fuel/battery energy
-/// should be less than 0.1%)
-pub struct SetSpeedTrainSim {
-    pub loco_con: Consist,
-    pub n_cars_by_type: HashMap<String, u32>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    pub state: TrainState,
-    pub speed_trace: SpeedTrace,
-
-    /// train resistance calculation
-    pub train_res: TrainRes,
-
-    path_tpc: PathTpc,
-    /// Custom vector of [Self::state]
-    #[serde(default, skip_serializing_if = "TrainStateHistoryVec::is_empty")]
-    pub history: TrainStateHistoryVec,
-
-    save_interval: Option<usize>,
-    /// Time-dependent temperature at sea level that can be corrected for
-    /// altitude using a standard model
-    temp_trace: Option<TemperatureTrace>,
 }
 
 pub struct SetSpeedTrainSimBuilder {

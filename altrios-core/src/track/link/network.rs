@@ -9,9 +9,10 @@ use crate::imports::*;
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 struct OldSpeedSets(Vec<OldSpeedSet>);
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// An arbitrary unit of single track that does not include turnouts
-#[altrios_api()]
 pub struct Link {
     /// Index of current link
     pub idx_curr: LinkIdx,
@@ -39,7 +40,7 @@ pub struct Link {
     /// Spatial vector of compass heading values and corresponding positions along track
     pub headings: Vec<Heading>,
     /// Map of train types and corresponding speed sets
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(default)]
     pub speed_sets: HashMap<TrainType, SpeedSet>,
     /// Optional train-type-neutral [SpeedSet].  If provided, overrides [Link::speed_sets].
     pub speed_set: Option<SpeedSet>,
@@ -56,9 +57,11 @@ pub struct Link {
     pub link_idxs_lockout: Vec<LinkIdx>,
 
     #[serde(skip)]
-
     pub err_tol: Option<NetworkErrTol>,
 }
+
+#[named_struct_pyo3_api]
+impl Link {}
 
 impl Link {
     fn is_linked_prev(&self, idx: LinkIdx) -> bool {
@@ -356,22 +359,26 @@ impl ObjState for Link {
     }
 }
 
-#[altrios_api(
-    #[pyo3(name = "set_speed_set_for_train_type")]
-    fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> PyResult<()> {
-        Ok(self.set_speed_set_for_train_type(train_type)?)
-    }
-)]
+#[serde_api]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Struct that contains a `Vec<Link>`, and optional parameters for setting
 /// error tolerances in checks performed by [Init::init]
 pub struct Network(pub NetworkErrTol, pub Vec<Link>);
 
-#[altrios_api]
+#[named_struct_pyo3_api]
+impl Network {
+    #[pyo3(name = "set_speed_set_for_train_type")]
+    fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> PyResult<()> {
+        Ok(self.set_speed_set_for_train_type(train_type)?)
+    }
+}
+
+#[serde_api]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Network error tolerances used in [Network::init]
 pub struct NetworkErrTol {
-
     /// Maximum absolute grade allowed at any point in the network
     pub max_grade: Option<si::Ratio>,
 
@@ -385,6 +392,10 @@ pub struct NetworkErrTol {
     /// adjacent links, should be very small
     pub max_elev_step: Option<si::Length>,
 }
+
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+impl NetworkErrTol {}
+
 impl Init for NetworkErrTol {
     fn init(&mut self) -> Result<(), Error> {
         let def: Self = Default::default();
@@ -559,15 +570,20 @@ impl From<NetworkUnchecked> for Network {
     }
 }
 
-#[altrios_api]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Deprecated Struct that contains a `Vec<Link>` for the purpose of providing
 /// `SerdeAPI` for `Vec<Link>` in Python.  This is used solely to enable
 /// backwards compatibility.
 struct NetworkUnchecked(pub Vec<Link>);
 
-#[altrios_api]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+#[named_struct_pyo3_api]
+impl NetworkUnchecked {}
+
+#[serde_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Struct that contains a `Vec<LinkOld>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
 ///
@@ -576,6 +592,9 @@ struct NetworkUnchecked(pub Vec<Link>);
 /// option for either a train-type-independent `speed_set` or a train-type-dependent
 /// `speed_sets` HashMap
 struct NetworkOld(pub Vec<LinkOld>);
+
+#[named_struct_pyo3_api]
+impl NetworkOld {}
 
 impl AsRef<[Link]> for Network {
     fn as_ref(&self) -> &[Link] {

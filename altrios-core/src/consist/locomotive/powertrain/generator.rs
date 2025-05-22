@@ -4,7 +4,43 @@ use crate::consist::locomotive::powertrain::ElectricMachine;
 #[cfg(feature = "pyo3")]
 use crate::pyo3::*;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Struct for modeling generator/alternator.
+pub struct Generator {
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    /// struct for tracking current state
+    pub state: GeneratorState,
+    /// Generator mass
+    #[serde(default)]
+    mass: Option<si::Mass>,
+    /// Generator specific power
+    specific_pwr: Option<si::SpecificPower>,
+    // no macro-generated setter because derived parameters would get messed up
+    /// Generator brake power fraction array at which efficiencies are evaluated.
+    pub pwr_out_frac_interp: Vec<f64>,
+    // no macro-generated setter because derived parameters would get messed up
+    /// Generator efficiency array correpsonding to [Self::pwr_out_frac_interp]
+    /// and [Self::pwr_in_frac_interp].
+    pub eta_interp: Vec<f64>,
+    /// Mechanical input power fraction array at which efficiencies are
+    /// evaluated.  This vec is calculated during initialization. Each element
+    /// represents the current input power divided by peak output power.
+    #[serde(skip)]
+    pub pwr_in_frac_interp: Vec<f64>,
+    /// Generator max power out
+    pub pwr_out_max: si::Power,
+    /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
+    pub save_interval: Option<usize>,
+    /// Custom vector of [Self::state]
+    #[serde(default)]
+    pub history: GeneratorStateHistoryVec,
+}
+
+#[named_struct_pyo3_api]
+impl Generator {
     /// Initialize a fuel converter object
     #[new]
     #[pyo3(signature = (
@@ -55,7 +91,9 @@ use crate::pyo3::*;
 
     #[setter("__eta_range")]
     fn set_eta_range_py(&mut self, eta_range: f64) -> anyhow::Result<()> {
-        Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
+        Ok(self
+            .set_eta_range(eta_range)
+            .map_err(PyValueError::new_err)?)
     }
 
     #[getter("mass_kg")]
@@ -65,45 +103,9 @@ use crate::pyo3::*;
 
     #[getter]
     fn get_specific_pwr_kw_per_kg(&self) -> Option<f64> {
-        self.specific_pwr.map(|sp| sp.get::<si::kilowatt_per_kilogram>())
+        self.specific_pwr
+            .map(|sp| sp.get::<si::kilowatt_per_kilogram>())
     }
-)]
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
-/// Struct for modeling generator/alternator.
-pub struct Generator {
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    /// struct for tracking current state
-    pub state: GeneratorState,
-    /// Generator mass
-    #[serde(default)]
-
-    mass: Option<si::Mass>,
-    /// Generator specific power
-
-    specific_pwr: Option<si::SpecificPower>,
-    // no macro-generated setter because derived parameters would get messed up
-    /// Generator brake power fraction array at which efficiencies are evaluated.
-
-    pub pwr_out_frac_interp: Vec<f64>,
-    // no macro-generated setter because derived parameters would get messed up
-    /// Generator efficiency array correpsonding to [Self::pwr_out_frac_interp]
-    /// and [Self::pwr_in_frac_interp].
-
-    pub eta_interp: Vec<f64>,
-    /// Mechanical input power fraction array at which efficiencies are
-    /// evaluated.  This vec is calculated during initialization. Each element
-    /// represents the current input power divided by peak output power.
-    #[serde(skip)]
-
-    pub pwr_in_frac_interp: Vec<f64>,
-    /// Generator max power out
-    pub pwr_out_max: si::Power,
-    /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
-    pub save_interval: Option<usize>,
-    /// Custom vector of [Self::state]
-    #[serde(default, skip_serializing_if = "GeneratorStateHistoryVec::is_empty")]
-    pub history: GeneratorStateHistoryVec,
 }
 
 impl Init for Generator {
@@ -383,8 +385,9 @@ impl ElectricMachine for Generator {
     }
 }
 
+#[serde_api]
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
-#[altrios_api]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct GeneratorState {
     /// iteration counter
     pub i: usize,
@@ -413,6 +416,9 @@ pub struct GeneratorState {
     /// cumulative energy has lost due to imperfect efficiency
     pub energy_loss: si::Energy,
 }
+
+#[named_struct_pyo3_api]
+impl GeneratorState {}
 
 impl Init for GeneratorState {}
 impl SerdeAPI for GeneratorState {}

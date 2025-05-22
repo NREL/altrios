@@ -144,7 +144,27 @@ impl std::string::ToString for PowertrainType {
     }
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Struct to facilitate passing several parameters to builder
+pub struct LocoParams {
+    /// [Locomotive::pwr_aux_offset]
+    pub pwr_aux_offset: si::Power,
+    /// [Locomotive::pwr_aux_traction_coeff]
+    pub pwr_aux_traction_coeff: si::Ratio,
+    /// [Locomotive::force_max]
+    pub force_max: si::Force,
+
+    /// [Locomotive::mass]
+    pub mass: Option<si::Mass>,
+}
+
+impl Init for LocoParams {}
+impl SerdeAPI for LocoParams {}
+
+#[named_struct_pyo3_api]
+impl LocoParams {
     #[new]
     #[pyo3(signature = (pwr_aux_offset_watts, pwr_aux_traction_coeff_ratio, force_max_newtons, mass_kilograms=None))]
     fn __new__(
@@ -157,7 +177,7 @@ impl std::string::ToString for PowertrainType {
             pwr_aux_offset: pwr_aux_offset_watts * uc::W,
             pwr_aux_traction_coeff: pwr_aux_traction_coeff_ratio * uc::R,
             force_max: force_max_newtons * uc::N,
-            mass: mass_kilograms.map(|m| m * uc::KG)
+            mass: mass_kilograms.map(|m| m * uc::KG),
         })
     }
 
@@ -166,19 +186,6 @@ impl std::string::ToString for PowertrainType {
     fn from_dict_py(param_dict: &Bound<PyDict>) -> anyhow::Result<Self> {
         Self::from_dict(param_dict)
     }
-)]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
-/// Struct to facilitate passing several parameters to builder
-pub struct LocoParams {
-    /// [Locomotive::pwr_aux_offset]
-    pub pwr_aux_offset: si::Power,
-    /// [Locomotive::pwr_aux_traction_coeff]
-    pub pwr_aux_traction_coeff: si::Ratio,
-    /// [Locomotive::force_max]
-    pub force_max: si::Force,
-
-    /// [Locomotive::mass]
-    pub mass: Option<si::Mass>,
 }
 
 impl LocoParams {
@@ -244,18 +251,22 @@ impl Default for LocoParams {
     }
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
-#[altrios_api(
-    #[staticmethod]
-    fn __new__() -> Self {
-        Default::default()
-    }
-)]
+#[serde_api]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// DummyLoco locomotive with infinite power and free energy, used for
 /// working with train performance calculator with
 /// [crate::train::SetSpeedTrainSim] with no effort to ensure loads
 /// on locomotive are realistic.
 pub struct DummyLoco {}
+
+#[named_struct_pyo3_api]
+impl DummyLoco {
+    #[staticmethod]
+    fn __new__() -> Self {
+        Default::default()
+    }
+}
 
 impl LocoTrait for DummyLoco {
     fn set_curr_pwr_max_out(
@@ -277,6 +288,7 @@ impl LocoTrait for DummyLoco {
 
 #[serde_api]
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Struct for simulating any type of locomotive
 pub struct Locomotive {
     /// type of locomotive including contained type-specific parameters
@@ -1243,8 +1255,9 @@ impl LocoTrait for Locomotive {
 }
 
 /// Locomotive state for current time step
+#[serde_api]
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
-#[altrios_api]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct LocomotiveState {
     pub i: usize,
     /// maximum forward propulsive power locomotive can produce
@@ -1266,6 +1279,9 @@ pub struct LocomotiveState {
     pub energy_aux: si::Energy,
     // pub force_max: si::Mass,
 }
+
+#[named_struct_pyo3_api]
+impl LocomotiveState {}
 
 impl Init for LocomotiveState {}
 impl SerdeAPI for LocomotiveState {}

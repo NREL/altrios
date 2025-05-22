@@ -14,7 +14,7 @@ use update_times::*;
 
 /// Estimated time node for dispatching
 /// Specifies the expected time of arrival when taking the shortest path with no delays
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, SerdeAPI, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct EstTime {
     /// Scheduled time of arrival at the node
     pub time_sched: si::Time,
@@ -61,16 +61,21 @@ impl Default for EstTime {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, SerdeAPI, PartialEq)]
-#[altrios_api(
-    pub fn get_running_time_hours(&self) -> f64 {
-        (self.val.last().unwrap().time_sched - self.val.first().unwrap().time_sched).get::<si::hour>()
-    }
-)]
+#[serde_api]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct EstTimeNet {
-
     pub val: Vec<EstTime>,
 }
+
+#[named_struct_pyo3_api]
+impl EstTimeNet {
+    pub fn get_running_time_hours(&self) -> f64 {
+        (self.val.last().unwrap().time_sched - self.val.first().unwrap().time_sched)
+            .get::<si::hour>()
+    }
+}
+
 impl EstTimeNet {
     pub fn new(val: Vec<EstTime>) -> Self {
         Self { val }

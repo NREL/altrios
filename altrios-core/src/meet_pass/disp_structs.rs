@@ -6,7 +6,7 @@ pub type EstIdx = u32;
 pub const EST_IDX_NA: EstIdx = 0;
 
 /// Type of estimated time node
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[repr(u8)]
 pub enum EstType {
     /// Train arrives at entry point to link
@@ -26,7 +26,7 @@ impl std::hash::Hash for EstType {
 impl nohash_hasher::IsEnabled for EstType {}
 
 /// Link index plus estimated time type (arrive, clear, or fake)
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LinkEvent {
     pub link_idx: LinkIdx,
     pub est_type: EstType,
@@ -52,7 +52,7 @@ pub type TrainIdx = Option<NonZeroU16>;
 /// Always tied to the same type as [TrainIdx].
 pub type DispAuthIdx = TrainIdx;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct DispAuth {
     /// Arrive Entry Time
     pub arrive_entry: si::Time,
@@ -98,7 +98,7 @@ impl Default for DispAuth {
 
 type TrainIdxsViewIdx = u32;
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, SerdeAPI)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TrainIdxsView {
     pub idx_begin: TrainIdxsViewIdx,
     pub idx_end: TrainIdxsViewIdx,
@@ -119,7 +119,7 @@ impl TrainIdxsView {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, SerdeAPI)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
 pub struct EstTimeStatus {
     pub train_idxs_view: TrainIdxsView,
     pub link_idx: LinkIdx,
@@ -153,7 +153,7 @@ impl EstTimeStatus {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, SerdeAPI)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DivergeNode {
     pub train_idx: TrainIdx,        // default to: None, which is 0.
     pub disp_node_idx: DispNodeIdx, // default to: None, which is 0.
@@ -168,7 +168,7 @@ impl DivergeNode {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct DispNode {
     pub offset: si::Length,
     pub time_pass: si::Time, // = units::numPosInf * units::s

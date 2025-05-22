@@ -16,8 +16,14 @@ pub trait ResMethod {
     fn fix_cache(&mut self, link_point_del: &LinkPoint);
 }
 
-#[cfg(feature = "pyo3")]
-#[altrios_api(
+#[serde_api]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Wrapper for `TrainRes` to enable exposing contents of enum variants in python
+pub struct TrainResWrapper(pub TrainRes);
+
+#[named_struct_pyo3_api]
+impl TrainResWrapper {
     #[getter("point")]
     fn get_point_py(&self) -> Option<method::Point> {
         self.get_point()
@@ -27,10 +33,7 @@ pub trait ResMethod {
     fn get_strap_py(&self) -> Option<method::Strap> {
         self.get_strap()
     }
-)]
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, SerdeAPI)]
-/// Wrapper for `TrainRes` to enable exposing contents of enum variants in python
-pub struct TrainResWrapper(pub TrainRes);
+}
 
 #[cfg(feature = "pyo3")]
 impl TrainResWrapper {
@@ -52,7 +55,7 @@ impl TrainResWrapper {
 /// Train resistance calculator that calculates resistive powers due to rolling, curvature, flange,
 /// grade, and bearing resistances.
 // TODO: May also include inertial -- figure this out and modify doc string above
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TrainRes {
     Point(method::Point),
     Strap(method::Strap),

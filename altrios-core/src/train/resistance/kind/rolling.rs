@@ -1,11 +1,15 @@
 use crate::imports::*;
 use crate::train::TrainState;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Basic {
     ratio: si::Ratio,
 }
+
+#[named_struct_pyo3_api]
+impl Basic {}
 
 impl Basic {
     pub fn new(ratio: si::Ratio) -> Self {

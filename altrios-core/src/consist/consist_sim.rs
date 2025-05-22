@@ -1,4 +1,3 @@
-use altrios_proc_macros::altrios_api;
 use serde::{Deserialize, Serialize};
 
 use crate::consist::locomotive::loco_sim::PowerTrace;
@@ -6,8 +5,17 @@ use crate::consist::Consist;
 use crate::consist::LocoTrait;
 use crate::imports::*;
 
+#[serde_api]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-#[altrios_api(
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct ConsistSimulation {
+    pub loco_con: Consist,
+    pub power_trace: PowerTrace,
+    pub i: usize,
+}
+
+#[named_struct_pyo3_api]
+impl ConsistSimulation {
     #[new]
     #[pyo3(signature = (consist, power_trace, save_interval=None))]
     fn __new__(consist: Consist, power_trace: PowerTrace, save_interval: Option<usize>) -> Self {
@@ -42,11 +50,6 @@ use crate::imports::*;
         self.trim_failed_steps()?;
         Ok(())
     }
-)]
-pub struct ConsistSimulation {
-    pub loco_con: Consist,
-    pub power_trace: PowerTrace,
-    pub i: usize,
 }
 
 impl ConsistSimulation {

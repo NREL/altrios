@@ -6,8 +6,23 @@ use super::LocoTrait;
 use super::*;
 use crate::imports::*;
 
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods)]
-#[altrios_api(
+#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, StateMethods, SetCumulative)]
+#[serde_api]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Conventional locomotive
+pub struct ConventionalLoco {
+    // The fields in this struct are all locally defined structs and are therefore not documented in
+    // this context
+    #[has_state]
+    pub fc: FuelConverter,
+    #[has_state]
+    pub gen: Generator,
+    #[has_state]
+    pub edrv: ElectricDrivetrain,
+}
+
+#[named_struct_pyo3_api]
+impl ConventionalLoco {
     #[new]
     pub fn __new__(
         fuel_converter: FuelConverter,
@@ -20,17 +35,6 @@ use crate::imports::*;
             edrv: electric_drivetrain,
         }
     }
-)]
-/// Conventional locomotive
-pub struct ConventionalLoco {
-    // The fields in this struct are all locally defined structs and are therefore not documented in
-    // this context
-    #[has_state]
-    pub fc: FuelConverter,
-    #[has_state]
-    pub gen: Generator,
-    #[has_state]
-    pub edrv: ElectricDrivetrain,
 }
 
 impl ConventionalLoco {

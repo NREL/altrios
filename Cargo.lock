@@ -61,6 +61,7 @@ dependencies = [
  "easy-ext",
  "eng_fmt",
  "include_dir",
+ "lazy_static",
  "log",
  "ninterp",
  "nohash-hasher",

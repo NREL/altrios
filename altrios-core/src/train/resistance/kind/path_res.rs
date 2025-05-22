@@ -11,12 +11,17 @@ fn calc_res_val(res_coeff: si::Ratio, state: &TrainState) -> si::Force {
     res_coeff * state.weight_static
 }
 
-#[altrios_api]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Point {
     /// index within corresponding [PathResCoeff]
     idx: usize,
 }
+
+#[named_struct_pyo3_api]
+impl Point {}
+
 impl Point {
     pub fn new(path_res_coeffs: &[PathResCoeff], state: &TrainState) -> anyhow::Result<Self> {
         Ok(Self {
@@ -66,14 +71,18 @@ impl [PathResCoeff] {
     }
 }
 
-#[altrios_api]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Strap {
     /// index of front of train within corresponding [PathResCoeff]
     idx_front: usize,
     /// index of back of train within corresponding [PathResCoeff]
     idx_back: usize,
 }
+
+#[named_struct_pyo3_api]
+impl Strap {}
 
 impl Strap {
     pub fn new(vals: &[PathResCoeff], state: &TrainState) -> anyhow::Result<Self> {

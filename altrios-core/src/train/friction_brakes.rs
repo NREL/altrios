@@ -45,7 +45,7 @@ pub struct FricBrake {
     #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: FricBrakeState,
-    #[serde(default, skip_serializing_if = "FricBrakeStateHistoryVec::is_empty")]
+    #[serde(default)]
     /// Custom vector of [Self::state]
     pub history: FricBrakeStateHistoryVec,
     pub save_interval: Option<usize>,

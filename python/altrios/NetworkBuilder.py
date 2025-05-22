@@ -168,17 +168,25 @@ def located_point_value_on_line(
 
 
 def smooth_link_data(
-    offsets, values, window_length=100, order=3, segment_length=2, unwrap_heading=False
+    offsets,
+    values,
+    window_length=100,
+    order=3,
+    segment_length=2,
+    unwrap_heading=False,
+    interp_offsets=[],
+    interp_values=[],
 ):
     # this is going to fit a spline to the elations with the ends constrained to smooth everything out.
 
     if unwrap_heading:
         values = np.unwrap(values, period=360)
 
-    # break track into even segments to let filter think we have evenly spaced data
-    f = interpolate.interp1d(offsets, values)
-    interp_offsets = np.arange(0, np.max(offsets), segment_length)
-    interp_values = f(interp_offsets)
+    if len(interp_offsets) == 0:
+        # break track into even segments to let filter think we have evenly spaced data
+        f = interpolate.interp1d(offsets, values)
+        interp_offsets = np.arange(0, np.max(offsets), segment_length)
+        interp_values = f(interp_offsets)
 
     # apply filter
     savgol_heading = savgol_filter(
@@ -444,7 +452,10 @@ class NetworkBuilder:
                     Coords.append([Node.lon, Node.lat])
                     NodeTags.append(Node.tags)
                     if "railway" in Node.tags.keys():
-                        if Node.tags["railway"] == "switch" or Node.tags["railway"] == "junction":
+                        if (
+                            Node.tags["railway"] == "switch"
+                            or Node.tags["railway"] == "junction"
+                        ):
                             switch_gdf = gpd.GeoDataFrame(
                                 data=[Node.tags],
                                 geometry=[shapely.Point([Node.lon, Node.lat])],
@@ -479,9 +490,9 @@ class NetworkBuilder:
             TrackGDF = TrackGDF[TrackGDF.railway != "narrow_gauge"]
             TrackGDF = TrackGDF[TrackGDF.railway != "platform"]
             TrackGDF = TrackGDF[TrackGDF.railway != "proposed"]
-            TrackGDF = TrackGDF[TrackGDF.railway != "razed"]            
+            TrackGDF = TrackGDF[TrackGDF.railway != "razed"]
             TrackGDF = TrackGDF[TrackGDF.railway != "signal_box"]
-            TrackGDF = TrackGDF[TrackGDF.railway != "station"]           
+            TrackGDF = TrackGDF[TrackGDF.railway != "station"]
             TrackGDF = TrackGDF[TrackGDF.railway != "tram"]
             TrackGDF = TrackGDF[TrackGDF.railway != "traverser"]
             TrackGDF = TrackGDF[TrackGDF.railway != "turntable"]
@@ -546,7 +557,7 @@ class NetworkBuilder:
             gdal.BuildVRT(str(VRTName), tiff_strs)
             # have not added filtering yet.
 
-    def drape_geometry(self):
+    def drape_geometry(self, resample_length=10, circle_buffer_m=250, buffer=2):
         """
         This function take the layer created by the distance_heading_calc function
         and drapes it onto the elevation data.  The elevation filtering occurs
@@ -560,9 +571,8 @@ class NetworkBuilder:
 
         """
         # https://gis.stackexchange.com/questions/228920/getting-elevation-at-particular-coordinate-lat-lon-programmatically-but-offli
-        buffer = 2
+
         for layername in fiona.listlayers(self.geopackage_path):
-            print(layername)
             if "_offhead" in layername:
                 print("draping layer: {}".format(layername))
                 vrt_path = (
@@ -585,30 +595,81 @@ class NetworkBuilder:
                     .to_crs("EPSG:4269")
                 )
 
-                all_elevations = []
-                all_elevations_raw = []
                 with rasterio.open(vrt_path) as src:
 
                     line_elevations = []
                     line_elevations_raw = []
+                    num_of_elev_segs = []
                     for idx, row in track_data.iterrows():
 
                         elevs = []
                         offsets = ast.literal_eval(row.offsets)
 
-                        elevs = [
-                            sample[0] for sample in src.sample(row.geometry.coords)
-                        ]
+                        length = offsets[-1]
+                        number_of_segments = np.ceil(length / resample_length)
+                        num_of_elev_segs.append(int(number_of_segments))
+                        segment_fraction = 1 / number_of_segments
+                        resample_fractions = np.arange(0, 1.00001, segment_fraction)
+                        resampled_line = shapely.LineString(
+                            shapely.line_interpolate_point(
+                                row.geometry, resample_fractions, normalized=True
+                            )
+                        )
+
+                        #########These next three lines of code with sample all the pointsin the line without a median filter
+                        # elevs = [
+                        #     sample[0] for sample in src.sample(row.geometry.coords)
+                        # ]
+
+                        for coord in resampled_line.coords:
+
+                            # elevs.append(src.sample(coord))
+                            #####This is commented out in case I want to go back to the median sampling
+                            # this could be done with pyproj, but I want to avoid an extra import.
+                            circle_buffer = (
+                                gpd.GeoSeries([shapely.Point(coord)], crs="EPSG:4269")
+                                .to_crs("ESRI:102009")
+                                .buffer(circle_buffer_m)
+                                .to_crs("EPSG:4269")
+                            )
+                            track_circle_intersect = circle_buffer.intersection(
+                                track_buffer
+                            )[0]
+
+                            # this is needed because a polygon or multiPolygon can be returned
+                            if type(track_circle_intersect) is shapely.Polygon:
+                                track_circle_intersect = [track_circle_intersect]
+                            else:
+                                track_circle_intersect = track_circle_intersect.geoms
+
+                            masked_elevation, transform = rasterio.mask.mask(
+                                src,
+                                gpd.GeoSeries(track_circle_intersect, crs="EPSG:4269"),
+                                crop=True,
+                                all_touched=True,
+                            )
+
+                            elevs.append(np.nanmedian(masked_elevation))
 
                         line_elevations.append(
-                            smooth_link_data(offsets, elevs, window_length=200)
-                            # TODO I can probably simplify some stuff here since the for loop was removed.
-                        )
-                        line_elevations_raw.append(elevs)
-                    all_elevations.append(line_elevations)
-                    all_elevations_raw.append(line_elevations_raw)
-                trackdata["elevations"] = all_elevations[0]
-                trackdata["elevations raw"] = all_elevations_raw[0]
+                            list(
+                                map(
+                                    float,
+                                    smooth_link_data(
+                                        offsets,
+                                        elevs,  # this won't get used by the function since we are passing in interp_offsets & values
+                                        window_length=200,
+                                        interp_offsets=resample_fractions * length,
+                                        interp_values=elevs,
+                                    ),
+                                ),
+                            )
+                        )  # TODO I can probably simplify some stuff here since the for loop was removed.
+                        line_elevations_raw.append(list(map(float, elevs)))
+
+                trackdata["elevations"] = line_elevations
+                trackdata["elevations raw"] = line_elevations_raw
+                track_data["number of elevation segments"] = num_of_elev_segs
                 # track_data = track_data.to_crs(
                 #     "EPSG:4326"
                 # )  # reprojecting back to WGS84

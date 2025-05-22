@@ -362,7 +362,7 @@ impl SerdeAPI for ElectricDrivetrainState {}
 impl Default for ElectricDrivetrainState {
     fn default() -> Self {
         Self {
-            i: 1,
+            i: Default::default(),
             eta: Default::default(),
             pwr_out_req: Default::default(),
             pwr_mech_prop_out: Default::default(),

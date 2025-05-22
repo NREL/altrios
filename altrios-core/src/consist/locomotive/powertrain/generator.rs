@@ -426,7 +426,7 @@ impl SerdeAPI for GeneratorState {}
 impl Default for GeneratorState {
     fn default() -> Self {
         Self {
-            i: 1,
+            i: Default::default(),
             eta: Default::default(),
             pwr_rate_out_max: Default::default(),
             pwr_elec_out_max: Default::default(),

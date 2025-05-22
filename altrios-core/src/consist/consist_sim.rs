@@ -57,7 +57,7 @@ impl ConsistSimulation {
         let mut consist_sim = Self {
             loco_con: consist,
             power_trace,
-            i: 1,
+            i: Default::default(),
         };
         consist_sim.loco_con.set_save_interval(save_interval);
         consist_sim

@@ -137,7 +137,7 @@ impl FricBrakeState {
 impl Default for FricBrakeState {
     fn default() -> Self {
         Self {
-            i: 1,
+            i: Default::default(),
             force: Default::default(),
             force_max_curr: Default::default(),
         }

@@ -145,7 +145,7 @@ impl Default for TrainState {
     fn default() -> Self {
         Self {
             time: Default::default(),
-            i: 1,
+            i: Default::default(),
             offset: Default::default(),
             offset_back: Default::default(),
             total_dist: si::Length::ZERO,
@@ -215,7 +215,7 @@ impl TrainState {
         let offset = init_train_state.offset.max(length);
         Self {
             time: init_train_state.time,
-            i: 1,
+            i: Default::default(),
             offset,
             offset_back: offset - length,
             total_dist: si::Length::ZERO,

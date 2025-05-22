@@ -126,7 +126,7 @@ impl SerdeAPI for ReversibleEnergyStorageStateLegacy {}
 impl Default for ReversibleEnergyStorageStateLegacy {
     fn default() -> Self {
         Self {
-            i: 1,
+            i: Default::default(),
             soc: uc::R * 0.95,
             soh: 1.0,
             eta: Default::default(),

@@ -1310,7 +1310,7 @@ impl SerdeAPI for LocomotiveState {}
 impl Default for LocomotiveState {
     fn default() -> Self {
         Self {
-            i: 1,
+            i: Default::default(),
             pwr_out_max: Default::default(),
             pwr_rate_out_max: Default::default(),
             pwr_out: Default::default(),

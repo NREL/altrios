@@ -683,7 +683,7 @@ impl SerdeAPI for ConsistState {}
 impl Default for ConsistState {
     fn default() -> Self {
         Self {
-            i: 1,
+            i: Default::default(),
             pwr_out_max: Default::default(),
             pwr_rate_out_max: Default::default(),
             pwr_regen_max: Default::default(),

@@ -202,7 +202,7 @@ impl LocomotiveSimulation {
         let mut loco_sim = Self {
             loco_unit,
             power_trace,
-            i: 1,
+            i: Default::default(),
         };
         loco_sim.loco_unit.set_save_interval(save_interval);
         loco_sim

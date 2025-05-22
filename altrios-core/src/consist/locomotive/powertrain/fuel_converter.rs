@@ -247,11 +247,11 @@ impl FuelConverter {
                 self.pwr_out_max.get::<si::megawatt>()),
             );
             ensure!(
-                utils::almost_le_uom(&pwr_out_req, &self.state.pwr_out_max, Some(TOL)),
+                utils::almost_le_uom(&pwr_out_req, self.state.pwr_out_max.get_fresh(|| format_dbg!())?, Some(TOL)),
                 format!("{}\nfc pwr_out_req ({:.6} kW) must be less than or equal to current transient pwr_out_max ({:.6} kW)",
-                format_dbg!(utils::almost_le_uom(&pwr_out_req, &self.state.pwr_out_max, Some(TOL))),
+                format_dbg!(utils::almost_le_uom(&pwr_out_req, self.state.pwr_out_max.get_fresh(|| format_dbg!())?, Some(TOL))),
                 pwr_out_req.get::<si::kilowatt>(),
-                self.state.pwr_out_max.get::<si::kilowatt>()),
+                self.state.pwr_out_max.get_fresh(|| format_dbg!())?.get::<si::kilowatt>()),
             );
         }
         ensure!(
@@ -273,49 +273,81 @@ impl FuelConverter {
             )
         );
 
-        self.state.pwr_mech_out = pwr_out_req;
-        self.state.eta = uc::R
-            * interp1d(
-                &(pwr_out_req / self.pwr_out_max).get::<si::ratio>(),
-                &self.pwr_out_frac_interp,
-                &self.eta_interp,
-                false,
-            )?;
+        self.state
+            .pwr_mech_out
+            .update(pwr_out_req, || format_dbg!())?;
+        self.state.eta.update(
+            uc::R
+                * interp1d(
+                    &(pwr_out_req / self.pwr_out_max).get::<si::ratio>(),
+                    &self.pwr_out_frac_interp,
+                    &self.eta_interp,
+                    false,
+                )
+                .with_context(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
         ensure!(
-            self.state.eta >= 0.0 * uc::R || self.state.eta <= 1.0 * uc::R,
+            *self.state.eta.get_fresh(|| format_dbg!())? >= 0.0 * uc::R
+                || *self.state.eta.get_fresh(|| format_dbg!())? <= 1.0 * uc::R,
             format!(
                 "{}\nfc eta ({}) must be between 0 and 1",
-                format_dbg!(self.state.eta >= 0.0 * uc::R || self.state.eta <= 1.0 * uc::R),
-                self.state.eta.get::<si::ratio>()
+                format_dbg!(
+                    *self.state.eta.get_fresh(|| format_dbg!())? >= 0.0 * uc::R
+                        || *self.state.eta.get_fresh(|| format_dbg!())? <= 1.0 * uc::R
+                ),
+                self.state
+                    .eta
+                    .get_fresh(|| format_dbg!())?
+                    .get::<si::ratio>()
             )
         );
 
-        self.state.engine_on = engine_on;
-        self.state.pwr_idle_fuel = if self.state.engine_on {
-            self.pwr_idle_fuel
-        } else {
-            si::Power::ZERO
-        };
+        self.state.engine_on.update(engine_on, || format_dbg!())?;
+        self.state.pwr_idle_fuel.update(
+            if *self.state.engine_on.get_stale(|| format_dbg!())? {
+                self.pwr_idle_fuel
+            } else {
+                si::Power::ZERO
+            },
+            || format_dbg!(),
+        )?;
         // if the engine is not on, `pwr_out_req` should be 0.0
         ensure!(
-            self.state.engine_on || pwr_out_req == si::Power::ZERO,
+            *self.state.engine_on.get_fresh(|| format_dbg!())? || (pwr_out_req == si::Power::ZERO),
             format!(
                 "{}\nEngine is off but pwr_out_req is non-zero",
-                format_dbg!(self.state.engine_on || pwr_out_req == si::Power::ZERO)
+                format_dbg!(
+                    *self.state.engine_on.get_fresh(|| format_dbg!())?
+                        || pwr_out_req == si::Power::ZERO
+                )
             )
         );
-        self.state.pwr_fuel = pwr_out_req / self.state.eta + self.pwr_idle_fuel;
-        self.state.pwr_loss = self.state.pwr_fuel - self.state.pwr_mech_out;
+        self.state.pwr_fuel.update(
+            pwr_out_req / *self.state.eta.get_fresh(|| format_dbg!())? + self.pwr_idle_fuel,
+            || format_dbg!(),
+        );
+        self.state.pwr_loss.update(
+            *self.state.pwr_fuel.get_fresh(|| format_dbg!())?
+                - *self.state.pwr_mech_out.get_fresh(|| format_dbg!())?,
+            || format_dbg!(),
+        );
 
-        self.state.energy_brake += self.state.pwr_mech_out * dt;
-        self.state.energy_fuel += self.state.pwr_fuel * dt;
-        self.state.energy_loss += self.state.pwr_loss * dt;
-        self.state.energy_idle_fuel += self.state.pwr_idle_fuel * dt;
         ensure!(
-            self.state.energy_loss.get::<si::joule>() >= 0.0,
+            self.state
+                .energy_loss
+                .get_fresh(|| format_dbg!())?
+                .get::<si::joule>()
+                >= 0.0,
             format!(
                 "{}\nEnergy loss must be non-negative",
-                format_dbg!(self.state.energy_loss.get::<si::joule>() >= 0.0)
+                format_dbg!(
+                    self.state
+                        .energy_loss
+                        .get_fresh(|| format_dbg!())?
+                        .get::<si::joule>()
+                        >= 0.0
+                )
             )
         );
         Ok(())
@@ -384,7 +416,7 @@ impl SerdeAPI for FuelConverterState {}
 impl Default for FuelConverterState {
     fn default() -> Self {
         Self {
-            i: 1,
+            i: Default::default(),
             pwr_out_max: Default::default(),
             eta: Default::default(),
             pwr_fuel: Default::default(),
@@ -395,8 +427,8 @@ impl Default for FuelConverterState {
             energy_brake: Default::default(),
             energy_loss: Default::default(),
             energy_idle_fuel: Default::default(),
-            engine_on: true,
-            time_on: si::Time::ZERO,
+            engine_on: TrackedState::new(true),
+            time_on: Default::default(),
         }
     }
 }
@@ -420,10 +452,13 @@ mod tests {
     #[test]
     fn test_that_fuel_grtr_than_shaft_energy() {
         let mut fc = test_fc();
-        fc.state.pwr_out_max = uc::MW * 2.;
+        fc.state.pwr_out_max.update(uc::MW * 2., || format_dbg!());
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
-        assert!(fc.state.energy_fuel > fc.state.energy_brake);
+        assert!(
+            fc.state.energy_fuel.get_fresh(|| format_dbg!()).unwrap()
+                > fc.state.energy_brake.get_fresh(|| format_dbg!()).unwrap()
+        );
     }
 
     #[test]
@@ -435,7 +470,7 @@ mod tests {
     fn test_that_max_power_includes_rate() {
         let mut fc = test_fc();
         fc.set_cur_pwr_out_max(None, uc::S * 1.0).unwrap();
-        let pwr_out_max = fc.state.pwr_out_max;
+        let pwr_out_max = *fc.state.pwr_out_max.get_fresh(|| format_dbg!()).unwrap();
         assert!(pwr_out_max < fc.pwr_out_max);
     }
 
@@ -443,13 +478,13 @@ mod tests {
     fn test_that_i_increments() {
         let mut fc = test_fc();
         fc.step(|| format_dbg!());
-        assert_eq!(2, fc.state.i);
+        assert_eq!(2, *fc.state.i.get_fresh(|| format_dbg!()).unwrap());
     }
 
     #[test]
     fn test_that_fuel_is_monotonic() {
         let mut fc = test_fc();
-        fc.state.pwr_out_max = uc::MW * 2.0;
+        fc.state.pwr_out_max.update(uc::MW * 2.0, || format_dbg!());
         fc.save_interval = Some(1);
         fc.save_state(|| format_dbg!());
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
@@ -459,8 +494,22 @@ mod tests {
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
         fc.step(|| format_dbg!());
-        assert!(fc.history.energy_fuel[1] > fc.history.energy_fuel[0]);
-        assert!(fc.history.energy_loss[1] > fc.history.energy_loss[0]);
+        assert!(
+            fc.history.energy_fuel[1]
+                .get_fresh(|| format_dbg!())
+                .unwrap()
+                > fc.history.energy_fuel[0]
+                    .get_fresh(|| format_dbg!())
+                    .unwrap()
+        );
+        assert!(
+            fc.history.energy_loss[1]
+                .get_fresh(|| format_dbg!())
+                .unwrap()
+                > fc.history.energy_loss[0]
+                    .get_fresh(|| format_dbg!())
+                    .unwrap()
+        );
     }
 
     #[test]

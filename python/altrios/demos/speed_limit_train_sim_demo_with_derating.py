@@ -47,24 +47,24 @@ fc_with_derate = alt.FuelConverter.default()
 fc_with_derate.set_default_elev_and_temp_derate()
 fc_with_derate_dict = fc_with_derate.to_pydict()
 
-hel_new_dict = copy(hel_dict)
-hel_new_dict['loco_type']['HybridLoco']['fc'] = fc_with_derate_dict 
-hel_with_derate = alt.Locomotive.from_pydict(hel_new_dict)
+hel_with_derate_dict = copy(hel_dict)
+hel_with_derate_dict['loco_type']['HybridLoco']['fc'] = fc_with_derate_dict 
+hel_with_derate = alt.Locomotive.from_pydict(hel_with_derate_dict)
 
-conv_new_dict = alt.Locomotive.default().to_pydict()
-conv_new_dict['loco_type']['ConventionalLoco']['fc'] = fc_with_derate_dict
-conv_with_derate = alt.Locomotive.from_pydict(conv_new_dict)
+conv_with_derate_dict = alt.Locomotive.default().to_pydict()
+conv_with_derate_dict['loco_type']['ConventionalLoco']['fc'] = fc_with_derate_dict
+conv_with_derate = alt.Locomotive.from_pydict(conv_with_derate_dict)
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
 loco_vec = (
-    [hel.clone()]
-    + [alt.Locomotive.default()] * 1
+    [alt.Locomotive.default()] * 2
+    # + [hel.clone()]
 )
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
 loco_vec_with_derating = (
-    [hel_with_derate.clone()]
-    + [conv_with_derate] * 1
+    [conv_with_derate] * 2
+    # + [hel_with_derate.clone()]
 )
 
 # instantiate consist
@@ -476,10 +476,10 @@ ax[0].plot(
 ax[0].plot(
     df_with_derate['history.time_seconds'],
     df_with_derate['loco_con.history.energy_fuel_joules'] / 1e9,
-    label='with derate',
+    label='with derate',u
 )
 ax[0].legend()
-ax[0].set_ylabel("Cumulative Fuel [GJ]")
+ax[0].set_ylabel("Cumu. Fuel [GJ]")
 
 ax[1].plot(
     df_no_derate['history.time_seconds'],
@@ -492,7 +492,7 @@ ax[1].plot(
     label='with derate pwr max',
 )
 ax[1].legend()
-ax[1].set_ylabel("Engine Power [MW]")
+ax[1].set_ylabel("Eng. Pwr. [MW]")
 
 ax[2].plot(
     df_no_derate['history.time_seconds'],
@@ -512,41 +512,19 @@ plt.tight_layout()
 fig0, ax0 = plot_train_level_powers(train_sim, "No Derating")
 fig1, ax1 = plot_train_network_info(train_sim, "No Derating")
 fig2, ax2 = plot_consist_pwr(train_sim, "No Derating")
-fig3, ax3 = plot_hel_pwr_and_soc(train_sim, "No Derating")
+# fig3, ax3 = plot_hel_pwr_and_soc(train_sim, "No Derating")
 # fig3.savefig("plots/hel with buffers.svg")
 # fig4, ax4 = plot_bel_pwr_and_soc(train_sim, "No Derating")
 
 fig0_sans_buffers, ax0_sans_buffers = plot_train_level_powers(train_sim_with_derating, "With Altitude and Temperature Derating")
 fig1_sans_buffers, ax1_sans_buffers = plot_train_network_info(train_sim_with_derating, "With Altitude and Temperature Derating")
 fig2_sans_buffers, ax2_sans_buffers = plot_consist_pwr(train_sim_with_derating, "With Altitude and Temperature Derating")
-fig3_sans_buffers, ax3_sans_buffers = plot_hel_pwr_and_soc(train_sim_with_derating, "With Altitude and Temperature Derating")
+# fig3_sans_buffers, ax3_sans_buffers = plot_hel_pwr_and_soc(train_sim_with_derating, "With Altitude and Temperature Derating")
 # fig3_sans_buffers.savefig("plots/hel sans buffers.svg")
 # fig4_sans_buffers, ax4_sans_buffers = plot_bel_pwr_and_soc(train_sim_sans_buffers, "With Altitude and Temperature Derating")
 
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
-# Impact of sweep of battery capacity TODO: make this happen
 
-# whether to run assertions, enabled by default
-ENABLE_ASSERTS = os.environ.get("ENABLE_ASSERTS", "true").lower() == "true"
-# whether to override reference files used in assertions, disabled by default
-ENABLE_REF_OVERRIDE = os.environ.get(
-    "ENABLE_REF_OVERRIDE", "false").lower() == "true"
-# directory for reference files for checking sim results against expected results
-ref_dir = alt.resources_root() / "demo_data/speed_limit_train_sim_demo/"
 
-if ENABLE_REF_OVERRIDE:
-    ref_dir.mkdir(exist_ok=True, parents=True)
-    df: pl.DataFrame = train_sim.to_dataframe().lazy().collect()[-1]
-    df.write_csv(ref_dir / "to_dataframe_expected.csv")
-if ENABLE_ASSERTS:
-    print("Checking output of `to_dataframe`")
-    to_dataframe_expected = pl.scan_csv(
-        ref_dir / "to_dataframe_expected.csv").collect()[-1]
-    assert to_dataframe_expected.equals(train_sim.to_dataframe()[-1]), \
-        f"to_dataframe_expected: \n{to_dataframe_expected}\ntrain_sim.to_dataframe()[-1]: \n{train_sim.to_dataframe()[-1]}" + \
-        "\ntry running with `ENABLE_REF_OVERRIDE=True`"
-    print("Success!")
-
-# %%

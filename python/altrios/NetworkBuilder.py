@@ -444,7 +444,7 @@ class NetworkBuilder:
                     Coords.append([Node.lon, Node.lat])
                     NodeTags.append(Node.tags)
                     if "railway" in Node.tags.keys():
-                        if Node.tags["railway"] == "switch":
+                        if Node.tags["railway"] == "switch" or Node.tags["railway"] == "junction":
                             switch_gdf = gpd.GeoDataFrame(
                                 data=[Node.tags],
                                 geometry=[shapely.Point([Node.lon, Node.lat])],
@@ -468,26 +468,32 @@ class NetworkBuilder:
             # TODO add logic here to filter down to mainline only plus a buffer. use usage column
             # will also need to reproject to get buffer.
 
-            TrackGDF = TrackGDF[TrackGDF.railway != "light_rail"]
             TrackGDF = TrackGDF[TrackGDF.railway != "abandoned"]
-            TrackGDF = TrackGDF[TrackGDF.railway != "disused"]
-            TrackGDF = TrackGDF[TrackGDF.railway != "platform"]
-            TrackGDF = TrackGDF[TrackGDF.railway != "proposed"]
-            TrackGDF = TrackGDF[TrackGDF.railway != "narrow_gauge"]
-            TrackGDF = TrackGDF[TrackGDF.railway != "razed"]
-            TrackGDF = TrackGDF[TrackGDF.railway != "station"]
-            TrackGDF = TrackGDF[TrackGDF.railway != "signal_box"]
             TrackGDF = TrackGDF[TrackGDF.railway != "construction"]
             TrackGDF = TrackGDF[TrackGDF.railway != "defect_detector"]
-            TrackGDF = TrackGDF[TrackGDF.railway != "traverser"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "dismantled"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "disused"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "light_rail"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "miniature"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "monorail"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "narrow_gauge"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "platform"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "proposed"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "razed"]            
+            TrackGDF = TrackGDF[TrackGDF.railway != "signal_box"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "station"]           
             TrackGDF = TrackGDF[TrackGDF.railway != "tram"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "traverser"]
             TrackGDF = TrackGDF[TrackGDF.railway != "turntable"]
-            TrackGDF = TrackGDF[TrackGDF.service != "construction"]
+            TrackGDF = TrackGDF[TrackGDF.railway != "yard"]
+
             TrackGDF = TrackGDF[TrackGDF.usage != "military"]
             TrackGDF = TrackGDF[TrackGDF.usage != "industrial"]
             TrackGDF = TrackGDF[TrackGDF.usage != "tourism"]
-            TrackGDF = TrackGDF[TrackGDF.service != "yard"]
+
+            TrackGDF = TrackGDF[TrackGDF.service != "construction"]
             TrackGDF = TrackGDF[TrackGDF.service != "spur"]
+            TrackGDF = TrackGDF[TrackGDF.service != "yard"]
 
             if "Note" in TrackGDF.columns.values:
                 TrackGDF = TrackGDF.drop("Note", axis=1)

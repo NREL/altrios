@@ -9,10 +9,6 @@ use crate::pyo3::*;
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Struct for modeling generator/alternator.
 pub struct Generator {
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    /// struct for tracking current state
-    pub state: GeneratorState,
     /// Generator mass
     #[serde(default)]
     mass: Option<si::Mass>,
@@ -34,6 +30,9 @@ pub struct Generator {
     pub pwr_out_max: si::Power,
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
+    #[serde(default)]
+    /// struct for tracking current state
+    pub state: GeneratorState,
     /// Custom vector of [Self::state]
     #[serde(default)]
     pub history: GeneratorStateHistoryVec,
@@ -386,35 +385,45 @@ impl ElectricMachine for Generator {
 }
 
 #[serde_api]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Serialize,
+    PartialEq,
+    HistoryVec,
+    StateMethods,
+    SetCumulative,
+)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct GeneratorState {
     /// iteration counter
-    pub i: usize,
+    pub i: TrackedState<usize>,
     /// efficiency evaluated at current power demand
-    pub eta: si::Ratio,
+    pub eta: TrackedState<si::Ratio>,
     /// max possible power output for propulsion
-    pub pwr_elec_prop_out_max: si::Power,
+    pub pwr_elec_prop_out_max: TrackedState<si::Power>,
     /// max possible power output total
-    pub pwr_elec_out_max: si::Power,
+    pub pwr_elec_out_max: TrackedState<si::Power>,
     /// max possible power output rate
-    pub pwr_rate_out_max: si::PowerRate,
+    pub pwr_rate_out_max: TrackedState<si::PowerRate>,
     /// mechanical power input
-    pub pwr_mech_in: si::Power,
+    pub pwr_mech_in: TrackedState<si::Power>,
     /// electrical power output to propulsion
-    pub pwr_elec_prop_out: si::Power,
+    pub pwr_elec_prop_out: TrackedState<si::Power>,
     /// electrical power output to aux loads
-    pub pwr_elec_aux: si::Power,
+    pub pwr_elec_aux: TrackedState<si::Power>,
     /// power lost due to conversion inefficiency
-    pub pwr_loss: si::Power,
+    pub pwr_loss: TrackedState<si::Power>,
     /// cumulative mech energy in from fc
-    pub energy_mech_in: si::Energy,
+    pub energy_mech_in: TrackedState<si::Energy>,
     /// cumulative elec energy out to propulsion
-    pub energy_elec_prop_out: si::Energy,
+    pub energy_elec_prop_out: TrackedState<si::Energy>,
     /// cumulative elec energy to aux loads
-    pub energy_elec_aux: si::Energy,
+    pub energy_elec_aux: TrackedState<si::Energy>,
     /// cumulative energy has lost due to imperfect efficiency
-    pub energy_loss: si::Energy,
+    pub energy_loss: TrackedState<si::Energy>,
 }
 
 #[pyo3_api]
@@ -422,26 +431,6 @@ impl GeneratorState {}
 
 impl Init for GeneratorState {}
 impl SerdeAPI for GeneratorState {}
-
-impl Default for GeneratorState {
-    fn default() -> Self {
-        Self {
-            i: Default::default(),
-            eta: Default::default(),
-            pwr_rate_out_max: Default::default(),
-            pwr_elec_out_max: Default::default(),
-            pwr_elec_prop_out_max: Default::default(),
-            pwr_mech_in: Default::default(),
-            pwr_elec_prop_out: Default::default(),
-            pwr_elec_aux: Default::default(),
-            pwr_loss: Default::default(),
-            energy_mech_in: Default::default(),
-            energy_elec_prop_out: Default::default(),
-            energy_elec_aux: Default::default(),
-            energy_loss: Default::default(),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

@@ -335,3 +335,6 @@ impl Default for PowerDistributionControlType {
         Self::RESGreedy(RESGreedy)
     }
 }
+
+impl Init for PowerDistributionControlType {}
+impl SerdeAPI for PowerDistributionControlType {}

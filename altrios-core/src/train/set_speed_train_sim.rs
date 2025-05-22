@@ -332,16 +332,6 @@ impl SetSpeedTrainSim {
         self.save_interval
     }
 
-    /// Solves step, saves state, steps nested `loco_con`, and increments `self.i`.
-    pub fn step(&mut self) -> anyhow::Result<()> {
-        self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
-        self.save_state(|| format_dbg!());
-        self.loco_con.step(|| format_dbg!());
-        self.state.i += 1;
-        Ok(())
-    }
-
     /// Solves time step.
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         // checking on speed trace to ensure it is at least stopped or moving forward (no backwards)
@@ -398,16 +388,6 @@ impl SetSpeedTrainSim {
         // update total distance
         self.state.total_dist += (self.speed_trace.mean(self.state.i) * self.state.dt).abs();
         Ok(())
-    }
-
-    /// Saves current time step for self and nested `loco_con`.
-    fn save_state(&mut self) {
-        if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 {
-                self.history.push(self.state);
-                self.loco_con.save_state(|| format_dbg!());
-            }
-        }
     }
 
     /// Iterates `save_state` and `step` through all time steps.
@@ -467,6 +447,30 @@ impl SetSpeedTrainSim {
     }
 }
 
+impl StateMethods for SetSpeedTrainSim {}
+
+impl Step for SetSpeedTrainSim {
+    /// Solves step, saves state, steps nested `loco_con`, and increments `self.i`.
+    fn step(&mut self) -> anyhow::Result<()> {
+        self.solve_step()
+            .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
+        self.save_state(|| format_dbg!());
+        self.loco_con.step(|| format_dbg!());
+        self.state.i += 1;
+        Ok(())
+    }
+}
+impl SaveState for SetSpeedTrainSim {
+    /// Saves current time step for self and nested `loco_con`.
+    fn save_state(&mut self) {
+        if let Some(interval) = self.save_interval {
+            if self.state.i % interval == 0 {
+                self.history.push(self.state);
+                self.loco_con.save_state(|| format_dbg!());
+            }
+        }
+    }
+}
 impl Init for SetSpeedTrainSim {
     fn init(&mut self) -> Result<(), Error> {
         self.loco_con.init()?;

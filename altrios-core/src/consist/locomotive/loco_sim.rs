@@ -226,15 +226,6 @@ impl LocomotiveSimulation {
         self.loco_unit.get_save_interval()
     }
 
-    pub fn step(&mut self) -> anyhow::Result<()> {
-        self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.i)))?;
-        self.save_state(|| format_dbg!());
-        self.i += 1;
-        self.loco_unit.step(|| format_dbg!());
-        Ok(())
-    }
-
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         // linear aux model
         let engine_on = self.power_trace.engine_on[self.i];
@@ -276,10 +267,6 @@ impl LocomotiveSimulation {
         Ok(())
     }
 
-    fn save_state(&mut self) {
-        self.loco_unit.save_state(|| format_dbg!());
-    }
-
     /// Iterates `save_state` and `step` through all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
         self.save_state(|| format_dbg!());
@@ -314,6 +301,26 @@ impl LocomotiveSimulation {
         Ok(())
     }
 }
+
+impl Step for LocomotiveSimulation {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.solve_step()
+            .map_err(|err| err.context(format!("time step: {}", self.i)))?;
+        self.save_state(|| format_dbg!());
+        self.i += 1;
+        self.loco_unit.step(|| format_dbg!());
+        Ok(())
+    }
+}
+
+impl SaveState for LocomotiveSimulation {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.loco_unit.save_state(|| format_dbg!())?;
+        Ok(())
+    }
+}
+
+impl StateMethods for LocomotiveSimulation {}
 
 impl Init for LocomotiveSimulation {
     fn init(&mut self) -> Result<(), Error> {

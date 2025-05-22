@@ -20,6 +20,9 @@ impl LinkIdxTime {
     }
 }
 
+impl Init for LinkIdxTime {}
+impl SerdeAPI for LinkIdxTime {}
+
 impl LinkIdxTime {
     pub fn new(link_idx: LinkIdx, time: si::Time) -> Self {
         Self { link_idx, time }
@@ -35,6 +38,9 @@ pub struct TimedLinkPath(pub Vec<LinkIdxTime>);
 
 #[pyo3_api]
 impl TimedLinkPath {}
+
+impl Init for TimedLinkPath {}
+impl SerdeAPI for TimedLinkPath {}
 
 impl TimedLinkPath {
     /// Implement the non-Python `new` method.
@@ -79,6 +85,7 @@ pub struct SpeedLimitTrainSim {
     pub path_tpc: PathTpc,
 
     pub braking_points: BrakingPoints,
+    #[has_state]
     pub fric_brake: FricBrake,
     /// Custom vector of [Self::state]
     #[serde(default)]
@@ -413,16 +420,6 @@ impl SpeedLimitTrainSim {
         self.path_tpc.link_points()
     }
 
-    pub fn step(&mut self) -> anyhow::Result<()> {
-        self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
-        self.save_state(|| format_dbg!());
-        self.loco_con.step(|| format_dbg!());
-        self.fric_brake.step(|| format_dbg!());
-        self.state.i += 1;
-        Ok(())
-    }
-
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         // set catenary power limit
         self.loco_con
@@ -464,19 +461,7 @@ impl SpeedLimitTrainSim {
             Some(true),
         )?;
 
-        self.loco_con.set_cumulative()?;
-        self.fric_brake.set_cumulative()?;
         Ok(())
-    }
-
-    fn save_state(&mut self) {
-        if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 {
-                self.history.push(self.state);
-                self.loco_con.save_state(|| format_dbg!());
-                self.fric_brake.save_state(|| format_dbg!());
-            }
-        }
     }
 
     /// Walks until getting to the end of the path
@@ -823,6 +808,31 @@ impl SpeedLimitTrainSim {
             &self.train_res,
             &self.path_tpc,
         )
+    }
+}
+
+impl SaveState for SpeedLimitTrainSim {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        if let Some(interval) = self.save_interval {
+            if self.state.i % interval == 0 {
+                self.history.push(self.state);
+                self.loco_con.save_state(|| format_dbg!())?;
+                self.fric_brake.save_state(|| format_dbg!())?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Step for SpeedLimitTrainSim {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.solve_step()
+            .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
+        self.save_state(|| format_dbg!());
+        self.loco_con.step(|| format_dbg!());
+        self.fric_brake.step(|| format_dbg!());
+        self.state.i += 1;
+        Ok(())
     }
 }
 

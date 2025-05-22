@@ -309,49 +309,59 @@ impl ElectricMachine for ElectricDrivetrain {
 }
 
 #[serde_api]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Serialize,
+    PartialEq,
+    HistoryVec,
+    StateMethods,
+    SetCumulative,
+)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct ElectricDrivetrainState {
     /// index
-    pub i: usize,
+    pub i: TrackedState<usize>,
     /// Component efficiency based on current power demand.
-    pub eta: si::Ratio,
+    pub eta: TrackedState<si::Ratio>,
     // Component limits
     /// Maximum possible positive traction power.
-    pub pwr_mech_out_max: si::Power,
+    pub pwr_mech_out_max: TrackedState<si::Power>,
     /// Maximum possible regeneration power going to ReversibleEnergyStorage.
-    pub pwr_mech_regen_max: si::Power,
+    pub pwr_mech_regen_max: TrackedState<si::Power>,
     /// max ramp-up rate
-    pub pwr_rate_out_max: si::PowerRate,
+    pub pwr_rate_out_max: TrackedState<si::PowerRate>,
 
     // Current values
     /// Raw power requirement from boundary conditions
-    pub pwr_out_req: si::Power,
+    pub pwr_out_req: TrackedState<si::Power>,
     /// Electrical power to propulsion from ReversibleEnergyStorage and Generator.
     /// negative value indicates regenerative braking
-    pub pwr_elec_prop_in: si::Power,
+    pub pwr_elec_prop_in: TrackedState<si::Power>,
     /// Mechanical power to propulsion, corrected by efficiency, from ReversibleEnergyStorage and Generator.
     /// Negative value indicates regenerative braking.
-    pub pwr_mech_prop_out: si::Power,
+    pub pwr_mech_prop_out: TrackedState<si::Power>,
     /// Mechanical power from dynamic braking.  Positive value indicates braking; this should be zero otherwise.
-    pub pwr_mech_dyn_brake: si::Power,
+    pub pwr_mech_dyn_brake: TrackedState<si::Power>,
     /// Electrical power from dynamic braking, dissipated as heat.
-    pub pwr_elec_dyn_brake: si::Power,
+    pub pwr_elec_dyn_brake: TrackedState<si::Power>,
     /// Power lost in regeneratively converting mechanical power to power that can be absorbed by the battery.
-    pub pwr_loss: si::Power,
+    pub pwr_loss: TrackedState<si::Power>,
 
     // Cumulative energy values
     /// cumulative mech energy in from fc
-    pub energy_elec_prop_in: si::Energy,
+    pub energy_elec_prop_in: TrackedState<si::Energy>,
     /// cumulative elec energy out
-    pub energy_mech_prop_out: si::Energy,
+    pub energy_mech_prop_out: TrackedState<si::Energy>,
     /// cumulative energy has lost due to imperfect efficiency
     /// Mechanical energy from dynamic braking.
-    pub energy_mech_dyn_brake: si::Energy,
+    pub energy_mech_dyn_brake: TrackedState<si::Energy>,
     /// Electrical energy from dynamic braking, dissipated as heat.
-    pub energy_elec_dyn_brake: si::Energy,
+    pub energy_elec_dyn_brake: TrackedState<si::Energy>,
     /// Cumulative energy lost in regeneratively converting mechanical power to power that can be absorbed by the battery.
-    pub energy_loss: si::Energy,
+    pub energy_loss: TrackedState<si::Energy>,
 }
 
 #[pyo3_api]
@@ -359,28 +369,6 @@ impl ElectricDrivetrainState {}
 
 impl Init for ElectricDrivetrainState {}
 impl SerdeAPI for ElectricDrivetrainState {}
-impl Default for ElectricDrivetrainState {
-    fn default() -> Self {
-        Self {
-            i: Default::default(),
-            eta: Default::default(),
-            pwr_out_req: Default::default(),
-            pwr_mech_prop_out: Default::default(),
-            pwr_elec_prop_in: Default::default(),
-            pwr_mech_out_max: Default::default(),
-            pwr_mech_regen_max: Default::default(),
-            pwr_elec_dyn_brake: Default::default(),
-            pwr_mech_dyn_brake: Default::default(),
-            pwr_loss: Default::default(),
-            pwr_rate_out_max: Default::default(),
-            energy_elec_prop_in: Default::default(),
-            energy_mech_prop_out: Default::default(),
-            energy_elec_dyn_brake: Default::default(),
-            energy_mech_dyn_brake: Default::default(),
-            energy_loss: Default::default(),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

@@ -95,6 +95,8 @@ impl Step for PowertrainType {
     }
 }
 
+impl StateMethods for PowertrainType {}
+
 impl From<HybridLoco> for PowertrainType {
     fn from(value: HybridLoco) -> Self {
         Self::HybridLoco(Box::new(value))
@@ -272,6 +274,9 @@ impl DummyLoco {
     }
 }
 
+impl SerdeAPI for DummyLoco {}
+impl Init for DummyLoco {}
+
 impl LocoTrait for DummyLoco {
     fn set_curr_pwr_max_out(
         &mut self,
@@ -288,18 +293,18 @@ impl LocoTrait for DummyLoco {
     }
 }
 impl SaveState for DummyLoco {
-    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+    fn save_state<F: Fn() -> String>(&mut self, _loc: F) -> anyhow::Result<()> {
         Ok(())
     }
 }
 impl Step for DummyLoco {
-    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+    fn step<F: Fn() -> String>(&mut self, _loc: F) -> anyhow::Result<()> {
         Ok(())
     }
 }
 
 #[serde_api]
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, SetCumulative)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, StateMethods, SetCumulative)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Struct for simulating any type of locomotive
 pub struct Locomotive {
@@ -591,14 +596,6 @@ impl Locomotive {
     #[pyo3(name = "set_mu")]
     fn set_mu_py(&mut self, mu: f64, mu_side_effect: String) -> anyhow::Result<()> {
         self.set_mu(mu * uc::R, mu_side_effect.try_into()?)?;
-        Ok(())
-    }
-}
-
-impl SetCumulative for Locomotive {
-    fn set_cumulative(&mut self, dt: si::Time) -> anyhow::Result<()> {
-        self.state.set_cumulative(dt)?;
-        self.pt_type.set_cumulative(dt)?;
         Ok(())
     }
 }
@@ -1207,22 +1204,6 @@ fn set_pwr_lims(state: &mut LocomotiveState, edrv: &ElectricDrivetrain) {
     state.pwr_regen_max = edrv.state.pwr_mech_regen_max;
 }
 
-impl Step for Locomotive {
-    fn step(&mut self) {
-        self.loco_type.step(|| format_dbg!());
-        self.state.i += 1;
-    }
-}
-impl SaveState for Locomotive {
-    fn save_state(&mut self) {
-        self.loco_type.save_state(|| format_dbg!());
-        if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 {
-                self.history.push(self.state);
-            }
-        }
-    }
-}
 impl LocoTrait for Locomotive {
     fn get_energy_loss(&self) -> si::Energy {
         self.loco_type.get_energy_loss()
@@ -1278,28 +1259,30 @@ impl LocoTrait for Locomotive {
 
 /// Locomotive state for current time step
 #[serde_api]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
+#[derive(
+    Clone, Debug, Deserialize, Serialize, PartialEq, HistoryVec, StateMethods, SetCumulative,
+)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct LocomotiveState {
-    pub i: usize,
+    pub i: TrackedState<usize>,
     /// maximum forward propulsive power locomotive can produce
-    pub pwr_out_max: si::Power,
+    pub pwr_out_max: TrackedState<si::Power>,
     /// maximum rate of increase of forward propulsive power locomotive
     /// can produce
-    pub pwr_rate_out_max: si::PowerRate,
+    pub pwr_rate_out_max: TrackedState<si::PowerRate>,
     /// maximum regen power locomotive can absorb at the wheel
-    pub pwr_regen_max: si::Power,
+    pub pwr_regen_max: TrackedState<si::Power>,
     /// actual wheel power achieved
-    pub pwr_out: si::Power,
+    pub pwr_out: TrackedState<si::Power>,
     /// time varying aux load
-    pub pwr_aux: si::Power,
+    pub pwr_aux: TrackedState<si::Power>,
     // todo: add variable for statemachine pwr_out_prev,
     // time_at_or_below_idle, time_in_engine_state
     /// integral of [Self::pwr_out]
-    pub energy_out: si::Energy,
+    pub energy_out: TrackedState<si::Energy>,
     /// integral of [Self::pwr_aux]
-    pub energy_aux: si::Energy,
-    // pub force_max: si::Mass,
+    pub energy_aux: TrackedState<si::Energy>,
+    // pub force_max:TrackedState< si::Mass>,
 }
 
 #[pyo3_api]

@@ -104,15 +104,15 @@ impl FricBrake {
 // TODO: figure out a way to make the braking reasonably polymorphic (e.g. for autonomous rail
 // vehicles)
 #[serde_api]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, HistoryVec)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, HistoryVec)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct FricBrakeState {
     /// index counter
-    pub i: usize,
+    pub i: TrackedState<usize>,
     // actual applied force of brakes
-    pub force: si::Force,
+    pub force: TrackedState<si::Force>,
     // time-varying max force of brakes in current time step
-    pub force_max_curr: si::Force,
+    pub force_max_curr: TrackedState<si::Force>,
     // pressure: si::Pressure,
 }
 
@@ -131,15 +131,5 @@ impl FricBrakeState {
     /// TODO: this method needs to accept arguments
     pub fn new() -> Self {
         Self::default()
-    }
-}
-
-impl Default for FricBrakeState {
-    fn default() -> Self {
-        Self {
-            i: Default::default(),
-            force: Default::default(),
-            force_max_curr: Default::default(),
-        }
     }
 }

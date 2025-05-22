@@ -1,12 +1,13 @@
 use super::*;
 
 #[serde_api]
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, SetCumulative, StateMethods)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Struct for simulating power distribution controls and energy usage of locomotive consist.
 pub struct Consist {
     // pretty sure these won't get automatically generated correctly
     /// vector of locomotives, must be private to allow for side effects when setting
+    #[has_state]
     pub loco_vec: Vec<Locomotive>,
 
     /// power distribution control type
@@ -25,6 +26,43 @@ pub struct Consist {
     save_interval: Option<usize>,
     #[serde(skip)]
     n_res_equipped: Option<u8>,
+}
+
+impl StateMethods for Vec<Locomotive> {}
+impl SetCumulative for Vec<Locomotive> {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
+        for (loco_idx, loco) in self.iter_mut().enumerate() {
+            loco.set_cumulative(dt, || format_dbg!(loco_idx))?;
+        }
+        Ok(())
+    }
+}
+
+impl SaveState for Vec<Locomotive> {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        for (loco_idx, loco) in self.iter_mut().enumerate() {
+            loco.save_state(|| format_dbg!(loco_idx))?;
+        }
+        Ok(())
+    }
+}
+
+impl Step for Vec<Locomotive> {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        for (loco_idx, loco) in self.iter_mut().enumerate() {
+            loco.step(|| format_dbg!(loco_idx))?;
+        }
+        Ok(())
+    }
+}
+
+impl CheckAndResetState for Vec<Locomotive> {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        for (loco_idx, loco) in self.iter_mut().enumerate() {
+            loco.check_and_reset(|| format_dbg!(loco_idx))?;
+        }
+        Ok(())
+    }
 }
 
 #[pyo3_api]
@@ -139,15 +177,6 @@ impl Init for Consist {
     }
 }
 impl SerdeAPI for Consist {}
-impl SetCumulative for Consist {
-    fn set_cumulative(&mut self, dt: si::Time) -> anyhow::Result<()> {
-        for &mut loco in self.loco_vec.iter_mut() {
-            loco.set_cumulative().with_context(|| format_dbg!())?;
-        }
-        Ok(())
-    }
-}
-
 impl Consist {
     pub fn new(
         loco_vec: Vec<Locomotive>,
@@ -528,31 +557,6 @@ impl LocoTrait for Consist {
     }
 }
 
-impl Step for Consist {
-    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
-        for (loco_idx, loco) in self.loco_vec.iter_mut().enumerate() {
-            loco.step(|| format_dbg!())
-                .with_context(|| format_dbg!(loco_idx))?;
-        }
-        self.state.i += 1;
-        Ok(())
-    }
-}
-
-impl SaveState for Consist {
-    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
-        if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 {
-                self.history.push(self.state);
-                for (loco_idx, loco) in self.loco_vec.iter_mut().enumerate() {
-                    loco.save_state(|| format_dbg!(loco_idx))?;
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
 impl Mass for Consist {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
         self.derived_mass()
@@ -618,60 +622,70 @@ impl Mass for Consist {
 /// Locomotive State
 /// probably reusable across all powertrain types
 #[serde_api]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    Deserialize,
+    Serialize,
+    PartialEq,
+    HistoryVec,
+    StateMethods,
+    SetCumulative,
+)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct ConsistState {
     /// current time index
-    pub i: usize,
+    pub i: TrackedState<usize>,
 
     /// maximum forward propulsive power consist can produce
-    pub pwr_out_max: si::Power,
+    pub pwr_out_max: TrackedState<si::Power>,
     /// maximum rate of increase of forward propulsive power consist can produce
-    pub pwr_rate_out_max: si::PowerRate,
+    pub pwr_rate_out_max: TrackedState<si::PowerRate>,
     /// maximum regen power consist can absorb at the wheel
-    pub pwr_regen_max: si::Power,
+    pub pwr_regen_max: TrackedState<si::Power>,
 
     // limit variables
     /// maximum power that can be produced by
     /// [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives
-    pub pwr_out_max_reves: si::Power,
+    pub pwr_out_max_reves: TrackedState<si::Power>,
     /// power demand not fulfilled by
     /// [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equipped locomotives
-    pub pwr_out_deficit: si::Power,
+    pub pwr_out_deficit: TrackedState<si::Power>,
     /// max power demand from
     /// non-[RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives
-    pub pwr_out_max_non_reves: si::Power,
+    pub pwr_out_max_non_reves: TrackedState<si::Power>,
     /// braking power demand not fulfilled as regen by [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives
-    pub pwr_regen_deficit: si::Power,
+    pub pwr_regen_deficit: TrackedState<si::Power>,
     /// Total dynamic braking power of consist, based on sum of
     /// [electric-drivetrain](locomotive::powertrain::electric_drivetrain::ElectricDrivetrain)
     /// static limits across all locomotives (including regen).
-    pub pwr_dyn_brake_max: si::Power,
+    pub pwr_dyn_brake_max: TrackedState<si::Power>,
     /// consist power output requested by [SpeedLimitTrainSim](crate::train::SpeedLimitTrainSim) or
     /// [SetSpeedTrainSim](crate::train::SetSpeedTrainSim)
-    pub pwr_out_req: si::Power,
+    pub pwr_out_req: TrackedState<si::Power>,
     /// Current consist/train-level catenary power limit
-    pub pwr_cat_lim: si::Power,
+    pub pwr_cat_lim: TrackedState<si::Power>,
 
     // achieved values
     /// Total tractive power of consist.
     /// Should always match [pwr_out_req](Self::pwr_out_req)] if `assert_limits == true`.
-    pub pwr_out: si::Power,
+    pub pwr_out: TrackedState<si::Power>,
     /// Total battery power of [RES](locomotive::powertrain::reversible_energy_storage::ReversibleEnergyStorage)-equppped locomotives
-    pub pwr_reves: si::Power,
+    pub pwr_reves: TrackedState<si::Power>,
     /// Total fuel power of [FC](locomotive::powertrain::fuel_converter::FuelConverter)-equppped locomotives
-    pub pwr_fuel: si::Power,
+    pub pwr_fuel: TrackedState<si::Power>,
 
     /// Time-integrated energy form of [pwr_out](Self::pwr_out)
-    pub energy_out: si::Energy,
+    pub energy_out: TrackedState<si::Energy>,
     /// Energy out during positive or zero traction
-    pub energy_out_pos: si::Energy,
+    pub energy_out_pos: TrackedState<si::Energy>,
     /// Energy out during negative traction (positive value means negative traction)
-    pub energy_out_neg: si::Energy,
+    pub energy_out_neg: TrackedState<si::Energy>,
     /// Time-integrated energy form of [pwr_reves](Self::pwr_reves)
-    pub energy_res: si::Energy,
+    pub energy_res: TrackedState<si::Energy>,
     /// Time-integrated energy form of [pwr_fuel](Self::pwr_fuel)
-    pub energy_fuel: si::Energy,
+    pub energy_fuel: TrackedState<si::Energy>,
 }
 
 #[pyo3_api]
@@ -679,35 +693,3 @@ impl ConsistState {}
 
 impl Init for ConsistState {}
 impl SerdeAPI for ConsistState {}
-
-impl Default for ConsistState {
-    fn default() -> Self {
-        Self {
-            i: Default::default(),
-            pwr_out_max: Default::default(),
-            pwr_rate_out_max: Default::default(),
-            pwr_regen_max: Default::default(),
-
-            // limit variables
-            pwr_out_max_reves: Default::default(),
-            pwr_out_deficit: Default::default(),
-            pwr_out_max_non_reves: Default::default(),
-            pwr_regen_deficit: Default::default(),
-            pwr_dyn_brake_max: Default::default(),
-            pwr_out_req: Default::default(),
-            pwr_cat_lim: Default::default(),
-
-            // achieved values
-            pwr_out: Default::default(),
-            pwr_reves: Default::default(),
-            pwr_fuel: Default::default(),
-
-            energy_out: Default::default(),
-            energy_out_pos: Default::default(),
-            energy_out_neg: Default::default(),
-
-            energy_res: Default::default(),
-            energy_fuel: Default::default(),
-        }
-    }
-}

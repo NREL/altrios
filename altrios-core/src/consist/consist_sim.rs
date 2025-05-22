@@ -150,6 +150,8 @@ impl SaveState for ConsistSimulation {
     }
 }
 
+impl StateMethods for ConsistSimulation {}
+
 impl Init for ConsistSimulation {
     fn init(&mut self) -> Result<(), Error> {
         self.loco_con.init()?;

@@ -179,10 +179,13 @@ pub trait Mass {
     }
 }
 
+/// Super trait to ensure that related traits are implemented together
+pub trait StateMethods: SetCumulative + SaveState + Step + CheckAndResetState {}
+
 /// Trait for setting cumulative values based on rate values
 pub trait SetCumulative {
     /// Sets cumulative values based on rate values
-    fn set_cumulative(&mut self, dt: si::Time) -> anyhow::Result<()>;
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()>;
 }
 
 /// Provides method that saves `self.state` to `self.history` and propagates to any fields with

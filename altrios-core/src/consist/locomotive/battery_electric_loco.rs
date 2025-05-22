@@ -171,17 +171,7 @@ impl LocoTrait for BatteryElectricLoco {
     }
 }
 
-impl Step for BatteryElectricLoco {
-    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
-        self.step(|| format_dbg!())
-    }
-}
-
-impl SaveState for BatteryElectricLoco {
-    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
-        self.save_state(|| format_dbg!());
-    }
-}
+impl StateMethods for BatteryElectricLoco {}
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, IsVariant, From, TryInto)]
 pub enum BatteryPowertrainControls {
@@ -206,6 +196,15 @@ impl Init for BatteryPowertrainControls {
     }
 }
 
+impl SetCumulative for BatteryPowertrainControls {
+    fn set_cumulative(&mut self, dt: si::Time) -> anyhow::Result<()> {
+        match self {
+            Self::RGWDB(rgwdb) => rgwdb.set_cumulative(dt)?,
+        }
+        Ok(())
+    }
+}
+
 impl Step for BatteryPowertrainControls {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         match self {
@@ -223,6 +222,17 @@ impl SaveState for BatteryPowertrainControls {
         Ok(())
     }
 }
+
+impl CheckAndResetState for BatteryPowertrainControls {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        match self {
+            Self::RGWDB(rgwdb) => rgwdb.check_and_reset(|| format_dbg!())?,
+        }
+        Ok(())
+    }
+}
+
+impl StateMethods for BatteryPowertrainControls {}
 
 /// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge
 /// and discharge power inside of static min and max SOC range.  Also, includes

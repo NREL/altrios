@@ -22,7 +22,7 @@ pub struct Heading {
     pub lon: Option<f64>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Heading {}
 
 impl Valid for Heading {}

@@ -63,7 +63,7 @@ pub struct RailVehicle {
     pub curve_coeff_2: si::Ratio,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl RailVehicle {}
 
 impl Mass for RailVehicle {

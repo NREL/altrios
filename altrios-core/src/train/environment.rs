@@ -11,7 +11,7 @@ pub struct TemperatureTraceBuilder {
     pub temp_at_sea_level: Vec<si::ThermodynamicTemperature>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl TemperatureTraceBuilder {
     #[staticmethod]
     #[pyo3(name = "from_csv_file")]
@@ -104,7 +104,7 @@ pub struct TemperatureTraceElement {
 /// Container for an interpolator of temperature at sea level (to be corrected for altitude)
 pub struct TemperatureTrace(pub(crate) Interp1DOwned<f64, strategy::Linear>);
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl TemperatureTrace {}
 
 impl TemperatureTrace {

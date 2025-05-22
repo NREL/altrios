@@ -68,7 +68,7 @@ pub struct EstTimeNet {
     pub val: Vec<EstTime>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl EstTimeNet {
     pub fn get_running_time_hours(&self) -> f64 {
         (self.val.last().unwrap().time_sched - self.val.first().unwrap().time_sched)

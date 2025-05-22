@@ -54,7 +54,7 @@ pub struct ReversibleEnergyStorage {
     pub history: ReversibleEnergyStorageStateHistoryVec,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl ReversibleEnergyStorage {
     #[allow(clippy::too_many_arguments)]
     #[new]
@@ -888,7 +888,7 @@ pub struct ReversibleEnergyStorageState {
     pub temperature_celsius: f64,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl ReversibleEnergyStorageState {}
 
 impl SerdeAPI for ReversibleEnergyStorageState {}

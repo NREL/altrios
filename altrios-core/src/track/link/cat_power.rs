@@ -16,7 +16,7 @@ pub struct CatPowerLimit {
     pub district_id: Option<String>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl CatPowerLimit {}
 
 impl Valid for CatPowerLimit {

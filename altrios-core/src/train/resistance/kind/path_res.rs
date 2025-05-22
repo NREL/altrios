@@ -19,7 +19,7 @@ pub struct Point {
     idx: usize,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Point {}
 
 impl Point {
@@ -81,7 +81,7 @@ pub struct Strap {
     idx_back: usize,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Strap {}
 
 impl Strap {

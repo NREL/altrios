@@ -21,7 +21,7 @@ pub struct ConventionalLoco {
     pub edrv: ElectricDrivetrain,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl ConventionalLoco {
     #[new]
     pub fn __new__(
@@ -142,11 +142,11 @@ impl LocoTrait for ConventionalLoco {
     }
 
     fn save_state(&mut self) {
-        self.save_state();
+        self.save_state(|| format_dbg!());
     }
 
     fn step(&mut self) {
-        self.step()
+        self.step(|| format_dbg!())
     }
 
     fn get_energy_loss(&self) -> si::Energy {

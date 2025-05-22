@@ -47,7 +47,7 @@ pub struct SavedSim {
     pub est_alt: EstTime,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl SavedSim {}
 
 impl SavedSim {
@@ -73,7 +73,7 @@ impl SavedSim {
         movement.push(SimpleState::from_train_state(&self.train_sim.state));
         // TODO: Tighten up this bound using braking points.
         while condition(&mut self.train_sim) {
-            self.train_sim.step()?;
+            self.train_sim.step(|| format_dbg!())?;
             movement.push(SimpleState::from_train_state(&self.train_sim.state));
         }
         self.train_sim.clear_path();

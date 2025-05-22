@@ -24,7 +24,7 @@ pub struct PowerTrace {
     pub train_mass: Option<si::Mass>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl PowerTrace {
     #[staticmethod]
     #[pyo3(name = "from_csv_file")]
@@ -150,7 +150,7 @@ pub struct LocomotiveSimulation {
     pub i: usize,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl LocomotiveSimulation {
     #[new]
     #[pyo3(signature = (loco_unit, power_trace, save_interval=None))]
@@ -170,7 +170,7 @@ impl LocomotiveSimulation {
 
     #[pyo3(name = "step")]
     fn step_py(&mut self) -> anyhow::Result<()> {
-        self.step()
+        self.step(|| format_dbg!())
     }
 
     #[pyo3(name = "set_save_interval")]
@@ -229,9 +229,9 @@ impl LocomotiveSimulation {
     pub fn step(&mut self) -> anyhow::Result<()> {
         self.solve_step()
             .map_err(|err| err.context(format!("time step: {}", self.i)))?;
-        self.save_state();
+        self.save_state(|| format_dbg!());
         self.i += 1;
-        self.loco_unit.step();
+        self.loco_unit.step(|| format_dbg!());
         Ok(())
     }
 
@@ -277,14 +277,14 @@ impl LocomotiveSimulation {
     }
 
     fn save_state(&mut self) {
-        self.loco_unit.save_state();
+        self.loco_unit.save_state(|| format_dbg!());
     }
 
     /// Iterates `save_state` and `step` through all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
-        self.save_state();
+        self.save_state(|| format_dbg!());
         while self.i < self.power_trace.len() {
-            self.step()?
+            self.step(|| format_dbg!())?
         }
         ensure!(self.i == self.power_trace.len());
         Ok(())
@@ -344,7 +344,7 @@ impl LocomotiveSimulationVec {
     }
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl LocomotiveSimulationVec {
     #[new]
     /// Rust-defined `__new__` magic method for Python used exposed via PyO3.

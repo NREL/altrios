@@ -26,7 +26,7 @@ pub struct BatteryElectricLoco {
     // pub history: BELStateHistoryVec,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl BatteryElectricLoco {}
 
 impl BatteryElectricLoco {
@@ -166,16 +166,20 @@ impl LocoTrait for BatteryElectricLoco {
         Ok(())
     }
 
-    fn save_state(&mut self) {
-        self.save_state();
-    }
-
-    fn step(&mut self) {
-        self.step()
-    }
-
     fn get_energy_loss(&self) -> si::Energy {
         self.res.state.energy_loss + self.edrv.state.energy_loss
+    }
+}
+
+impl Step for BatteryElectricLoco {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.step(|| format_dbg!())
+    }
+}
+
+impl SaveState for BatteryElectricLoco {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.save_state(|| format_dbg!());
     }
 }
 
@@ -202,17 +206,21 @@ impl Init for BatteryPowertrainControls {
     }
 }
 
-impl BatteryPowertrainControls {
-    fn step(&mut self) {
+impl Step for BatteryPowertrainControls {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         match self {
-            Self::RGWDB(rgwdb) => rgwdb.step(),
+            Self::RGWDB(rgwdb) => rgwdb.step(|| format_dbg!())?,
         }
+        Ok(())
     }
+}
 
-    fn save_state(&mut self) {
+impl SaveState for BatteryPowertrainControls {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         match self {
-            Self::RGWDB(rgwdb) => rgwdb.save_state(),
+            Self::RGWDB(rgwdb) => rgwdb.save_state(|| format_dbg!())?,
         }
+        Ok(())
     }
 }
 
@@ -243,7 +251,7 @@ pub struct RESGreedyWithDynamicBuffersBEL {
     pub history: RGWDBStateBELHistoryVec,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl RESGreedyWithDynamicBuffersBEL {}
 
 impl Init for RESGreedyWithDynamicBuffersBEL {
@@ -267,7 +275,7 @@ pub struct RGWDBStateBEL {
     pub i: usize,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl RGWDBStateBEL {}
 
 impl Init for RGWDBStateBEL {}

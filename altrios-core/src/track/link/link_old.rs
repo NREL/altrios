@@ -46,5 +46,5 @@ pub struct LinkOld {
     pub link_idxs_lockout: Vec<LinkIdx>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl LinkOld {}

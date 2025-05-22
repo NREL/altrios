@@ -19,14 +19,6 @@ pub trait LocoTrait {
         train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()>;
-    /// Save current state
-    fn save_state(&mut self) {
-        unimplemented!();
-    }
-    /// Step counter
-    fn step(&mut self) {
-        unimplemented!();
-    }
     /// Get energy loss in components
     fn get_energy_loss(&self) -> si::Energy;
 }
@@ -37,7 +29,7 @@ pub trait LocoTrait {
 /// Wrapper struct for `Vec<Locomotive>` to expose various methods to Python.
 pub struct Pyo3VecLocoWrapper(pub Vec<Locomotive>);
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Pyo3VecLocoWrapper {
     #[new]
     /// Rust-defined `__new__` magic method for Python used exposed via PyO3.

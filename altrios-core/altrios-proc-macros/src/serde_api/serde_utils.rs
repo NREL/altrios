@@ -167,58 +167,40 @@ pub(crate) fn serde_attrs_for_si_fields(field: &mut syn::Field) -> Option<()> {
             "Acceleration" => extract_units!(uom::si::acceleration::meter_per_second_squared),
             "Angle" => extract_units!(uom::si::angle::radian),
             "Area" => extract_units!(uom::si::area::square_meter),
-            "SpecificEnergy" => extract_units!(
-                uom::si::available_energy::joule_per_kilogram,
-                uom::si::available_energy::kilojoule_per_kilogram,
-                uom::si::available_energy::megajoule_per_kilogram
-            ),
             "Energy" => extract_units!(uom::si::energy::joule),
             "Force" => extract_units!(uom::si::force::newton),
             "InverseVelocity" => extract_units!(uom::si::inverse_velocity::second_per_meter),
             "Length" => extract_units!(uom::si::length::meter, uom::si::length::mile),
             "Mass" => extract_units!(uom::si::mass::kilogram),
-            "MomentOfInertia" => extract_units!(uom::si::moment_of_inertia::kilogram_square_meter),
             "Power" => extract_units!(uom::si::power::watt),
-            "SpecificPower" => extract_units!(uom::si::specific_power::watt_per_kilogram),
             "PowerRate" => extract_units!(uom::si::power_rate::watt_per_second),
             "Pressure" => extract_units!(uom::si::pressure::kilopascal, uom::si::pressure::bar),
             "Ratio" => extract_units!(uom::si::ratio::ratio),
-            "Time" => extract_units!(uom::si::time::second, uom::si::time::hour),
-            "HeatTransferCoeff" => extract_units!(
-                uom::si::heat_transfer::watt_per_square_meter_kelvin,
-                uom::si::heat_transfer::watt_per_square_meter_degree_celsius
+            "SpecificEnergy" => extract_units!(
+                uom::si::available_energy::joule_per_kilogram,
+                uom::si::available_energy::kilojoule_per_kilogram,
+                uom::si::available_energy::megajoule_per_kilogram
             ),
-            "HeatCapacity" => {
-                extract_units!(
-                    uom::si::heat_capacity::joule_per_kelvin,
-                    uom::si::heat_capacity::joule_per_degree_celsius
-                )
-            }
-            "TemperatureInterval" => extract_units!(uom::si::temperature_interval::kelvin),
-            "Temperature" => {
-                extract_units!(uom::si::thermodynamic_temperature::kelvin)
-            }
-            "ThermalConductance" => {
-                extract_units!(uom::si::thermal_conductance::watt_per_kelvin)
-            }
-            "ThermalConductivity" => {
-                extract_units!(
-                    uom::si::thermal_conductivity::watt_per_meter_kelvin,
-                    uom::si::thermal_conductivity::watt_per_meter_degree_celsius
-                )
-            }
-            "DynamicViscosity" => {
-                extract_units!(uom::si::dynamic_viscosity::pascal_second)
-            }
+            "SpecificPower" => extract_units!(uom::si::specific_power::watt_per_kilogram),
+            "Time" => extract_units!(uom::si::time::second, uom::si::time::hour),
+            "Volume" => extract_units!(uom::si::volume::liter),
+            "Curvature" => extract_units!(
+                uom::si::curvature::radian_per_meter,
+                uom::si::curvature::degree_per_meter
+            ),
             "Velocity" => extract_units!(
                 uom::si::velocity::meter_per_second,
                 uom::si::velocity::mile_per_hour
             ),
-            "Volume" => extract_units!(uom::si::volume::cubic_meter, uom::si::volume::liter),
+            "ThermodynamicTemperature" => extract_units!(
+                uom::si::thermodynamic_temperature::degree_celsius
+            ),
             "MassDensity" => extract_units!(uom::si::mass_density::kilogram_per_cubic_meter),
             _ => abort!(
                 inner_path.span(),
-                "Unknown si quantity! Make sure it's implemented in `impl_getters_and_setters`"
+                "[{}:{}]\nUnknown si quantity! Make sure it's implemented in `impl_getters_and_setters`",
+                file!(),
+                line!(),
             ),
         };
         for (_, unit_name) in &unit_impls {

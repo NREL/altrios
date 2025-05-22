@@ -12,7 +12,7 @@ pub struct LinkIdxTime {
     pub time: si::Time,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl LinkIdxTime {
     #[new]
     fn __new__(link_idx: LinkIdx, time_seconds: f64) -> Self {
@@ -33,7 +33,7 @@ impl LinkIdxTime {
 /// `Vec<LinkIdxTime>` in Python
 pub struct TimedLinkPath(pub Vec<LinkIdxTime>);
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl TimedLinkPath {}
 
 impl TimedLinkPath {
@@ -92,7 +92,7 @@ pub struct SpeedLimitTrainSim {
     temp_trace: Option<TemperatureTrace>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl SpeedLimitTrainSim {
     #[pyo3(name = "set_save_interval")]
     #[pyo3(signature = (save_interval=None))]
@@ -416,9 +416,9 @@ impl SpeedLimitTrainSim {
     pub fn step(&mut self) -> anyhow::Result<()> {
         self.solve_step()
             .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
-        self.save_state();
-        self.loco_con.step();
-        self.fric_brake.step();
+        self.save_state(|| format_dbg!());
+        self.loco_con.step(|| format_dbg!());
+        self.fric_brake.step(|| format_dbg!());
         self.state.i += 1;
         Ok(())
     }
@@ -473,8 +473,8 @@ impl SpeedLimitTrainSim {
         if let Some(interval) = self.save_interval {
             if self.state.i % interval == 0 {
                 self.history.push(self.state);
-                self.loco_con.save_state();
-                self.fric_brake.save_state();
+                self.loco_con.save_state(|| format_dbg!());
+                self.fric_brake.save_state(|| format_dbg!());
             }
         }
     }
@@ -485,7 +485,7 @@ impl SpeedLimitTrainSim {
             || (self.state.offset < self.path_tpc.offset_end()
                 && self.state.speed != si::Velocity::ZERO)
         {
-            self.step()?;
+            self.step(|| format_dbg!())?;
         }
         Ok(())
     }
@@ -493,7 +493,7 @@ impl SpeedLimitTrainSim {
     /// Iterates `save_state` and `step` until offset >= final offset --
     /// i.e. moves train forward until it reaches destination.
     pub fn walk(&mut self) -> anyhow::Result<()> {
-        self.save_state();
+        self.save_state(|| format_dbg!());
         self.walk_internal()
     }
 
@@ -510,7 +510,7 @@ impl SpeedLimitTrainSim {
             bail!("Timed path cannot be empty!");
         }
 
-        self.save_state();
+        self.save_state(|| format_dbg!());
         let mut idx_prev = 0;
         while idx_prev != timed_path.len() - 1 {
             let mut idx_next = idx_prev + 1;
@@ -528,7 +528,7 @@ impl SpeedLimitTrainSim {
             )?;
             idx_prev = idx_next;
             while self.state.time < time_extend {
-                self.step()?;
+                self.step(|| format_dbg!())?;
             }
         }
 

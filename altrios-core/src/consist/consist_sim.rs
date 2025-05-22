@@ -14,7 +14,7 @@ pub struct ConsistSimulation {
     pub i: usize,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl ConsistSimulation {
     #[new]
     #[pyo3(signature = (consist, power_trace, save_interval=None))]
@@ -30,7 +30,7 @@ impl ConsistSimulation {
 
     #[pyo3(name = "step")]
     fn step_py(&mut self) -> anyhow::Result<()> {
-        self.step()
+        self.step(|| format_dbg!())
     }
 
     #[pyo3(name = "set_save_interval")]
@@ -77,15 +77,6 @@ impl ConsistSimulation {
         self.loco_con.set_save_interval(save_interval);
     }
 
-    pub fn step(&mut self) -> anyhow::Result<()> {
-        self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.i)))?;
-        self.save_state();
-        self.i += 1;
-        self.loco_con.step();
-        Ok(())
-    }
-
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         self.loco_con.set_pwr_aux(Some(true))?;
         let train_mass = self.power_trace.train_mass;
@@ -110,15 +101,11 @@ impl ConsistSimulation {
         Ok(())
     }
 
-    fn save_state(&mut self) {
-        self.loco_con.save_state();
-    }
-
     /// Iterates step to solve all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
-        self.save_state();
+        self.save_state(|| format_dbg!());
         while self.i < self.power_trace.len() {
-            self.step()?;
+            self.step(|| format_dbg!())?;
         }
         Ok(())
     }
@@ -143,6 +130,23 @@ impl ConsistSimulation {
             Some(true),
         )?;
         Ok(())
+    }
+}
+
+impl Step for ConsistSimulation {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.solve_step()
+            .map_err(|err| err.context(format!("time step: {}", self.i)))?;
+        self.save_state(|| format_dbg!());
+        self.i += 1;
+        self.loco_con.step(|| format_dbg!());
+        Ok(())
+    }
+}
+
+impl SaveState for ConsistSimulation {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.loco_con.save_state(|| format_dbg!())
     }
 }
 

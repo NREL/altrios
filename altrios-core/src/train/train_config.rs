@@ -48,7 +48,7 @@ pub struct TrainConfig {
     pub cd_area_vec: Option<Vec<si::Area>>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl TrainConfig {
     #[new]
     #[pyo3(signature = (
@@ -269,7 +269,7 @@ pub struct TrainSimBuilder {
     init_train_state: Option<InitTrainState>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl TrainSimBuilder {
     #[new]
     #[pyo3(signature = (
@@ -1387,7 +1387,7 @@ pub fn run_speed_limit_train_sims(
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct SpeedLimitTrainSimVec(pub Vec<SpeedLimitTrainSim>);
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl SpeedLimitTrainSimVec {
     #![allow(non_snake_case)]
     #[pyo3(name = "get_energy_fuel_joules")]

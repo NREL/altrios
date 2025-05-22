@@ -9,7 +9,7 @@ pub struct Elev {
     pub elev: si::Length,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Elev {
     #[new]
     fn __new__(offset_meters: f64, elev_meters: f64) -> PyResult<Self> {

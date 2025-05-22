@@ -16,7 +16,7 @@ pub struct Strap {
     curve: path_res::Strap,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Strap {}
 
 impl Strap {

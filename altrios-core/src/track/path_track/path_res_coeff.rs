@@ -13,7 +13,7 @@ pub struct PathResCoeff {
     pub res_net: si::Length,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl PathResCoeff {}
 
 impl PathResCoeff {

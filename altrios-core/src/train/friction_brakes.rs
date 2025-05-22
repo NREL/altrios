@@ -28,7 +28,7 @@ pub struct FricBrake {
     pub save_interval: Option<usize>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl FricBrake {
     #[new]
     #[pyo3(signature = (
@@ -116,7 +116,7 @@ pub struct FricBrakeState {
     // pressure: si::Pressure,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl FricBrakeState {
     #[new]
     fn __new__() -> Self {

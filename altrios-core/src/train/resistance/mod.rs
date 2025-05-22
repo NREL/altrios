@@ -22,7 +22,7 @@ pub trait ResMethod {
 /// Wrapper for `TrainRes` to enable exposing contents of enum variants in python
 pub struct TrainResWrapper(pub TrainRes);
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl TrainResWrapper {
     #[getter("point")]
     fn get_point_py(&self) -> Option<method::Point> {

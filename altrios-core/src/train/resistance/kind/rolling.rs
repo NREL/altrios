@@ -8,7 +8,7 @@ pub struct Basic {
     ratio: si::Ratio,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Basic {}
 
 impl Basic {

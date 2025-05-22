@@ -25,7 +25,7 @@ pub struct Location {
     pub liquid_fuel_price_region: String,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Location {}
 
 pub type LocationMap = HashMap<String, Vec<Location>>;

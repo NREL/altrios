@@ -16,7 +16,7 @@ pub struct Point {
     curve: path_res::Point,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Point {}
 
 impl ResMethod for Point {

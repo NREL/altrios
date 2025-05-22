@@ -36,7 +36,7 @@ pub struct ElectricDrivetrain {
     pub history: ElectricDrivetrainStateHistoryVec,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl ElectricDrivetrain {
     #[new]
     #[pyo3(signature = (pwr_out_frac_interp, eta_interp, pwr_out_max_watts, save_interval=None))]
@@ -354,7 +354,7 @@ pub struct ElectricDrivetrainState {
     pub energy_loss: si::Energy,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl ElectricDrivetrainState {}
 
 impl Init for ElectricDrivetrainState {}
@@ -392,7 +392,7 @@ mod tests {
     #[test]
     fn test_that_i_increments() {
         let mut edrv = test_edrv();
-        edrv.step();
+        edrv.step(|| format_dbg!());
         assert_eq!(2, edrv.state.i);
     }
 
@@ -401,22 +401,22 @@ mod tests {
         let mut edrv = test_edrv();
         edrv.state.pwr_mech_out_max = edrv.pwr_out_max;
         edrv.save_interval = Some(1);
-        edrv.save_state();
+        edrv.save_state(|| format_dbg!());
         edrv.set_pwr_in_req(uc::W * 1_000e3, uc::S * 1.0).unwrap();
-        edrv.step();
-        edrv.save_state();
+        edrv.step(|| format_dbg!());
+        edrv.save_state(|| format_dbg!());
         edrv.set_pwr_in_req(uc::W * 1_100e3, uc::S * 1.0).unwrap();
-        edrv.step();
-        edrv.save_state();
+        edrv.step(|| format_dbg!());
+        edrv.save_state(|| format_dbg!());
         edrv.set_pwr_in_req(uc::W * 1_000e3, uc::S * 1.0).unwrap();
-        edrv.step();
-        edrv.save_state();
+        edrv.step(|| format_dbg!());
+        edrv.save_state(|| format_dbg!());
         edrv.set_pwr_in_req(uc::W * -500e3, uc::S * 1.0).unwrap();
-        edrv.step();
-        edrv.save_state();
+        edrv.step(|| format_dbg!());
+        edrv.save_state(|| format_dbg!());
         edrv.set_pwr_in_req(uc::W * -1_500e3, uc::S * 1.0).unwrap();
-        edrv.step();
-        edrv.save_state();
+        edrv.step(|| format_dbg!());
+        edrv.save_state(|| format_dbg!());
         assert!(edrv
             .history
             .energy_loss
@@ -430,7 +430,7 @@ mod tests {
         let mut edrv: ElectricDrivetrain = ElectricDrivetrain::default();
         edrv.save_interval = Some(1);
         assert!(edrv.history.is_empty());
-        edrv.save_state();
+        edrv.save_state(|| format_dbg!());
         assert_eq!(1, edrv.history.len());
     }
 
@@ -438,7 +438,7 @@ mod tests {
     fn test_that_history_has_len_0() {
         let mut edrv: ElectricDrivetrain = ElectricDrivetrain::default();
         assert!(edrv.history.is_empty());
-        edrv.save_state();
+        edrv.save_state(|| format_dbg!());
         assert!(edrv.history.is_empty());
     }
 

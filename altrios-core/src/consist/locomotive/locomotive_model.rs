@@ -63,30 +63,34 @@ impl LocoTrait for PowertrainType {
         }
     }
 
-    fn save_state(&mut self) {
-        match self {
-            PowertrainType::ConventionalLoco(conv) => conv.save_state(),
-            PowertrainType::HybridLoco(hel) => hel.save_state(),
-            PowertrainType::BatteryElectricLoco(bel) => bel.save_state(),
-            PowertrainType::DummyLoco(dummy) => dummy.save_state(),
-        }
-    }
-
-    fn step(&mut self) {
-        match self {
-            PowertrainType::ConventionalLoco(conv) => conv.step(),
-            PowertrainType::HybridLoco(hel) => hel.step(),
-            PowertrainType::BatteryElectricLoco(bel) => bel.step(),
-            PowertrainType::DummyLoco(dummy) => dummy.step(),
-        }
-    }
-
     fn get_energy_loss(&self) -> si::Energy {
         match self {
             PowertrainType::ConventionalLoco(conv) => conv.get_energy_loss(),
             PowertrainType::HybridLoco(hel) => hel.get_energy_loss(),
             PowertrainType::BatteryElectricLoco(bel) => bel.get_energy_loss(),
             PowertrainType::DummyLoco(dummy) => dummy.get_energy_loss(),
+        }
+    }
+}
+
+impl SaveState for PowertrainType {
+    fn save_state(&mut self) {
+        match self {
+            PowertrainType::ConventionalLoco(conv) => conv.save_state(|| format_dbg!()),
+            PowertrainType::HybridLoco(hel) => hel.save_state(|| format_dbg!()),
+            PowertrainType::BatteryElectricLoco(bel) => bel.save_state(|| format_dbg!()),
+            PowertrainType::DummyLoco(dummy) => dummy.save_state(|| format_dbg!()),
+        }
+    }
+}
+
+impl Step for PowertrainType {
+    fn step(&mut self) {
+        match self {
+            PowertrainType::ConventionalLoco(conv) => conv.step(|| format_dbg!()),
+            PowertrainType::HybridLoco(hel) => hel.step(|| format_dbg!()),
+            PowertrainType::BatteryElectricLoco(bel) => bel.step(|| format_dbg!()),
+            PowertrainType::DummyLoco(dummy) => dummy.step(|| format_dbg!()),
         }
     }
 }
@@ -163,7 +167,7 @@ pub struct LocoParams {
 impl Init for LocoParams {}
 impl SerdeAPI for LocoParams {}
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl LocoParams {
     #[new]
     #[pyo3(signature = (pwr_aux_offset_watts, pwr_aux_traction_coeff_ratio, force_max_newtons, mass_kilograms=None))]
@@ -260,7 +264,7 @@ impl Default for LocoParams {
 /// on locomotive are realistic.
 pub struct DummyLoco {}
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl DummyLoco {
     #[staticmethod]
     fn __new__() -> Self {
@@ -331,7 +335,7 @@ pub struct Locomotive {
     force_max: si::Force,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Locomotive {
     #[new]
     #[pyo3(signature = (loco_type, loco_params, save_interval=None))]
@@ -1187,21 +1191,23 @@ fn set_pwr_lims(state: &mut LocomotiveState, edrv: &ElectricDrivetrain) {
     state.pwr_regen_max = edrv.state.pwr_mech_regen_max;
 }
 
-impl LocoTrait for Locomotive {
+impl Step for Locomotive {
     fn step(&mut self) {
-        self.loco_type.step();
+        self.loco_type.step(|| format_dbg!());
         self.state.i += 1;
     }
-
+}
+impl SaveState for Locomotive {
     fn save_state(&mut self) {
-        self.loco_type.save_state();
+        self.loco_type.save_state(|| format_dbg!());
         if let Some(interval) = self.save_interval {
             if self.state.i % interval == 0 {
                 self.history.push(self.state);
             }
         }
     }
-
+}
+impl LocoTrait for Locomotive {
     fn get_energy_loss(&self) -> si::Energy {
         self.loco_type.get_energy_loss()
     }
@@ -1280,7 +1286,7 @@ pub struct LocomotiveState {
     // pub force_max: si::Mass,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl LocomotiveState {}
 
 impl Init for LocomotiveState {}

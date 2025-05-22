@@ -10,7 +10,7 @@ pub struct SpeedLimitPoint {
     pub speed_limit: si::Velocity,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl SpeedLimitPoint {}
 
 impl GetOffset for SpeedLimitPoint {

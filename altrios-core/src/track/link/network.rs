@@ -60,7 +60,7 @@ pub struct Link {
     pub err_tol: Option<NetworkErrTol>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Link {}
 
 impl Link {
@@ -366,7 +366,7 @@ impl ObjState for Link {
 /// error tolerances in checks performed by [Init::init]
 pub struct Network(pub NetworkErrTol, pub Vec<Link>);
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Network {
     #[pyo3(name = "set_speed_set_for_train_type")]
     fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> PyResult<()> {
@@ -393,7 +393,7 @@ pub struct NetworkErrTol {
     pub max_elev_step: Option<si::Length>,
 }
 
-#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+#[pyo3_api]
 impl NetworkErrTol {}
 
 impl Init for NetworkErrTol {
@@ -578,7 +578,7 @@ impl From<NetworkUnchecked> for Network {
 /// backwards compatibility.
 struct NetworkUnchecked(pub Vec<Link>);
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl NetworkUnchecked {}
 
 #[serde_api]
@@ -593,7 +593,7 @@ impl NetworkUnchecked {}
 /// `speed_sets` HashMap
 struct NetworkOld(pub Vec<LinkOld>);
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl NetworkOld {}
 
 impl AsRef<[Link]> for Network {

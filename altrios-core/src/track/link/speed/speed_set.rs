@@ -41,7 +41,7 @@ pub struct SpeedSet {
     pub is_head_end: bool,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl SpeedSet {}
 
 #[serde_api]
@@ -57,7 +57,7 @@ pub struct OldSpeedSet {
     pub is_head_end: bool,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl OldSpeedSet {}
 
 impl Valid for SpeedSet {

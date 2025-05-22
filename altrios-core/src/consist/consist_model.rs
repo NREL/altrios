@@ -27,7 +27,7 @@ pub struct Consist {
     n_res_equipped: Option<u8>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Consist {
     #[new]
     #[pyo3(signature = (loco_vec, save_interval=None))]
@@ -520,29 +520,36 @@ impl LocoTrait for Consist {
         Ok(())
     }
 
-    fn step(&mut self) {
-        for loco in self.loco_vec.iter_mut() {
-            loco.step();
-        }
-        self.state.i += 1;
-    }
-
-    fn save_state(&mut self) {
-        if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 {
-                self.history.push(self.state);
-                for loco in self.loco_vec.iter_mut() {
-                    loco.save_state();
-                }
-            }
-        }
-    }
-
     fn get_energy_loss(&self) -> si::Energy {
         self.loco_vec
             .iter()
             .map(|loco| loco.get_energy_loss())
             .sum()
+    }
+}
+
+impl Step for Consist {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        for (loco_idx, loco) in self.loco_vec.iter_mut().enumerate() {
+            loco.step(|| format_dbg!())
+                .with_context(|| format_dbg!(loco_idx))?;
+        }
+        self.state.i += 1;
+        Ok(())
+    }
+}
+
+impl SaveState for Consist {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        if let Some(interval) = self.save_interval {
+            if self.state.i % interval == 0 {
+                self.history.push(self.state);
+                for (loco_idx, loco) in self.loco_vec.iter_mut().enumerate() {
+                    loco.save_state(|| format_dbg!(loco_idx))?;
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -667,7 +674,7 @@ pub struct ConsistState {
     pub energy_fuel: si::Energy,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl ConsistState {}
 
 impl Init for ConsistState {}

@@ -12,7 +12,7 @@ pub struct LinkIdx {
     idx: u32,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl LinkIdx {
     #[new]
     fn __new__(idx: u32) -> Self {
@@ -108,7 +108,7 @@ impl ObjState for LinkIdx {
 /// `Vec<LinkIdx>` in Python
 pub struct LinkPath(pub Vec<LinkIdx>);
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl LinkPath {
     #[staticmethod]
     #[pyo3(name = "from_csv_file")]

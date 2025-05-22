@@ -11,7 +11,7 @@ pub struct InitTrainState {
     pub speed: si::Velocity,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl InitTrainState {
     #[new]
     #[pyo3(signature = (

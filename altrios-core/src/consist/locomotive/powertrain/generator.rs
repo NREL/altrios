@@ -39,7 +39,7 @@ pub struct Generator {
     pub history: GeneratorStateHistoryVec,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl Generator {
     /// Initialize a fuel converter object
     #[new]
@@ -417,7 +417,7 @@ pub struct GeneratorState {
     pub energy_loss: si::Energy,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl GeneratorState {}
 
 impl Init for GeneratorState {}
@@ -453,7 +453,7 @@ mod tests {
     #[test]
     fn test_that_i_increments() {
         let mut gen = test_gen();
-        gen.step();
+        gen.step(|| format_dbg!());
         assert_eq!(2, gen.state.i);
     }
 
@@ -461,22 +461,22 @@ mod tests {
     fn test_that_loss_is_monotonic() {
         let mut gen = test_gen();
         gen.save_interval = Some(1);
-        gen.save_state();
+        gen.save_state(|| format_dbg!());
         gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
-        gen.step();
-        gen.save_state();
+        gen.step(|| format_dbg!());
+        gen.save_state(|| format_dbg!());
         gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
-        gen.step();
-        gen.save_state();
+        gen.step(|| format_dbg!());
+        gen.save_state(|| format_dbg!());
         gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
-        gen.step();
-        gen.save_state();
+        gen.step(|| format_dbg!());
+        gen.save_state(|| format_dbg!());
         gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
-        gen.step();
+        gen.step(|| format_dbg!());
         let energy_loss_j = gen
             .history
             .energy_loss
@@ -494,7 +494,7 @@ mod tests {
         let mut gen: Generator = Generator::default();
         gen.save_interval = Some(1);
         assert!(gen.history.is_empty());
-        gen.save_state();
+        gen.save_state(|| format_dbg!());
         assert_eq!(1, gen.history.len());
     }
 
@@ -502,7 +502,7 @@ mod tests {
     fn test_that_history_has_len_0() {
         let mut gen: Generator = Generator::default();
         assert!(gen.history.is_empty());
-        gen.save_state();
+        gen.save_state(|| format_dbg!());
         assert!(gen.history.is_empty());
     }
 

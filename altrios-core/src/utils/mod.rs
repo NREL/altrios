@@ -3,6 +3,8 @@ use paste::paste;
 
 mod val_range;
 pub use val_range::*;
+pub mod tracked_state;
+pub use tracked_state::*;
 
 /// Error message for when user attempts to set value in a nested struct.
 pub const DIRECT_SET_ERR: &str =

@@ -13,7 +13,7 @@ pub struct SpeedTrace {
     pub engine_on: Option<Vec<bool>>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl SpeedTrace {
     #[new]
     #[pyo3(signature = (
@@ -218,7 +218,7 @@ pub struct SetSpeedTrainSim {
     temp_trace: Option<TemperatureTrace>,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl SetSpeedTrainSim {
     #[setter]
     pub fn set_res_strap(&mut self, res_strap: method::Strap) -> anyhow::Result<()> {
@@ -256,7 +256,7 @@ impl SetSpeedTrainSim {
 
     #[pyo3(name = "step")]
     fn step_py(&mut self) -> anyhow::Result<()> {
-        self.step()
+        self.step(|| format_dbg!())
     }
 
     #[pyo3(name = "set_save_interval")]
@@ -336,8 +336,8 @@ impl SetSpeedTrainSim {
     pub fn step(&mut self) -> anyhow::Result<()> {
         self.solve_step()
             .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
-        self.save_state();
-        self.loco_con.step();
+        self.save_state(|| format_dbg!());
+        self.loco_con.step(|| format_dbg!());
         self.state.i += 1;
         Ok(())
     }
@@ -405,16 +405,16 @@ impl SetSpeedTrainSim {
         if let Some(interval) = self.save_interval {
             if self.state.i % interval == 0 {
                 self.history.push(self.state);
-                self.loco_con.save_state();
+                self.loco_con.save_state(|| format_dbg!());
             }
         }
     }
 
     /// Iterates `save_state` and `step` through all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
-        self.save_state();
+        self.save_state(|| format_dbg!());
         while self.state.i < self.speed_trace.len() {
-            self.step()?;
+            self.step(|| format_dbg!())?;
         }
         Ok(())
     }

@@ -34,7 +34,7 @@ pub struct HybridLoco {
     pub history: HELStateHistoryVec,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl HybridLoco {}
 
 impl Default for HybridLoco {
@@ -194,11 +194,11 @@ impl LocoTrait for Box<HybridLoco> {
     }
 
     fn save_state(&mut self) {
-        self.deref_mut().save_state();
+        self.deref_mut().save_state(|| format_dbg!());
     }
 
     fn step(&mut self) {
-        self.deref_mut().step()
+        self.deref_mut().step(|| format_dbg!())
     }
 
     fn get_energy_loss(&self) -> si::Energy {
@@ -329,104 +329,11 @@ pub struct HELState {
     pub fc_on_causes: FCOnCauses,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl HELState {}
 
 impl Init for HELState {}
 impl SerdeAPI for HELState {}
-
-// Custom serialization
-impl Serialize for FCOnCauses {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let joined = self
-            .0
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<String>>()
-            .join(", ");
-        serializer.serialize_str(&format!("\"[{}]\"", joined))
-    }
-}
-
-use serde::de::{self, Visitor};
-struct FCOnCausesVisitor;
-impl Visitor<'_> for FCOnCausesVisitor {
-    type Value = FCOnCauses;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str(
-            "String form of `FCOnCauses`, e.g. `\"[VehicleSpeedTooHigh, FCTemperatureTooLow]\"`",
-        )
-    }
-
-    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        Self::visit_str(self, &v)
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        let inner: String = v
-            .replace("\"", "") // this solves a problem in interactive mode
-            .strip_prefix("[")
-            .ok_or("Missing leading `[`")
-            .map_err(|err| de::Error::custom(err))?
-            .strip_suffix("]")
-            .ok_or("Missing trailing`]`")
-            .map_err(|err| de::Error::custom(err))?
-            .to_string();
-        let fc_on_causes_str = inner.split(",").map(|x| x.trim()).collect::<Vec<&str>>();
-        let fc_on_causes_unchecked = fc_on_causes_str
-            .iter()
-            .map(|x| {
-                if x.is_empty() {
-                    None
-                } else {
-                    Some(FromStr::from_str(x))
-                }
-            })
-            .collect::<Vec<Option<Result<FCOnCause, derive_more::FromStrError>>>>();
-        let mut fc_on_causes: FCOnCauses = FCOnCauses(vec![]);
-        for (fc_on_cause_unchecked, fc_on_cause_str) in
-            fc_on_causes_unchecked.into_iter().zip(fc_on_causes_str)
-        {
-            if let Some(fc_on_cause_unchecked) = fc_on_cause_unchecked {
-                fc_on_causes.0.push(fc_on_cause_unchecked.map_err(|err| {
-                    de::Error::custom(format!(
-                        "{}\nfc_on_cause_unchecked: {:?}\nfc_on_cause_str: {}",
-                        err, fc_on_cause_unchecked, fc_on_cause_str
-                    ))
-                })?)
-            }
-        }
-        Ok(fc_on_causes)
-    }
-}
-
-// Custom deserialization
-impl<'de> Deserialize<'de> for FCOnCauses {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_string(FCOnCausesVisitor)
-    }
-}
-
-impl std::fmt::Display for FCOnCauses {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-        // or, alternatively:
-        // fmt::Debug::fmt(self, f)
-    }
-}
 
 #[serde_api]
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
@@ -451,7 +358,7 @@ pub struct FCOnCauses {
 impl SerdeAPI for FCOnCauses {}
 impl Init for FCOnCauses {}
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl FCOnCauses {}
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default, IsVariant, From, TryInto)]
@@ -698,6 +605,7 @@ fn get_pwr_gen_elec_out_for_eff_fc(
 /// default values.
 #[serde_api]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 #[non_exhaustive]
 pub struct RESGreedyWithDynamicBuffers {
     /// RES energy delta from minimum SOC corresponding to kinetic energy of
@@ -746,7 +654,7 @@ pub struct RESGreedyWithDynamicBuffers {
     pub history: RGWDBStateHistoryVec,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl RESGreedyWithDynamicBuffers {}
 
 impl RESGreedyWithDynamicBuffers {
@@ -812,7 +720,7 @@ pub struct RGWDBState {
     pub soc_fc_on_buffer: si::Ratio,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl RGWDBState {}
 
 impl Init for RGWDBState {}

@@ -25,7 +25,7 @@ pub struct LinkPoint {
     pub link_idx: LinkIdx,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl LinkPoint {}
 
 impl LinkPoint {

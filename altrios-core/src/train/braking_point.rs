@@ -9,7 +9,7 @@ pub struct BrakingPoint {
     pub speed_target: si::Velocity,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl BrakingPoint {}
 
 impl ObjState for BrakingPoint {
@@ -31,7 +31,7 @@ pub struct BrakingPoints {
     idx_curr: usize,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl BrakingPoints {}
 
 impl BrakingPoints {

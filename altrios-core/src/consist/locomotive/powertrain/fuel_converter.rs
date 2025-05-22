@@ -52,7 +52,7 @@ pub struct FuelConverter {
     pub history: FuelConverterStateHistoryVec, // TODO: spec out fuel tank size and track kg of fuel
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl FuelConverter {
     // optional, custom, struct-specific pymethods
     #[getter("eta_max")]
@@ -369,7 +369,7 @@ pub struct FuelConverterState {
     pub time_on: si::Time,
 }
 
-#[named_struct_pyo3_api]
+#[pyo3_api]
 impl FuelConverterState {}
 
 impl Init for FuelConverterState {}
@@ -435,7 +435,7 @@ mod tests {
     #[test]
     fn test_that_i_increments() {
         let mut fc = test_fc();
-        fc.step();
+        fc.step(|| format_dbg!());
         assert_eq!(2, fc.state.i);
     }
 
@@ -444,14 +444,14 @@ mod tests {
         let mut fc = test_fc();
         fc.state.pwr_out_max = uc::MW * 2.0;
         fc.save_interval = Some(1);
-        fc.save_state();
+        fc.save_state(|| format_dbg!());
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
-        fc.step();
-        fc.save_state();
+        fc.step(|| format_dbg!());
+        fc.save_state(|| format_dbg!());
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
-        fc.step();
+        fc.step(|| format_dbg!());
         assert!(fc.history.energy_fuel[1] > fc.history.energy_fuel[0]);
         assert!(fc.history.energy_loss[1] > fc.history.energy_loss[0]);
     }
@@ -462,7 +462,7 @@ mod tests {
         let mut fc: FuelConverter = FuelConverter::default();
         fc.save_interval = Some(1);
         assert!(fc.history.is_empty());
-        fc.save_state();
+        fc.save_state(|| format_dbg!());
         assert_eq!(1, fc.history.len());
     }
 
@@ -470,7 +470,7 @@ mod tests {
     fn test_that_history_has_len_0() {
         let mut fc: FuelConverter = FuelConverter::default();
         assert!(fc.history.is_empty());
-        fc.save_state();
+        fc.save_state(|| format_dbg!());
         assert!(fc.history.is_empty());
     }
 

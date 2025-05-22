@@ -14,6 +14,8 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
         "yaml",
         #[cfg(feature = "json")]
         "json",
+        #[cfg(feature = "msgpack")]
+        "msgpack",
         #[cfg(feature = "toml")]
         "toml",
     ];

@@ -408,7 +408,7 @@ class NetworkBuilder:
         """
         BaseQuery = """[out:xml] [timeout:999];
                         (
-                            way["railway"]({},{},{},{});
+                            nwr[railway]({},{},{},{});
                         );
                         (._;>;);
                         out body;"""
@@ -452,10 +452,7 @@ class NetworkBuilder:
                     Coords.append([Node.lon, Node.lat])
                     NodeTags.append(Node.tags)
                     if "railway" in Node.tags.keys():
-                        if (
-                            Node.tags["railway"] == "switch"
-                            or Node.tags["railway"] == "junction"
-                        ):
+                        if Node.tags["railway"] == "switch":
                             switch_gdf = gpd.GeoDataFrame(
                                 data=[Node.tags],
                                 geometry=[shapely.Point([Node.lon, Node.lat])],
@@ -472,6 +469,16 @@ class NetworkBuilder:
                 WayGDF["Node Tags"] = str(NodeTags)
                 WayGDF["osm_id"] = Way.id
                 TrackGDF.append(WayGDF)
+            for Node_ in result.nodes: # Only look for junctions and add them to the list of switches
+                if "railway" in Node_.tags.keys():
+                    if Node_.tags["railway"] == "junction":
+                        switch_gdf = gpd.GeoDataFrame(
+                            data=[{"railway": "junction"}],
+                            geometry=[shapely.Point([Node_.lon, Node_.lat])],
+                            crs="EPSG:4326",
+                        )
+                        switch_gdf["osm_link_id"] = Node_.id
+                        all_switch_gdf.append(switch_gdf)           
             TrackGDF = pd.concat(TrackGDF)
             TrackGDF = TrackGDF.drop("fixme", axis=1)
             all_switch_gdf = pd.concat(all_switch_gdf)
@@ -1515,7 +1522,7 @@ if __name__ == "__main__":
 
     # print(fiona.listlayers(MyBuilder.geopackage_path))
     # MyBuilder.input_geopackage_parsing()
-    MyBuilder.build_network()
+    # MyBuilder.build_network()
     # MyBuilder.drape_geometry()
     # MyBuilder.add_speed_limits()
     # MyBuilder.verify_grade_elev()

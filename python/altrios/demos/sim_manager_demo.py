@@ -25,11 +25,17 @@ plot_dir.mkdir(exist_ok=True)
 t0_import = time.perf_counter()
 t0_total = time.perf_counter()
 
-rail_vehicles=[alt.RailVehicle.from_file(vehicle_file, skip_init=False) 
-               for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob('*.yaml')]
+rail_vehicles = [
+    alt.RailVehicle.from_file(vehicle_file, skip_init=False)
+    for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob("*.yaml")
+]
 
-location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")
-network = alt.Network.from_file(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
+location_map = alt.import_locations(
+    alt.resources_root() / "networks/default_locations.csv"
+)
+network = alt.Network.from_file(
+    alt.resources_root() / "networks/Taconite-NoBalloon.yaml"
+)
 
 t1_import = time.perf_counter()
 print(
@@ -37,21 +43,22 @@ print(
 )
 
 train_planner_config = planner_config.TrainPlannerConfig(
-            cars_per_locomotive={"Default": 50},
-            target_cars_per_train={"Default": 90},
-            require_diesel=True)
+    cars_per_locomotive={"Default": 50},
+    target_cars_per_train={"Default": 90},
+    require_diesel=True,
+)
 
 t0_main = time.perf_counter()
 
 (
-    train_consist_plan, 
-    loco_pool, 
-    refuel_facilities, 
-    grid_emissions_factors, 
-    nodal_energy_prices, 
-    speed_limit_train_sims, 
+    train_consist_plan,
+    loco_pool,
+    refuel_facilities,
+    grid_emissions_factors,
+    nodal_energy_prices,
+    speed_limit_train_sims,
     timed_paths,
-    train_consist_plan_untrimmed
+    train_consist_plan_untrimmed,
 ) = sim_manager.main(
     network=network,
     rail_vehicles=rail_vehicles,
@@ -72,13 +79,11 @@ speed_limit_train_sims.set_save_interval(100)
     train_consist_plan_py=train_consist_plan,
     loco_pool_py=loco_pool,
     refuel_facilities_py=refuel_facilities,
-    timed_paths=timed_paths
+    timed_paths=timed_paths,
 )
 t1_train_sims = time.perf_counter()
 print(f"Elapsed time to run train sims: {t1_train_sims-t0_train_sims:.3g} s")
-t_train_time = sum([
-    sim.state.time_seconds for sim in sims.tolist()
-])
+t_train_time = sum([sim.state.time_seconds for sim in sims.tolist()])
 print(f"Total train-seconds simulated: {t_train_time} s")
 
 # %%
@@ -117,8 +122,14 @@ t1_main = time.perf_counter()
 print(f"Elapsed time to get total fuel energy: {t1_main-t0_main:.3g} s")
 print(f"Total fuel energy used: {e_total_fuel_mj:.3g} GJ")
 
-v_total_fuel_gal = summary_sims.get_energy_fuel_joules(annualize=False) / 1e3 / defaults.LHV_DIESEL_KJ_PER_KG / \
-    defaults.RHO_DIESEL_KG_PER_M3 * utilities.LITER_PER_M3 * utilities.GALLONS_PER_LITER
+v_total_fuel_gal = (
+    summary_sims.get_energy_fuel_joules(annualize=False)
+    / 1e3
+    / defaults.LHV_DIESEL_KJ_PER_KG
+    / defaults.RHO_DIESEL_KG_PER_M3
+    * utilities.LITER_PER_M3
+    * utilities.GALLONS_PER_LITER
+)
 
 print(f"Total fuel used: {v_total_fuel_gal:.3g} gallons")
 print(f"Total elapsed time: {time.perf_counter() - t0_total} s")
@@ -160,10 +171,9 @@ if SHOW_PLOTS:
             loco1 = sim.loco_con.loco_vec.tolist()[1]
             if loco1.res is not None:
                 ax[1].plot(
-                    np.array(sim.history.time_seconds) / 3_600,
-                    loco1.res.history.soc
+                    np.array(sim.history.time_seconds) / 3_600, loco1.res.history.soc
                 )
-                ax[1].set_ylabel('SOC')
+                ax[1].set_ylabel("SOC")
 
         ax[-1].plot(
             np.array(sim.history.time_seconds) / 3_600,

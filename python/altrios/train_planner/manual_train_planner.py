@@ -47,6 +47,9 @@ def manual_train_planner(
         types with real world locomotive types as keys and ALTRIOS models as values
     """
 
+    # Append additional locomotive info to configuration.  Not sure why this is important, but I'm copying the regular train planner.
+    config.loco_info = data_prep.append_loco_info(config.loco_info)
+
     # this is a list of all the unique destinations in the consist plan
     node_list = (
         pl.concat(

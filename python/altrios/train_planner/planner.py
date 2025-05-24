@@ -690,7 +690,7 @@ def run_train_planner(
         loco_pool = data_prep.build_locopool(
             config=config, demand_file=demand, dispatch_schedule=dispatch_schedule
         )
-    x=dfghjk
+
     # Create refuelers if not provided
     if refuelers is None:
         refuelers = data_prep.build_refuelers(

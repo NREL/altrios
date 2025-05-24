@@ -18,6 +18,7 @@ def main(
     location_map: Dict[str, List[alt.Location]],
     network: List[alt.Link],
     consist_plan: pl.DataFrame,
+    loco_map: dict, 
     scenario_year: int = defaults.BASE_ANALYSIS_YEAR,
     debug: bool = False,
     refuelers: Optional[pl.DataFrame] = None,
@@ -27,6 +28,7 @@ def main(
     train_type: alt.TrainType = alt.TrainType.Freight,
     demand_file: Union[pl.DataFrame, Path, str] = str(defaults.DEMAND_FILE),
     network_charging_guidelines: Optional[pl.DataFrame] = None,
+    
 ) -> Tuple[
     pl.DataFrame,
     pl.DataFrame,
@@ -79,7 +81,8 @@ def main(
         est_time_nets,
     ) = manual_train_planner.manual_train_planner(
         consist_plan=consist_plan,
-        loco_pool=loco_pool,
+        loco_map=loco_map,
+        rail_vehicles=rail_vehicles,
         config=train_planner_config
     )
     t1_ptc = time.perf_counter()

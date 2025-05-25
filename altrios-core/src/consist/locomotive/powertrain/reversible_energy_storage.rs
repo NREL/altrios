@@ -824,7 +824,7 @@ impl ReversibleEnergyStorage {
 }
 
 #[serde_api]
-#[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, HistoryVec)]
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, HistoryVec)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 // component limits
 /// ReversibleEnergyStorage state variables

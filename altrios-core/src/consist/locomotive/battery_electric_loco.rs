@@ -284,7 +284,7 @@ impl SerdeAPI for RESGreedyWithDynamicBuffersBEL {}
 /// State for [RESGreedyWithDynamicBuffers ]
 pub struct RGWDBStateBEL {
     /// time step index
-    pub i: usize,
+    pub i: TrackedState<usize>,
 }
 
 #[pyo3_api]

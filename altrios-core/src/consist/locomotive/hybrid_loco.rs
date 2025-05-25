@@ -166,8 +166,10 @@ impl LocoTrait for Box<HybridLoco> {
             chrg_buffer,
         )?;
 
-        self.gen
-            .set_cur_pwr_max_out(self.fc.state.pwr_out_max, Some(si::Power::ZERO))?;
+        self.gen.set_cur_pwr_max_out(
+            *self.fc.state.pwr_out_max.get_fresh(|| format_dbg!())?,
+            Some(si::Power::ZERO),
+        )?;
 
         self.edrv.set_cur_pwr_max_out(
             self.gen.state.pwr_elec_prop_out_max + self.res.state.pwr_prop_max,
@@ -216,7 +218,6 @@ impl HybridLoco {
                 self.edrv.state.pwr_elec_prop_in,
                 train_mass,
                 train_speed,
-                &mut self.state,
                 &self.fc,
                 &self.gen,
                 &self.edrv.state,
@@ -378,21 +379,19 @@ impl HybridPowertrainControls {
             Self::RGWDB(ref mut rgwdb) => {
                 // handle_fc_on_causes_for_temp(fc, rgwdb, hev_state)?;
                 rgwdb.handle_fc_on_causes_for_speed(train_speed)?;
-                rgwdb.handle_fc_on_causes_for_low_soc(res, rgwdb, train_mass, train_speed)?;
+                rgwdb.handle_fc_on_causes_for_low_soc(res, train_mass, train_speed)?;
                 // `handle_fc_*` below here are asymmetrical for positive tractive power only
                 handle_fc_on_causes_for_pwr_demand(
-                    rgwdb,
                     pwr_res_and_gen_to_edrv,
                     &gen.state,
                     &res.state,
-                    hel_state,
                 )?;
 
                 let res_prop_pwr = pwr_res_and_gen_to_edrv
                     .min(res.state.pwr_prop_max)
                     .max(-res.state.pwr_regen_max);
 
-                if hel_state.fc_on_causes.is_empty() {
+                if !rgwdb.state.engine_on().with_context(|| format_dbg!())? {
                     // engine is off, and `em_pwr` has already been limited within bounds
                     ensure!(
                         res_prop_pwr == pwr_res_and_gen_to_edrv,

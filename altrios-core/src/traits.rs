@@ -197,6 +197,15 @@ pub trait SaveState {
     fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()>;
 }
 
+/// Trait that provides method for incrementing `i` field of this and all contained structs,
+/// recursively
+pub trait Step {
+    /// Increments `i` field of this and all contained structs, recursively
+    /// # Arguments
+    /// - `loc`: closure that returns file and line number where called
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()>;
+}
+
 /// Provides methods for getting and setting the save interval
 pub trait HistoryMethods: SaveState {
     /// Recursively sets save interval
@@ -208,13 +217,4 @@ pub trait HistoryMethods: SaveState {
     fn save_interval(&self) -> anyhow::Result<Option<usize>>;
     /// Remove all history
     fn clear(&mut self);
-}
-
-/// Trait that provides method for incrementing `i` field of this and all contained structs,
-/// recursively
-pub trait Step {
-    /// Increments `i` field of this and all contained structs, recursively
-    /// # Arguments
-    /// - `loc`: closure that returns file and line number where called
-    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()>;
 }

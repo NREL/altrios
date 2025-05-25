@@ -133,6 +133,24 @@ impl ConsistSimulation {
     }
 }
 
+impl StateMethods for ConsistSimulation {}
+
+impl SetCumulative for ConsistSimulation {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
+        self.loco_con
+            .save_state(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+
+impl CheckAndResetState for ConsistSimulation {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.loco_con
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+
 impl Step for ConsistSimulation {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         self.solve_step()
@@ -149,8 +167,6 @@ impl SaveState for ConsistSimulation {
         self.loco_con.save_state(|| format_dbg!())
     }
 }
-
-impl StateMethods for ConsistSimulation {}
 
 impl Init for ConsistSimulation {
     fn init(&mut self) -> Result<(), Error> {

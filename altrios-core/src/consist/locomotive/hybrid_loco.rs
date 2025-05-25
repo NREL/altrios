@@ -26,12 +26,6 @@ pub struct HybridLoco {
 
     #[serde(default)]
     pub pt_cntrl: HybridPowertrainControls,
-    /// field for tracking current state
-    #[serde(default)]
-    pub state: HELState,
-    /// vector of [Self::state]
-    #[serde(default)]
-    pub history: HELStateHistoryVec,
 }
 
 #[pyo3_api]
@@ -56,8 +50,6 @@ impl Default for HybridLoco {
             },
             edrv: Default::default(),
             pt_cntrl: Default::default(),
-            state: Default::default(),
-            history: Default::default(),
         }
     }
 }
@@ -123,17 +115,16 @@ impl LocoTrait for Box<HybridLoco> {
                 format_dbg!()
             )
         })?;
-        self.state.fc_on_causes.clear();
         match &self.pt_cntrl {
             HybridPowertrainControls::RGWDB(rgwb) => {
-                if self.fc.state.engine_on && self.fc.state.time_on
+                if *self.fc.state.engine_on.get_stale(|| format_dbg!())? && *self.fc.state.time_on.get_stale(|| format_dbg!())?
                     < rgwb.fc_min_time_on.with_context(|| {
                     anyhow!(
                         "{}\n Expected `ResGreedyWithBuffers::init` to have been called beforehand.",
                         format_dbg!()
                     )
                 })? {
-                    self.state.fc_on_causes.push(FCOnCause::OnTimeTooShort)
+                    rgwb.state.on_time_too_short.update(true, || format_dbg!())?
                 }
             }
         };
@@ -309,50 +300,6 @@ impl HybridLoco {
     }
 }
 
-#[serde_api]
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
-#[non_exhaustive]
-#[serde(default)]
-#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
-pub struct HELState {
-    /// time step index
-    pub i: usize,
-    /// Vector of posssible reasons the fc is forced on
-    pub fc_on_causes: FCOnCauses,
-}
-
-#[pyo3_api]
-impl HELState {}
-
-impl Init for HELState {}
-impl SerdeAPI for HELState {}
-
-#[serde_api]
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
-#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
-pub struct FCOnCauses {
-    /// Engine must be on to self heat if thermal model is enabled
-    fctemperature_too_low: bool,
-    /// Engine must be on for high vehicle speed to ensure powertrain can meet
-    /// any spikes in power demand
-    vehicle_speed_too_high: bool,
-    /// Engine has not been on long enough (usually 30 s)
-    on_time_too_short: bool,
-    /// Powertrain power demand exceeds motor and/or battery capabilities
-    propulsion_power_demand: bool,
-    /// Powertrain power demand exceeds optimal motor and/or battery output
-    propulsion_power_demand_soft: bool,
-    /// Aux power demand exceeds battery capability
-    aux_power_demand: bool,
-    /// SOC is below min buffer so FC is charging RES
-    charging_for_low_soc: bool,
-}
-impl SerdeAPI for FCOnCauses {}
-impl Init for FCOnCauses {}
-
-#[pyo3_api]
-impl FCOnCauses {}
-
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default, IsVariant, From, TryInto)]
 pub enum HEVAuxControls {
     /// If feasible, use [ReversibleEnergyStorage] to handle aux power demand
@@ -385,58 +332,6 @@ impl Init for HybridPowertrainControls {
     }
 }
 
-/// Detemrines whether engine must be on to charge battery
-fn handle_fc_on_causes_for_low_soc(
-    res: &ReversibleEnergyStorage,
-    rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
-    hev_state: &mut HELState,
-    mass: si::Mass,
-    train_speed: si::Velocity,
-) -> anyhow::Result<()> {
-    rgwdb.set_soc_fc_on_buffer(res, mass, train_speed)?;
-    if res.state.soc < rgwdb.state.soc_fc_on_buffer {
-        hev_state.fc_on_causes.push(FCOnCause::ChargingForLowSOC)
-    }
-    Ok(())
-}
-
-/// Determines whether power demand requires engine to be on.  Not needed during
-/// negative traction.
-fn handle_fc_on_causes_for_pwr_demand(
-    rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
-    pwr_out_req: si::Power,
-    gen_state: &GeneratorState,
-    res_state: &ReversibleEnergyStorageState,
-    hev_state: &mut HELState,
-) -> Result<(), anyhow::Error> {
-    let frac_pwr_demand_fc_forced_on: si::Ratio = rgwdb
-        .frac_pwr_demand_fc_forced_on
-        .with_context(|| format_dbg!())?;
-    if pwr_out_req > frac_pwr_demand_fc_forced_on * res_state.pwr_disch_max {
-        hev_state
-            .fc_on_causes
-            .push(FCOnCause::PropulsionPowerDemandSoft);
-    }
-    if pwr_out_req - gen_state.pwr_elec_out_max >= si::Power::ZERO {
-        hev_state
-            .fc_on_causes
-            .push(FCOnCause::PropulsionPowerDemand);
-    }
-    Ok(())
-}
-
-/// Determines whether enigne must be on for high speed
-fn handle_fc_on_causes_for_speed(
-    train_speed: si::Velocity,
-    rgwdb: &mut Box<RESGreedyWithDynamicBuffers>,
-    hev_state: &mut HELState,
-) -> anyhow::Result<()> {
-    if train_speed > rgwdb.speed_fc_forced_on.with_context(|| format_dbg!())? {
-        hev_state.fc_on_causes.push(FCOnCause::VehicleSpeedTooHigh);
-    }
-    Ok(())
-}
-
 impl HybridPowertrainControls {
     /// Determines power split between engine/generator and battery
     ///
@@ -454,7 +349,6 @@ impl HybridPowertrainControls {
         // TODO: make a `TrainMomentum` object to pass both mass and speed
         train_mass: si::Mass,
         train_speed: si::Velocity,
-        hel_state: &mut HELState,
         fc: &FuelConverter,
         gen: &Generator,
         edrv_state: &ElectricDrivetrainState,
@@ -483,8 +377,8 @@ impl HybridPowertrainControls {
         let (gen_prop_pwr, res_prop_pwr) = match self {
             Self::RGWDB(ref mut rgwdb) => {
                 // handle_fc_on_causes_for_temp(fc, rgwdb, hev_state)?;
-                handle_fc_on_causes_for_speed(train_speed, rgwdb, hel_state)?;
-                handle_fc_on_causes_for_low_soc(res, rgwdb, hel_state, train_mass, train_speed)?;
+                rgwdb.handle_fc_on_causes_for_speed(train_speed)?;
+                rgwdb.handle_fc_on_causes_for_low_soc(res, rgwdb, train_mass, train_speed)?;
                 // `handle_fc_*` below here are asymmetrical for positive tractive power only
                 handle_fc_on_causes_for_pwr_demand(
                     rgwdb,
@@ -672,6 +566,59 @@ impl RESGreedyWithDynamicBuffers {
             + res.min_soc;
         Ok(())
     }
+
+    /// Determines whether power demand requires engine to be on.  Not needed during
+    /// negative traction.
+    fn handle_fc_on_causes_for_pwr_demand(
+        &mut self,
+        pwr_out_req: si::Power,
+        gen_state: &GeneratorState,
+        res_state: &ReversibleEnergyStorageState,
+    ) -> Result<(), anyhow::Error> {
+        let frac_pwr_demand_fc_forced_on: si::Ratio = self
+            .frac_pwr_demand_fc_forced_on
+            .with_context(|| format_dbg!())?;
+        if pwr_out_req > frac_pwr_demand_fc_forced_on * res_state.pwr_disch_max {
+            self.state
+                .propulsion_power_demand_soft
+                .update(true, || format_dbg!())?;
+        }
+        if pwr_out_req - *gen_state.pwr_elec_out_max.get_fresh(|| format_dbg!())? >= si::Power::ZERO
+        {
+            self.state
+                .propulsion_power_demand
+                .update(true, || format_dbg!())?;
+        }
+        Ok(())
+    }
+
+    /// Determines whether enigne must be on for high speed
+    fn handle_fc_on_causes_for_speed(&mut self, train_speed: si::Velocity) -> anyhow::Result<()> {
+        if train_speed > self.speed_fc_forced_on.with_context(|| format_dbg!())? {
+            self.state
+                .train_speed_above_threshold
+                .update(true, || format_dbg!())?;
+        }
+        Ok(())
+    }
+
+    /// Detemrines whether engine must be on to charge battery
+    fn handle_fc_on_causes_for_low_soc(
+        &mut self,
+        res: &ReversibleEnergyStorage,
+        mass: si::Mass,
+        train_speed: si::Velocity,
+    ) -> anyhow::Result<()> {
+        self.set_soc_fc_on_buffer(res, mass, train_speed)?;
+        if *res.state.soc.get_stale(|| format_dbg!())?
+            < *self.state.soc_fc_on_buffer.get_stale(|| format_dbg!())?
+        {
+            self.state
+                .charging_for_low_soc
+                .update(true, || format_dbg!())?;
+        }
+        Ok(())
+    }
 }
 
 impl Init for RESGreedyWithDynamicBuffers {
@@ -702,14 +649,29 @@ impl SerdeAPI for RESGreedyWithDynamicBuffers {}
 /// State for [RESGreedyWithDynamicBuffers ]
 pub struct RGWDBState {
     /// time step index
-    pub i: usize,
-    /// Vector of posssible reasons the fc is forced on
-    pub fc_on_causes: FCOnCauses,
+    pub i: TrackedState<usize>,
+
+    /// Engine must be on to self heat if thermal model is enabled
+    fc_temperature_too_low: TrackedState<bool>,
+    /// Engine must be on for high train speed to ensure powertrain can meet
+    /// any spikes in power demand
+    train_speed_above_threshold: TrackedState<bool>,
+    /// Engine has not been on long enough (usually 30 s)
+    on_time_too_short: TrackedState<bool>,
+    /// Powertrain power demand exceeds motor and/or battery capabilities
+    propulsion_power_demand: TrackedState<bool>,
+    /// Powertrain power demand exceeds optimal motor and/or battery output
+    propulsion_power_demand_soft: TrackedState<bool>,
+    /// Aux power demand exceeds battery capability
+    aux_power_demand: TrackedState<bool>,
+    /// SOC is below min buffer so FC is charging RES
+    charging_for_low_soc: TrackedState<bool>,
+
     /// Number of `walk` iterations required to achieve SOC balance (i.e. SOC
     /// ends at same starting value, ensuring no net [ReversibleEnergyStorage] usage)
-    pub soc_bal_iters: u32,
+    pub soc_bal_iters: TrackedState<u32>,
     /// buffer at which FC is forced on
-    pub soc_fc_on_buffer: si::Ratio,
+    pub soc_fc_on_buffer: TrackedState<si::Ratio>,
 }
 
 #[pyo3_api]
@@ -717,3 +679,20 @@ impl RGWDBState {}
 
 impl Init for RGWDBState {}
 impl SerdeAPI for RGWDBState {}
+
+impl RGWDBState {
+    /// If any of the causes are true, engine must be on
+    fn engine_on(&self) -> anyhow::Result<bool> {
+        Ok(*self.fc_temperature_too_low.get_fresh(|| format_dbg!())?
+            || *self
+                .train_speed_above_threshold
+                .get_fresh(|| format_dbg!())?
+            || *self.on_time_too_short.get_fresh(|| format_dbg!())?
+            || *self.propulsion_power_demand.get_fresh(|| format_dbg!())?
+            || *self
+                .propulsion_power_demand_soft
+                .get_fresh(|| format_dbg!())?
+            || *self.aux_power_demand.get_fresh(|| format_dbg!())?
+            || *self.charging_for_low_soc.get_fresh(|| format_dbg!())?)
+    }
+}

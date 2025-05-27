@@ -20,6 +20,9 @@ impl LinkIdx {
     }
 }
 
+impl Init for LinkIdx {}
+impl SerdeAPI for LinkIdx {}
+
 pub const LINK_IDX_NA: LinkIdx = LinkIdx { idx: 0 };
 
 impl LinkIdx {
@@ -121,6 +124,9 @@ impl LinkPath {
         self.to_csv_file(PathBuf::extract_bound(filepath)?)
     }
 }
+
+impl Init for LinkPath {}
+impl SerdeAPI for LinkPath {}
 
 impl AsRef<[LinkIdx]> for LinkPath {
     fn as_ref(&self) -> &[LinkIdx] {

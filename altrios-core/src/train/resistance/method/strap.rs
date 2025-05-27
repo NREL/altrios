@@ -19,6 +19,9 @@ pub struct Strap {
 #[pyo3_api]
 impl Strap {}
 
+impl Init for Strap {}
+impl SerdeAPI for Strap {}
+
 impl Strap {
     pub fn new(
         bearing: bearing::Basic,

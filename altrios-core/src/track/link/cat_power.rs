@@ -19,6 +19,9 @@ pub struct CatPowerLimit {
 #[pyo3_api]
 impl CatPowerLimit {}
 
+impl Init for CatPowerLimit {}
+impl SerdeAPI for CatPowerLimit {}
+
 impl Valid for CatPowerLimit {
     fn valid() -> Self {
         Self {

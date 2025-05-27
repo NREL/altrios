@@ -55,6 +55,9 @@ impl FricBrake {
     }
 }
 
+impl Init for FricBrake {}
+impl SerdeAPI for FricBrake {}
+
 impl Default for FricBrake {
     fn default() -> Self {
         Self {

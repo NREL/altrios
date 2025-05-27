@@ -28,6 +28,9 @@ pub struct Location {
 #[pyo3_api]
 impl Location {}
 
+impl Init for Location {}
+impl SerdeAPI for Location {}
+
 pub type LocationMap = HashMap<String, Vec<Location>>;
 
 #[cfg(feature = "pyo3")]

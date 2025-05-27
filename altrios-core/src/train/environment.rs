@@ -24,6 +24,9 @@ impl TemperatureTraceBuilder {
     }
 }
 
+impl Init for TemperatureTraceBuilder {}
+impl SerdeAPI for TemperatureTraceBuilder {}
+
 impl TemperatureTraceBuilder {
     fn empty() -> Self {
         Self {
@@ -106,6 +109,9 @@ pub struct TemperatureTrace(pub(crate) Interp1DOwned<f64, strategy::Linear>);
 
 #[pyo3_api]
 impl TemperatureTrace {}
+
+impl Init for TemperatureTrace {}
+impl SerdeAPI for TemperatureTrace {}
 
 impl TemperatureTrace {
     pub fn get_temp_at_time_and_elev(

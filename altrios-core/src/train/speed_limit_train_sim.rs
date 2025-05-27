@@ -62,7 +62,7 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 }
 
 #[serde_api]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, StateMethods)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Train simulation in which speed is allowed to vary according to train capabilities and speed
 /// limit.  Note that this is not guaranteed to produce identical results to [super::SetSpeedTrainSim]
@@ -72,7 +72,7 @@ pub struct SpeedLimitTrainSim {
     pub train_id: String,
     pub origs: Vec<Location>,
     pub dests: Vec<Location>,
-    #[has_state]
+    // #[has_state]
     pub loco_con: Consist,
     /// Number of railcars by type on the train
     pub n_cars_by_type: HashMap<String, u32>,
@@ -85,7 +85,7 @@ pub struct SpeedLimitTrainSim {
     pub path_tpc: PathTpc,
 
     pub braking_points: BrakingPoints,
-    #[has_state]
+    // #[has_state]
     pub fric_brake: FricBrake,
     /// Custom vector of [Self::state]
     #[serde(default)]
@@ -811,6 +811,18 @@ impl SpeedLimitTrainSim {
     }
 }
 
+impl StateMethods for SpeedLimitTrainSim {}
+impl CheckAndResetState for SpeedLimitTrainSim {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.state
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        self.fric_brake
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
 impl SaveState for SpeedLimitTrainSim {
     fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         if let Some(interval) = self.save_interval {

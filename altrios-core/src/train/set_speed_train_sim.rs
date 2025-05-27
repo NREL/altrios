@@ -165,6 +165,10 @@ impl SpeedTrace {
     }
 }
 
+
+impl Init for SpeedTrace{}
+impl SerdeAPI for SpeedTrace{}
+
 impl Default for SpeedTrace {
     fn default() -> Self {
         let mut speed_mps: Vec<f64> = Vec::linspace(0.0, 20.0, 800);

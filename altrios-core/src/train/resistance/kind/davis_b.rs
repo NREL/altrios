@@ -11,6 +11,9 @@ pub struct Basic {
 #[pyo3_api]
 impl Basic {}
 
+impl Init for Basic {}
+impl SerdeAPI for Basic{}
+
 impl Basic {
     pub fn new(davis_b: si::InverseVelocity) -> Self {
         Self { davis_b }

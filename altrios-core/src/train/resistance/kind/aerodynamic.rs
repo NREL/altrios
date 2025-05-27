@@ -12,6 +12,9 @@ pub struct Basic {
 #[pyo3_api]
 impl Basic {}
 
+impl Init for Basic {}
+impl SerdeAPI for Basic {}
+
 impl Basic {
     pub fn new(cd_area: si::Area) -> Self {
         Self { cd_area }

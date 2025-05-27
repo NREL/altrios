@@ -35,6 +35,9 @@ impl TrainResWrapper {
     }
 }
 
+impl Init for TrainResWrapper {}
+impl SerdeAPI for TrainResWrapper {}
+
 #[cfg(feature = "pyo3")]
 impl TrainResWrapper {
     fn get_point(&self) -> Option<method::Point> {

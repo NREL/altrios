@@ -13,6 +13,9 @@ pub struct SpeedLimitPoint {
 #[pyo3_api]
 impl SpeedLimitPoint {}
 
+impl Init for SpeedLimitPoint {}
+impl SerdeAPI for SpeedLimitPoint {}
+
 impl GetOffset for SpeedLimitPoint {
     fn get_offset(&self) -> si::Length {
         self.offset

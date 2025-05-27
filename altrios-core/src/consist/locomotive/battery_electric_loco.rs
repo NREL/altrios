@@ -171,8 +171,6 @@ impl LocoTrait for BatteryElectricLoco {
     }
 }
 
-impl StateMethods for BatteryElectricLoco {}
-
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, IsVariant, From, TryInto)]
 pub enum BatteryPowertrainControls {
     /// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge
@@ -278,7 +276,17 @@ impl Init for RESGreedyWithDynamicBuffersBEL {
 impl SerdeAPI for RESGreedyWithDynamicBuffersBEL {}
 
 #[serde_api]
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Serialize,
+    PartialEq,
+    HistoryVec,
+    StateMethods,
+    SetCumulative,
+)]
 #[serde(default)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// State for [RESGreedyWithDynamicBuffers ]

@@ -17,6 +17,9 @@ impl Elev {
     }
 }
 
+impl Init for Elev {}
+impl SerdeAPI for Elev {}
+
 impl Elev {
     pub fn new(offset: si::Length, elev: si::Length) -> Self {
         Self { offset, elev }

@@ -76,6 +76,9 @@ impl EstTimeNet {
     }
 }
 
+impl Init for EstTimeNet {}
+impl SerdeAPI for EstTimeNet {}
+
 impl EstTimeNet {
     pub fn new(val: Vec<EstTime>) -> Self {
         Self { val }

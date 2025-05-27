@@ -66,6 +66,9 @@ pub struct RailVehicle {
 #[pyo3_api]
 impl RailVehicle {}
 
+impl Init for RailVehicle {}
+impl SerdeAPI for RailVehicle {}
+
 impl Mass for RailVehicle {
     /// Static mass of rail vehicle, not including effective rotational mass
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {

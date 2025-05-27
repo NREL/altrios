@@ -28,6 +28,9 @@ pub struct LinkPoint {
 #[pyo3_api]
 impl LinkPoint {}
 
+impl Init for LinkPoint{}
+impl SerdeAPI for LinkPoint{}
+
 impl LinkPoint {
     pub fn add_counts(&mut self, other: &Self) {
         self.grade_count += other.grade_count;

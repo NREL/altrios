@@ -16,6 +16,9 @@ pub struct PathResCoeff {
 #[pyo3_api]
 impl PathResCoeff {}
 
+impl Init for PathResCoeff {}
+impl SerdeAPI for PathResCoeff {}
+
 impl PathResCoeff {
     /// Cumulative sum of `res_coeff` times length up to this `offset` along `PathTpc`
     pub fn calc_res_val(&self, offset: si::Length) -> si::Length {

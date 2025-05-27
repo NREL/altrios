@@ -24,6 +24,9 @@ pub struct PathTpc {
 #[pyo3_api]
 impl PathTpc {}
 
+impl Init for PathTpc {}
+impl SerdeAPI for PathTpc {}
+
 impl PathTpc {
     pub fn link_points(&self) -> &[LinkPoint] {
         &self.link_points

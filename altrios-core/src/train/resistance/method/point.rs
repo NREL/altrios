@@ -19,6 +19,9 @@ pub struct Point {
 #[pyo3_api]
 impl Point {}
 
+impl Init for Point {}
+impl SerdeAPI for Point {}
+
 impl ResMethod for Point {
     fn update_res(
         &mut self,

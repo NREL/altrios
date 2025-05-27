@@ -89,6 +89,9 @@ impl Link {
     }
 }
 
+impl Init for Link {}
+impl SerdeAPI for Link {}
+
 impl From<LinkOld> for Link {
     fn from(l: LinkOld) -> Self {
         let mut speed_sets: HashMap<TrainType, SpeedSet> = HashMap::new();
@@ -581,6 +584,9 @@ struct NetworkUnchecked(pub Vec<Link>);
 #[pyo3_api]
 impl NetworkUnchecked {}
 
+impl Init for NetworkUnchecked {}
+impl SerdeAPI for NetworkUnchecked {}
+
 #[serde_api]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
@@ -595,6 +601,9 @@ struct NetworkOld(pub Vec<LinkOld>);
 
 #[pyo3_api]
 impl NetworkOld {}
+
+impl Init for NetworkOld {}
+impl SerdeAPI for NetworkOld {}
 
 impl AsRef<[Link]> for Network {
     fn as_ref(&self) -> &[Link] {

@@ -455,6 +455,9 @@ impl TrainSimBuilder {
     }
 }
 
+impl Init for TrainSimBuilder {}
+impl SerdeAPI for TrainSimBuilder {}
+
 impl TrainSimBuilder {
     pub fn new(
         train_id: String,

@@ -61,7 +61,9 @@ impl InitTrainState {
 }
 
 #[serde_api]
-#[derive(Debug, Clone, Serialize, Deserialize, HistoryVec, PartialEq)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, HistoryVec, PartialEq, StateMethods, SetCumulative,
+)]
 pub struct TrainState {
     /// time since user-defined datum
     pub time: TrackedState<si::Time>,

@@ -48,3 +48,6 @@ pub struct LinkOld {
 
 #[pyo3_api]
 impl LinkOld {}
+
+impl Init for LinkOld {}
+impl SerdeAPI for LinkOld {}

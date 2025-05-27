@@ -44,6 +44,9 @@ pub struct SpeedSet {
 #[pyo3_api]
 impl SpeedSet {}
 
+impl Init for SpeedSet{}
+impl SerdeAPI for SpeedSet{}
+
 #[serde_api]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
@@ -59,6 +62,9 @@ pub struct OldSpeedSet {
 
 #[pyo3_api]
 impl OldSpeedSet {}
+
+impl Init for OldSpeedSet {}
+impl SerdeAPI for OldSpeedSet {}
 
 impl Valid for SpeedSet {
     fn valid() -> Self {

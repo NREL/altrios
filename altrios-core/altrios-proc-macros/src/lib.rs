@@ -1,7 +1,6 @@
 mod imports;
 use imports::*;
 mod cumu_method_derive;
-mod cycle_derive;
 mod history_vec_derive;
 mod pyo3_api;
 mod serde_api;

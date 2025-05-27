@@ -22,6 +22,9 @@ pub struct Point {
 #[pyo3_api]
 impl Point {}
 
+impl Init for Point{}
+impl SerdeAPI for Point{}
+
 impl Point {
     pub fn new(path_res_coeffs: &[PathResCoeff], state: &TrainState) -> anyhow::Result<Self> {
         Ok(Self {
@@ -83,6 +86,9 @@ pub struct Strap {
 
 #[pyo3_api]
 impl Strap {}
+
+impl Init for Strap{}
+impl SerdeAPI for Strap{}
 
 impl Strap {
     pub fn new(vals: &[PathResCoeff], state: &TrainState) -> anyhow::Result<Self> {

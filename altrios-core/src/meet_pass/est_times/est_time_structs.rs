@@ -50,6 +50,9 @@ pub struct SavedSim {
 #[pyo3_api]
 impl SavedSim {}
 
+impl Init for SavedSim {}
+impl SerdeAPI for SavedSim {}
+
 impl SavedSim {
     /// Step the train sim forward and save appropriate state data in the movement
     pub fn update_movement(&mut self, movement: &mut Vec<SimpleState>) -> anyhow::Result<()> {

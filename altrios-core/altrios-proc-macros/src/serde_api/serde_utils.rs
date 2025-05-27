@@ -162,7 +162,7 @@ pub(crate) fn serde_attrs_for_si_fields(field: &mut syn::Field) -> Option<()> {
 
     let inner_path = extract_type_path(inner_type)?;
     if let Some(quantity) = extract_si_quantity(inner_path) {
-        // Make sure to use absolute paths here to avoid issues with si.rs in the main fastsim-core!
+        // Make sure to use absolute paths here to avoid issues with si.rs in the main altrios-core!
         let unit_impls = match quantity.as_str() {
             "Acceleration" => extract_units!(uom::si::acceleration::meter_per_second_squared),
             "Angle" => extract_units!(uom::si::angle::radian),
@@ -199,7 +199,7 @@ pub(crate) fn serde_attrs_for_si_fields(field: &mut syn::Field) -> Option<()> {
                 )
             }
             "TemperatureInterval" => extract_units!(uom::si::temperature_interval::kelvin),
-            "Temperature" => {
+            "ThermodynamicTemperature" => {
                 extract_units!(uom::si::thermodynamic_temperature::kelvin)
             }
             "ThermalConductance" => {

@@ -25,6 +25,9 @@ pub struct Heading {
 #[pyo3_api]
 impl Heading {}
 
+impl Init for Heading {}
+impl SerdeAPI for Heading {}
+
 impl Valid for Heading {}
 
 impl ObjState for Heading {

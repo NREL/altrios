@@ -21,6 +21,9 @@ pub struct SpeedLimit {
 #[pyo3_api]
 impl SpeedLimit {}
 
+impl Init for SpeedLimit {}
+impl SerdeAPI for SpeedLimit {}
+
 impl Valid for SpeedLimit {
     fn valid() -> Self {
         Self {

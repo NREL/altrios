@@ -823,6 +823,17 @@ impl CheckAndResetState for SpeedLimitTrainSim {
         Ok(())
     }
 }
+impl SetCumulative for SpeedLimitTrainSim {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
+        self.state
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        self.fric_brake
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
 impl SaveState for SpeedLimitTrainSim {
     fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         if let Some(interval) = self.save_interval {

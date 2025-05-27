@@ -165,9 +165,8 @@ impl SpeedTrace {
     }
 }
 
-
-impl Init for SpeedTrace{}
-impl SerdeAPI for SpeedTrace{}
+impl Init for SpeedTrace {}
+impl SerdeAPI for SpeedTrace {}
 
 impl Default for SpeedTrace {
     fn default() -> Self {
@@ -452,10 +451,28 @@ impl SetSpeedTrainSim {
 }
 
 impl StateMethods for SetSpeedTrainSim {}
+impl CheckAndResetState for SetSpeedTrainSim {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.state
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+impl SetCumulative for SetSpeedTrainSim {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
+        self.state
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
 
 impl Step for SetSpeedTrainSim {
     /// Solves step, saves state, steps nested `loco_con`, and increments `self.i`.
-    fn step(&mut self) -> anyhow::Result<()> {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         self.solve_step()
             .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
         self.save_state(|| format_dbg!());
@@ -466,13 +483,14 @@ impl Step for SetSpeedTrainSim {
 }
 impl SaveState for SetSpeedTrainSim {
     /// Saves current time step for self and nested `loco_con`.
-    fn save_state(&mut self) {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         if let Some(interval) = self.save_interval {
             if self.state.i % interval == 0 {
                 self.history.push(self.state);
-                self.loco_con.save_state(|| format_dbg!());
+                self.loco_con.save_state(|| format_dbg!())?;
             }
         }
+        Ok(())
     }
 }
 impl Init for SetSpeedTrainSim {

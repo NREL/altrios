@@ -8,6 +8,7 @@ use crate::imports::*;
 /// curve, ... information is known, not including the final point in the link.
 #[serde_api]
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct LinkPoint {
     /// Distance relative to the start of the PathTpc where `link_idx` starts
     pub offset: si::Length,
@@ -28,8 +29,8 @@ pub struct LinkPoint {
 #[pyo3_api]
 impl LinkPoint {}
 
-impl Init for LinkPoint{}
-impl SerdeAPI for LinkPoint{}
+impl Init for LinkPoint {}
+impl SerdeAPI for LinkPoint {}
 
 impl LinkPoint {
     pub fn add_counts(&mut self, other: &Self) {

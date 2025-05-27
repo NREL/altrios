@@ -10,6 +10,7 @@ const TOL: f64 = 1e-3;
 #[serde_api]
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, StateMethods, SetCumulative)]
 /// Struct for modeling technology-naive Reversible Energy Storage (e.g. battery, flywheel).
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct ReversibleEnergyStorage {
     /// struct for tracking current state
     #[serde(default)]
@@ -824,7 +825,9 @@ impl ReversibleEnergyStorage {
 }
 
 #[serde_api]
-#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, HistoryVec)]
+#[derive(
+    Clone, Deserialize, Serialize, Debug, PartialEq, HistoryVec, StateMethods, SetCumulative,
+)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 // component limits
 /// ReversibleEnergyStorage state variables
@@ -898,8 +901,8 @@ impl Default for ReversibleEnergyStorageState {
     fn default() -> Self {
         Self {
             i: Default::default(),
-            soc: uc::R * 0.95,
-            soh: 1.0,
+            soc: TrackedState::new(uc::R * 0.95),
+            soh: TrackedState::new(1.0),
             eta: Default::default(),
             pwr_prop_max: Default::default(),
             pwr_regen_max: Default::default(),
@@ -916,9 +919,9 @@ impl Default for ReversibleEnergyStorageState {
             energy_aux: Default::default(),
             energy_out_chemical: Default::default(),
             energy_loss: Default::default(),
-            soc_chrg_buffer: uc::R * 1.0,
-            soc_disch_buffer: uc::R * 0.0,
-            temperature_celsius: 45.0,
+            soc_chrg_buffer: TrackedState::new(uc::R * 1.0),
+            soc_disch_buffer: TrackedState::new(uc::R * 0.0),
+            temperature_celsius: TrackedState::new(45.0),
         }
     }
 }

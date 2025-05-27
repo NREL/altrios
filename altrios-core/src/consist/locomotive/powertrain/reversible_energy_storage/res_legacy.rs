@@ -127,8 +127,8 @@ impl Default for ReversibleEnergyStorageStateLegacy {
     fn default() -> Self {
         Self {
             i: Default::default(),
-            soc: uc::R * 0.95,
-            soh: 1.0,
+            soc: TrackedState::new(uc::R * 0.95),
+            soh: TrackedState::new(1.0),
             eta: Default::default(),
             pwr_prop_out_max: Default::default(),
             pwr_regen_out_max: Default::default(),
@@ -145,11 +145,11 @@ impl Default for ReversibleEnergyStorageStateLegacy {
             energy_aux: Default::default(),
             energy_out_chemical: Default::default(),
             energy_loss: Default::default(),
-            max_soc: uc::R * 1.0,
-            soc_hi_ramp_start: uc::R * 1.0,
-            min_soc: si::Ratio::ZERO,
-            soc_lo_ramp_start: si::Ratio::ZERO,
-            temperature_celsius: 45.0,
+            max_soc: TrackedState::new(uc::R * 1.0),
+            soc_hi_ramp_start: TrackedState::new(uc::R * 1.0),
+            min_soc: TrackedState::new(si::Ratio::ZERO),
+            soc_lo_ramp_start: TrackedState::new(si::Ratio::ZERO),
+            temperature_celsius: TrackedState::new(45.0),
         }
     }
 }

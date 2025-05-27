@@ -74,24 +74,38 @@ impl LocoTrait for PowertrainType {
 }
 
 impl SaveState for PowertrainType {
-    fn save_state(&mut self) {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         match self {
-            PowertrainType::ConventionalLoco(conv) => conv.save_state(|| format_dbg!()),
-            PowertrainType::HybridLoco(hel) => hel.save_state(|| format_dbg!()),
-            PowertrainType::BatteryElectricLoco(bel) => bel.save_state(|| format_dbg!()),
-            PowertrainType::DummyLoco(dummy) => dummy.save_state(|| format_dbg!()),
+            PowertrainType::ConventionalLoco(conv) => conv.save_state(|| format_dbg!())?,
+            PowertrainType::HybridLoco(hel) => hel.save_state(|| format_dbg!())?,
+            PowertrainType::BatteryElectricLoco(bel) => bel.save_state(|| format_dbg!())?,
+            PowertrainType::DummyLoco(dummy) => dummy.save_state(|| format_dbg!())?,
         }
+        Ok(())
     }
 }
 
 impl Step for PowertrainType {
-    fn step(&mut self) {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         match self {
-            PowertrainType::ConventionalLoco(conv) => conv.step(|| format_dbg!()),
-            PowertrainType::HybridLoco(hel) => hel.step(|| format_dbg!()),
-            PowertrainType::BatteryElectricLoco(bel) => bel.step(|| format_dbg!()),
-            PowertrainType::DummyLoco(dummy) => dummy.step(|| format_dbg!()),
+            PowertrainType::ConventionalLoco(conv) => conv.step(|| format_dbg!())?,
+            PowertrainType::HybridLoco(hel) => hel.step(|| format_dbg!())?,
+            PowertrainType::BatteryElectricLoco(bel) => bel.step(|| format_dbg!())?,
+            PowertrainType::DummyLoco(dummy) => dummy.step(|| format_dbg!())?,
         }
+        Ok(())
+    }
+}
+
+impl CheckAndResetState for PowertrainType {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        match self {
+            PowertrainType::ConventionalLoco(conv) => conv.check_and_reset(|| format_dbg!())?,
+            PowertrainType::HybridLoco(hel) => hel.check_and_reset(|| format_dbg!())?,
+            PowertrainType::BatteryElectricLoco(bel) => bel.check_and_reset(|| format_dbg!())?,
+            PowertrainType::DummyLoco(dummy) => dummy.check_and_reset(|| format_dbg!())?,
+        }
+        Ok(())
     }
 }
 
@@ -302,6 +316,12 @@ impl Step for DummyLoco {
         Ok(())
     }
 }
+impl CheckAndResetState for DummyLoco {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+impl StateMethods for DummyLoco {}
 
 #[serde_api]
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, StateMethods, SetCumulative)]

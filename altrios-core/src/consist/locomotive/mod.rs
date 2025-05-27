@@ -7,6 +7,8 @@ pub mod loco_sim;
 pub mod locomotive_model;
 pub mod powertrain;
 pub use locomotive_model::*;
+pub mod loco_utils;
+pub use loco_utils::*;
 
 use super::*;
 pub use crate::consist::locomotive::battery_electric_loco::{

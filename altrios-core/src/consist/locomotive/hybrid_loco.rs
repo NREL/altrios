@@ -5,6 +5,7 @@ use super::powertrain::reversible_energy_storage::{
     ReversibleEnergyStorage, ReversibleEnergyStorageState,
 };
 use super::powertrain::ElectricMachine;
+use super::*;
 use super::{LocoTrait, Mass, MassSideEffect};
 use crate::imports::*;
 
@@ -225,7 +226,7 @@ impl HybridLoco {
             )
             .with_context(|| format_dbg!())?;
 
-        let fc_on: bool = !self.state.fc_on_causes.is_empty();
+        let fc_on: bool = self.pt_cntrl.fc_on().with_context(|| format_dbg!())?;
         self.gen
             .set_pwr_in_req(
                 // TODO: maybe this should be zero if not loco_on
@@ -235,14 +236,7 @@ impl HybridLoco {
                 fc_on,
                 dt,
             )
-            .with_context(|| {
-                format!(
-                    "{}\n
-{}",
-                    format_dbg!(self.state.fc_on_causes),
-                    format_dbg!(fc_on)
-                )
-            })?;
+            .with_context(|| format!("{}", format_dbg!(fc_on)))?;
         let fc_pwr_mech_out = self.gen.state.pwr_mech_in;
 
         self.fc
@@ -333,6 +327,16 @@ impl Init for HybridPowertrainControls {
     }
 }
 
+impl SerdeAPI for HybridPowertrainControls {}
+
+impl FuelConverterOn for HybridPowertrainControls {
+    fn fc_on(&self) -> anyhow::Result<bool> {
+        match self {
+            Self::RGWDB(rgwdb) => rgwdb.fc_on(),
+        }
+    }
+}
+
 impl HybridPowertrainControls {
     /// Determines power split between engine/generator and battery
     ///
@@ -381,7 +385,7 @@ impl HybridPowertrainControls {
                 rgwdb.handle_fc_on_causes_for_speed(train_speed)?;
                 rgwdb.handle_fc_on_causes_for_low_soc(res, train_mass, train_speed)?;
                 // `handle_fc_*` below here are asymmetrical for positive tractive power only
-                handle_fc_on_causes_for_pwr_demand(
+                rgwdb.handle_fc_on_causes_for_pwr_demand(
                     pwr_res_and_gen_to_edrv,
                     &gen.state,
                     &res.state,
@@ -391,7 +395,7 @@ impl HybridPowertrainControls {
                     .min(res.state.pwr_prop_max)
                     .max(-res.state.pwr_regen_max);
 
-                if !rgwdb.state.engine_on().with_context(|| format_dbg!())? {
+                if !rgwdb.state.fc_on().with_context(|| format_dbg!())? {
                     // engine is off, and `em_pwr` has already been limited within bounds
                     ensure!(
                         res_prop_pwr == pwr_res_and_gen_to_edrv,
@@ -620,6 +624,12 @@ impl RESGreedyWithDynamicBuffers {
     }
 }
 
+impl FuelConverterOn for RESGreedyWithDynamicBuffers {
+    fn fc_on(&self) -> anyhow::Result<bool> {
+        self.state.fc_on().with_context(|| format_dbg!())
+    }
+}
+
 impl Init for RESGreedyWithDynamicBuffers {
     fn init(&mut self) -> Result<(), Error> {
         // TODO: tunnel buffer!
@@ -679,9 +689,9 @@ impl RGWDBState {}
 impl Init for RGWDBState {}
 impl SerdeAPI for RGWDBState {}
 
-impl RGWDBState {
+impl FuelConverterOn for RGWDBState {
     /// If any of the causes are true, engine must be on
-    fn engine_on(&self) -> anyhow::Result<bool> {
+    fn fc_on(&self) -> anyhow::Result<bool> {
         Ok(*self.fc_temperature_too_low.get_fresh(|| format_dbg!())?
             || *self
                 .train_speed_above_threshold

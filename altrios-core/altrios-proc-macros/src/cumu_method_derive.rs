@@ -86,8 +86,8 @@ pub(crate) fn cumu_method_derive(input: TokenStream) -> TokenStream {
             #[automatically_derived]
             impl SetCumulative for #ident {
                 fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
-                    self.state.set_cumulative(dt, || format_dbg!())?;
-                    #(self.#fields_with_state.set_cumulative(dt, || format_dbg!())?;)*
+                    self.state.set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+                    #(self.#fields_with_state.set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;)*
                     Ok(())
                 }
             }
@@ -98,7 +98,7 @@ pub(crate) fn cumu_method_derive(input: TokenStream) -> TokenStream {
             #[automatically_derived]
             impl SetCumulative for #ident {
                 fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
-                    #(self.#fields_with_state.set_cumulative(dt, || format_dbg!())?;)*
+                    #(self.#fields_with_state.set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;)*
                     Ok(())
                 }
             }

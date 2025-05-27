@@ -12,6 +12,9 @@ pub struct BrakingPoint {
 #[pyo3_api]
 impl BrakingPoint {}
 
+impl Init for BrakingPoint {}
+impl SerdeAPI for BrakingPoint {}
+
 impl ObjState for BrakingPoint {
     fn validate(&self) -> ValidationResults {
         let mut errors = ValidationErrors::new();
@@ -30,6 +33,9 @@ pub struct BrakingPoints {
     /// index within [Self::points]
     idx_curr: usize,
 }
+
+impl Init for BrakingPoints {}
+impl SerdeAPI for BrakingPoints {}
 
 #[pyo3_api]
 impl BrakingPoints {}

@@ -824,68 +824,68 @@ impl ReversibleEnergyStorage {
 }
 
 #[serde_api]
-#[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, HistoryVec)]
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, HistoryVec)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 // component limits
 /// ReversibleEnergyStorage state variables
 pub struct ReversibleEnergyStorageState {
     // limits
     // TODO: create separate binning for cat power and maximum catenary power capability
-    pub pwr_cat_max: si::Power,
+    pub pwr_cat_max: TrackedState<si::Power>,
     /// max output power for propulsion during positive traction
-    pub pwr_prop_max: si::Power,
+    pub pwr_prop_max: TrackedState<si::Power>,
     /// max regen power for propulsion during negative traction
-    pub pwr_regen_max: si::Power,
+    pub pwr_regen_max: TrackedState<si::Power>,
     /// max discharge power at the battery terminals
-    pub pwr_disch_max: si::Power,
+    pub pwr_disch_max: TrackedState<si::Power>,
     /// max charge power at the battery terminals
-    pub pwr_charge_max: si::Power,
+    pub pwr_charge_max: TrackedState<si::Power>,
 
     /// simulation step
-    pub i: usize,
+    pub i: TrackedState<usize>,
 
     /// state of charge (SOC)
-    pub soc: si::Ratio,
+    pub soc: TrackedState<si::Ratio>,
     /// Chemical <-> Electrical conversion efficiency based on current power demand
-    pub eta: si::Ratio,
+    pub eta: TrackedState<si::Ratio>,
     /// State of Health (SOH)
-    pub soh: f64,
+    pub soh: TrackedState<f64>,
 
     // TODO: add `pwr_out_neg_electrical` and `pwr_out_pos_electrical` and corresponding energies
 
     // powers
     /// total electrical power; positive is discharging
-    pub pwr_out_electrical: si::Power,
+    pub pwr_out_electrical: TrackedState<si::Power>,
     /// electrical power going to propulsion
-    pub pwr_out_propulsion: si::Power,
+    pub pwr_out_propulsion: TrackedState<si::Power>,
     /// electrical power going to aux loads
-    pub pwr_aux: si::Power,
+    pub pwr_aux: TrackedState<si::Power>,
     /// power dissipated as loss
-    pub pwr_loss: si::Power,
+    pub pwr_loss: TrackedState<si::Power>,
     /// chemical power; positive is discharging
-    pub pwr_out_chemical: si::Power,
+    pub pwr_out_chemical: TrackedState<si::Power>,
 
     // cumulative energies
     /// cumulative total electrical energy; positive is discharging
-    pub energy_out_electrical: si::Energy,
+    pub energy_out_electrical: TrackedState<si::Energy>,
     /// cumulative electrical energy going to propulsion
-    pub energy_out_propulsion: si::Energy,
+    pub energy_out_propulsion: TrackedState<si::Energy>,
     /// cumulative electrical energy going to aux loads
-    pub energy_aux: si::Energy,
+    pub energy_aux: TrackedState<si::Energy>,
     /// cumulative energy dissipated as loss
-    pub energy_loss: si::Energy,
+    pub energy_loss: TrackedState<si::Energy>,
     /// cumulative chemical energy; positive is discharging
-    pub energy_out_chemical: si::Energy,
+    pub energy_out_chemical: TrackedState<si::Energy>,
 
     /// buffer above minimum SOC at which battery max discharge rate is linearly
     /// reduced as soc approaches `min_soc`
-    pub soc_disch_buffer: si::Ratio,
+    pub soc_disch_buffer: TrackedState<si::Ratio>,
     /// buffer below maximum SOC at which battery max charge rate is linearly
     /// reduced as soc approaches `min_soc`
-    pub soc_chrg_buffer: si::Ratio,
+    pub soc_chrg_buffer: TrackedState<si::Ratio>,
 
     /// component temperature
-    pub temperature_celsius: f64,
+    pub temperature_celsius: TrackedState<f64>,
 }
 
 #[pyo3_api]

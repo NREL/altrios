@@ -197,9 +197,11 @@ impl Init for BatteryPowertrainControls {
 }
 
 impl SetCumulative for BatteryPowertrainControls {
-    fn set_cumulative(&mut self, dt: si::Time) -> anyhow::Result<()> {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
         match self {
-            Self::RGWDB(rgwdb) => rgwdb.set_cumulative(dt)?,
+            Self::RGWDB(rgwdb) => {
+                rgwdb.set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?
+            }
         }
         Ok(())
     }
@@ -282,7 +284,7 @@ impl SerdeAPI for RESGreedyWithDynamicBuffersBEL {}
 /// State for [RESGreedyWithDynamicBuffers ]
 pub struct RGWDBStateBEL {
     /// time step index
-    pub i: usize,
+    pub i: TrackedState<usize>,
 }
 
 #[pyo3_api]

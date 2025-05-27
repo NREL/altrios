@@ -21,11 +21,11 @@ impl EstJoinPath {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct SimpleState {
-    pub time: si::Time,
-    pub offset: si::Length,
-    pub speed: si::Velocity,
+    pub time: TrackedState<si::Time>,
+    pub offset: TrackedState<si::Length>,
+    pub speed: TrackedState<si::Velocity>,
 }
 
 impl SimpleState {

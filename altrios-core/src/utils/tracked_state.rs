@@ -61,7 +61,7 @@ where
         ensure!(
             self.is_fresh(),
             format!(
-                "{}\nState variable has not been updated. This is a bug in `fastsim-core`",
+                "{}\nState variable has not been updated. This is a bug in `altrios-core`",
                 loc()
             )
         );
@@ -74,7 +74,7 @@ where
         ensure!(
             self.is_stale(),
             format!(
-                "{}\nState variable has already been updated. This is a bug in `fastsim-core`",
+                "{}\nState variable has already been updated. This is a bug in `altrios-core`",
                 loc()
             )
         );

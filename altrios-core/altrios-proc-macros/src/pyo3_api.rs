@@ -58,6 +58,15 @@ fn add_serde_methods(py_impl_block: &mut TokenStream2) {
             ).map_err(|e| PyIOError::new_err(format!("{:?}", e)))
         }
 
+        #[cfg(feature = "resources")]
+        #[pyo3(name = "list_resources")]
+        #[staticmethod]
+        /// list available vehicle resources
+        fn list_resources_py() -> PyResult<Vec<PathBuf>> {
+            Self::list_resources().map_err(|e| PyException::new_err(format!("{:?}", e)))
+        }
+
+
         /// Write (serialize) an object to a file.
         /// Supported file extensions are listed in [`ACCEPTED_BYTE_FORMATS`](`SerdeAPI::ACCEPTED_BYTE_FORMATS`).
         /// Creates a new file if it does not already exist, otherwise truncates the existing file.

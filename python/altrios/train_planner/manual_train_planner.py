@@ -85,48 +85,92 @@ def manual_train_planner(
             # Map this freight type to its car type
             freight_type_to_car_type[rv.freight_type] = rv.car_type
 
+
+    # initialize lists for simulation results
+    speed_limit_train_sims=[]
+    est_time_nets=[]
     for this_train in consist_plan.unique(subset=["Train_ID"], maintain_order=True, keep='first').iter_rows(named=True):
     # Create train simulation builder
-                    # Calculate drag coefficient if configured
-                    if config.drag_coeff_function is not None:
-                        # Apply drag coefficient function based on number of cars
-                        cd_area_vec = config.drag_coeff_function(
-                            int(this_train["Number_of_Cars"])
-                        )
-                    else:
-                        # No custom drag coefficient
-                        cd_area_vec = None
+        # Calculate drag coefficient if configured
+        if config.drag_coeff_function is not None:
+            # Apply drag coefficient function based on number of cars
+            cd_area_vec = config.drag_coeff_function(
+                int(this_train["Number_of_Cars"])
+            )
+        else:
+            # No custom drag coefficient
+            cd_area_vec = None
 
-                    # Configure rail vehicles for this train
-                    rv_to_use, n_cars_by_type = data_prep.configure_rail_vehicles(
-                        this_train, rail_vehicles, freight_type_to_car_type
-                    )
+        # Configure rail vehicles for this train
+        rv_to_use, n_cars_by_type = data_prep.configure_rail_vehicles(
+            this_train, rail_vehicles, freight_type_to_car_type
+        )
 
-                    # Create train configuration
-                    train_config = alt.TrainConfig(
-                        rail_vehicles=rv_to_use,
-                        n_cars_by_type=n_cars_by_type,
-                        train_type=this_train["Train_Type"],
-                        cd_area_vec=cd_area_vec,
-                    )
+        # Create train configuration
+        train_config = alt.TrainConfig(
+            rail_vehicles=rv_to_use,
+            n_cars_by_type=n_cars_by_type,
+            train_type=this_train["Train_Type"],
+            cd_area_vec=cd_area_vec,
+        )
 
-                    tsb = alt.TrainSimBuilder(
-                        train_id=this_train[0],
-                        origin_id=this_train["Origin_ID"],
-                        destination_id=this_train["Destination_ID"],
-                        train_config=train_config,
-                        loco_con=loco_con,
-                        init_train_state=init_train_state,
-                    )
+        # Create list of locomotive objects from configuration
+        # TODO get the locos from the consist plan by train
+        locos = [
+            config.loco_info[
+                config.loco_info["Locomotive_Type"] == loco_type
+            ]["Rust_Loco"]
+            .to_list()[0]
+            .clone()
+            for loco_type in dispatched.get_column("Locomotive_Type")
+        ]
 
-                    # Create speed-limited train simulation
-                    slts = tsb.make_speed_limit_train_sim(
-                        location_map=location_map,
-                        save_interval=None,
-                        simulation_days=config.simulation_days,
-                        scenario_year=scenario_year,
-                    )
+        #TODO figure out how to set soc to 100% for the time being
+        # Set state of charge for electric locomotives
+        [
+            alt.set_param_from_path(
+                locos[i], "res.state.soc", loco_start_soc_pct[i]
+            )
+            for i in range(len(locos))
+            if dispatched.get_column("Fuel_Type")[i] == "Electricity"
+        ]
 
+        # Create locomotive consist from the selected locomotives
+        loco_con = alt.Consist(
+            loco_vec=locos,
+            save_interval=None,
+        )
+
+        #TODO grab time from planned departure time
+        # Create initial train state with correct time
+        init_train_state = alt.InitTrainState(
+            time_seconds=current_time * 3600  # Convert hours to seconds
+        )
+
+        tsb = alt.TrainSimBuilder(
+            train_id=this_train[0],
+            origin_id=this_train["Origin_ID"],
+            destination_id=this_train["Destination_ID"],
+            train_config=train_config,
+            loco_con=loco_con,
+            init_train_state=init_train_state,
+        )
+
+        # Create speed-limited train simulation
+        slts = tsb.make_speed_limit_train_sim(
+            location_map=location_map,
+            save_interval=None,
+            simulation_days=config.simulation_days,
+            scenario_year=scenario_year,
+        )
+
+        # Generate estimated travel times
+        (est_time_net, loco_con_out) = alt.make_est_times(
+            slts, network, config.failed_sim_logging_path
+        )
+        # Store simulation results
+        speed_limit_train_sims.append(slts)
+        est_time_nets.append(est_time_net)
     return (
         consist_plan,
         loco_pool,

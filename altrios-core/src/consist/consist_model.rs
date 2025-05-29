@@ -262,7 +262,11 @@ impl Consist {
     }
 
     /// Set catenary charging/discharging power limit
-    pub fn set_cat_power_limit(&mut self, path_tpc: &crate::track::PathTpc, offset: si::Length) {
+    pub fn set_cat_power_limit(
+        &mut self,
+        path_tpc: &crate::track::PathTpc,
+        offset: si::Length,
+    ) -> anyhow::Result<()> {
         for cpl in path_tpc.cat_power_limits() {
             if offset < cpl.offset_start {
                 break;
@@ -272,6 +276,7 @@ impl Consist {
             }
         }
         self.state.pwr_cat_lim = si::Power::ZERO;
+        Ok(())
     }
 
     pub fn get_energy_fuel(&self) -> si::Energy {

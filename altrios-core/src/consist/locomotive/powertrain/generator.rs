@@ -374,13 +374,14 @@ impl ElectricMachine for Generator {
         Ok(())
     }
 
-    fn set_pwr_rate_out_max(&mut self, pwr_rate_in_max: si::PowerRate) {
+    fn set_pwr_rate_out_max(&mut self, pwr_rate_in_max: si::PowerRate) -> anyhow::Result<()> {
         self.state.pwr_rate_out_max = pwr_rate_in_max
             * if self.state.eta.get::<si::ratio>() > 0.0 {
                 self.state.eta
             } else {
                 uc::R * 1.0
             };
+        Ok(())
     }
 }
 

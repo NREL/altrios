@@ -25,12 +25,12 @@ fc = alt.FuelConverter.default()
 #     "pwr_out_max_watts",
 #     fc.pwr_out_max_watts / 10.
 # )
-gen = alt.Generator.default()
+gen = alt.Alternator.default()
 edrv = alt.ElectricDrivetrain.default()
 
 conv = alt.Locomotive.build_conventional_loco(
     fuel_converter=fc,
-    generator=gen,
+    alternator=gen,
     drivetrain=edrv,
     loco_params=alt.LocoParams(
         pwr_aux_offset_watts=13e3,

@@ -318,11 +318,11 @@ impl LocoTrait for DummyLoco {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[pyo3(signature = (fuel_converter, generator, drivetrain, loco_params, save_interval=None))]
+    #[pyo3(signature = (fuel_converter, alternator, drivetrain, loco_params, save_interval=None))]
     #[staticmethod]
     fn build_conventional_loco(
         fuel_converter: FuelConverter,
-        generator: Generator,
+        alternator: Alternator,
         drivetrain: ElectricDrivetrain,
         loco_params: LocoParams,
         save_interval: Option<usize>,
@@ -330,7 +330,7 @@ impl LocoTrait for DummyLoco {
         let mut loco = Self {
             loco_type: PowertrainType::ConventionalLoco(ConventionalLoco::new(
                 fuel_converter,
-                generator,
+                alternator,
                 drivetrain,
             )),
             state: Default::default(),
@@ -405,17 +405,17 @@ impl LocoTrait for DummyLoco {
         Ok(self.set_fuel_converter(fc).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
     #[getter]
-    fn get_gen(&self) -> Option<Generator> {
-        self.generator().cloned()
+    fn get_alt(&self) -> Option<Alternator> {
+        self.alternator().cloned()
     }
 
     #[setter]
-    fn set_gen(&mut self, _gen: Generator) -> anyhow::Result<()> {
+    fn set_alt(&mut self, _alt: Alternator) -> anyhow::Result<()> {
         bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
     }
-    #[setter(__gen)]
-    fn set_gen_hidden(&mut self, gen: Generator) -> anyhow::Result<()> {
-        Ok(self.set_generator(gen).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
+    #[setter(__alt)]
+    fn set_alt_hidden(&mut self, alt: Alternator) -> anyhow::Result<()> {
+        Ok(self.set_alternator(alt).map_err(|e| PyAttributeError::new_err(e.to_string()))?)
     }
     #[getter]
     fn get_res(&self) -> Option<ReversibleEnergyStorage> {
@@ -813,12 +813,12 @@ impl Locomotive {
         match &mut self.loco_type {
             PowertrainType::ConventionalLoco(loco) => {
                 loco.fc.save_interval = save_interval;
-                loco.gen.save_interval = save_interval;
+                loco.alt.save_interval = save_interval;
                 loco.edrv.save_interval = save_interval;
             }
             PowertrainType::HybridLoco(loco) => {
                 loco.fc.save_interval = save_interval;
-                loco.gen.save_interval = save_interval;
+                loco.alt.save_interval = save_interval;
                 loco.res.save_interval = save_interval;
                 loco.edrv.save_interval = save_interval;
             }
@@ -863,36 +863,36 @@ impl Locomotive {
         }
     }
 
-    pub fn generator(&self) -> Option<&Generator> {
+    pub fn alternator(&self) -> Option<&Alternator> {
         match &self.loco_type {
-            PowertrainType::ConventionalLoco(loco) => Some(&loco.gen),
-            PowertrainType::HybridLoco(loco) => Some(&loco.gen),
+            PowertrainType::ConventionalLoco(loco) => Some(&loco.alt),
+            PowertrainType::HybridLoco(loco) => Some(&loco.alt),
             PowertrainType::BatteryElectricLoco(_) => None,
             PowertrainType::DummyLoco(_) => None,
         }
     }
 
-    pub fn generator_mut(&mut self) -> Option<&mut Generator> {
+    pub fn alternator_mut(&mut self) -> Option<&mut Alternator> {
         match &mut self.loco_type {
-            PowertrainType::ConventionalLoco(loco) => Some(&mut loco.gen),
-            PowertrainType::HybridLoco(loco) => Some(&mut loco.gen),
+            PowertrainType::ConventionalLoco(loco) => Some(&mut loco.alt),
+            PowertrainType::HybridLoco(loco) => Some(&mut loco.alt),
             PowertrainType::BatteryElectricLoco(_) => None,
             PowertrainType::DummyLoco(_) => None,
         }
     }
 
-    pub fn set_generator(&mut self, gen: Generator) -> Result<()> {
+    pub fn set_alternator(&mut self, gen: Alternator) -> Result<()> {
         match &mut self.loco_type {
             PowertrainType::ConventionalLoco(loco) => {
-                loco.gen = gen;
+                loco.alt = gen;
                 Ok(())
             }
             PowertrainType::HybridLoco(loco) => {
-                loco.gen = gen;
+                loco.alt = gen;
                 Ok(())
             }
-            PowertrainType::BatteryElectricLoco(_) => bail!("BEL has no Generator."),
-            PowertrainType::DummyLoco(_) => bail!("DummyLoco locomotive has no Generator."),
+            PowertrainType::BatteryElectricLoco(_) => bail!("BEL has no Alternator."),
+            PowertrainType::DummyLoco(_) => bail!("DummyLoco locomotive has no Alternator."),
         }
     }
 
@@ -976,7 +976,7 @@ impl Locomotive {
                 PowertrainType::ConventionalLoco(_) => {
                     if let (Some(fc), Some(gen)) = (
                         self.fuel_converter().unwrap().mass()?,
-                        self.generator().unwrap().mass()?,
+                        self.alternator().unwrap().mass()?,
                     ) {
                         Ok(Some(fc + gen + baseline + ballast))
                     } else {
@@ -990,7 +990,7 @@ impl Locomotive {
                 PowertrainType::HybridLoco(_) => {
                     if let (Some(fc), Some(gen), Some(res)) = (
                         self.fuel_converter().unwrap().mass()?,
-                        self.generator().unwrap().mass()?,
+                        self.alternator().unwrap().mass()?,
                         self.reversible_energy_storage().unwrap().mass()?,
                     ) {
                         Ok(Some(fc + gen + res + baseline + ballast))
@@ -1024,7 +1024,7 @@ impl Locomotive {
             match self.loco_type {
                 PowertrainType::ConventionalLoco(_) => {
                     if self.fuel_converter().unwrap().mass()?.is_none()
-                        && self.generator().unwrap().mass()?.is_none()
+                        && self.alternator().unwrap().mass()?.is_none()
                     {
                         Ok(None)
                     } else {
@@ -1037,7 +1037,7 @@ impl Locomotive {
                 }
                 PowertrainType::HybridLoco(_) => {
                     if self.fuel_converter().unwrap().mass()?.is_none()
-                        && self.generator().unwrap().mass()?.is_none()
+                        && self.alternator().unwrap().mass()?.is_none()
                         && self.reversible_energy_storage().unwrap().mass()?.is_none()
                     {
                         Ok(None)

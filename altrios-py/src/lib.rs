@@ -31,9 +31,9 @@ fn altrios_pyo3(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<FuelConverter>()?;
     m.add_class::<FuelConverterState>()?;
     m.add_class::<FuelConverterStateHistoryVec>()?;
-    m.add_class::<Generator>()?;
-    m.add_class::<GeneratorState>()?;
-    m.add_class::<GeneratorStateHistoryVec>()?;
+    m.add_class::<Alternator>()?;
+    m.add_class::<AlternatorState>()?;
+    m.add_class::<AlternatorStateHistoryVec>()?;
     m.add_class::<Heading>()?;
     m.add_class::<HybridLoco>()?;
     m.add_class::<InitTrainState>()?;

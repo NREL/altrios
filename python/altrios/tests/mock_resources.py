@@ -8,8 +8,8 @@ def mock_fuel_converter(save_interval: Optional[int] = 1) -> alt.FuelConverter:
     return fc
 
 
-def mock_generator(save_interval: Optional[int] = 1) -> alt.Generator:
-    gen = alt.Generator.default()
+def mock_alternator(save_interval: Optional[int] = 1) -> alt.Alternator:
+    gen = alt.Alternator.default()
     alt.set_param_from_path(gen, "save_interval", save_interval)
     return gen
 
@@ -28,7 +28,7 @@ def mock_electric_drivetrain(save_interval: Optional[int] = 1) -> alt.ElectricDr
 
 def mock_conventional_loco(
     fc: Optional[alt.FuelConverter] = None,
-    gen: Optional[alt.Generator] = None,
+    gen: Optional[alt.Alternator] = None,
     edrv: Optional[alt.ElectricDrivetrain] = None,
     save_interval: Optional[int] = 1,
     pwr_aux_offset_watts: float = 0.0,
@@ -38,13 +38,13 @@ def mock_conventional_loco(
     if not fc:
         fc = mock_fuel_converter(save_interval)
     if not gen:
-        gen = mock_generator(save_interval)
+        gen = mock_alternator(save_interval)
     if not edrv:
         edrv = mock_electric_drivetrain(save_interval)
 
     loco_unit = alt.Locomotive.build_conventional_loco(
         fuel_converter=fc,
-        generator=gen,
+        alternator=gen,
         drivetrain=edrv,
         save_interval=save_interval,
         loco_params=alt.LocoParams(
@@ -58,7 +58,7 @@ def mock_conventional_loco(
 
 def mock_hybrid_loco(
     fc: Optional[alt.FuelConverter] = None,
-    gen: Optional[alt.Generator] = None,
+    gen: Optional[alt.Alternator] = None,
     res: Optional[alt.ReversibleEnergyStorage] = None,
     edrv: Optional[alt.ElectricDrivetrain] = None,
     save_interval: Optional[int] = 1,
@@ -69,7 +69,7 @@ def mock_hybrid_loco(
     if not fc:
         fc = mock_fuel_converter(save_interval)
     if not gen:
-        gen = mock_generator(save_interval)
+        gen = mock_alternator(save_interval)
     if not edrv:
         edrv = mock_electric_drivetrain(save_interval)
     if not res:

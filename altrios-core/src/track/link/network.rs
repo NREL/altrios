@@ -86,8 +86,9 @@ impl Link {
     }
 }
 
-impl From<LinkOld> for Link {
-    fn from(l: LinkOld) -> Self {
+impl TryFrom<LinkOld> for Link {
+    type Error = anyhow::Error;
+    fn try_from(l: LinkOld) -> anyhow::Result<Self> {
         let mut speed_sets: HashMap<TrainType, SpeedSet> = HashMap::new();
         for oss in l.speed_sets {
             speed_sets.insert(
@@ -100,7 +101,7 @@ impl From<LinkOld> for Link {
             );
         }
 
-        Self {
+        Ok(Self {
             elevs: l.elevs,
             headings: l.headings,
             speed_sets,
@@ -116,7 +117,7 @@ impl From<LinkOld> for Link {
             osm_id: l.osm_id,
             link_idxs_lockout: l.link_idxs_lockout,
             err_tol: Some(Default::default()),
-        }
+        })
     }
 }
 
@@ -486,7 +487,7 @@ impl SerdeAPI for Network {
                                         filepath, skip_init,
                                     ) {
                                         Ok(network_unchecked) => {
-                                            let network: Network = network_unchecked.into();
+                                            let network: Network = network_unchecked.try_into().map_err(|err| Error::SerdeError(format!("{}", err)))?;
                                             network.to_file(&filepath_copy).map_err(|tf_err| {
                                                 Error::SerdeError(format!(
                                                     "{}\n{tf_err}",
@@ -513,7 +514,7 @@ impl SerdeAPI for Network {
                                 }),
                             },
                             Ok(network_old) => {
-                                let network: Network = network_old.into();
+                                let network: Network = network_old.try_into().map_err(|err| Error::SerdeError(format!("{}", err)))?;
                                 network
                                     .to_file(&filepath_copy)
                                     .map_err(|tf_err| Error::SerdeError(format!("{tf_err}")))?;
@@ -545,17 +546,22 @@ impl Init for Network {
     }
 }
 
-impl From<NetworkOld> for Network {
-    fn from(old: NetworkOld) -> Self {
-        Network(
-            Default::default(),
-            old.0.iter().map(|l| Link::from(l.clone())).collect(),
-        )
+impl TryFrom<NetworkOld> for Network {
+    type Error = anyhow::Error;
+    fn try_from(old: NetworkOld) -> anyhow::Result<Self> {
+        Ok(Network(Default::default(), {
+            let mut new0: Vec<Link> = vec![];
+            for l in old.0.iter() {
+                new0.push(Link::try_from(l.clone())?);
+            }
+            new0
+        }))
     }
 }
-impl From<NetworkUnchecked> for Network {
-    fn from(unchecked: NetworkUnchecked) -> Self {
-        Network(Default::default(), unchecked.0)
+impl TryFrom<NetworkUnchecked> for Network {
+    type Error = anyhow::Error;
+    fn try_from(unchecked: NetworkUnchecked) -> anyhow::Result<Self> {
+        Ok(Network(Default::default(), unchecked.0))
     }
 }
 

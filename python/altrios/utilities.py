@@ -40,7 +40,7 @@ from altrios.altrios_pyo3 import (
     Locomotive,
     FuelConverter,
     ReversibleEnergyStorage,
-    Generator,
+    Alternator,
     ElectricDrivetrain,
     PowerTrace,
 )
@@ -103,7 +103,7 @@ def set_param_from_path(
         Locomotive,
         FuelConverter,
         ReversibleEnergyStorage,
-        Generator,
+        Alternator,
         ElectricDrivetrain,
         PowerTrace,
     ],
@@ -117,7 +117,7 @@ def set_param_from_path(
     Locomotive,
     FuelConverter,
     ReversibleEnergyStorage,
-    Generator,
+    Alternator,
     ElectricDrivetrain,
     PowerTrace,
 ]:

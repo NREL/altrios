@@ -343,7 +343,7 @@ pub struct FuelConverterState {
     pub pwr_out_max: si::Power,
     /// efficiency evaluated at current demand
     pub eta: si::Ratio,
-    /// instantaneous power going to generator
+    /// instantaneous power going to alternator
     pub pwr_mech_out: si::Power,
     /// instantaneous fuel power flow
     pub pwr_fuel: si::Power,

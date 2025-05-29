@@ -69,25 +69,25 @@ use crate::pyo3::*;
     }
 )]
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
-/// Struct for modeling generator/alternator.
-pub struct Generator {
+/// Struct for modeling alternator/alternator.
+pub struct Alternator {
     #[serde(default)]
     #[serde(skip_serializing_if = "EqDefault::eq_default")]
     /// struct for tracking current state
-    pub state: GeneratorState,
-    /// Generator mass
+    pub state: AlternatorState,
+    /// Alternator mass
     #[serde(default)]
     #[api(skip_get, skip_set)]
     mass: Option<si::Mass>,
-    /// Generator specific power
+    /// Alternator specific power
     #[api(skip_get, skip_set)]
     specific_pwr: Option<si::SpecificPower>,
     // no macro-generated setter because derived parameters would get messed up
-    /// Generator brake power fraction array at which efficiencies are evaluated.
+    /// Alternator brake power fraction array at which efficiencies are evaluated.
     #[api(skip_set)]
     pub pwr_out_frac_interp: Vec<f64>,
     // no macro-generated setter because derived parameters would get messed up
-    /// Generator efficiency array correpsonding to [Self::pwr_out_frac_interp]
+    /// Alternator efficiency array correpsonding to [Self::pwr_out_frac_interp]
     /// and [Self::pwr_in_frac_interp].
     #[api(skip_set)]
     pub eta_interp: Vec<f64>,
@@ -97,16 +97,16 @@ pub struct Generator {
     #[serde(skip)]
     #[api(skip_set)]
     pub pwr_in_frac_interp: Vec<f64>,
-    /// Generator max power out
+    /// Alternator max power out
     pub pwr_out_max: si::Power,
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
     #[serde(default)]
-    pub history: GeneratorStateHistoryVec,
+    pub history: AlternatorStateHistoryVec,
 }
 
-impl Init for Generator {
+impl Init for Alternator {
     fn init(&mut self) -> Result<(), Error> {
         let _ = self
             .mass()
@@ -115,9 +115,9 @@ impl Init for Generator {
         Ok(())
     }
 }
-impl SerdeAPI for Generator {}
+impl SerdeAPI for Alternator {}
 
-impl Mass for Generator {
+impl Mass for Alternator {
     fn mass(&self) -> anyhow::Result<Option<si::Mass>> {
         let derived_mass = self.derived_mass().with_context(|| format_dbg!())?;
         if let (Some(derived_mass), Some(set_mass)) = (derived_mass, self.mass) {
@@ -176,7 +176,7 @@ impl Mass for Generator {
     }
 }
 
-impl Generator {
+impl Alternator {
     pub fn new(
         pwr_out_frac_interp: Vec<f64>,
         eta_interp: Vec<f64>,
@@ -207,11 +207,11 @@ impl Generator {
             )
         );
 
-        let history = GeneratorStateHistoryVec::new();
+        let history = AlternatorStateHistoryVec::new();
         let pwr_out_max = uc::W * pwr_out_max_watts;
-        let state = GeneratorState::default();
+        let state = AlternatorState::default();
 
-        let mut gen = Generator {
+        let mut gen = Alternator {
             state,
             pwr_out_frac_interp,
             eta_interp,
@@ -252,7 +252,7 @@ impl Generator {
         engine_on: bool,
         dt: si::Time,
     ) -> anyhow::Result<()> {
-        // generator cannot regen
+        // alternator cannot regen
         ensure!(
             pwr_prop_req >= si::Power::ZERO,
             format!(
@@ -331,16 +331,16 @@ impl Generator {
     impl_get_set_eta_range!();
 }
 
-impl Default for Generator {
+impl Default for Alternator {
     fn default() -> Self {
-        let file_contents = include_str!("generator.default.yaml");
+        let file_contents = include_str!("alternator.default.yaml");
         let mut gen = Self::from_yaml(file_contents, false).unwrap();
         gen.init().unwrap();
         gen
     }
 }
 
-impl ElectricMachine for Generator {
+impl ElectricMachine for Alternator {
     fn set_cur_pwr_max_out(
         &mut self,
         pwr_in_max: si::Power,
@@ -385,7 +385,7 @@ impl ElectricMachine for Generator {
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
 #[altrios_api]
-pub struct GeneratorState {
+pub struct AlternatorState {
     /// iteration counter
     pub i: usize,
     /// efficiency evaluated at current power demand
@@ -414,10 +414,10 @@ pub struct GeneratorState {
     pub energy_loss: si::Energy,
 }
 
-impl Init for GeneratorState {}
-impl SerdeAPI for GeneratorState {}
+impl Init for AlternatorState {}
+impl SerdeAPI for AlternatorState {}
 
-impl Default for GeneratorState {
+impl Default for AlternatorState {
     fn default() -> Self {
         Self {
             i: 1,
@@ -440,8 +440,8 @@ impl Default for GeneratorState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn test_gen() -> Generator {
-        Generator::new(vec![0.0, 1.0], vec![0.9, 0.8], 8e6, None).unwrap()
+    fn test_gen() -> Alternator {
+        Alternator::new(vec![0.0, 1.0], vec![0.9, 0.8], 8e6, None).unwrap()
     }
 
     #[test]
@@ -485,19 +485,19 @@ mod tests {
     #[test]
     #[allow(clippy::field_reassign_with_default)]
     fn test_that_history_has_len_1() {
-        let mut gen: Generator = Generator::default();
-        gen.save_interval = Some(1);
-        assert!(gen.history.is_empty());
-        gen.save_state();
-        assert_eq!(1, gen.history.len());
+        let mut alt: Alternator = Alternator::default();
+        alt.save_interval = Some(1);
+        assert!(alt.history.is_empty());
+        alt.save_state();
+        assert_eq!(1, alt.history.len());
     }
 
     #[test]
     fn test_that_history_has_len_0() {
-        let mut gen: Generator = Generator::default();
-        assert!(gen.history.is_empty());
-        gen.save_state();
-        assert!(gen.history.is_empty());
+        let mut alt: Alternator = Alternator::default();
+        assert!(alt.history.is_empty());
+        alt.save_state();
+        assert!(alt.history.is_empty());
     }
 
     #[test]

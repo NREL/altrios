@@ -13,7 +13,7 @@ import hashlib
 import os
 
 import altrios
-from altrios.optimization import cal_and_val as cval
+from altrios.optimization import pymoo_api as pmoo
 
 # ignore list and reasons
 TRIP_FILE_IGNORE_DICT = {
@@ -190,7 +190,7 @@ def cal_val_file_check_post(loco_cal_mod_err, loco_val_mod_err, file_info_df):
         raise ValueError("Files being used for calibration do not match files that were previously used!")
     
 def get_results(
-    mod_err: cval.ModelError, 
+    mod_err: pmoo.ModelError, 
     params, 
     plotly: bool, 
     pyplot: bool,

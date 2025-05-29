@@ -15,8 +15,8 @@ import pickle
 import re
 
 
-from altrios.optimization import cal_and_val as cval
-from altrios.optimization.cal_and_val import StarmapParallelization
+from altrios.optimization import pymoo_api as pmoo
+from altrios.optimization.pymoo_api import StarmapParallelization
 import altrios as alt
 from altrios import LocomotiveSimulation
 import utils
@@ -33,7 +33,7 @@ def get_conv_trip_mods(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop_duplicates('PacificTime').copy()
     df['timestamp'] = pd.to_datetime(
         df['PacificTime']).dt.to_pydatetime()
-    df['time [s]'] = cval.get_delta_seconds(df['timestamp']).cumsum()
+    df['time [s]'] = pmoo.get_delta_seconds(df['timestamp']).cumsum()
 
   
 
@@ -67,7 +67,7 @@ def get_conv_trip_mods(df: pd.DataFrame) -> pd.DataFrame:
         "Fuel Rate " + str(trailing_loc) + " [lbs/hr]"].fillna(0.0) * alt.utils.KG_PER_LB \
         / 3600 * CUR_FUEL_LHV_J__KG
     df39xx["Fuel Energy [J]"] = (df39xx["Fuel Power [W]"] *
-                                    cval.get_delta_seconds(
+                                    pmoo.get_delta_seconds(
                                         df39xx['timestamp'])
                                     ).cumsum().copy()
     df39xx["engine_on"] = df['Engine Speed (RPM) BNSF ' + str(trailing_loc)] > 100
@@ -96,12 +96,12 @@ def get_loco_sim(df39xx: pd.DataFrame) -> bytes:
     return loco_sim_bincode
 
 
-class ModelError(cval.ModelError):
+class ModelError(pmoo.ModelError):
     def update_params(
         self, xs: List[float]
     ) -> Dict[str, LocomotiveSimulation]:
         """
-        conv loco specific override of cval.ModelError.update_params
+        conv loco specific override of pmoo.ModelError.update_params
         """
         assert (len(xs) == len(self.params))
 
@@ -304,26 +304,26 @@ if __name__ == '__main__':
     with open(artifact_dir / "val_mod_err.pickle", "wb") as f:
         pickle.dump(val_mod_err, f)
 
-    algorithm = cval.NSGA3(
-        ref_dirs=cval.get_reference_directions(
+    algorithm = pmoo.NSGA3(
+        ref_dirs=pmoo.get_reference_directions(
             "energy",
             # must be at least cal_objectives.n_obj
             n_dim=cal_mod_err.n_obj,
             n_points=pop_size,  # must be at least pop_size
         ),
-        sampling=cval.LHS(),
+        sampling=pmoo.LHS(),
         pop_size=pop_size,
     )
-    termination = cval.DMOT(n_max_gen=n_max_gen, period=5)
+    termination = pmoo.DMOT(n_max_gen=n_max_gen, period=5)
 
     t0 = time.perf_counter()
     if n_proc == 1:
-        problem = cval.CalibrationProblem(
+        problem = pmoo.CalibrationProblem(
             mod_err=cal_mod_err,
             n_constr=1,
             params_bounds=params_bounds,
         )
-        res, res_df = cval.run_minimize(
+        res, res_df = pmoo.run_minimize(
             problem=problem,
             algorithm=algorithm,
             termination=termination,
@@ -333,13 +333,13 @@ if __name__ == '__main__':
         assert n_proc > 1
         import multiprocessing
         with multiprocessing.Pool(n_proc) as pool:
-            problem = cval.CalibrationProblem(
+            problem = pmoo.CalibrationProblem(
                 mod_err=cal_mod_err,
                 n_constr=1,
                 params_bounds=params_bounds,
                 elementwise_runner=StarmapParallelization(pool.starmap),
             )
-            res, res_df = cval.run_minimize(
+            res, res_df = pmoo.run_minimize(
                 problem=problem,
                 algorithm=algorithm,
                 termination=termination,
@@ -350,7 +350,7 @@ if __name__ == '__main__':
     print(
         f"Number of processes: {n_proc}, Simulation time: {t1 - t0:.5f} seconds")
 
-    optimal_params = cval.min_error_selection(
+    optimal_params = pmoo.min_error_selection(
         res_df, param_num=len(cal_mod_err.params)
     )
 

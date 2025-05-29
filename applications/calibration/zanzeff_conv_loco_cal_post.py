@@ -13,17 +13,17 @@ val_plot_save_path.mkdir(exist_ok=True, parents=True)
 conv_res_df = pd.read_csv(def_save_path / "res_df.csv")
 file_info_df = pd.read_csv(def_save_path / "FileInfo.csv")
 
-conv_cal_mod_err = cval.ModelError.load(def_save_path / 'cal_mod_err.pickle')
-conv_val_mod_err = cval.ModelError.load(def_save_path / 'val_mod_err.pickle')
+conv_cal_mod_err = pmoo.ModelError.load(def_save_path / 'cal_mod_err.pickle')
+conv_val_mod_err = pmoo.ModelError.load(def_save_path / 'val_mod_err.pickle')
 
 utils.cal_val_file_check_post(conv_cal_mod_err, conv_val_mod_err, file_info_df)
 
-conv_optimal_params = cval.min_error_selection(
+conv_optimal_params = pmoo.min_error_selection(
     conv_res_df,
     param_num=len(conv_cal_mod_err.params)
 )
 
-conv_default = altc.Locomotive.default()
+conv_default = alt.Locomotive.default()
 
 conv_default_params = [
     conv_default.fc.pwr_idle_fuel_watts,

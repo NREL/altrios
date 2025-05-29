@@ -14,13 +14,13 @@ import multiprocessing
 import pickle
 import time
 
-from altrios.optimization import cal_and_val as cval
-from altrios.optimization.cal_and_val import StarmapParallelization
+from altrios.optimization import pymoo_api as pmoo
+from altrios.optimization.pymoo_api import StarmapParallelization
 import altrios as alt
 import utils
 
 
-class CalibrationProblem(cval.CalibrationProblem):
+class CalibrationProblem(pmoo.CalibrationProblem):
     def _evaluate(self, x, out, *args, **kwargs):
         # There may be cases where update_params could fail but we want to keep running: e.g.
         # `PyValueError::new_err("FuelConverter `eta_max` must be between 0 and 1" from
@@ -55,7 +55,7 @@ def get_bel_trip_mods(df: pd.DataFrame) -> pd.DataFrame:
     """
     # df['dt [s]'] = pd.to_datetime(df['PacificTime']).dt.tz_convert('UTC')
     df['timestamp'] = pd.to_datetime(df['PacificTime']).dt.to_pydatetime()
-    df['time [s]'] = cval.get_delta_seconds(df['timestamp']).cumsum()
+    df['time [s]'] = pmoo.get_delta_seconds(df['timestamp']).cumsum()
 
     df3000 = df[['PacificTime', 'time [s]']].copy()
     df3000['Tractive Power [W]'] = (
@@ -123,9 +123,9 @@ def get_mod_err(
     model_objectives: List[Tuple[str, str]],
     model_params: Tuple[str],
     debug: Optional[bool] = False,
-) -> cval.ModelError:
+) -> pmoo.ModelError:
 
-    mod_err = cval.ModelError(
+    mod_err = pmoo.ModelError(
         bincode_model_dict={
             key: df_sim_tup[1] for key,
             df_sim_tup in df_and_sim_dict.items()
@@ -309,17 +309,17 @@ if __name__ == '__main__':
     with open(artifact_dir / "val_mod_err.pickle", "wb") as f:
         pickle.dump(val_mod_err, f)
 
-    algorithm = cval.NSGA3(
-        ref_dirs=cval.get_reference_directions(
+    algorithm = pmoo.NSGA3(
+        ref_dirs=pmoo.get_reference_directions(
             "energy",
             # must be at least cal_objectives.n_obj
             n_dim=cal_mod_err.n_obj,
             n_points=pop_size,  # must be at least pop_size
         ),
-        sampling=cval.LHS(),
+        sampling=pmoo.LHS(),
         pop_size=pop_size,
     )
-    termination = cval.DMOT(n_max_gen=n_max_gen, period=5)
+    termination = pmoo.DMOT(n_max_gen=n_max_gen, period=5)
 
     t0 = time.perf_counter()
     if n_proc == 1:
@@ -328,7 +328,7 @@ if __name__ == '__main__':
             n_constr=1,
             params_bounds=params_bounds,
         )
-        res, res_df = cval.run_minimize(
+        res, res_df = pmoo.run_minimize(
             problem=problem,
             algorithm=algorithm,
             termination=termination,
@@ -337,13 +337,13 @@ if __name__ == '__main__':
     else:
         assert n_proc > 1
         with multiprocessing.Pool(n_proc) as pool:
-            problem = cval.CalibrationProblem(
+            problem = pmoo.CalibrationProblem(
                 mod_err=cal_mod_err,
                 n_constr=1,
                 params_bounds=params_bounds,
                 elementwise_runner=StarmapParallelization(pool.starmap),
             )
-            res, res_df = cval.run_minimize(
+            res, res_df = pmoo.run_minimize(
                 problem=problem,
                 algorithm=algorithm,
                 termination=termination,
@@ -354,7 +354,7 @@ if __name__ == '__main__':
     print(
         f"Number of processes: {n_proc}, Simulation time: {t1 - t0:.5f} seconds")
 
-    optimal_params = cval.min_error_selection(
+    optimal_params = pmoo.min_error_selection(
         res_df,
         param_num=len(cal_mod_err.params),
     )

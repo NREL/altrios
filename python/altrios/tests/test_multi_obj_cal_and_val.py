@@ -6,7 +6,7 @@ class TestLocomotive(unittest.TestCase):
     def test_pymoo_mod_err_build(self):
         return None
         # TODO: remove line above this and fix this test at some point
-        from altrios.optimization import cal_and_val as cval
+        from altrios.optimization import pymoo_api as pmoo
         from altrios import LocomotiveSimulation, Locomotive, PowerTrace
         mock_df = mock_pymoo_conv_cal_df()
         pt = PowerTrace(
@@ -19,7 +19,7 @@ class TestLocomotive(unittest.TestCase):
             power_trace=pt,
             save_interval=1)
         loco_sim_ser = loco_sim.to_json()
-        mod_err = cval.ModelError(
+        mod_err = pmoo.ModelError(
             ser_model_dict={0: loco_sim_ser},
             dfs={0: mock_df},
             objectives=[(

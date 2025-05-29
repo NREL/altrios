@@ -1,6 +1,6 @@
 use crate::consist::locomotive::powertrain::ElectricMachine;
 use crate::imports::*;
-
+use super::*;
 #[cfg(feature = "pyo3")]
 use crate::pyo3::*;
 
@@ -28,7 +28,7 @@ pub struct ElectricDrivetrain {
     // TODO: add `mass` here
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
-    /// Custom vector of [Self::state]
+    /// Custom vector of [Self::state] haha
     #[serde(
         default,
         skip_serializing_if = "ElectricDrivetrainStateHistoryVec::is_empty"
@@ -82,9 +82,7 @@ impl ElectricDrivetrain {
 
     #[setter("__eta_range")]
     fn set_eta_range_py(&mut self, eta_range: f64) -> anyhow::Result<()> {
-        Ok(self
-            .set_eta_range(eta_range)
-            .map_err(PyValueError::new_err)?)
+        Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
     }
 }
 
@@ -169,8 +167,8 @@ impl ElectricDrivetrain {
                 &self.eta_interp,
                 false,
             )?;
-        self.state.pwr_mech_regen_max = (pwr_max_regen_in * eta).min(self.pwr_out_max);
-        ensure!(self.state.pwr_mech_regen_max >= si::Power::ZERO);
+        self.state.pwr_mech_regen_max.update((pwr_max_regen_in * eta).min(self.pwr_out_max),|| format_dbg!())?;
+        ensure!(*self.state.pwr_mech_regen_max.get_fresh(|| format_dbg!())? >= si::Power::ZERO);
         Ok(())
     }
 
@@ -187,59 +185,96 @@ impl ElectricDrivetrain {
         );
 
         ensure!(
-            almost_le_uom(&pwr_out_req, &self.state.pwr_mech_out_max, Some(1e-5)),
+            almost_le_uom(&pwr_out_req, self.state.pwr_mech_out_max.get_fresh(|| format_dbg!())?, Some(1e-5)),
             format!(
                 "{}\nedrv required power ({:.6} MW) exceeds dynamic max power ({:.6} MW)",
-                format_dbg!(pwr_out_req.abs() <= self.state.pwr_mech_out_max),
+                format_dbg!(pwr_out_req.abs() <= *self.state.pwr_mech_out_max.get_fresh(|| format_dbg!())?),
                 pwr_out_req.get::<si::megawatt>(),
-                self.state.pwr_mech_out_max.get::<si::megawatt>()
+                self.state.pwr_mech_out_max.get_fresh(|| format_dbg!())?.get::<si::megawatt>()
             ),
         );
 
-        self.state.pwr_out_req = pwr_out_req;
+        self.state.pwr_out_req.update(pwr_out_req, ||format_dbg!())?;
 
-        self.state.eta = uc::R
-            * interp1d(
-                &(pwr_out_req / self.pwr_out_max).get::<si::ratio>().abs(),
-                &self.pwr_out_frac_interp,
-                &self.eta_interp,
-                false,
-            )?;
+        self.state.eta.update(
+            uc::R 
+                * interp1d(
+                    &(pwr_out_req / self.pwr_out_max).get::<si::ratio>().abs(),
+                    &self.pwr_out_frac_interp,
+                    &self.eta_interp,
+                    false,
+                )
+            .with_context(|| format_dbg!()),
+            || format_dbg!(),
+        )?;
         ensure!(
-            self.state.eta >= 0.0 * uc::R || self.state.eta <= 1.0 * uc::R,
+            *self.state.eta.get_fresh(|| format_dbg!())? >= 0.0 * uc::R
+                || *self.state.eta.get_fresh(|| format_dbg!())? <= 1.0 * uc::R,
             format!(
                 "{}\nedrv eta ({}) must be between 0 and 1",
-                format_dbg!(self.state.eta >= 0.0 * uc::R || self.state.eta <= 1.0 * uc::R),
-                self.state.eta.get::<si::ratio>()
+                format_dbg!(
+                    *self.state.eta.get_fresh(|| format_dbg!())? >= 0.0 * uc::R
+                        || *self.state.eta.get_fresh(|| format_dbg!())? <= 1.0 * uc::R),
+                self.state.eta.get_fresh(|| format_dbg!())?.get::<si::ratio>()
             )
         );
 
         // `pwr_mech_prop_out` is `pwr_out_req` unless `pwr_out_req` is more negative than `pwr_mech_regen_max`,
         // in which case, excess is handled by `pwr_mech_dyn_brake`
-        self.state.pwr_mech_prop_out = pwr_out_req.max(-self.state.pwr_mech_regen_max);
-        self.state.energy_mech_prop_out += self.state.pwr_mech_prop_out * dt;
+        self.state.pwr_mech_prop_out.update(
+            pwr_out_req.max(-*self.state.pwr_mech_regen_max.get_stale(|| format_dbg!())?),
+            || format_dbg!(),
+        );
+        self.state.energy_mech_prop_out.increment(
+            *self.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())? * dt,
+            || format_dbg!(),
+        )?;
 
-        self.state.pwr_mech_dyn_brake = -(pwr_out_req - self.state.pwr_mech_prop_out);
-        self.state.energy_mech_dyn_brake += self.state.pwr_mech_dyn_brake * dt;
+        self.state.pwr_mech_dyn_brake.update(
+            -(pwr_out_req - *self.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())?),
+            || format_dbg!(),
+        )?;
+        self.state.energy_mech_dyn_brake.increment(
+            *self.state.pwr_mech_dyn_brake.get_fresh(|| format_dbg!())? * dt,
+            || format_dbg!(),
+        )?;
         ensure!(
-            self.state.pwr_mech_dyn_brake >= si::Power::ZERO,
+            *self.state.pwr_mech_dyn_brake.get_fresh(|| format_dbg!())? >= si::Power::ZERO,
             "Mech Dynamic Brake Power cannot be below 0.0"
         );
 
         // if pwr_out_req is negative, need to multiply by eta
-        self.state.pwr_elec_prop_in = if pwr_out_req > si::Power::ZERO {
-            self.state.pwr_mech_prop_out / self.state.eta
-        } else {
-            self.state.pwr_mech_prop_out * self.state.eta
-        };
-        self.state.energy_elec_prop_in += self.state.pwr_elec_prop_in * dt;
+        self.state.pwr_elec_prop_in.update(
+            if pwr_out_req > si::Power::ZERO {
+                *self.state.pwr_mech_prop_out.get_stale(|| format_dbg!())? / *self.state.eta.get_stale(|| format_dbg!())?
+            } else {
+                *self.state.pwr_mech_prop_out.get_stale(|| format_dbg!())? * *self.state.eta.get_stale(|| format_dbg!())?
+            },
+            || format_dbg!(),
+        );
+        self.state.energy_elec_prop_in.increment(
+            *self.state.pwr_elec_prop_in.get_fresh(|| format_dbg!())? * dt,
+            || format_dbg!(),
+        )?;
 
-        self.state.pwr_elec_dyn_brake = self.state.pwr_mech_dyn_brake * self.state.eta;
-        self.state.energy_elec_dyn_brake += self.state.pwr_elec_dyn_brake * dt;
+        self.state.pwr_elec_dyn_brake.update(
+            *self.state.pwr_mech_dyn_brake.get_fresh(|| format_dbg!())? * *self.state.eta.get_stale(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
+        self.state.energy_elec_dyn_brake.increment(
+            *self.state.pwr_elec_dyn_brake.get_fresh(|| format_dbg!())? * dt,
+            || format_dbg!(),
+        )?;
 
         // loss does not account for dynamic braking
-        self.state.pwr_loss = (self.state.pwr_mech_prop_out - self.state.pwr_elec_prop_in).abs();
-        self.state.energy_loss += self.state.pwr_loss * dt;
+        self.state.pwr_loss.update(
+            (*self.state.pwr_mech_prop_out.get_stale(|| format_dbg!())? - *self.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?).abs(),
+            || format_dbg!(),
+        )?;
+        self.state.energy_loss.increment(
+            *self.state.pwr_loss.get_stale(|| format_dbg!())? * dt,
+            || format_dbg!(),
+        )?;
 
         Ok(())
     }
@@ -292,19 +327,24 @@ impl ElectricMachine for ElectricDrivetrain {
                 false,
             )?;
 
-        self.state.pwr_mech_out_max = self.pwr_out_max.min(pwr_in_max * eta).max(si::Power::ZERO);
+        self.state.pwr_mech_out_max.update(
+            self.pwr_out_max.min(pwr_in_max * eta).max(si::Power::ZERO),
+            || format_dbg!(),
+        )?;
         Ok(())
     }
 
     /// Set current power out max ramp rate, `pwr_rate_out_max` given `pwr_rate_in_max`
     /// from upstream component.  
     fn set_pwr_rate_out_max(&mut self, pwr_rate_in_max: si::PowerRate) {
-        self.state.pwr_rate_out_max = pwr_rate_in_max
-            * if self.state.eta > si::Ratio::ZERO {
-                self.state.eta
+        self.state.pwr_rate_out_max.update(
+            if *self.state.eta.get_fresh(|| format_dbg!())? > si::Ratio::ZERO {
+                pwr_rate_in_max * *self.state.eta.get_fresh(|| format_dbg!())?
             } else {
-                uc::R * 1.0
-            };
+                pwr_rate_in_max * uc::R * 1.0
+            },
+            || format_dbg!(),
+        )?;
     }
 }
 
@@ -381,13 +421,16 @@ mod tests {
     fn test_that_i_increments() {
         let mut edrv = test_edrv();
         edrv.step(|| format_dbg!());
-        assert_eq!(2, edrv.state.i);
+        assert_eq!(2, *edrv.state.i.get_fresh(|| format_dbg!()).unwrap());
     }
 
     #[test]
     fn test_that_loss_is_monotonic() {
         let mut edrv = test_edrv();
-        edrv.state.pwr_mech_out_max = edrv.pwr_out_max;
+        edrv.state.pwr_mech_out_max.update(
+            edrv.pwr_out_max,
+            || format_dbg!(),
+        );
         edrv.save_interval = Some(1);
         edrv.save_state(|| format_dbg!());
         edrv.set_pwr_in_req(uc::W * 1_000e3, uc::S * 1.0).unwrap();
@@ -409,7 +452,7 @@ mod tests {
             .history
             .energy_loss
             .windows(2)
-            .all(|w| w[1] - w[0] >= si::Energy::ZERO));
+            .all(|w| *w[1].get_fresh(|| format_dbg!())? - *w[0].get_fresh(|| format_dbg!())? >= si::Energy::ZERO));
     }
 
     #[test]

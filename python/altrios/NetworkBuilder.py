@@ -513,6 +513,8 @@ class NetworkBuilder:
             TrackGDF = TrackGDF[TrackGDF.service != "spur"]
             TrackGDF = TrackGDF[TrackGDF.service != "yard"]
 
+            TrackGDF = TrackGDF[TrackGDF.building != "train_station"]
+
             if "Note" in TrackGDF.columns.values:
                 TrackGDF = TrackGDF.drop("Note", axis=1)
 

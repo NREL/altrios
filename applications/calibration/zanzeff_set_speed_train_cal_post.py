@@ -14,14 +14,14 @@ train_res_df = pd.read_csv(def_save_path / "res_df.csv")
 # %%
 
 file_info_df = pd.read_csv(def_save_path / "FileInfo.csv")
-train_cal_mod_err = cval.ModelError.load(def_save_path / 'cal_mod_err.pickle')
-train_val_mod_err = cval.ModelError.load(def_save_path / 'val_mod_err.pickle')
+train_cal_mod_err = pmoo.ModelError.load(def_save_path / 'cal_mod_err.pickle')
+train_val_mod_err = pmoo.ModelError.load(def_save_path / 'val_mod_err.pickle')
 
 utils.cal_val_file_check_post(train_cal_mod_err, train_val_mod_err, file_info_df)
 
 # %%
 
-train_optimal_params = cval.min_error_selection(
+train_optimal_params = pmoo.min_error_selection(
     train_res_df,
     param_num=len(train_cal_mod_err.params)
 )

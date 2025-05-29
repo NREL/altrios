@@ -6,8 +6,8 @@ pub use crate::consist::locomotive::powertrain::electric_drivetrain::{
 pub use crate::consist::locomotive::powertrain::fuel_converter::{
     FuelConverter, FuelConverterState, FuelConverterStateHistoryVec,
 };
-pub use crate::consist::locomotive::powertrain::generator::{
-    Generator, GeneratorState, GeneratorStateHistoryVec,
+pub use crate::consist::locomotive::powertrain::alternator::{
+    Alternator, AlternatorState, AlternatorStateHistoryVec,
 };
 pub use crate::consist::locomotive::powertrain::powertrain_traits::*;
 pub use crate::consist::locomotive::powertrain::reversible_energy_storage::{

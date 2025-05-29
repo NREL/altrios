@@ -1,6 +1,6 @@
+use super::powertrain::alternator::Alternator;
 use super::powertrain::electric_drivetrain::ElectricDrivetrain;
 use super::powertrain::fuel_converter::FuelConverter;
-use super::powertrain::generator::Generator;
 use super::powertrain::ElectricMachine;
 use super::LocoTrait;
 use super::*;
@@ -11,12 +11,12 @@ use crate::imports::*;
     #[new]
     pub fn __new__(
         fuel_converter: FuelConverter,
-        generator: Generator,
+        alternator: Alternator,
         electric_drivetrain: ElectricDrivetrain,
     ) -> Self {
         Self {
             fc: fuel_converter,
-            gen: generator,
+            alt: alternator,
             edrv: electric_drivetrain,
         }
     }
@@ -28,7 +28,8 @@ pub struct ConventionalLoco {
     #[has_state]
     pub fc: FuelConverter,
     #[has_state]
-    pub gen: Generator,
+    #[serde(alias = "gen")]
+    pub alt: Alternator,
     #[has_state]
     pub edrv: ElectricDrivetrain,
 }
@@ -36,12 +37,12 @@ pub struct ConventionalLoco {
 impl ConventionalLoco {
     pub fn new(
         fuel_converter: FuelConverter,
-        generator: Generator,
+        alternator: Alternator,
         electric_drivetrain: ElectricDrivetrain,
     ) -> Self {
         Self {
             fc: fuel_converter,
-            gen: generator,
+            alt: alternator,
             edrv: electric_drivetrain,
         }
     }
@@ -62,7 +63,7 @@ impl ConventionalLoco {
     ) -> anyhow::Result<()> {
         self.edrv.set_pwr_in_req(pwr_out_req, dt)?;
 
-        self.gen.set_pwr_in_req(
+        self.alt.set_pwr_in_req(
             // TODO: maybe this should be either zero or greater than or equal to zero if not loco_on
             self.edrv.state.pwr_elec_prop_in,
             pwr_aux,
@@ -71,7 +72,7 @@ impl ConventionalLoco {
         )?;
 
         self.fc
-            .solve_energy_consumption(self.gen.state.pwr_mech_in, dt, loco_on, assert_limits)?;
+            .solve_energy_consumption(self.alt.state.pwr_mech_in, dt, loco_on, assert_limits)?;
         Ok(())
     }
 }
@@ -98,14 +99,14 @@ impl Mass for ConventionalLoco {
 
     fn expunge_mass_fields(&mut self) {
         self.fc.expunge_mass_fields();
-        self.gen.expunge_mass_fields();
+        self.alt.expunge_mass_fields();
     }
 }
 
 impl Init for ConventionalLoco {
     fn init(&mut self) -> Result<(), Error> {
         self.fc.init()?;
-        self.gen.init()?;
+        self.alt.init()?;
         self.edrv.init()?;
         Ok(())
     }
@@ -124,16 +125,16 @@ impl LocoTrait for ConventionalLoco {
         dt: si::Time,
     ) -> anyhow::Result<()> {
         self.fc.set_cur_pwr_out_max(elev_and_temp, dt)?;
-        self.gen.set_cur_pwr_max_out(
+        self.alt.set_cur_pwr_max_out(
             self.fc.state.pwr_out_max,
             Some(pwr_aux.with_context(|| format_dbg!("`pwr_aux` not provided"))?),
         )?;
         self.edrv
-            .set_cur_pwr_max_out(self.gen.state.pwr_elec_prop_out_max, None)?;
-        self.gen
+            .set_cur_pwr_max_out(self.alt.state.pwr_elec_prop_out_max, None)?;
+        self.alt
             .set_pwr_rate_out_max(self.fc.pwr_out_max / self.fc.pwr_ramp_lag);
         self.edrv
-            .set_pwr_rate_out_max(self.gen.state.pwr_rate_out_max);
+            .set_pwr_rate_out_max(self.alt.state.pwr_rate_out_max);
         Ok(())
     }
 
@@ -146,6 +147,6 @@ impl LocoTrait for ConventionalLoco {
     }
 
     fn get_energy_loss(&self) -> si::Energy {
-        self.fc.state.energy_loss + self.gen.state.energy_loss + self.edrv.state.energy_loss
+        self.fc.state.energy_loss + self.alt.state.energy_loss + self.edrv.state.energy_loss
     }
 }

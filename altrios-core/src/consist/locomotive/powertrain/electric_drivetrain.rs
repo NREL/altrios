@@ -5,22 +5,6 @@ use crate::imports::*;
 use crate::pyo3::*;
 
 #[altrios_api(
-    #[new]
-    #[pyo3(signature = (pwr_out_frac_interp, eta_interp, pwr_out_max_watts, save_interval=None))]
-    fn __new__(
-        pwr_out_frac_interp: Vec<f64>,
-        eta_interp: Vec<f64>,
-        pwr_out_max_watts: f64,
-        save_interval: Option<usize>,
-    ) -> anyhow::Result<Self> {
-        Self::new(
-            pwr_out_frac_interp,
-            eta_interp,
-            pwr_out_max_watts,
-            save_interval,
-        )
-    }
-
     #[setter]
     pub fn set_eta_interp(&mut self, new_value: Vec<f64>) -> anyhow::Result<()> {
         self.eta_interp = new_value;
@@ -321,10 +305,10 @@ pub struct ElectricDrivetrainState {
     // Current values
     /// Raw power requirement from boundary conditions
     pub pwr_out_req: si::Power,
-    /// Electrical power to propulsion from ReversibleEnergyStorage and Generator.
+    /// Electrical power to propulsion from ReversibleEnergyStorage and Alternator.
     /// negative value indicates regenerative braking
     pub pwr_elec_prop_in: si::Power,
-    /// Mechanical power to propulsion, corrected by efficiency, from ReversibleEnergyStorage and Generator.
+    /// Mechanical power to propulsion, corrected by efficiency, from ReversibleEnergyStorage and Alternator.
     /// Negative value indicates regenerative braking.
     pub pwr_mech_prop_out: si::Power,
     /// Mechanical power from dynamic braking.  Positive value indicates braking; this should be zero otherwise.

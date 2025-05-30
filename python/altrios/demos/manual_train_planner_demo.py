@@ -12,6 +12,8 @@ from pathlib import Path
 
 sns.set_theme()
 
+t0_total = time.perf_counter()
+
 SHOW_PLOTS = alt.utils.show_plots()
 # %
 
@@ -37,7 +39,7 @@ rail_vehicles = [
     for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob("*.yaml")
 ]
 
-
+t0_main = time.perf_counter()
 #not passing in a trainplanner config here because we do not need to specify train length or any other parameters like
 #sim_manager_demo.py.  This example is just replaying trains that have already been planned.
 (

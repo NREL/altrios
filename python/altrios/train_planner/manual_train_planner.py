@@ -2,7 +2,8 @@ import pandas as pd
 import polars as pl
 from typing import Dict, Tuple, List
 import numpy as np
-
+import polars.selectors as cs
+from altrios import defaults
 import altrios as alt
 from altrios.train_planner.planner_config import TrainPlannerConfig
 from altrios.train_planner import (
@@ -17,7 +18,12 @@ def manual_train_planner(
     consist_plan: pl.DataFrame,
     loco_map: Dict[str, str],
     rail_vehicles: List[alt.RailVehicle],
+    location_map: Dict[str, List[alt.Location]],
+    network: List[alt.Link],
+    scenario_year: int = defaults.BASE_ANALYSIS_YEAR, 
     config: TrainPlannerConfig = TrainPlannerConfig(),
+    
+
 ) -> Tuple[
     pl.DataFrame,
     pl.DataFrame,
@@ -75,6 +81,9 @@ def manual_train_planner(
         config.refuelers_per_incoming_corridor,
     )
     
+    #TODO figure out I why I am adding this headroom vairable here.  Need to get it working right now.
+    refuelers = refuelers.with_columns(pl.lit(0.0).alias("Battery_Headroom_J"))
+
     # Create mapping from freight types to car types
     freight_type_to_car_type = {}
     for rv in rail_vehicles:
@@ -106,14 +115,25 @@ def manual_train_planner(
             this_train, rail_vehicles, freight_type_to_car_type
         )
 
+        #get Train type object? from the rust side of things.  Checkout link for enumeration.
+        #https://docs.rs/altrios-core/latest/altrios_core/track/enum.TrainType.html
+        if this_train['Train_Type'] == 'Intermodal':
+            train_type = alt.TrainType.Intermodal
+        else:
+            train_type = alt.TrainType.Freight
+
         # Create train configuration
         train_config = alt.TrainConfig(
             rail_vehicles=rv_to_use,
             n_cars_by_type=n_cars_by_type,
-            train_type=this_train["Train_Type"],
+            train_type=train_type,
             cd_area_vec=cd_area_vec,
         )
 
+        #getting the locomotives road number out of the consist plan for this train
+        consist_locos_road_numbers = consist_plan.filter(Train_ID = this_train["Train_ID"])['Locomotive_ID']
+        #pulling locomotives from pool to get fuel type that is needed about a dozen lines down where we are checking for fuel type
+        consist_locos = loco_pool.filter(pl.col('Locomotive_ID').is_in(consist_locos_road_numbers))
         # Create list of locomotive objects from configuration
         # TODO get the locos from the consist plan by train
         locos = [
@@ -122,17 +142,17 @@ def manual_train_planner(
             ]["Rust_Loco"]
             .to_list()[0]
             .clone()
-            for loco_type in dispatched.get_column("Locomotive_Type")
+            for loco_type in consist_locos.get_column("Locomotive_Type")
         ]
 
         #TODO figure out how to set soc to 100% for the time being
         # Set state of charge for electric locomotives
         [
             alt.set_param_from_path(
-                locos[i], "res.state.soc", loco_start_soc_pct[i]
+                locos[i], "res.state.soc", 1.0 #loco_start_soc_pct[i]
             )
             for i in range(len(locos))
-            if dispatched.get_column("Fuel_Type")[i] == "Electricity"
+            if consist_locos.get_column("Fuel_Type")[i] == "Electricity"
         ]
 
         # Create locomotive consist from the selected locomotives
@@ -144,13 +164,13 @@ def manual_train_planner(
         #TODO grab time from planned departure time
         # Create initial train state with correct time
         init_train_state = alt.InitTrainState(
-            time_seconds=current_time * 3600  # Convert hours to seconds
+            time_seconds=this_train["Departure_Time_Planned_Hr"] * 3600  # Convert hours to seconds
         )
 
         tsb = alt.TrainSimBuilder(
-            train_id=this_train[0],
-            origin_id=this_train["Origin_ID"],
-            destination_id=this_train["Destination_ID"],
+            train_id=str(this_train["Train_ID"]),
+            origin_id=str(this_train["Origin_ID"]),
+            destination_id=str(this_train["Destination_ID"]),
             train_config=train_config,
             loco_con=loco_con,
             init_train_state=init_train_state,
@@ -171,6 +191,32 @@ def manual_train_planner(
         # Store simulation results
         speed_limit_train_sims.append(slts)
         est_time_nets.append(est_time_net)
+
+    #TODO this is call train_consist_plan in the regular planner.  May be worth cleaning up names across the code in several places.
+    consist_plan = (
+        consist_plan.with_columns(
+            # Convert categorical columns to strings
+            cs.categorical().cast(str),
+            # Ensure ID columns are unsigned integers
+            pl.col("Train_ID", "Locomotive_ID").cast(pl.UInt32),
+        )
+        # Sort by locomotive ID and train ID
+        .sort(["Locomotive_ID", "Train_ID"], descending=False)
+    )
+
+    loco_pool = (
+        loco_pool.with_columns(
+            # Convert categorical columns to strings
+            cs.categorical().cast(str),
+            # Ensure ID columns are unsigned integers
+            pl.col("Locomotive_ID").cast(pl.UInt32),
+        )
+        # Sort by locomotive ID and train ID
+        .sort(["Locomotive_ID"], descending=False)
+    )
+    # loco_pool = loco_pool.with_columns(cs.categorical().cast(str))
+    refuelers = refuelers.with_columns(cs.categorical().cast(str))
+
     return (
         consist_plan,
         loco_pool,
@@ -201,6 +247,7 @@ def build_loco_pool_from_model_list(
                                        pl.lit(0.0).alias("Refueler_J_Per_Hr"),
                                        pl.lit(0.0).alias("Refueler_Efficiency"),
                                        pl.lit(0.0).alias("Port_Count"),
+                                       pl.lit(0.0).alias("Battery_Headroom_J")  #TODO this is a column that gets added in the regular train planner that is how charging strategy gets enforced.  probably need to rethink how I am doing it here long term.
                                        )
     
     loco_pool = loco_pool.cast({"Locomotive_Type" : pl.Categorical,

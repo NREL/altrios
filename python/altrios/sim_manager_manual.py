@@ -83,7 +83,10 @@ def main(
         consist_plan=consist_plan,
         loco_map=loco_map,
         rail_vehicles=rail_vehicles,
-        config=train_planner_config
+        location_map=location_map,
+        network=network,
+        config=train_planner_config,
+        
     )
     t1_ptc = time.perf_counter()
 

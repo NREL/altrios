@@ -301,55 +301,64 @@ impl Generator {
         )?;
 
         ensure!(
-            *self.state.eta.get_fresh(||format_dbg!())? >= 0.0 * uc::R || *self.state.eta.get_fresh(||format_dbg!())? <= 1.0 * uc::R,
+            *self.state.eta.get_fresh(|| format_dbg!())? >= 0.0 * uc::R
+                || *self.state.eta.get_fresh(|| format_dbg!())? <= 1.0 * uc::R,
             format!(
                 "{}\ngen eta ({}) must be between 0 and 1",
-                format_dbg!(*self.state.eta.get_fresh(||format_dbg!())? >= 0.0 * uc::R || *self.state.eta.get_fresh(||format_dbg!())? <= 1.0 * uc::R),
-                self.state.eta.get_fresh(||format_dbg!())?.get::<si::ratio>()
+                format_dbg!(
+                    *self.state.eta.get_fresh(|| format_dbg!())? >= 0.0 * uc::R
+                        || *self.state.eta.get_fresh(|| format_dbg!())? <= 1.0 * uc::R
+                ),
+                self.state
+                    .eta
+                    .get_fresh(|| format_dbg!())?
+                    .get::<si::ratio>()
             )
         );
 
-        self.state.pwr_elec_prop_out.update(
-            pwr_prop_req,
-            ||format_dbg!()
-        )?;
+        self.state
+            .pwr_elec_prop_out
+            .update(pwr_prop_req, || format_dbg!())?;
         self.state.energy_elec_prop_out.increment(
-            *self.state.pwr_elec_prop_out.get_fresh(||format_dbg!())? * dt,
-            ||format_dbg!()
+            *self.state.pwr_elec_prop_out.get_fresh(|| format_dbg!())? * dt,
+            || format_dbg!(),
         )?;
 
-        self.state.pwr_elec_aux.update(
-            pwr_aux,
-            ||format_dbg!()
-        )?;
+        self.state.pwr_elec_aux.update(pwr_aux, || format_dbg!())?;
         self.state.energy_elec_aux.increment(
-            *self.state.pwr_elec_aux.get_fresh(||format_dbg!())? * dt,
-            ||format_dbg!()
+            *self.state.pwr_elec_aux.get_fresh(|| format_dbg!())? * dt,
+            || format_dbg!(),
         )?;
 
         self.state.pwr_mech_in.update(
-            (*self.state.pwr_elec_prop_out.get_fresh(||format_dbg!())? + *self.state.pwr_elec_aux.get_fresh(||format_dbg!())?) / *self.state.eta.get_fresh(||format_dbg!())?,
-            ||format_dbg!()
+            (*self.state.pwr_elec_prop_out.get_fresh(|| format_dbg!())?
+                + *self.state.pwr_elec_aux.get_fresh(|| format_dbg!())?)
+                / *self.state.eta.get_fresh(|| format_dbg!())?,
+            || format_dbg!(),
         )?;
         ensure!(
-            *self.state.pwr_mech_in.get_fresh(||format_dbg!())? >= si::Power::ZERO,
+            *self.state.pwr_mech_in.get_fresh(|| format_dbg!())? >= si::Power::ZERO,
             format!(
                 "{}\nfc can only produce positive power",
-                format_dbg!(*self.state.pwr_mech_in.get_fresh(||format_dbg!())? >= si::Power::ZERO)
+                format_dbg!(
+                    *self.state.pwr_mech_in.get_fresh(|| format_dbg!())? >= si::Power::ZERO
+                )
             ),
         );
         self.state.energy_mech_in.increment(
-            *self.state.pwr_mech_in.get_fresh(||format_dbg!())? * dt,
-            ||format_dbg!()
+            *self.state.pwr_mech_in.get_fresh(|| format_dbg!())? * dt,
+            || format_dbg!(),
         )?;
 
         self.state.pwr_loss.update(
-            *self.state.pwr_mech_in.get_fresh(||format_dbg!())? - (*self.state.pwr_elec_prop_out.get_fresh(||format_dbg!())? + *self.state.pwr_elec_aux.get_fresh(||format_dbg!())?),
-            ||format_dbg!()
+            *self.state.pwr_mech_in.get_fresh(|| format_dbg!())?
+                - (*self.state.pwr_elec_prop_out.get_fresh(|| format_dbg!())?
+                    + *self.state.pwr_elec_aux.get_fresh(|| format_dbg!())?),
+            || format_dbg!(),
         )?;
         self.state.energy_loss.increment(
-            *self.state.pwr_loss.get_fresh(||format_dbg!())? * dt,
-            ||format_dbg!()
+            *self.state.pwr_loss.get_fresh(|| format_dbg!())? * dt,
+            || format_dbg!(),
         )?;
         Ok(())
     }
@@ -384,13 +393,16 @@ impl ElectricMachine for Generator {
                 &self.eta_interp,
                 false,
             )?;
-        self.state.pwr_elec_out_max.update(
-            (pwr_in_max * eta).min(self.pwr_out_max),
-            ||format_dbg!()
-        )?;
+        self.state
+            .pwr_elec_out_max
+            .update((pwr_in_max * eta).min(self.pwr_out_max), || format_dbg!())?;
         ensure!(
-            *self.state.pwr_elec_out_max.get_fresh(||format_dbg!())? >= si::Power::ZERO,
-            format_dbg!(self.state.pwr_elec_out_max.get_fresh(||format_dbg!())?.get::<si::kilowatt>())
+            *self.state.pwr_elec_out_max.get_fresh(|| format_dbg!())? >= si::Power::ZERO,
+            format_dbg!(self
+                .state
+                .pwr_elec_out_max
+                .get_fresh(|| format_dbg!())?
+                .get::<si::kilowatt>())
         );
         if let Some(pwr_aux) = pwr_aux {
             ensure!(
@@ -399,8 +411,8 @@ impl ElectricMachine for Generator {
             )
         };
         self.state.pwr_elec_prop_out_max.update(
-            *self.state.pwr_elec_out_max.get_fresh(||format_dbg!())? - pwr_aux.unwrap(),
-            ||format_dbg!()
+            *self.state.pwr_elec_out_max.get_fresh(|| format_dbg!())? - pwr_aux.unwrap(),
+            || format_dbg!(),
         )?;
 
         Ok(())
@@ -409,12 +421,18 @@ impl ElectricMachine for Generator {
     fn set_pwr_rate_out_max(&mut self, pwr_rate_in_max: si::PowerRate) -> anyhow::Result<()> {
         self.state.pwr_rate_out_max.update(
             pwr_rate_in_max
-            * if self.state.eta.get_fresh(||format_dbg!())?.get::<si::ratio>() > 0.0 {
-                *self.state.eta.get_fresh(||format_dbg!())?
-            } else {
-                uc::R * 1.0
-            },
-            ||format_dbg!()
+                * if self
+                    .state
+                    .eta
+                    .get_fresh(|| format_dbg!())?
+                    .get::<si::ratio>()
+                    > 0.0
+                {
+                    *self.state.eta.get_fresh(|| format_dbg!())?
+                } else {
+                    uc::R * 1.0
+                },
+            || format_dbg!(),
         )?;
         Ok(())
     }
@@ -479,7 +497,7 @@ mod tests {
     fn test_that_i_increments() {
         let mut gen = test_gen();
         gen.step(|| format_dbg!());
-        assert_eq!(2, *gen.state.i.get_fresh(||format_dbg!()).unwrap());
+        assert_eq!(2, *gen.state.i.get_fresh(|| format_dbg!()).unwrap());
     }
 
     #[test]
@@ -506,7 +524,7 @@ mod tests {
             .history
             .energy_loss
             .iter()
-            .map(|x| *x.get_fresh(||format_dbg!()).get::<si::joule>())
+            .map(|x| x.get_fresh(|| format_dbg!()).unwrap().get::<si::joule>())
             .collect::<Vec<_>>();
         for i in 1..energy_loss_j.len() {
             assert!(energy_loss_j[i] >= energy_loss_j[i - 1]);

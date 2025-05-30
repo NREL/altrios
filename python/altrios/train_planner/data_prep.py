@@ -222,10 +222,10 @@ def build_locopool(
 
     if config.single_train_mode:
         sorted_nodes = np.tile([demand.select(pl.col("Origin").first()).item()],rows).tolist()
-        engine_numbers = range(0, rows)
+        loco_numbers = range(0, rows)
     else:
         sorted_nodes = np.sort(np.tile(node_list, initial_size)).tolist()
-        engine_numbers = rankdata(sorted_nodes, method="dense") * 1000 + \
+        loco_numbers = rankdata(sorted_nodes, method="dense") * 1000 + \
             np.tile(range(0, initial_size), num_nodes)
 
     if method == "tile":
@@ -270,7 +270,7 @@ def build_locopool(
             f"""Locopool build method '{method}' invalid or not implemented.""")
 
     loco_pool = pl.DataFrame(
-        {'Locomotive_ID': pl.Series(engine_numbers, dtype=pl.UInt32),
+        {'Locomotive_ID': pl.Series(loco_numbers, dtype=pl.UInt32),
          'Locomotive_Type': pl.Series(types, dtype=pl.Categorical),
          'Node': pl.Series(sorted_nodes, dtype=pl.Categorical),
          'Arrival_Time': pl.Series(np.zeros(rows), dtype=pl.Float64),

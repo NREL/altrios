@@ -41,18 +41,18 @@ impl BatteryElectricLoco {
         pwr_aux: si::Power,
     ) -> anyhow::Result<()> {
         self.edrv.set_pwr_in_req(pwr_out_req, dt)?;
-        if self.edrv.state.pwr_elec_prop_in > si::Power::ZERO {
+        if *self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())? > si::Power::ZERO {
             // positive traction
             self.res
-                .solve_energy_consumption(self.edrv.state.pwr_elec_prop_in, pwr_aux, dt)?;
+                .solve_energy_consumption(*self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?, pwr_aux, dt)?;
         } else {
             // negative traction
             self.res.solve_energy_consumption(
-                self.edrv.state.pwr_elec_prop_in,
+                *self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?,
                 // limit aux power to whatever is actually available
                 pwr_aux
                     // whatever power is available from regen plus normal
-                    .min(self.res.state.pwr_prop_max - self.edrv.state.pwr_elec_prop_in)
+                    .min(*self.res.state.pwr_prop_max.get_stale(|| format_dbg!())? - *self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?)
                     .max(si::Power::ZERO),
                 dt,
             )?;
@@ -154,20 +154,20 @@ impl LocoTrait for BatteryElectricLoco {
             chrg_buffer,
         )?;
         self.edrv
-            .set_cur_pwr_max_out(self.res.state.pwr_prop_max, None)?;
+            .set_cur_pwr_max_out(*self.res.state.pwr_prop_max.get_stale(|| format_dbg!())?, None)?;
         self.edrv
-            .set_cur_pwr_regen_max(self.res.state.pwr_charge_max)?;
+            .set_cur_pwr_regen_max(*self.res.state.pwr_charge_max.get_stale(|| format_dbg!())?)?;
 
         // power rate is never limiting in BEL, but assuming dt will be same
         // in next time step, we can synthesize a rate
         self.edrv.set_pwr_rate_out_max(
-            (self.edrv.state.pwr_mech_out_max - self.edrv.state.pwr_mech_prop_out) / dt,
+            (*self.edrv.state.pwr_mech_out_max.get_fresh(|| format_dbg!())? - *self.edrv.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())?) / dt,
         );
         Ok(())
     }
 
     fn get_energy_loss(&self) -> si::Energy {
-        self.res.state.energy_loss + self.edrv.state.energy_loss
+        *self.res.state.energy_loss.get_fresh(|| format_dbg!())? + *self.edrv.state.energy_loss.get_fresh(|| format_dbg!())?
     }
 }
 

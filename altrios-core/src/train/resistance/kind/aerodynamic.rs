@@ -2,11 +2,19 @@ use crate::imports::*;
 use crate::train::TrainState;
 
 // TODO implement method for elevation-dependent air density
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Basic {
     cd_area: si::Area,
 }
+
+#[pyo3_api]
+impl Basic {}
+
+impl Init for Basic {}
+impl SerdeAPI for Basic {}
+
 impl Basic {
     pub fn new(cd_area: si::Area) -> Self {
         Self { cd_area }

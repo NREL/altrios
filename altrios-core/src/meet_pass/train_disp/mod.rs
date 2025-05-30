@@ -7,7 +7,7 @@ pub use free_path::FreePathStatus;
 
 mod advance_rewind;
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, SerdeAPI)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TrainDisp {
     /// Estimated time network. Does not change after creation
     est_times: Vec<EstTime>,

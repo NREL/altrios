@@ -1,4 +1,3 @@
-use altrios_proc_macros::altrios_api;
 use serde::{Deserialize, Serialize};
 
 use crate::consist::locomotive::loco_sim::PowerTrace;
@@ -6,8 +5,17 @@ use crate::consist::Consist;
 use crate::consist::LocoTrait;
 use crate::imports::*;
 
+#[serde_api]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-#[altrios_api(
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct ConsistSimulation {
+    pub loco_con: Consist,
+    pub power_trace: PowerTrace,
+    pub i: usize,
+}
+
+#[pyo3_api]
+impl ConsistSimulation {
     #[new]
     #[pyo3(signature = (consist, power_trace, save_interval=None))]
     fn __new__(consist: Consist, power_trace: PowerTrace, save_interval: Option<usize>) -> Self {
@@ -22,7 +30,7 @@ use crate::imports::*;
 
     #[pyo3(name = "step")]
     fn step_py(&mut self) -> anyhow::Result<()> {
-        self.step()
+        self.step(|| format_dbg!())
     }
 
     #[pyo3(name = "set_save_interval")]
@@ -42,11 +50,6 @@ use crate::imports::*;
         self.trim_failed_steps()?;
         Ok(())
     }
-)]
-pub struct ConsistSimulation {
-    pub loco_con: Consist,
-    pub power_trace: PowerTrace,
-    pub i: usize,
 }
 
 impl ConsistSimulation {
@@ -54,7 +57,7 @@ impl ConsistSimulation {
         let mut consist_sim = Self {
             loco_con: consist,
             power_trace,
-            i: 1,
+            i: Default::default(),
         };
         consist_sim.loco_con.set_save_interval(save_interval);
         consist_sim
@@ -72,15 +75,6 @@ impl ConsistSimulation {
 
     pub fn set_save_interval(&mut self, save_interval: Option<usize>) {
         self.loco_con.set_save_interval(save_interval);
-    }
-
-    pub fn step(&mut self) -> anyhow::Result<()> {
-        self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.i)))?;
-        self.save_state();
-        self.i += 1;
-        self.loco_con.step();
-        Ok(())
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
@@ -107,15 +101,11 @@ impl ConsistSimulation {
         Ok(())
     }
 
-    fn save_state(&mut self) {
-        self.loco_con.save_state();
-    }
-
     /// Iterates step to solve all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
-        self.save_state();
+        self.save_state(|| format_dbg!());
         while self.i < self.power_trace.len() {
-            self.step()?;
+            self.step(|| format_dbg!())?;
         }
         Ok(())
     }
@@ -140,6 +130,41 @@ impl ConsistSimulation {
             Some(true),
         )?;
         Ok(())
+    }
+}
+
+impl StateMethods for ConsistSimulation {}
+
+impl SetCumulative for ConsistSimulation {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
+        self.loco_con
+            .save_state(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+
+impl CheckAndResetState for ConsistSimulation {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.loco_con
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+
+impl Step for ConsistSimulation {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.solve_step()
+            .map_err(|err| err.context(format!("time step: {}", self.i)))?;
+        self.save_state(|| format_dbg!());
+        self.i += 1;
+        self.loco_con.step(|| format_dbg!());
+        Ok(())
+    }
+}
+
+impl SaveState for ConsistSimulation {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.loco_con.save_state(|| format_dbg!())
     }
 }
 

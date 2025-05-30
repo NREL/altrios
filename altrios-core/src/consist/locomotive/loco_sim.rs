@@ -6,18 +6,9 @@ use crate::consist::locomotive::Locomotive;
 use crate::consist::LocoTrait;
 use crate::imports::*;
 
-#[altrios_api(
-    #[staticmethod]
-    #[pyo3(name = "from_csv_file")]
-    fn from_csv_file_py(pathstr: String) -> anyhow::Result<Self> {
-        Self::from_csv_file(&pathstr)
-    }
-
-    fn __len__(&self) -> usize {
-        self.len()
-    }
-)]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, SerdeAPI)]
+#[serde_api]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Container
 pub struct PowerTrace {
     /// simulation time
@@ -30,9 +21,24 @@ pub struct PowerTrace {
     /// Speed, needed only if simulating [HybridElectricLocomotive]  
     pub train_speed: Vec<si::Velocity>,
     /// Train mass, needed only if simulating [HybridElectricLocomotive]
-    #[api(skip_get, skip_set)]
     pub train_mass: Option<si::Mass>,
 }
+
+#[pyo3_api]
+impl PowerTrace {
+    #[staticmethod]
+    #[pyo3(name = "from_csv_file")]
+    fn from_csv_file_py(pathstr: String) -> anyhow::Result<Self> {
+        Self::from_csv_file(&pathstr)
+    }
+
+    fn __len__(&self) -> usize {
+        self.len()
+    }
+}
+
+impl Init for PowerTrace {}
+impl SerdeAPI for PowerTrace {}
 
 impl PowerTrace {
     pub fn empty() -> Self {
@@ -122,7 +128,7 @@ impl Default for PowerTrace {
 }
 
 /// Element of [PowerTrace].  Used for vec-like operations.
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PowerTraceElement {
     /// simulation time
     time: si::Time,
@@ -134,7 +140,18 @@ pub struct PowerTraceElement {
     train_speed: Option<si::Velocity>,
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Struct for simulating operation of a standalone locomotive.
+pub struct LocomotiveSimulation {
+    pub loco_unit: Locomotive,
+    pub power_trace: PowerTrace,
+    pub i: usize,
+}
+
+#[pyo3_api]
+impl LocomotiveSimulation {
     #[new]
     #[pyo3(signature = (loco_unit, power_trace, save_interval=None))]
     fn __new__(
@@ -153,7 +170,7 @@ pub struct PowerTraceElement {
 
     #[pyo3(name = "step")]
     fn step_py(&mut self) -> anyhow::Result<()> {
-        self.step()
+        self.step(|| format_dbg!())
     }
 
     #[pyo3(name = "set_save_interval")]
@@ -174,13 +191,6 @@ pub struct PowerTraceElement {
         self.trim_failed_steps()?;
         Ok(())
     }
-)]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-/// Struct for simulating operation of a standalone locomotive.
-pub struct LocomotiveSimulation {
-    pub loco_unit: Locomotive,
-    pub power_trace: PowerTrace,
-    pub i: usize,
 }
 
 impl LocomotiveSimulation {
@@ -192,7 +202,7 @@ impl LocomotiveSimulation {
         let mut loco_sim = Self {
             loco_unit,
             power_trace,
-            i: 1,
+            i: Default::default(),
         };
         loco_sim.loco_unit.set_save_interval(save_interval);
         loco_sim
@@ -214,15 +224,6 @@ impl LocomotiveSimulation {
 
     pub fn get_save_interval(&self) -> Option<usize> {
         self.loco_unit.get_save_interval()
-    }
-
-    pub fn step(&mut self) -> anyhow::Result<()> {
-        self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.i)))?;
-        self.save_state();
-        self.i += 1;
-        self.loco_unit.step();
-        Ok(())
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
@@ -266,15 +267,11 @@ impl LocomotiveSimulation {
         Ok(())
     }
 
-    fn save_state(&mut self) {
-        self.loco_unit.save_state();
-    }
-
     /// Iterates `save_state` and `step` through all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
-        self.save_state();
+        self.save_state(|| format_dbg!());
         while self.i < self.power_trace.len() {
-            self.step()?
+            self.step(|| format_dbg!())?
         }
         ensure!(self.i == self.power_trace.len());
         Ok(())
@@ -305,6 +302,26 @@ impl LocomotiveSimulation {
     }
 }
 
+impl Step for LocomotiveSimulation {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.solve_step()
+            .map_err(|err| err.context(format!("time step: {}", self.i)))?;
+        self.save_state(|| format_dbg!());
+        self.i += 1;
+        self.loco_unit.step(|| format_dbg!());
+        Ok(())
+    }
+}
+
+impl SaveState for LocomotiveSimulation {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.loco_unit.save_state(|| format_dbg!())?;
+        Ok(())
+    }
+}
+
+impl StateMethods for LocomotiveSimulation {}
+
 impl Init for LocomotiveSimulation {
     fn init(&mut self) -> Result<(), Error> {
         self.loco_unit.init()?;
@@ -324,26 +341,30 @@ impl Default for LocomotiveSimulation {
     }
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
+impl LocomotiveSimulationVec {
+    pub fn new(value: Vec<LocomotiveSimulation>) -> Self {
+        Self(value)
+    }
+}
+
+#[pyo3_api]
+impl LocomotiveSimulationVec {
     #[new]
     /// Rust-defined `__new__` magic method for Python used exposed via PyO3.
     fn __new__(v: Vec<LocomotiveSimulation>) -> Self {
         Self(v)
     }
 
-    #[pyo3(name="walk")]
+    #[pyo3(name = "walk")]
     #[pyo3(signature = (b_parallelize=None))]
     /// Exposes `walk` to Python.
     fn walk_py(&mut self, b_parallelize: Option<bool>) -> anyhow::Result<()> {
         let b_par = b_parallelize.unwrap_or(false);
         self.walk(b_par)
-    }
-)]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct LocomotiveSimulationVec(pub Vec<LocomotiveSimulation>);
-impl LocomotiveSimulationVec {
-    pub fn new(value: Vec<LocomotiveSimulation>) -> Self {
-        Self(value)
     }
 }
 

@@ -852,6 +852,13 @@ impl ReversibleEnergyStorage {
 
     /// Mean efficiency in charge direction
     pub fn mean_chrg_eff(&self) -> si::Ratio {
+        // demo of how to use `fold`
+        let delete_me = (0..=4).collect::<Vec<u32>>().iter().fold(
+            0, // this is the init value
+            |acc, curr| acc + curr // this is the thing that happens, in this case, 0 + 0 = 0 => 0 + 1 = 1 => 1 + 2 = 3 => 3 + 3 = 6 => 6 + 4 = 10 
+        );
+        // I think `|acc.get_fresh(|| format_dbg!())?, (eta.get_fresh(|| format_dbg!())?, pwr_out.get_fresh(|| format_dbg!())?)|` needs to be more like `|acc, curr|`.  These are function args with arbitrary names that should be descriptive.  By convention `acc` is the accumulator variable, and `curr` is the value at the current index.  
+        todo!("{delete_me}");
         self.history
             .eta
             .iter()

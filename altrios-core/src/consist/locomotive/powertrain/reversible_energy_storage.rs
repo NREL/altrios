@@ -373,8 +373,8 @@ impl ReversibleEnergyStorage {
         );
 
         let initial_state = ReversibleEnergyStorageState {
-            soc: uc::R * initial_soc,
-            temperature_celsius: initial_temperature_celcius,
+            soc: TrackedState::new(uc::R * initial_soc),
+            temperature_celsius: TrackedState::new(initial_temperature_celcius),
             ..Default::default()
         };
         let interp_grid = [temperature_interp_grid, soc_interp_grid, c_rate_interp_grid];
@@ -856,8 +856,8 @@ impl ReversibleEnergyStorage {
             .eta
             .iter()
             .zip(self.history.pwr_out_electrical.clone())
-            .fold(si::Ratio::ZERO, |acc.get_fresh(|| format_dbg!())?, (eta.get_fresh(|| format_dbg!())?, pwr_out.get_fresh(|| format_dbg!())?)| {
-                if pwr_out.get_fresh(|| format_dbg!())? < si::Power::ZERO {
+            .fold(si::Ratio::ZERO, |acc, curr| {
+                if *pwr_out.get_fresh(|| format_dbg!())? < si::Power::ZERO {
                     *acc.get_fresh(|| format_dbg!())? + *eta.get_fresh(|| format_dbg!())?
                 } else {
                     *acc.get_fresh(|| format_dbg!())?

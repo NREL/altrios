@@ -173,25 +173,25 @@ impl LocoTrait for Box<HybridLoco> {
         )?;
 
         self.edrv.set_cur_pwr_max_out(
-            self.gen.state.pwr_elec_prop_out_max + self.res.state.pwr_prop_max,
+            *self.gen.state.pwr_elec_prop_out_max.get_stale(|| format_dbg!())? + *self.res.state.pwr_prop_max.get_stale(|| format_dbg!())?,
             None,
         )?;
 
         self.edrv
-            .set_cur_pwr_regen_max(self.res.state.pwr_charge_max)?;
+            .set_cur_pwr_regen_max(*self.res.state.pwr_charge_max.get_stale(|| format_dbg!())?)?;
 
         self.gen
             .set_pwr_rate_out_max(self.fc.pwr_out_max / self.fc.pwr_ramp_lag);
         self.edrv
-            .set_pwr_rate_out_max(self.gen.state.pwr_rate_out_max);
+            .set_pwr_rate_out_max(*self.gen.state.pwr_rate_out_max.get_stale(|| format_dbg!())?);
         Ok(())
     }
 
     fn get_energy_loss(&self) -> si::Energy {
-        self.fc.state.energy_loss
-            + self.gen.state.energy_loss
-            + self.res.state.energy_loss
-            + self.edrv.state.energy_loss
+        *self.fc.state.energy_loss.get_stale(|| format_dbg!())?
+            + *self.gen.state.energy_loss.get_stale(|| format_dbg!())?
+            + *self.res.state.energy_loss.get_stale(|| format_dbg!())?
+            + *self.edrv.state.energy_loss.get_stale(|| format_dbg!())?
     }
 }
 
@@ -216,7 +216,7 @@ impl HybridLoco {
         let (gen_pwr_out_req, res_pwr_out_req) = self
             .pt_cntrl
             .get_pwr_gen_and_res(
-                self.edrv.state.pwr_elec_prop_in,
+                *self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?,
                 train_mass,
                 train_speed,
                 &self.fc,
@@ -237,7 +237,7 @@ impl HybridLoco {
                 dt,
             )
             .with_context(|| format!("{}", format_dbg!(fc_on)))?;
-        let fc_pwr_mech_out = self.gen.state.pwr_mech_in;
+        let fc_pwr_mech_out = *self.gen.state.pwr_mech_in.get_stale(|| format_dbg!())?;
 
         self.fc
             .solve_energy_consumption(fc_pwr_mech_out, dt, fc_on, assert_limits)
@@ -262,22 +262,22 @@ impl HybridLoco {
 {} kW",
                     format_dbg!(fc_on).replace("\"", ""),
                     format_dbg!(pwr_out_req.get::<si::kilowatt>()).replace("\"", ""),
-                    format_dbg!(self.edrv.state.pwr_elec_prop_in.get::<si::kilowatt>())
+                    format_dbg!(self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
                         .replace("\"", ""),
                     format_dbg!(gen_pwr_out_req.get::<si::kilowatt>()).replace("\"", ""),
-                    format_dbg!(self.gen.state.pwr_elec_aux.get::<si::kilowatt>())
+                    format_dbg!(self.gen.state.pwr_elec_aux.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
                         .replace("\"", ""),
-                    format_dbg!(self.gen.state.pwr_elec_out_max.get::<si::kilowatt>())
+                    format_dbg!(self.gen.state.pwr_elec_out_max.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
                         .replace("\"", ""),
-                    format_dbg!(self.gen.state.pwr_mech_in.get::<si::kilowatt>()).replace("\"", ""),
+                    format_dbg!(self.gen.state.pwr_mech_in.get_stale(|| format_dbg!())?.get::<si::kilowatt>()).replace("\"", ""),
                     format_dbg!(res_pwr_out_req.get::<si::kilowatt>()).replace("\"", ""),
-                    format_dbg!(self.res.state.pwr_prop_max.get::<si::kilowatt>())
+                    format_dbg!(self.res.state.pwr_prop_max.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
                         .replace("\"", ""),
-                    format_dbg!(self.res.state.pwr_disch_max.get::<si::kilowatt>())
+                    format_dbg!(self.res.state.pwr_disch_max.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
                         .replace("\"", ""),
-                    format_dbg!(self.res.state.pwr_regen_max.get::<si::kilowatt>())
+                    format_dbg!(self.res.state.pwr_regen_max.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
                         .replace("\"", ""),
-                    format_dbg!(self.res.state.pwr_charge_max.get::<si::kilowatt>())
+                    format_dbg!(self.res.state.pwr_charge_max.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
                         .replace("\"", ""),
                 )
             })?;

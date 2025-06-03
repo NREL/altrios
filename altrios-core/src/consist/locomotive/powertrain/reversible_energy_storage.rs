@@ -864,10 +864,10 @@ impl ReversibleEnergyStorage {
             .iter()
             .zip(self.history.pwr_out_electrical.clone())
             .fold(si::Ratio::ZERO, |acc, curr| {
-                if *pwr_out.get_fresh(|| format_dbg!())? < si::Power::ZERO {
-                    *acc.get_fresh(|| format_dbg!())? + *eta.get_fresh(|| format_dbg!())?
+                if *acc.get_fresh(||format_dbg!())? < si::Power::ZERO {
+                    *acc.get_fresh(||format_dbg!())? + *curr.get_fresh(||format_dbg!())?
                 } else {
-                    *acc.get_fresh(|| format_dbg!())?
+                    *acc.get_fresh(||format_dbg!())?
                 }
             })
             / (self.history.len() as f64)

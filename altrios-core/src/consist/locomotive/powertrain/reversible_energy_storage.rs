@@ -901,19 +901,22 @@ impl ReversibleEnergyStorage {
     }
 
     /// Mean efficiency in discharge direction
-    pub fn mean_dschrg_eff(&self) -> si::Ratio {
-        self.history
+    pub fn mean_dschrg_eff(&self) -> anyhow::Result<si::Ratio> {
+        let mut eta_sum = si::Ratio::ZERO;
+        for (eta, pwr_out) in self
+            .history
             .eta
             .iter()
             .zip(self.history.pwr_out_electrical.clone())
-            .fold(si::Ratio::ZERO, |acc, (eta, pwr_out)| {
-                if pwr_out >= si::Power::ZERO {
-                    acc + *eta
-                } else {
-                    acc
-                }
-            })
-            / (self.history.len() as f64)
+        {
+            eta_sum += if *pwr_out.get_fresh(|| format_dbg!())? >= si::Power::ZERO {
+                *eta.get_fresh(|| format_dbg!())?
+            } else {
+                si::Ratio::ZERO
+            };
+        }
+
+        Ok(eta_sum / (self.history.len() as f64))
     }
 }
 

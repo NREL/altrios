@@ -86,8 +86,9 @@ dependencies = [
 
 [[package]]
 name = "altrios-proc-macros"
-version = "0.2.4"
+version = "1.0.0"
 dependencies = [
+ "lazy_static",
  "proc-macro-error",
  "proc-macro2",
  "quote",

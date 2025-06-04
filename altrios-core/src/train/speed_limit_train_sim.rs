@@ -4,23 +4,24 @@ use crate::imports::*;
 use crate::track::link::network::Network;
 use crate::track::{LinkPoint, Location};
 
-#[altrios_api(
-    #[new]
-    fn __new__(
-        link_idx: LinkIdx,
-        time_seconds: f64,
-    ) -> Self {
-        Self::new(
-            link_idx,
-            time_seconds * uc::S
-        )
-    }
-)]
-#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct LinkIdxTime {
     pub link_idx: LinkIdx,
     pub time: si::Time,
 }
+
+#[pyo3_api]
+impl LinkIdxTime {
+    #[new]
+    fn __new__(link_idx: LinkIdx, time_seconds: f64) -> Self {
+        Self::new(link_idx, time_seconds * uc::S)
+    }
+}
+
+impl Init for LinkIdxTime {}
+impl SerdeAPI for LinkIdxTime {}
 
 impl LinkIdxTime {
     pub fn new(link_idx: LinkIdx, time: si::Time) -> Self {
@@ -28,11 +29,18 @@ impl LinkIdxTime {
     }
 }
 
-#[altrios_api]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Struct that contains a `Vec<LinkIdxTime>` for the purpose of providing `SerdeAPI` for
 /// `Vec<LinkIdxTime>` in Python
 pub struct TimedLinkPath(pub Vec<LinkIdxTime>);
+
+#[pyo3_api]
+impl TimedLinkPath {}
+
+impl Init for TimedLinkPath {}
+impl SerdeAPI for TimedLinkPath {}
 
 impl TimedLinkPath {
     /// Implement the non-Python `new` method.
@@ -53,7 +61,46 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     }
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Train simulation in which speed is allowed to vary according to train capabilities and speed
+/// limit.  Note that this is not guaranteed to produce identical results to [super::SetSpeedTrainSim]
+/// because of differences in braking controls but should generally be very close (i.e. error in cumulative
+/// fuel/battery energy should be less than 0.1%)
+pub struct SpeedLimitTrainSim {
+    pub train_id: String,
+    pub origs: Vec<Location>,
+    pub dests: Vec<Location>,
+    // #[has_state]
+    pub loco_con: Consist,
+    /// Number of railcars by type on the train
+    pub n_cars_by_type: HashMap<String, u32>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    pub state: TrainState,
+
+    pub train_res: TrainRes,
+
+    pub path_tpc: PathTpc,
+
+    pub braking_points: BrakingPoints,
+    // #[has_state]
+    pub fric_brake: FricBrake,
+    /// Custom vector of [Self::state]
+    #[serde(default)]
+    pub history: TrainStateHistoryVec,
+
+    save_interval: Option<usize>,
+    simulation_days: Option<i32>,
+    scenario_year: Option<i32>,
+    /// Time-dependent temperature at sea level that can be corrected for
+    /// altitude using a standard model
+    temp_trace: Option<TemperatureTrace>,
+}
+
+#[pyo3_api]
+impl SpeedLimitTrainSim {
     #[pyo3(name = "set_save_interval")]
     #[pyo3(signature = (save_interval=None))]
     /// Set save interval and cascade to nested components.
@@ -67,32 +114,32 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     }
 
     #[pyo3(name = "get_kilometers")]
-    pub fn get_kilometers_py(&self, annualize: bool)  -> f64 {
+    pub fn get_kilometers_py(&self, annualize: bool) -> f64 {
         self.get_kilometers(annualize)
     }
 
     #[pyo3(name = "get_megagram_kilometers")]
-    pub fn get_megagram_kilometers_py(&self, annualize: bool)  -> f64 {
+    pub fn get_megagram_kilometers_py(&self, annualize: bool) -> f64 {
         self.get_megagram_kilometers(annualize)
     }
 
     #[pyo3(name = "get_car_kilometers")]
-    pub fn get_car_kilometers_py(&self, annualize: bool)  -> f64 {
+    pub fn get_car_kilometers_py(&self, annualize: bool) -> f64 {
         self.get_car_kilometers(annualize)
     }
 
     #[pyo3(name = "get_cars_moved")]
-    pub fn get_cars_moved_py(&self, annualize: bool)  -> f64 {
+    pub fn get_cars_moved_py(&self, annualize: bool) -> f64 {
         self.get_cars_moved(annualize)
     }
 
     #[pyo3(name = "get_res_kilometers")]
-    pub fn get_res_kilometers_py(&mut self, annualize: bool)  -> f64 {
+    pub fn get_res_kilometers_py(&mut self, annualize: bool) -> f64 {
         self.get_res_kilometers(annualize)
     }
 
     #[pyo3(name = "get_non_res_kilometers")]
-    pub fn get_non_res_kilometers_py(&mut self, annualize: bool)  -> f64 {
+    pub fn get_non_res_kilometers_py(&mut self, annualize: bool) -> f64 {
         self.get_non_res_kilometers(annualize)
     }
 
@@ -108,7 +155,10 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
 
     #[pyo3(name = "get_energy_fuel_soc_corrected_joules")]
     pub fn get_energy_fuel_soc_corrected_py(&self) -> PyResult<f64> {
-        Ok(self.get_energy_fuel_soc_corrected().map_err(|err| anyhow!("{:?}", err))?.get::<si::joule>())
+        Ok(self
+            .get_energy_fuel_soc_corrected()
+            .map_err(|err| anyhow!("{:?}", err))?
+            .get::<si::joule>())
     }
 
     #[pyo3(name = "walk")]
@@ -123,7 +173,11 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
     }
 
     #[pyo3(name = "extend_path")]
-    pub fn extend_path_py(&mut self, network_file_path: String, link_path: Vec<LinkIdx>) -> anyhow::Result<()> {
+    pub fn extend_path_py(
+        &mut self,
+        network_file_path: String,
+        link_path: Vec<LinkIdx>,
+    ) -> anyhow::Result<()> {
         let network = Vec::<Link>::from_file(network_file_path, false).unwrap();
 
         self.extend_path(&network, &link_path)?;
@@ -139,54 +193,24 @@ impl From<&Vec<LinkIdxTime>> for TimedLinkPath {
         let network = match network.extract::<Network>() {
             Ok(n) => n,
             Err(_) => {
-                let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network( Default::default(), n)
+                let n = network
+                    .extract::<Vec<Link>>()
+                    .map_err(|_| anyhow!("{}", format_dbg!()))?;
+                Network(Default::default(), n)
             }
         };
 
         let timed_path = match timed_path.extract::<TimedLinkPath>() {
             Ok(tp) => tp,
             Err(_) => {
-                let tp = timed_path.extract::<Vec<LinkIdxTime>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                let tp = timed_path
+                    .extract::<Vec<LinkIdxTime>>()
+                    .map_err(|_| anyhow!("{}", format_dbg!()))?;
                 TimedLinkPath(tp)
             }
         };
         self.walk_timed_path(&network, timed_path)
     }
-)]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-/// Train simulation in which speed is allowed to vary according to train capabilities and speed
-/// limit.  Note that this is not guaranteed to produce identical results to [super::SetSpeedTrainSim]
-/// because of differences in braking controls but should generally be very close (i.e. error in cumulative
-/// fuel/battery energy should be less than 0.1%)
-pub struct SpeedLimitTrainSim {
-    #[api(skip_set)]
-    pub train_id: String,
-    pub origs: Vec<Location>,
-    pub dests: Vec<Location>,
-    pub loco_con: Consist,
-    /// Number of railcars by type on the train
-    pub n_cars_by_type: HashMap<String, u32>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    pub state: TrainState,
-    #[api(skip_set, skip_get)]
-    pub train_res: TrainRes,
-    #[api(skip_set)]
-    pub path_tpc: PathTpc,
-    #[api(skip_set)]
-    pub braking_points: BrakingPoints,
-    pub fric_brake: FricBrake,
-    /// Custom vector of [Self::state]
-    #[serde(default)]
-    pub history: TrainStateHistoryVec,
-    #[api(skip_set, skip_get)]
-    save_interval: Option<usize>,
-    simulation_days: Option<i32>,
-    scenario_year: Option<i32>,
-    /// Time-dependent temperature at sea level that can be corrected for
-    /// altitude using a standard model
-    temp_trace: Option<TemperatureTrace>,
 }
 
 pub struct SpeedLimitTrainSimBuilder {
@@ -396,16 +420,6 @@ impl SpeedLimitTrainSim {
         self.path_tpc.link_points()
     }
 
-    pub fn step(&mut self) -> anyhow::Result<()> {
-        self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
-        self.save_state();
-        self.loco_con.step();
-        self.fric_brake.step();
-        self.state.i += 1;
-        Ok(())
-    }
-
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         // set catenary power limit
         self.loco_con
@@ -446,17 +460,8 @@ impl SpeedLimitTrainSim {
             self.state.dt,
             Some(true),
         )?;
-        Ok(())
-    }
 
-    fn save_state(&mut self) {
-        if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 {
-                self.history.push(self.state);
-                self.loco_con.save_state();
-                self.fric_brake.save_state();
-            }
-        }
+        Ok(())
     }
 
     /// Walks until getting to the end of the path
@@ -465,7 +470,7 @@ impl SpeedLimitTrainSim {
             || (self.state.offset < self.path_tpc.offset_end()
                 && self.state.speed != si::Velocity::ZERO)
         {
-            self.step()?;
+            self.step(|| format_dbg!())?;
         }
         Ok(())
     }
@@ -473,7 +478,7 @@ impl SpeedLimitTrainSim {
     /// Iterates `save_state` and `step` until offset >= final offset --
     /// i.e. moves train forward until it reaches destination.
     pub fn walk(&mut self) -> anyhow::Result<()> {
-        self.save_state();
+        self.save_state(|| format_dbg!());
         self.walk_internal()
     }
 
@@ -490,7 +495,7 @@ impl SpeedLimitTrainSim {
             bail!("Timed path cannot be empty!");
         }
 
-        self.save_state();
+        self.save_state(|| format_dbg!());
         let mut idx_prev = 0;
         while idx_prev != timed_path.len() - 1 {
             let mut idx_next = idx_prev + 1;
@@ -508,7 +513,7 @@ impl SpeedLimitTrainSim {
             )?;
             idx_prev = idx_next;
             while self.state.time < time_extend {
-                self.step()?;
+                self.step(|| format_dbg!())?;
             }
         }
 
@@ -803,6 +808,54 @@ impl SpeedLimitTrainSim {
             &self.train_res,
             &self.path_tpc,
         )
+    }
+}
+
+impl StateMethods for SpeedLimitTrainSim {}
+impl CheckAndResetState for SpeedLimitTrainSim {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.state
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        self.fric_brake
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+impl SetCumulative for SpeedLimitTrainSim {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
+        self.state
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        self.fric_brake
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+impl SaveState for SpeedLimitTrainSim {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        if let Some(interval) = self.save_interval {
+            if self.state.i % interval == 0 {
+                self.history.push(self.state);
+                self.loco_con.save_state(|| format_dbg!())?;
+                self.fric_brake.save_state(|| format_dbg!())?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Step for SpeedLimitTrainSim {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.solve_step()
+            .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
+        self.save_state(|| format_dbg!());
+        self.loco_con.step(|| format_dbg!());
+        self.fric_brake.step(|| format_dbg!());
+        self.state.i += 1;
+        Ok(())
     }
 }
 

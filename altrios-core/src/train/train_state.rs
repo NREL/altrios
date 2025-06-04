@@ -1,8 +1,18 @@
 use crate::imports::*;
 use crate::track::PathTpc;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, HistoryVec)]
-#[altrios_api(
+#[serde_api]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, HistoryVec)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// For `SetSpeedTrainSim`, it is typically best to use the default for this.
+pub struct InitTrainState {
+    pub time: TrackedState<si::Time>,
+    pub offset: TrackedState<si::Length>,
+    pub speed: TrackedState<si::Velocity>,
+}
+
+#[pyo3_api]
+impl InitTrainState {
     #[new]
     #[pyo3(signature = (
         time_seconds=None,
@@ -20,12 +30,6 @@ use crate::track::PathTpc;
             speed_meters_per_second.map(|x| x * uc::MPS),
         )
     }
-)]
-/// For `SetSpeedTrainSim`, it is typically best to use the default for this.
-pub struct InitTrainState {
-    pub time: si::Time,
-    pub offset: si::Length,
-    pub speed: si::Velocity,
 }
 
 impl Init for InitTrainState {}
@@ -56,112 +60,84 @@ impl InitTrainState {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, HistoryVec, PartialEq)]
-#[altrios_api(
-    #[new]
-    #[allow(clippy::too_many_arguments)]
-    #[pyo3(signature = (
-        length_meters,
-        mass_static_kilograms,
-        mass_rot_kilograms,
-        mass_freight_kilograms,
-        init_train_state=None,
-    ))]
-    fn __new__(
-        length_meters: f64,
-        mass_static_kilograms: f64,
-        mass_rot_kilograms: f64,
-        mass_freight_kilograms: f64,
-        init_train_state: Option<InitTrainState>,
-    ) -> Self {
-        Self::new(
-            length_meters * uc::M,
-            mass_static_kilograms * uc::KG,
-            mass_rot_kilograms * uc::KG,
-            mass_freight_kilograms * uc::KG,
-            init_train_state,
-        )
-    }
-
-    #[getter("res_net")]
-    fn res_net_py(&self) -> PyResult<f64> {
-        Ok(self.res_net().get::<si::newton>())
-    }
+#[serde_api]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, HistoryVec, PartialEq, StateMethods, SetCumulative,
 )]
 pub struct TrainState {
     /// time since user-defined datum
-    pub time: si::Time,
+    pub time: TrackedState<si::Time>,
     /// index for time steps
-    pub i: usize,
+    pub i: TrackedState<usize>,
     /// Linear-along-track, directional distance of front of train from original
     /// starting position of back of train.
     ///
     /// If this is provided in [InitTrainState::new], it gets set as the train length or the value,
     /// whichever is larger, and if it is not provided, then it defaults to the train length.
-    pub offset: si::Length,
+    pub offset: TrackedState<si::Length>,
     /// Linear-along-track, directional distance of back of train from original
     /// starting position of back of train.
-    pub offset_back: si::Length,
+    pub offset_back: TrackedState<si::Length>,
     /// Linear-along-track, cumulative, absolute distance from initial starting position.
-    pub total_dist: si::Length,
+    pub total_dist: TrackedState<si::Length>,
     /// Current link containing head end (i.e. pulling locomotives) of train
-    pub link_idx_front: u32,
+    pub link_idx_front: TrackedState<u32>,
     /// Current link containing tail/back end of train
-    pub link_idx_back: u32,
+    pub link_idx_back: TrackedState<u32>,
     /// Offset from start of current link
-    pub offset_in_link: si::Length,
+    pub offset_in_link: TrackedState<si::Length>,
     /// Achieved speed based on consist capabilities and train resistance
-    pub speed: si::Velocity,
+    pub speed: TrackedState<si::Velocity>,
     /// Speed limit
-    pub speed_limit: si::Velocity,
+    pub speed_limit: TrackedState<si::Velocity>,
     /// Speed target from meet-pass planner
-    pub speed_target: si::Velocity,
+    pub speed_target: TrackedState<si::Velocity>,
     /// Time step size
-    pub dt: si::Time,
+    pub dt: TrackedState<si::Time>,
     /// Train length
-    pub length: si::Length,
+    pub length: TrackedState<si::Length>,
     /// Static mass of train, including freight
-    pub mass_static: si::Mass,
+    pub mass_static: TrackedState<si::Mass>,
     /// Effective additional mass of train due to rotational inertia
-    pub mass_rot: si::Mass,
+    pub mass_rot: TrackedState<si::Mass>,
     /// Mass of freight being hauled by the train (not including railcar empty weight)
-    pub mass_freight: si::Mass,
+    pub mass_freight: TrackedState<si::Mass>,
     /// Static weight of train
-    pub weight_static: si::Force,
+    pub weight_static: TrackedState<si::Force>,
     /// Rolling resistance force
-    pub res_rolling: si::Force,
+    pub res_rolling: TrackedState<si::Force>,
     /// Bearing resistance force
-    pub res_bearing: si::Force,
+    pub res_bearing: TrackedState<si::Force>,
     /// Davis B term resistance force
-    pub res_davis_b: si::Force,
+    pub res_davis_b: TrackedState<si::Force>,
     /// Aerodynamic resistance force
-    pub res_aero: si::Force,
+    pub res_aero: TrackedState<si::Force>,
     /// Grade resistance force
-    pub res_grade: si::Force,
+    pub res_grade: TrackedState<si::Force>,
     /// Curvature resistance force
-    pub res_curve: si::Force,
+    pub res_curve: TrackedState<si::Force>,
 
     /// Grade at front of train
-    pub grade_front: si::Ratio,
+    pub grade_front: TrackedState<si::Ratio>,
     /// Grade at back of train of train if strap method is used
-    pub grade_back: si::Ratio,
+    pub grade_back: TrackedState<si::Ratio>,
     /// Elevation at front of train
-    pub elev_front: si::Length,
+    pub elev_front: TrackedState<si::Length>,
     /// Elevation at back of train
-    pub elev_back: si::Length,
+    pub elev_back: TrackedState<si::Length>,
 
     /// Power to overcome train resistance forces
-    pub pwr_res: si::Power,
+    pub pwr_res: TrackedState<si::Power>,
     /// Power to overcome inertial forces
-    pub pwr_accel: si::Power,
+    pub pwr_accel: TrackedState<si::Power>,
     /// Total tractive power exerted by locomotive consist
-    pub pwr_whl_out: si::Power,
+    pub pwr_whl_out: TrackedState<si::Power>,
     /// Integral of [Self::pwr_whl_out]
-    pub energy_whl_out: si::Energy,
+    pub energy_whl_out: TrackedState<si::Energy>,
     /// Energy out during positive or zero traction
-    pub energy_whl_out_pos: si::Energy,
+    pub energy_whl_out_pos: TrackedState<si::Energy>,
     /// Energy out during negative traction (positive value means negative traction)
-    pub energy_whl_out_neg: si::Energy,
+    pub energy_whl_out_neg: TrackedState<si::Energy>,
 }
 
 impl Init for TrainState {}
@@ -171,7 +147,7 @@ impl Default for TrainState {
     fn default() -> Self {
         Self {
             time: Default::default(),
-            i: 1,
+            i: Default::default(),
             offset: Default::default(),
             offset_back: Default::default(),
             total_dist: si::Length::ZERO,
@@ -241,7 +217,7 @@ impl TrainState {
         let offset = init_train_state.offset.max(length);
         Self {
             time: init_train_state.time,
-            i: 1,
+            i: Default::default(),
             offset,
             offset_back: offset - length,
             total_dist: si::Length::ZERO,

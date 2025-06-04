@@ -1,7 +1,20 @@
 use super::environment::TemperatureTrace;
 use super::train_imports::*;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct SpeedTrace {
+    /// simulation time
+    pub time: Vec<si::Time>,
+    /// simulation speed
+    pub speed: Vec<si::Velocity>,
+    /// Whether engine is on
+    pub engine_on: Option<Vec<bool>>,
+}
+
+#[pyo3_api]
+impl SpeedTrace {
     #[new]
     #[pyo3(signature = (
         time_seconds,
@@ -11,7 +24,7 @@ use super::train_imports::*;
     fn __new__(
         time_seconds: Vec<f64>,
         speed_meters_per_second: Vec<f64>,
-        engine_on: Option<Vec<bool>>
+        engine_on: Option<Vec<bool>>,
     ) -> anyhow::Result<Self> {
         Ok(Self::new(time_seconds, speed_meters_per_second, engine_on))
     }
@@ -30,15 +43,6 @@ use super::train_imports::*;
     fn to_csv_file_py(&self, filepath: &Bound<PyAny>) -> anyhow::Result<()> {
         self.to_csv_file(PathBuf::extract_bound(filepath)?)
     }
-)]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerdeAPI)]
-pub struct SpeedTrace {
-    /// simulation time
-    pub time: Vec<si::Time>,
-    /// simulation speed
-    pub speed: Vec<si::Velocity>,
-    /// Whether engine is on
-    pub engine_on: Option<Vec<bool>>,
 }
 
 impl SpeedTrace {
@@ -161,6 +165,9 @@ impl SpeedTrace {
     }
 }
 
+impl Init for SpeedTrace {}
+impl SerdeAPI for SpeedTrace {}
+
 impl Default for SpeedTrace {
     fn default() -> Self {
         let mut speed_mps: Vec<f64> = Vec::linspace(0.0, 20.0, 800);
@@ -173,7 +180,7 @@ impl Default for SpeedTrace {
 }
 
 /// Element of [SpeedTrace].  Used for vec-like operations.
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SpeedTraceElement {
     /// simulation time
     #[serde(alias = "time_seconds")]
@@ -185,7 +192,37 @@ pub struct SpeedTraceElement {
     engine_on: Option<bool>,
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Train simulation in which speed is prescribed.  Note that this is not guaranteed to
+/// produce identical results to [super::SpeedLimitTrainSim] because of differences in braking
+/// controls but should generally be very close (i.e. error in cumulative fuel/battery energy
+/// should be less than 0.1%)
+pub struct SetSpeedTrainSim {
+    pub loco_con: Consist,
+    pub n_cars_by_type: HashMap<String, u32>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "EqDefault::eq_default")]
+    pub state: TrainState,
+    pub speed_trace: SpeedTrace,
+
+    /// train resistance calculation
+    pub train_res: TrainRes,
+
+    path_tpc: PathTpc,
+    /// Custom vector of [Self::state]
+    #[serde(default)]
+    pub history: TrainStateHistoryVec,
+
+    save_interval: Option<usize>,
+    /// Time-dependent temperature at sea level that can be corrected for
+    /// altitude using a standard model
+    temp_trace: Option<TemperatureTrace>,
+}
+
+#[pyo3_api]
+impl SetSpeedTrainSim {
     #[setter]
     pub fn set_res_strap(&mut self, res_strap: method::Strap) -> anyhow::Result<()> {
         self.train_res = TrainRes::Strap(res_strap);
@@ -222,7 +259,7 @@ pub struct SpeedTraceElement {
 
     #[pyo3(name = "step")]
     fn step_py(&mut self) -> anyhow::Result<()> {
-        self.step()
+        self.step(|| format_dbg!())
     }
 
     #[pyo3(name = "set_save_interval")]
@@ -242,32 +279,6 @@ pub struct SpeedTraceElement {
         self.trim_failed_steps()?;
         Ok(())
     }
-)]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-/// Train simulation in which speed is prescribed.  Note that this is not guaranteed to
-/// produce identical results to [super::SpeedLimitTrainSim] because of differences in braking
-/// controls but should generally be very close (i.e. error in cumulative fuel/battery energy
-/// should be less than 0.1%)
-pub struct SetSpeedTrainSim {
-    pub loco_con: Consist,
-    pub n_cars_by_type: HashMap<String, u32>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    pub state: TrainState,
-    pub speed_trace: SpeedTrace,
-    #[api(skip_get, skip_set)]
-    /// train resistance calculation
-    pub train_res: TrainRes,
-    #[api(skip_set)]
-    path_tpc: PathTpc,
-    /// Custom vector of [Self::state]
-    #[serde(default)]
-    pub history: TrainStateHistoryVec,
-    #[api(skip_set, skip_get)]
-    save_interval: Option<usize>,
-    /// Time-dependent temperature at sea level that can be corrected for
-    /// altitude using a standard model
-    temp_trace: Option<TemperatureTrace>,
 }
 
 pub struct SetSpeedTrainSimBuilder {
@@ -322,16 +333,6 @@ impl SetSpeedTrainSim {
         // this ensures that save interval has been propagated
         assert_eq!(self.save_interval, self.loco_con.get_save_interval());
         self.save_interval
-    }
-
-    /// Solves step, saves state, steps nested `loco_con`, and increments `self.i`.
-    pub fn step(&mut self) -> anyhow::Result<()> {
-        self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
-        self.save_state();
-        self.loco_con.step();
-        self.state.i += 1;
-        Ok(())
     }
 
     /// Solves time step.
@@ -392,21 +393,11 @@ impl SetSpeedTrainSim {
         Ok(())
     }
 
-    /// Saves current time step for self and nested `loco_con`.
-    fn save_state(&mut self) {
-        if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 {
-                self.history.push(self.state);
-                self.loco_con.save_state();
-            }
-        }
-    }
-
     /// Iterates `save_state` and `step` through all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
-        self.save_state();
+        self.save_state(|| format_dbg!());
         while self.state.i < self.speed_trace.len() {
-            self.step()?;
+            self.step(|| format_dbg!())?;
         }
         Ok(())
     }
@@ -459,6 +450,49 @@ impl SetSpeedTrainSim {
     }
 }
 
+impl StateMethods for SetSpeedTrainSim {}
+impl CheckAndResetState for SetSpeedTrainSim {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.state
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+impl SetCumulative for SetSpeedTrainSim {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
+        self.state
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+
+impl Step for SetSpeedTrainSim {
+    /// Solves step, saves state, steps nested `loco_con`, and increments `self.i`.
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.solve_step()
+            .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
+        self.save_state(|| format_dbg!());
+        self.loco_con.step(|| format_dbg!());
+        self.state.i += 1;
+        Ok(())
+    }
+}
+impl SaveState for SetSpeedTrainSim {
+    /// Saves current time step for self and nested `loco_con`.
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        if let Some(interval) = self.save_interval {
+            if self.state.i % interval == 0 {
+                self.history.push(self.state);
+                self.loco_con.save_state(|| format_dbg!())?;
+            }
+        }
+        Ok(())
+    }
+}
 impl Init for SetSpeedTrainSim {
     fn init(&mut self) -> Result<(), Error> {
         self.loco_con.init()?;

@@ -33,11 +33,11 @@ try:
 except ModuleNotFoundError as err:
     print(
         f"{err}\nTry running `pip install pymoo==0.6.0.1` to use all features in "
-        + "`fastsim.calibration`"
+        + "`altrios.pymoo_api`"
     )
     PYMOO_AVAILABLE = False
 
-import fastsim as fsim
+import altrios as alt
 
 
 def get_error_val(
@@ -60,7 +60,11 @@ def get_error_val(
         f"{len(model)}, {len(test)}, {len(time_steps)}"
     )
 
-    return np.trapz(y=abs(model - test), x=time_steps) / (time_steps[-1] - time_steps[0])
+    err_val: float = np.trapz(y=abs(model - test), x=time_steps) / (
+        time_steps[-1] - time_steps[0]
+    )
+
+    return err_val
 
 
 @dataclass
@@ -128,9 +132,15 @@ class ModelObjectives(object):
 
     def __post_init__(self):
         assert self.n_obj is None, "`n_obj` is not intended to be user provided"
-        assert len(self.dfs) == len(self.models), f"{len(self.dfs)} != {len(self.models)}"
-        self.param_fns: Tuple[Callable] = tuple([pb[0] for pb in self.param_fns_and_bounds])  # type: ignore[annotation-unchecked]
-        self.bounds: Tuple[Tuple[float, float]] = tuple([pb[1] for pb in self.param_fns_and_bounds])  # type: ignore[annotation-unchecked]
+        assert len(self.dfs) == len(self.models), (
+            f"{len(self.dfs)} != {len(self.models)}"
+        )
+        self.param_fns: tuple[Callable] = tuple(
+            [pb[0] for pb in self.param_fns_and_bounds]
+        )  # type: ignore[annotation-unchecked]
+        self.bounds: Tuple[Tuple[float, float]] = tuple(
+            [pb[1] for pb in self.param_fns_and_bounds]
+        )  # type: ignore[annotation-unchecked]
         assert len(self.bounds) == len(self.param_fns)
         self.n_obj = len(self.models) * len(self.obj_fns)
         self.n_constr = len(self.models) * len(self.constr_fns)
@@ -156,7 +166,7 @@ class ModelObjectives(object):
 
         for key, pydict in self.models.items():
             try:
-                sim_drives[key] = fsim.SimDrive.from_pydict(pydict, skip_init=False)
+                sim_drives[key] = alt.SimDrive.from_pydict(pydict, skip_init=False)
             except Exception as err:
                 sim_drives[key] = err
         t1 = time.perf_counter()
@@ -166,12 +176,12 @@ class ModelObjectives(object):
 
     def get_errors(
         self,
-        sim_drives: Dict[str, fsim.SimDrive],
+        sim_drives: Dict[str, alt.SimDrive],
         return_mods: bool = False,
     ) -> Union[
         Dict[str, Dict[str, float]],
         # or if return_mods is True
-        Tuple[Dict[str, fsim.SimDrive], Dict[str, Dict[str, float]]],
+        Tuple[Dict[str, alt.SimDrive], Dict[str, Dict[str, float]]],
     ]:
         """
         Calculate model errors w.r.t. test data for each element in dfs/models for each objective.
@@ -194,7 +204,7 @@ class ModelObjectives(object):
             key: str
             df_exp: pd.DataFrame
 
-            # if not isinstance(sd, fsim.SimDrive):
+            # if not isinstance(sd, alt.SimDrive):
             #     solved_mods[key] = sd
             #     objectives[key] = [1.0e12] * len(self.obj_fns)
             #     continue
@@ -213,7 +223,9 @@ class ModelObjectives(object):
                 sd_dict = sd.to_pydict()
                 walk_success = True
                 print(err)
-                if len(sd_dict["veh"]["history"]["time_seconds"]) < np.floor(len(df_exp) / 2):
+                if len(sd_dict["veh"]["history"]["time_seconds"]) < np.floor(
+                    len(df_exp) / 2
+                ):
                     walk_success = False
 
             if self.verbose:
@@ -241,7 +253,9 @@ class ModelObjectives(object):
                     mod_sig = obj_fn[0](sd_dict)
                     ref_sig = None
                 else:
-                    raise ValueError("Each element in `self.obj_fns` must have length of 1 or 2")
+                    raise ValueError(
+                        "Each element in `self.obj_fns` must have length of 1 or 2"
+                    )
 
                 if ref_sig is not None:
                     time_s = sd_dict["veh"]["history"]["time_seconds"]
@@ -343,7 +357,7 @@ if PYMOO_AVAILABLE:
         Wrapper for pymoo.optimize.minimize that adds various helpful features
         """
         print("`run_minimize` starting at")
-        fsim.utils.print_dt()
+        alt.utils.print_dt()
 
         t0 = time.perf_counter()
         res = minimize(
@@ -437,7 +451,9 @@ def get_parser(
         help=f"PyMOO population size in each generation. Defaults to {def_pop_size}",
     )
     parser.add_argument(
-        "--skip-minimize", action="store_true", help="If provided, load previous results."
+        "--skip-minimize",
+        action="store_true",
+        help="If provided, load previous results.",
     )
     # parser.add_argument(
     #     '--show',

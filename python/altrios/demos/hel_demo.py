@@ -4,14 +4,15 @@
 # + [1x BEL](https://www.wabteccorp.com/media/466/download?inline)
 
 
-import altrios as alt
-import numpy as np
-import matplotlib.pyplot as plt
 import time
-import os
+
+import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 
-sns.set_theme() 
+import altrios as alt
+
+sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()
 
@@ -27,17 +28,17 @@ hel: alt.Locomotive = alt.Locomotive.default_hybrid_electric_loco()
 t0 = time.perf_counter()
 sim = alt.LocomotiveSimulation(hel, pt, SAVE_INTERVAL)
 t1 = time.perf_counter()
-print(f"Time to load: {t1-t0:.3g}")
+print(f"Time to load: {t1 - t0:.3g}")
 
 # simulate
 t0 = time.perf_counter()
 sim.walk()
 t1 = time.perf_counter()
-print(f"Time to simulate: {t1-t0:.5g}")
+print(f"Time to simulate: {t1 - t0:.5g}")
 
 
 bel_rslt = sim.loco_unit
-t_s = np.array(sim.power_trace.time_seconds)
+t_s = np.asarray(sim.power_trace.time_seconds)
 
 fig, ax = plt.subplots(3, 1, sharex=True, figsize=(10, 12))
 
@@ -48,17 +49,17 @@ i = 0
 
 ax[i].plot(
     t_s,
-    np.array(bel_rslt.res.history.pwr_out_chemical_watts) * 1e-6,
+    np.asarray(bel_rslt.res.history.pwr_out_chemical_watts) * 1e-6,
     label="pwr_out_chem",
 )
 ax[i].plot(
     t_s,
-    np.array(bel_rslt.history.pwr_out_watts) * 1e-6,
+    np.asarray(bel_rslt.history.pwr_out_watts) * 1e-6,
     label="loco pwr_out",
 )
 ax[i].plot(
     t_s,
-    np.array(sim.power_trace.pwr_watts) * 1e-6,
+    np.asarray(sim.power_trace.pwr_watts) * 1e-6,
     linestyle="--",
     label="power_trace",
 )
@@ -71,12 +72,12 @@ ax[i].legend(fontsize=fontsize)
 i += 1
 ax[i].plot(
     t_s,
-    np.array(sim.loco_unit.history.pwr_out_watts),
+    np.asarray(sim.loco_unit.history.pwr_out_watts),
 )
 ax[i].set_ylabel("Total Tractive\nEffort [MW]", fontsize=fontsize)
 
 i += 1
-ax[i].plot(t_s, np.array(bel_rslt.res.history.soc), label="SOC")
+ax[i].plot(t_s, np.asarray(bel_rslt.res.history.soc), label="SOC")
 ax[i].set_ylabel("SOC", fontsize=fontsize)
 ax[i].tick_params(labelsize=fontsize)
 

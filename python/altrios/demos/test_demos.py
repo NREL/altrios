@@ -1,6 +1,7 @@
-import subprocess
 import os
+import subprocess
 from pathlib import Path
+
 import pytest
 
 
@@ -9,15 +10,16 @@ def demo_paths():
     demo_paths.remove(Path(__file__).resolve())
     return demo_paths
 
+
 @pytest.mark.parametrize("demo_path", demo_paths(), ids=[dp.name for dp in demo_paths()])
 def test_demo(demo_path: Path):
-    os.environ['SHOW_PLOTS'] = "false"
-    os.environ['PYTEST'] = "true"
+    os.environ["SHOW_PLOTS"] = "false"
+    os.environ["PYTEST"] = "true"
     rslt = subprocess.run(
-        ["python", demo_path], 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE, 
-        text=True
+        ["python", demo_path],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
     )
 
     assert rslt.returncode == 0, rslt.stderr

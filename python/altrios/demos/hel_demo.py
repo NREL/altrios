@@ -4,14 +4,15 @@
 # + [1x BEL](https://www.wabteccorp.com/media/466/download?inline)
 
 
-import altrios as alt
-import numpy as np
-import matplotlib.pyplot as plt
 import time
-import os
+
+import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 
-sns.set_theme() 
+import altrios as alt
+
+sns.set_theme()
 
 SHOW_PLOTS = alt.utils.show_plots()
 
@@ -27,13 +28,13 @@ hel: alt.Locomotive = alt.Locomotive.default_hybrid_electric_loco()
 t0 = time.perf_counter()
 sim = alt.LocomotiveSimulation(hel, pt, SAVE_INTERVAL)
 t1 = time.perf_counter()
-print(f"Time to load: {t1-t0:.3g}")
+print(f"Time to load: {t1 - t0:.3g}")
 
 # simulate
 t0 = time.perf_counter()
 sim.walk()
 t1 = time.perf_counter()
-print(f"Time to simulate: {t1-t0:.5g}")
+print(f"Time to simulate: {t1 - t0:.5g}")
 
 
 bel_rslt = sim.loco_unit

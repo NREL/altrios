@@ -2,10 +2,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from .mock_resources import *
-
-from altrios.utilities import set_param_from_path
 import altrios as alt
+from altrios.utilities import set_param_from_path
+
+from .mock_resources import *
 
 
 class TestUtilities(unittest.TestCase):
@@ -26,7 +26,7 @@ class TestUtilities(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             tf_path = Path(tmpdir)
             alt.copy_demo_files(tf_path)
-            with open(next(tf_path.glob("*demo*.py")), 'r') as file:
+            with open(next(tf_path.glob("*demo*.py"))) as file:
                 lines = file.readlines()
                 assert prepend_str in lines[0]
                 assert len(lines) > 3

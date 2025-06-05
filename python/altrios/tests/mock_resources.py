@@ -1,36 +1,36 @@
-from typing import Optional
+
 import altrios as alt
 
 
-def mock_fuel_converter(save_interval: Optional[int] = 1) -> alt.FuelConverter:
+def mock_fuel_converter(save_interval: int | None = 1) -> alt.FuelConverter:
     fc = alt.FuelConverter.default()
     alt.set_param_from_path(fc, "save_interval", save_interval)
     return fc
 
 
-def mock_generator(save_interval: Optional[int] = 1) -> alt.Generator:
+def mock_generator(save_interval: int | None = 1) -> alt.Generator:
     gen = alt.Generator.default()
     alt.set_param_from_path(gen, "save_interval", save_interval)
     return gen
 
 
-def mock_reversible_energy_storage(save_interval: Optional[int] = 1) -> alt.ReversibleEnergyStorage:
+def mock_reversible_energy_storage(save_interval: int | None = 1) -> alt.ReversibleEnergyStorage:
     res = alt.ReversibleEnergyStorage.default()
     alt.set_param_from_path(res, "save_interval", save_interval)
     return res
 
 
-def mock_electric_drivetrain(save_interval: Optional[int] = 1) -> alt.ElectricDrivetrain:
+def mock_electric_drivetrain(save_interval: int | None = 1) -> alt.ElectricDrivetrain:
     edrv = alt.ElectricDrivetrain.default()
     alt.set_param_from_path(edrv, "save_interval", save_interval)
     return edrv
 
 
 def mock_conventional_loco(
-    fc: Optional[alt.FuelConverter] = None,
-    gen: Optional[alt.Generator] = None,
-    edrv: Optional[alt.ElectricDrivetrain] = None,
-    save_interval: Optional[int] = 1,
+    fc: alt.FuelConverter | None = None,
+    gen: alt.Generator | None = None,
+    edrv: alt.ElectricDrivetrain | None = None,
+    save_interval: int | None = 1,
     pwr_aux_offset_watts: float = 0.0,
     pwr_aux_traction_coeff: float = 0.0,
     force_max_newtons: float = 150000.0,
@@ -51,17 +51,17 @@ def mock_conventional_loco(
             pwr_aux_offset_watts=pwr_aux_offset_watts,
             pwr_aux_traction_coeff_ratio=pwr_aux_traction_coeff,
             force_max_newtons=force_max_newtons,
-        )
+        ),
     )
     return loco_unit
 
 
 def mock_hybrid_loco(
-    fc: Optional[alt.FuelConverter] = None,
-    gen: Optional[alt.Generator] = None,
-    res: Optional[alt.ReversibleEnergyStorage] = None,
-    edrv: Optional[alt.ElectricDrivetrain] = None,
-    save_interval: Optional[int] = 1,
+    fc: alt.FuelConverter | None = None,
+    gen: alt.Generator | None = None,
+    res: alt.ReversibleEnergyStorage | None = None,
+    edrv: alt.ElectricDrivetrain | None = None,
+    save_interval: int | None = 1,
     pwr_aux_offset_watts: float = 0.0,
     pwr_aux_traction_coeff: float = 0.0,
     force_max_newtons: float = 150000.0,
@@ -82,7 +82,7 @@ def mock_hybrid_loco(
                 "gen": gen.to_pydict(),
                 "res": res.to_pydict(),
                 "edrv": edrv.to_pydict(),
-            }
+            },
         },
         "save_interval": save_interval,
         "pwr_aux_offset_watts": pwr_aux_offset_watts,
@@ -94,9 +94,9 @@ def mock_hybrid_loco(
 
 
 def mock_battery_electric_locomotive(
-    res: Optional[alt.ReversibleEnergyStorage] = None,
-    edrv: Optional[alt.ElectricDrivetrain] = None,
-    save_interval: Optional[int] = 1,
+    res: alt.ReversibleEnergyStorage | None = None,
+    edrv: alt.ElectricDrivetrain | None = None,
+    save_interval: int | None = 1,
     pwr_aux_offset_watts: float = 0.0,
     pwr_aux_traction_coeff: float = 0.0,
     force_max_newtons: float = 150000.0,
@@ -110,7 +110,7 @@ def mock_battery_electric_locomotive(
             "BatteryElectricLoco": {
                 "res": res.to_pydict(),
                 "edrv": edrv.to_pydict(),
-            }
+            },
         },
         "save_interval": save_interval,
         "pwr_aux_offset_watts": pwr_aux_offset_watts,
@@ -121,7 +121,7 @@ def mock_battery_electric_locomotive(
     return loco_unit
 
 
-def mock_consist(save_interval: Optional[int] = 1) -> alt.Consist:
+def mock_consist(save_interval: int | None = 1) -> alt.Consist:
     consist = alt.Consist.default()
     if save_interval:
         consist.set_save_interval(save_interval)
@@ -139,9 +139,9 @@ def mock_power_trace() -> alt.PowerTrace:
 
 
 def mock_locomotive_simulation(
-    loco: Optional[alt.Locomotive] = None,
+    loco: alt.Locomotive | None = None,
     pt: alt.PowerTrace = mock_power_trace(),
-    save_interval: Optional[int] = 1,
+    save_interval: int | None = 1,
 ) -> alt.LocomotiveSimulation:
     if not loco:
         loco = mock_conventional_loco(save_interval=save_interval)
@@ -150,9 +150,9 @@ def mock_locomotive_simulation(
 
 
 def mock_consist_simulation(
-    consist: Optional[alt.Consist] = None,
+    consist: alt.Consist | None = None,
     pt: alt.PowerTrace = mock_power_trace(),
-    save_interval: Optional[int] = 1,
+    save_interval: int | None = 1,
 ) -> alt.ConsistSimulation:
     if not consist:
         consist = mock_consist(save_interval=save_interval)
@@ -178,10 +178,10 @@ def mock_train_state() -> alt.TrainState:
 
 
 def mock_set_speed_train_simulation(
-    consist: Optional[alt.Consist] = None,
+    consist: alt.Consist | None = None,
     # path_tpc_file: Optional[int] = None,  # `None` triggers default
     st: alt.SpeedTrace = mock_speed_trace(),
-    save_interval: Optional[int] = 1,
+    save_interval: int | None = 1,
 ) -> alt.SetSpeedTrainSim:
     if not consist:
         consist = mock_consist(save_interval=save_interval)
@@ -221,8 +221,8 @@ def mock_set_speed_train_simulation(
 
 
 def mock_speed_limit_train_simulation_vector(
-    scenario_year: Optional[int] = 2020,
-    simulation_days: Optional[int] = 7
+    scenario_year: int | None = 2020,
+    simulation_days: int | None = 7,
 ) -> alt.SpeedLimitTrainSimVec:
     mock_sim = alt.SpeedLimitTrainSim.default()
     alt.set_param_from_path(mock_sim, "simulation_days", simulation_days)
@@ -238,9 +238,9 @@ def mock_pymoo_conv_cal_df():
                                          loco_unit=alt.Locomotive.default(),
                                          save_interval=1)
     loco_sim.walk()
-    df = pd.DataFrame({'time [s]': loco_sim.power_trace.time_seconds.tolist(),
-                      'Tractive Power [W]': loco_sim.power_trace.pwr_watts.tolist(),
-                       'Fuel Power [W]': (loco_sim.loco_unit.fc.history.pwr_fuel_watts).tolist(),
+    df = pd.DataFrame({"time [s]": loco_sim.power_trace.time_seconds.tolist(),
+                      "Tractive Power [W]": loco_sim.power_trace.pwr_watts.tolist(),
+                       "Fuel Power [W]": (loco_sim.loco_unit.fc.history.pwr_fuel_watts).tolist(),
                        })
-    df['engine_on'] = df['Tractive Power [W]'] > 0
+    df["engine_on"] = df["Tractive Power [W]"] > 0
     return df

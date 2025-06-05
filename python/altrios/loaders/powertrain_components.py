@@ -1,16 +1,15 @@
 from pathlib import Path
-from typing import List, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from altrios.altrios_pyo3 import ReversibleEnergyStorage
 
 
 def _res_from_excel(
     cls: ReversibleEnergyStorage,
-    file: Union[str, Path],
-    temps: List[int] = [23, 30, 45, 55],
+    file: str | Path,
+    temps: list[int] = [23, 30, 45, 55],
 ) -> ReversibleEnergyStorage:
     """
     Loads a ReversibleEnergyStorage from an Excel file.
@@ -43,7 +42,7 @@ def _res_from_excel(
 
     # pull general config parameters
     config = pd.read_excel(file, sheet_name="config", engine=engine).set_index(
-        "parameter"
+        "parameter",
     )
 
     pwr_out_max_watts = float(config.loc["pwr_out_max_watts"].value)
@@ -77,7 +76,7 @@ def _res_from_excel(
     c_rate_interp_grid = list(map(float, interp_df.c_rate.unique()))
 
     tg, sg, cg = np.meshgrid(
-        temp_interp_grid, soc_interp_grid, c_rate_interp_grid, indexing="ij"
+        temp_interp_grid, soc_interp_grid, c_rate_interp_grid, indexing="ij",
     )
 
     eta_interp_values = np.zeros(tg.shape).tolist()

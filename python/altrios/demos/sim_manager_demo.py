@@ -1,14 +1,14 @@
 # %%
-from altrios import sim_manager
-from altrios import utilities, defaults
-import altrios as alt
-from altrios.train_planner import planner_config
-import numpy as np
-import polars as pl
-import matplotlib.pyplot as plt
 import time
-import seaborn as sns
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+
+import altrios as alt
+from altrios import defaults, sim_manager, utilities
+from altrios.train_planner import planner_config
 
 sns.set_theme()
 
@@ -25,15 +25,15 @@ plot_dir.mkdir(exist_ok=True)
 t0_import = time.perf_counter()
 t0_total = time.perf_counter()
 
-rail_vehicles=[alt.RailVehicle.from_file(vehicle_file, skip_init=False) 
-               for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob('*.yaml')]
+rail_vehicles = [alt.RailVehicle.from_file(vehicle_file, skip_init=False)
+               for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob("*.yaml")]
 
 location_map = alt.import_locations(alt.resources_root() / "networks/default_locations.csv")
 network = alt.Network.from_file(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
 
 t1_import = time.perf_counter()
 print(
-    f"Elapsed time to import rail vehicles, locations, and network: {t1_import - t0_import:.3g} s"
+    f"Elapsed time to import rail vehicles, locations, and network: {t1_import - t0_import:.3g} s",
 )
 
 train_planner_config = planner_config.TrainPlannerConfig(
@@ -44,14 +44,14 @@ train_planner_config = planner_config.TrainPlannerConfig(
 t0_main = time.perf_counter()
 
 (
-    train_consist_plan, 
-    loco_pool, 
-    refuel_facilities, 
-    grid_emissions_factors, 
-    nodal_energy_prices, 
-    speed_limit_train_sims, 
+    train_consist_plan,
+    loco_pool,
+    refuel_facilities,
+    grid_emissions_factors,
+    nodal_energy_prices,
+    speed_limit_train_sims,
     timed_paths,
-    train_consist_plan_untrimmed
+    train_consist_plan_untrimmed,
 ) = sim_manager.main(
     network=network,
     rail_vehicles=rail_vehicles,
@@ -61,7 +61,7 @@ t0_main = time.perf_counter()
 )
 
 t1_main = time.perf_counter()
-print(f"Elapsed time to run `sim_manager.main()`: {t1_main-t0_main:.3g} s")
+print(f"Elapsed time to run `sim_manager.main()`: {t1_main - t0_main:.3g} s")
 
 # %%
 t0_train_sims = time.perf_counter()
@@ -72,10 +72,10 @@ speed_limit_train_sims.set_save_interval(100)
     train_consist_plan_py=train_consist_plan,
     loco_pool_py=loco_pool,
     refuel_facilities_py=refuel_facilities,
-    timed_paths=timed_paths
+    timed_paths=timed_paths,
 )
 t1_train_sims = time.perf_counter()
-print(f"Elapsed time to run train sims: {t1_train_sims-t0_train_sims:.3g} s")
+print(f"Elapsed time to run train sims: {t1_train_sims - t0_train_sims:.3g} s")
 t_train_time = sum([
     sim.state.time_seconds for sim in sims.tolist()
 ])
@@ -94,14 +94,14 @@ speed_limit_train_sims.set_save_interval(None)
 )
 t1_summary_sims = time.perf_counter()
 print(
-    f"Elapsed time to build and run summary sims: {t1_summary_sims-t0_summary_sims:.3g} s"
+    f"Elapsed time to build and run summary sims: {t1_summary_sims - t0_summary_sims:.3g} s",
 )
 
 # %%
 t0_tolist = time.perf_counter()
 sims_list = sims.tolist()
 t1_tolist = time.perf_counter()
-print(f"Elapsed time to run `tolist()`: {t1_tolist-t0_tolist:.3g} s")
+print(f"Elapsed time to run `tolist()`: {t1_tolist - t0_tolist:.3g} s")
 
 sim0 = sims_list[0]
 # sim0 = alt.SpeedLimitTrainSim.from_bincode(
@@ -114,7 +114,7 @@ t0_main = time.perf_counter()
 e_total_fuel_mj = summary_sims.get_energy_fuel_joules(annualize=False) / 1e9
 t1_main = time.perf_counter()
 
-print(f"Elapsed time to get total fuel energy: {t1_main-t0_main:.3g} s")
+print(f"Elapsed time to get total fuel energy: {t1_main - t0_main:.3g} s")
 print(f"Total fuel energy used: {e_total_fuel_mj:.3g} GJ")
 
 v_total_fuel_gal = summary_sims.get_energy_fuel_joules(annualize=False) / 1e3 / defaults.LHV_DIESEL_KJ_PER_KG / \
@@ -161,9 +161,9 @@ if SHOW_PLOTS:
             if loco1.res is not None:
                 ax[1].plot(
                     np.array(sim.history.time_seconds) / 3_600,
-                    loco1.res.history.soc
+                    loco1.res.history.soc,
                 )
-                ax[1].set_ylabel('SOC')
+                ax[1].set_ylabel("SOC")
 
         ax[-1].plot(
             np.array(sim.history.time_seconds) / 3_600,

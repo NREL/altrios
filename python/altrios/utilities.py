@@ -1,21 +1,22 @@
 """Module for general functions, classes, and unit conversion factors."""
 
-from __future__ import annotations
+import datetime
+import logging
+import os
 import re
+import shutil
+from pathlib import Path
+from typing import Any
+
 import numpy as np
-from typing import Tuple, Union, Optional, List, Dict, Any, TYPE_CHECKING
+import numpy.typing as npt
 import pandas as pd
 import polars as pl
-import datetime
-import numpy.typing as npt
-import logging
-from pathlib import Path
-import datetime
-import os
-import shutil
+from __future__ import annotations
 
 # local imports
 from altrios import __version__
+
 
 def package_root() -> Path:
     """
@@ -32,17 +33,18 @@ def resources_root() -> Path:
     path = package_root() / "resources"
     return path
 
+
 from altrios.altrios_pyo3 import (
-    SetSpeedTrainSim,
-    ConsistSimulation,
     Consist,
-    LocomotiveSimulation,
-    Locomotive,
-    FuelConverter,
-    ReversibleEnergyStorage,
-    Generator,
+    ConsistSimulation,
     ElectricDrivetrain,
+    FuelConverter,
+    Generator,
+    Locomotive,
+    LocomotiveSimulation,
     PowerTrace,
+    ReversibleEnergyStorage,
+    SetSpeedTrainSim,
 )
 
 MPS_PER_MPH = 1.0 / 2.237
@@ -57,12 +59,14 @@ MI_PER_KM = 0.621371
 LITER_PER_M3 = 1.0e3
 G_PER_TONNE = 1.0e6
 GALLONS_PER_LITER = 1.0 / 3.79
-KWH_PER_MJ = 0.277778 # https://www.eia.gov/energyexplained/units-and-calculators/energy-conversion-calculators.php
+KWH_PER_MJ = 0.277778  # https://www.eia.gov/energyexplained/units-and-calculators/energy-conversion-calculators.php
 MWH_PER_J = 2.77778e-10
 MWH_PER_MJ = KWH_PER_MJ / 1.0e3
 
+
 def print_dt():
-    print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
 
 def cumutrapz(x, y):
     """
@@ -80,7 +84,7 @@ def cumutrapz(x, y):
     return z
 
 
-def set_param_from_path_dict(mod_dict: dict, path: str, value: float) -> Dict:
+def set_param_from_path_dict(mod_dict: dict, path: str, value: float) -> dict:
     cur_mod_dict = mod_dict
     path_list = path.split(".")
 
@@ -95,32 +99,10 @@ def set_param_from_path_dict(mod_dict: dict, path: str, value: float) -> Dict:
 
 
 def set_param_from_path(
-    model: Union[
-        SetSpeedTrainSim,
-        ConsistSimulation,
-        Consist,
-        LocomotiveSimulation,
-        Locomotive,
-        FuelConverter,
-        ReversibleEnergyStorage,
-        Generator,
-        ElectricDrivetrain,
-        PowerTrace,
-    ],
+    model: SetSpeedTrainSim | ConsistSimulation | Consist | LocomotiveSimulation | Locomotive | FuelConverter | ReversibleEnergyStorage | Generator | ElectricDrivetrain | PowerTrace,
     path: str,
     value: Any,
-) -> Union[
-    SetSpeedTrainSim,
-    ConsistSimulation,
-    Consist,
-    LocomotiveSimulation,
-    Locomotive,
-    FuelConverter,
-    ReversibleEnergyStorage,
-    Generator,
-    ElectricDrivetrain,
-    PowerTrace,
-]:
+) -> SetSpeedTrainSim | ConsistSimulation | Consist | LocomotiveSimulation | Locomotive | FuelConverter | ReversibleEnergyStorage | Generator | ElectricDrivetrain | PowerTrace:
     """
     Set parameter `value` on `model` for `path` to parameter
 
@@ -164,7 +146,7 @@ def set_param_from_path(
 
     # iterate through remaining containers, inner to outer
     for list_tuple, container, path_elem in zip(
-        lists[-1::-1], containers[-1::-1], path_list[-1::-1]
+        lists[-1::-1], containers[-1::-1], path_list[-1::-1],
     ):
         if list_tuple is not None:
             list_attr, list_name, list_index = list_tuple
@@ -178,66 +160,73 @@ def set_param_from_path(
 
     return model
 
+
 def range_minmax(self) -> pl.Expr:
      return self.max() - self.min()
-pl.Expr.range=range_minmax
+
+
+pl.Expr.range = range_minmax
 del range_minmax
 
+
 def cumPctWithinGroup(
-    df: Union[pl.DataFrame, pl.LazyFrame], 
-    grouping_vars: List[str]
-) -> Union[pl.DataFrame, pl.LazyFrame]:
+    df: pl.DataFrame | pl.LazyFrame,
+    grouping_vars: list[str],
+) -> pl.DataFrame | pl.LazyFrame:
     return (df
         .with_columns(
-            ((pl.int_range(pl.len(), dtype=pl.UInt32).over(grouping_vars).add(1)) / 
+            ((pl.int_range(pl.len(), dtype=pl.UInt32).over(grouping_vars).add(1)) /
             pl.count().over(grouping_vars))
-            .alias("Percent_Within_Group_Cumulative")
+            .alias("Percent_Within_Group_Cumulative"),
         )
     )
 
+
 def allocateIntegerEvenly(
-    df: Union[pl.DataFrame, pl.LazyFrame], 
-    target: str, 
-    grouping_vars: List[str]
-) -> Union[pl.DataFrame, pl.LazyFrame]:
+    df: pl.DataFrame | pl.LazyFrame,
+    target: str,
+    grouping_vars: list[str],
+) -> pl.DataFrame | pl.LazyFrame:
     return (df
     .sort(grouping_vars)
-    .pipe(cumPctWithinGroup, grouping_vars = grouping_vars)
+    .pipe(cumPctWithinGroup, grouping_vars=grouping_vars)
     .with_columns(
-        pl.col(target).mul("Percent_Within_Group_Cumulative").round().alias(f'{target}_Group_Cumulative')
+        pl.col(target).mul("Percent_Within_Group_Cumulative").round().alias(f"{target}_Group_Cumulative"),
     )
     .with_columns(
-        (pl.col(f'{target}_Group_Cumulative') - pl.col(f'{target}_Group_Cumulative').shift(1).over(grouping_vars))
-            .fill_null(pl.col(f'{target}_Group_Cumulative'))
-            .alias(f'{target}')
+        (pl.col(f"{target}_Group_Cumulative") - pl.col(f"{target}_Group_Cumulative").shift(1).over(grouping_vars))
+            .fill_null(pl.col(f"{target}_Group_Cumulative"))
+            .alias(f"{target}"),
     )
-    .drop(f'{target}_Group_Cumulative')
+    .drop(f"{target}_Group_Cumulative")
 )
-    
+
+
 def allocateItems(
-    df: Union[pl.DataFrame, pl.LazyFrame], 
-    grouping_vars: list[str], 
-    count_target: str
-) -> Union[pl.DataFrame, pl.LazyFrame]:
+    df: pl.DataFrame | pl.LazyFrame,
+    grouping_vars: list[str],
+    count_target: str,
+) -> pl.DataFrame | pl.LazyFrame:
     return (df
-        .sort(grouping_vars+ [count_target], descending = True)
+        .sort(grouping_vars + [count_target], descending=True)
         .with_columns(
-            pl.col(count_target).sum().over(grouping_vars).round().alias(f'{count_target}_Group'),
-            (pl.col(count_target).sum().over(grouping_vars).round() * 
+            pl.col(count_target).sum().over(grouping_vars).round().alias(f"{count_target}_Group"),
+            (pl.col(count_target).sum().over(grouping_vars).round() *
                 (
-                    pl.col(count_target).cum_sum().over(grouping_vars) / 
+                    pl.col(count_target).cum_sum().over(grouping_vars) /
                     pl.col(count_target).sum().over(grouping_vars)
                 )
-            ).round().alias(f'{count_target}_Group_Cumulative'))
-        .with_columns((pl.col(f'{count_target}_Group_Cumulative') - pl.col(f'{count_target}_Group_Cumulative').shift(1).over(grouping_vars)).fill_null(pl.col(f'{count_target}_Group_Cumulative')).alias("Count"))
+            ).round().alias(f"{count_target}_Group_Cumulative"))
+        .with_columns((pl.col(f"{count_target}_Group_Cumulative") - pl.col(f"{count_target}_Group_Cumulative").shift(1).over(grouping_vars)).fill_null(pl.col(f"{count_target}_Group_Cumulative")).alias("Count"))
     )
+
 
 def resample(
     df: pd.DataFrame,
-    dt_new: Optional[float] = 1.0,
-    time_col: Optional[str] = "Time[s]",
-    rate_vars: Optional[Tuple[str]] = [],
-    hold_vars: Optional[Tuple[str]] = [],
+    dt_new: float | None = 1.0,
+    time_col: str | None = "Time[s]",
+    rate_vars: tuple[str] | None = [],
+    hold_vars: tuple[str] | None = [],
 ) -> pd.DataFrame:
     """
     Resamples dataframe `df`.
@@ -249,12 +238,11 @@ def resample(
     - hold_vars: vars that need zero-order hold from previous nearest time step
         (e.g. quantized variables like current gear)
     """
-
     new_dict = dict()
 
     new_time = np.arange(
         0, np.floor(df[time_col].to_numpy()[-1] / dt_new) *
-        dt_new + dt_new, dt_new
+        dt_new + dt_new, dt_new,
     )
 
     for col in df.columns:
@@ -277,7 +265,7 @@ def resample(
         else:
             # just interpolate -- i.e. state variables like temperatures
             new_dict[col] = np.interp(
-                x=new_time, xp=df[time_col].to_numpy(), fp=df[col].to_numpy()
+                x=new_time, xp=df[time_col].to_numpy(), fp=df[col].to_numpy(),
             )
 
     return pd.DataFrame(new_dict)
@@ -293,7 +281,7 @@ def smoothen(signal: npt.ArrayLike, period: int = 9) -> npt.ArrayLike:
                 np.full(((period + 1) // 2) - 1, signal[0]),
                 signal,
                 np.full(period // 2, signal[-1]),
-            ]
+            ],
         ),
         np.ones(period) / period,
         mode="valid",
@@ -303,6 +291,7 @@ def smoothen(signal: npt.ArrayLike, period: int = 9) -> npt.ArrayLike:
 
 def print_dt():
     print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
 
 def set_log_level(level: str | int) -> int:
     """
@@ -354,10 +343,11 @@ def set_log_level(level: str | int) -> int:
         assert level in allowed_int_args, err_str
 
     # Extract previous log level and set new log level
-    python_logger  = logging.getLogger("altrios")
+    python_logger = logging.getLogger("altrios")
     previous_level = python_logger .level
     python_logger .setLevel(level)
     return previous_level
+
 
 def disable_logging():
     set_log_level(logging.CRITICAL + 1)
@@ -367,7 +357,7 @@ def enable_logging():
     set_log_level(logging.WARNING)
 
 
-def copy_demo_files(demo_path: Path=Path("demos")):
+def copy_demo_files(demo_path: Path = Path("demos")):
     """
     Copies demo files from package directory into local directory.
 
@@ -378,7 +368,6 @@ def copy_demo_files(demo_path: Path=Path("demos")):
     Running this function will overwrite existing files so make sure any files with
     changes you'd like to keep are renamed.
     """
-
     v = f"v{__version__}"
     demo_path.mkdir(exist_ok=True)
 
@@ -389,9 +378,9 @@ def copy_demo_files(demo_path: Path=Path("demos")):
         dest_file = demo_path / src_file.name
         shutil.copyfile(
             src_file,
-            dest_file
+            dest_file,
         )
-    
+
         with open(dest_file, "r+") as file:
             file_content = file.readlines()
             prepend_str = f"# %% Copied from ALTRIOS version '{v}'. Guaranteed compatibility with this version only.\n"
@@ -399,8 +388,9 @@ def copy_demo_files(demo_path: Path=Path("demos")):
             file_content = prepend + file_content
             file.seek(0)
             file.writelines(file_content)
-        
+
     print(f"Saved {dest_file.name} to {dest_file}")
+
 
 def show_plots() -> bool:
     """
@@ -411,6 +401,6 @@ def show_plots() -> bool:
             # name of environment variable
             "SHOW_PLOTS",
             # defaults to true if not provided
-            "true"
+            "true",
             # only true if provided input is exactly "true", case insensitive
-        ).lower() == "true")        
+        ).lower() == "true")

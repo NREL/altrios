@@ -1,39 +1,42 @@
-"""
-Module containing functions and classes for easy interaction with PyMOO
-"""
+"""Module containing functions and classes for easy interaction with PyMOO"""
+
+import argparse
+import pprint  # noqa: F401
+import time
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
-import pprint  # noqa: F401
 import numpy.typing as npt
-from typing import Tuple, Any, List, Callable, Dict, Optional, Union
-from pathlib import Path
 import pandas as pd
-import argparse
-import time
-from dataclasses import dataclass
 
 # pymoo
 try:
-    from pymoo.optimize import minimize
-    from pymoo.core.result import Result
-    from pymoo.termination.default import DefaultMultiObjectiveTermination as DMOT
-    from pymoo.core.problem import ElementwiseProblem, LoopedElementwiseEvaluation
     from pymoo.algorithms.base.genetic import GeneticAlgorithm
-    from pymoo.util.display.output import Output
-    from pymoo.util.display.column import Column
+    from pymoo.algorithms.moo.nsga2 import NSGA2  # noqa: F401
+    from pymoo.algorithms.moo.nsga3 import NSGA3  # noqa: F401
 
     # Imports for convenient use in scripts
-    from pymoo.core.problem import StarmapParallelization  # noqa: F401
+    from pymoo.core.problem import (
+        ElementwiseProblem,
+        LoopedElementwiseEvaluation,
+        StarmapParallelization,  # noqa: F401
+    )
+    from pymoo.core.result import Result
     from pymoo.operators.sampling.lhs import LatinHypercubeSampling as LHS  # noqa: F401
-    from pymoo.algorithms.moo.nsga3 import NSGA3  # noqa: F401
-    from pymoo.algorithms.moo.nsga2 import NSGA2  # noqa: F401
+    from pymoo.optimize import minimize
+    from pymoo.termination.default import DefaultMultiObjectiveTermination as DMOT
+    from pymoo.util.display.column import Column
+    from pymoo.util.display.output import Output
     from pymoo.util.ref_dirs import get_reference_directions  # noqa: F401
 
     PYMOO_AVAILABLE = True
 except ModuleNotFoundError as err:
     print(
         f"{err}\nTry running `pip install pymoo==0.6.0.1` to use all features in "
-        + "`altrios.pymoo_api`"
+        + "`altrios.pymoo_api`",
     )
     PYMOO_AVAILABLE = False
 
@@ -60,15 +63,14 @@ def get_error_val(
         f"{len(model)}, {len(test)}, {len(time_steps)}"
     )
 
-    err_val: float = np.trapz(y=abs(model - test), x=time_steps) / (
+    err_val: float = np.trapezoid(y=abs(model - test), x=time_steps) / (
         time_steps[-1] - time_steps[0]
     )
-
     return err_val
 
 
 @dataclass
-class ModelObjectives(object):
+class ModelObjectives:
     """
     Class for calculating eco-driving objectives
 
@@ -115,46 +117,40 @@ class ModelObjectives(object):
     - `verbose` (bool): print more stuff or not
     """
 
-    models: Dict[str, Dict]
-    dfs: Dict[str, pd.DataFrame]
-    obj_fns: Tuple[Callable] | Tuple[Tuple[Callable, Callable]]
-    constr_fns: Tuple[Callable]
-    param_fns_and_bounds: Tuple[Tuple[Callable], Tuple[Tuple[float, float]]]
-    param_fns: Optional[Tuple[Callable]] = None
-    bounds: Optional[Tuple[Tuple[float, float]]] = None
+    models: dict[str, dict]
+    dfs: dict[str, pd.DataFrame]
+    obj_fns: tuple[Callable] | tuple[tuple[Callable, Callable]]
+    constr_fns: tuple[Callable]
+    param_fns_and_bounds: tuple[tuple[Callable], tuple[tuple[float, float]]]
+    sim_type: alt.SerdeAPI
+    param_fns: tuple[Callable] = field(init=False)
+    bounds: tuple[tuple[float, float]] = field(init=False)
 
     # if True, prints timing and misc info
     verbose: bool = False
 
     # calculated in __post_init__
-    n_obj: Optional[int] = None
-    n_constr: Optional[int] = None
+    n_obj: int | None = None
+    n_constr: int | None = None
 
     def __post_init__(self):
+        """Initialize special attributes and check for proper setup"""
         assert self.n_obj is None, "`n_obj` is not intended to be user provided"
-        assert len(self.dfs) == len(self.models), (
-            f"{len(self.dfs)} != {len(self.models)}"
-        )
-        self.param_fns: tuple[Callable] = tuple(
-            [pb[0] for pb in self.param_fns_and_bounds]
-        )  # type: ignore[annotation-unchecked]
-        self.bounds: Tuple[Tuple[float, float]] = tuple(
-            [pb[1] for pb in self.param_fns_and_bounds]
-        )  # type: ignore[annotation-unchecked]
+        assert len(self.dfs) == len(self.models), f"{len(self.dfs)} != {len(self.models)}"
+        self.param_fns = tuple(pb[0] for pb in self.param_fns_and_bounds)
+        self.bounds = tuple(pb[1] for pb in self.param_fns_and_bounds)
         assert len(self.bounds) == len(self.param_fns)
         self.n_obj = len(self.models) * len(self.obj_fns)
         self.n_constr = len(self.models) * len(self.constr_fns)
 
-    def update_params(self, xs: List[Any]):
-        """
-        Updates model parameters based on `x`, which must match length of self.param_fns
-        """
+    def update_params(self, xs: list[Any]):
+        """Update model parameters based on `x`, which must match length of self.param_fns"""
         assert len(xs) == len(self.param_fns), f"({len(xs)} != {len(self.param_fns)}"
 
         t0 = time.perf_counter()
 
         # Instantiate SimDrive objects
-        sim_drives = {}
+        sim_drives: dict[str, alt.SerdeAPI | Exception] = {}
 
         # Update all model parameters
         for key, pydict in self.models.items():
@@ -166,7 +162,7 @@ class ModelObjectives(object):
 
         for key, pydict in self.models.items():
             try:
-                sim_drives[key] = alt.SimDrive.from_pydict(pydict, skip_init=False)
+                sim_drives[key] = alt.SerdeAPI.from_pydict(pydict, skip_init=False)
             except Exception as err:
                 sim_drives[key] = err
         t1 = time.perf_counter()
@@ -176,13 +172,17 @@ class ModelObjectives(object):
 
     def get_errors(
         self,
-        sim_drives: Dict[str, alt.SimDrive],
+        sim_drives: dict[str, alt.SerdeAPI],
         return_mods: bool = False,
-    ) -> Union[
-        Dict[str, Dict[str, float]],
-        # or if return_mods is True
-        Tuple[Dict[str, alt.SimDrive], Dict[str, Dict[str, float]]],
-    ]:
+    ) -> (
+        tuple[dict[str, list[float]], dict[str, list[float]]]
+        | tuple[
+            dict[str, list[float]],
+            dict[str, list[float]],
+            dict[str, alt.SerdeAPI | Any],
+            dict[str, alt.SerdeAPI | Any],
+        ]
+    ):
         """
         Calculate model errors w.r.t. test data for each element in dfs/models for each objective.
 
@@ -193,18 +193,14 @@ class ModelObjectives(object):
         # Returns:
             Objectives and optionally solved models
         """
-
-        objectives: Dict = {}
-        constraint_violations: Dict = {}
-        solved_mods: Dict = {}
-        unsolved_mods: Dict = {}
+        objectives: dict[str, list[float]] = {}
+        constraint_violations: dict[str, list[float]] = {}
+        solved_mods: dict[str, alt.SerdeAPI | Any] = {}
+        unsolved_mods: dict[str, alt.SerdeAPI | Any] = {}
 
         # loop through all the provided trips
         for (key, df_exp), sd in zip(self.dfs.items(), sim_drives.values()):
-            key: str
-            df_exp: pd.DataFrame
-
-            # if not isinstance(sd, alt.SimDrive):
+            # if not isinstance(sd, fsim.SimDrive):
             #     solved_mods[key] = sd
             #     objectives[key] = [1.0e12] * len(self.obj_fns)
             #     continue
@@ -223,9 +219,7 @@ class ModelObjectives(object):
                 sd_dict = sd.to_pydict()
                 walk_success = True
                 print(err)
-                if len(sd_dict["veh"]["history"]["time_seconds"]) < np.floor(
-                    len(df_exp) / 2
-                ):
+                if len(sd_dict["veh"]["history"]["time_seconds"]) < np.floor(len(df_exp) / 2):
                     walk_success = False
 
             if self.verbose:
@@ -242,8 +236,7 @@ class ModelObjectives(object):
 
             # loop through the objectives for each trip
             for i_obj, obj_fn in enumerate(self.obj_fns):
-                i_obj: int
-                obj_fn: Tuple[Callable(sd_dict), Callable(df_exp)]
+                obj_fn = cast(Sequence, obj_fn)
                 if len(obj_fn) == 2:
                     # objective and reference passed
                     mod_sig = obj_fn[0](sd_dict)
@@ -253,9 +246,7 @@ class ModelObjectives(object):
                     mod_sig = obj_fn[0](sd_dict)
                     ref_sig = None
                 else:
-                    raise ValueError(
-                        "Each element in `self.obj_fns` must have length of 1 or 2"
-                    )
+                    raise ValueError("Each element in `self.obj_fns` must have length of 1 or 2")
 
                 if ref_sig is not None:
                     time_s = sd_dict["veh"]["history"]["time_seconds"]
@@ -270,7 +261,7 @@ class ModelObjectives(object):
                                     mod_sig,
                                     ref_sig,
                                     time_s,
-                                )
+                                ),
                             )
                         except AssertionError:
                             # `get_error_val` checks for length equality with an assertion
@@ -348,11 +339,11 @@ if PYMOO_AVAILABLE:
         problem: CalibrationProblem,
         algorithm: GeneticAlgorithm,
         termination: DMOT,
-        save_path: Union[Path, str],
+        save_path: Path | str,
         copy_algorithm: bool = False,
         copy_termination: bool = False,
         save_history: bool = False,
-    ) -> Tuple[Result, pd.DataFrame]:
+    ) -> tuple[Result, pd.DataFrame]:
         """
         Wrapper for pymoo.optimize.minimize that adds various helpful features
         """
@@ -373,7 +364,7 @@ if PYMOO_AVAILABLE:
         )
 
         f_columns = [
-            f"{key.split(' ')[0]}: {obj[0].__name__}"
+            f"{key.split(' ')[0]}: {cast(Sequence, obj)[0].__name__}"
             for key in problem.mod_obj.dfs.keys()
             for obj in problem.mod_obj.obj_fns
         ]
@@ -402,7 +393,7 @@ if PYMOO_AVAILABLE:
 
 
 def get_parser(
-    def_description: str = "Program for calibrating fastsim models.",
+    def_description: str = "Program for calibrating altrios models.",
     def_p: int = 4,
     def_n_max_gen: int = 500,
     def_pop_size: int = 12,

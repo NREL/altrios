@@ -1,7 +1,10 @@
 import time
+
 import altrios as alt
 
 SAVE_INTERVAL = 100
+
+
 def get_solved_speed_limit_train_sim():
     # Build the train config
     rail_vehicle_loaded = alt.RailVehicle.from_file(
@@ -24,7 +27,7 @@ def get_solved_speed_limit_train_sim():
     # instantiate battery model
     # https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/reversible_energy_storage/struct.ReversibleEnergyStorage.html#
     res = alt.ReversibleEnergyStorage.from_file(
-        alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
+        alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml",
     )
 
     edrv = alt.ElectricDrivetrain(
@@ -42,15 +45,15 @@ def get_solved_speed_limit_train_sim():
         "pwr_aux_offset_watts": 8.55e3,
         "pwr_aux_traction_coeff": 540.e-6,
         "force_max_newtons": 667.2e3,
-        "mass_kilograms": alt.LocoParams.default().to_pydict()['mass_kilograms'],
+        "mass_kilograms": alt.LocoParams.default().to_pydict()["mass_kilograms"],
         "save_interval": SAVE_INTERVAL,
-    })  
+    })
 
     # construct a vector of one BEL and several conventional locomotives
     loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7
     # instantiate consist
     loco_con = alt.Consist(
-        loco_vec
+        loco_vec,
     )
 
     # Instantiate the intermediate `TrainSimBuilder`
@@ -64,7 +67,7 @@ def get_solved_speed_limit_train_sim():
 
     # Load the network and construct the timed link path through the network.
     network = alt.Network.from_file(
-        alt.resources_root() / 'networks/simple_corridor_network.yaml')
+        alt.resources_root() / "networks/simple_corridor_network.yaml")
 
     location_map = alt.import_locations(
         alt.resources_root() / "networks/simple_corridor_locations.csv")
@@ -123,6 +126,7 @@ def test_pydict():
     # `to_pydict` is necessary because of some funkiness with direct equality comparison
     assert ts_msg.to_pydict() == ts.to_pydict()
     assert ts_yaml.to_pydict() == ts.to_pydict()
+
 
 if __name__ == "__main__":
     test_pydict()

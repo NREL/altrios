@@ -2,23 +2,26 @@ from importlib.metadata import version
 
 __version__ = version("altrios")
 
-import numpy as np
-import re
 import logging
-from typing import List, Union, Dict, Optional, Any
-from typing_extensions import Self
+import re
+from typing import Any, Dict, List, Optional, Self, Union
+
+import numpy as np
 import pandas as pd
 import polars as pl
 
-from altrios.loaders.powertrain_components import _res_from_excel
-from altrios.utilities import set_param_from_path  # noqa: F401
-from altrios.utilities import copy_demo_files  # noqa: F401
+from altrios import *  # noqa: F403
 from altrios import utilities as utils  # noqa: F401
-from altrios.utilities import package_root, resources_root  # noqa: F401
 
 # make everything in altrios_pyo3 available here
 from altrios.altrios_pyo3 import *  # noqa: F403
-from altrios import *  # noqa: F403
+from altrios.loaders.powertrain_components import _res_from_excel
+from altrios.utilities import (  # noqa: F401
+    copy_demo_files,  # noqa: F401
+    package_root,
+    resources_root,
+    set_param_from_path,  # noqa: F401
+)
 
 DEFAULT_LOGGING_CONFIG = dict(
     format="%(asctime)s.%(msecs)03d | %(filename)s:%(lineno)s | %(levelname)s: %(message)s",
@@ -56,8 +59,8 @@ def to_pydict(
     self,
     data_fmt: str = "msg_pack",
     flatten: bool = False,
-    key_substrings_to_keep: List[str] = None,
-) -> Dict:
+    key_substrings_to_keep: list[str] = None,
+) -> dict:
     """
     Returns self converted to pure python dictionary with no nested Rust objects
     # Arguments
@@ -91,14 +94,14 @@ def to_pydict(
         hist_len = get_hist_len(pydict)
         assert hist_len is not None, "Cannot be flattened"
         flat_dict = get_flattened(
-            pydict, hist_len, key_substrings_to_keep=key_substrings_to_keep
+            pydict, hist_len, key_substrings_to_keep=key_substrings_to_keep,
         )
         return flat_dict
 
 
 @classmethod
 def from_pydict(
-    cls, pydict: Dict, data_fmt: str = "msg_pack", skip_init: bool = False
+    cls, pydict: dict, data_fmt: str = "msg_pack", skip_init: bool = False,
 ) -> Self:
     """
     Instantiates Self from pure python dictionary
@@ -128,8 +131,8 @@ def from_pydict(
 
 
 def get_flattened(
-    obj: Dict | List, hist_len: int, prepend_str: str = "", key_substrings_to_keep=None
-) -> Dict:
+    obj: dict | list, hist_len: int, prepend_str: str = "", key_substrings_to_keep=None,
+) -> dict:
     """
     Flattens and returns dictionary, separating keys and indices with a `"."`
     # Arguments
@@ -138,7 +141,7 @@ def get_flattened(
     # - `prepend_str`: prepend this to all keys in the returned `flat` dict
     # - `key_substrings_to_keep`: list of substrings or regular expressions to check for in object dictionary.
     """
-    flat: Dict = {}
+    flat: dict = {}
     if isinstance(obj, dict):
         for k, v in obj.items():
             new_key = k if (prepend_str == "") else prepend_str + "." + k
@@ -149,7 +152,7 @@ def get_flattened(
                         hist_len,
                         prepend_str=new_key,
                         key_substrings_to_keep=key_substrings_to_keep,
-                    )
+                    ),
                 )
             else:
                 if key_substrings_to_keep is None or any(
@@ -167,7 +170,7 @@ def get_flattened(
                         hist_len,
                         prepend_str=new_key,
                         key_substrings_to_keep=key_substrings_to_keep,
-                    )
+                    ),
                 )
             else:
                 if key_substrings_to_keep is None or any(
@@ -181,17 +184,17 @@ def get_flattened(
     return flat
 
 
-def get_hist_len(obj: Dict) -> Optional[int]:
+def get_hist_len(obj: dict) -> int | None:
     """
     Finds nested `history` and gets lenth of first element
     """
-    if "history" in obj.keys():
+    if "history" in obj:
         return len(next(iter(obj["history"].values())))
 
     elif (
         next(
             iter(
-                k for k in obj.keys() if re.search("(history\\.\\w+)$", k) is not None
+                k for k in obj if re.search("(history\\.\\w+)$", k) is not None
             ),
             None,
         )
@@ -199,12 +202,12 @@ def get_hist_len(obj: Dict) -> Optional[int]:
     ):
         return len(
             next(
-                (
+
                     v
                     for (k, v) in obj.items()
                     if re.search("(history\\.\\w+)$", k) is not None
-                )
-            )
+
+            ),
         )
 
     for k, v in obj.items():
@@ -219,8 +222,8 @@ def to_dataframe(
     self,
     pandas: bool = False,
     allow_partial: bool = False,
-    key_substrings_to_keep: List[str] = ["history.", "speed_trace.", "power_trace."],
-) -> Union[pd.DataFrame, pl.DataFrame]:
+    key_substrings_to_keep: list[str] = ["history.", "speed_trace.", "power_trace."],
+) -> pd.DataFrame | pl.DataFrame:
     """
     Returns time series results from altrios object as a Polars or Pandas dataframe.
 
@@ -230,13 +233,13 @@ def to_dataframe(
     - `key_substrings_to_keep`: list of substrings or regular expressions to check for in object dictionary.
     """
     obj_dict = self.to_pydict(
-        flatten=True, key_substrings_to_keep=key_substrings_to_keep
+        flatten=True, key_substrings_to_keep=key_substrings_to_keep,
     )
     hist_len = get_hist_len(obj_dict)
     assert hist_len is not None
 
-    history_dict: Dict[str, Any] = {}
-    len_one_dict: Dict[str, Any] = {}
+    history_dict: dict[str, Any] = {}
+    len_one_dict: dict[str, Any] = {}
     for k, v in obj_dict.items():
         keep_key_in_k = any(to_keep in k for to_keep in key_substrings_to_keep)
         if keep_key_in_k:
@@ -252,14 +255,14 @@ def to_dataframe(
         if not pandas:
             try:
                 df = pl.DataFrame(
-                    {col: val[:cutoff] for col, val in history_dict.items()}
+                    {col: val[:cutoff] for col, val in history_dict.items()},
                 )
             except Exception as err:
                 raise Exception(f"{err}\n`save_interval` may not be uniform")
         else:
             try:
                 df = pd.DataFrame(
-                    {col: val[:cutoff] for col, val in history_dict.items()}
+                    {col: val[:cutoff] for col, val in history_dict.items()},
                 )
             except Exception as err:
                 raise Exception(f"{err}\n`save_interval` may not be uniform")
@@ -270,14 +273,14 @@ def to_dataframe(
                 df = pl.DataFrame(history_dict)
             except Exception as err:
                 raise Exception(
-                    f"{err}\nTry passing `allow_partial=True` to `to_dataframe` or checking for consistent save intervals"
+                    f"{err}\nTry passing `allow_partial=True` to `to_dataframe` or checking for consistent save intervals",
                 )
         else:
             try:
                 df = pd.DataFrame(history_dict)
             except Exception as err:
                 raise Exception(
-                    f"{err}\nTry passing `allow_partial=True` to `to_dataframe` or checking for consistent save intervals"
+                    f"{err}\nTry passing `allow_partial=True` to `to_dataframe` or checking for consistent save intervals",
                 )
 
     if len(len_one_dict) > 0:

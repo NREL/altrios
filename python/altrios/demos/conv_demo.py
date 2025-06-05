@@ -62,7 +62,7 @@ print(f"Time to simulate: {t1 - t0:.5g}")
 
 
 conv_rslt = sim.loco_unit
-t_s = np.array(sim.power_trace.time_seconds)
+t_s = np.asarray(sim.power_trace.time_seconds)
 
 fig, ax = plt.subplots(2, 1, sharex=True, figsize=(10, 12))
 
@@ -73,27 +73,27 @@ i = 0
 
 ax[i].plot(
     t_s,
-    np.array(conv_rslt.fc.history.pwr_fuel_watts) * 1e-6,
+    np.asarray(conv_rslt.fc.history.pwr_fuel_watts) * 1e-6,
     label="fc pwr_out_fuel",
 )
 ax[i].plot(
     t_s,
-    np.array(conv_rslt.fc.history.pwr_out_max_watts) * 1e-6,
+    np.asarray(conv_rslt.fc.history.pwr_out_max_watts) * 1e-6,
     label="fc pwr_out_max",
 )
 ax[i].plot(
     t_s,
-    np.array(conv_rslt.history.pwr_out_max_watts) * 1e-6,
+    np.asarray(conv_rslt.history.pwr_out_max_watts) * 1e-6,
     label="loco pwr_out_max",
 )
 ax[i].plot(
     t_s,
-    np.array(conv_rslt.history.pwr_out_watts) * 1e-6,
+    np.asarray(conv_rslt.history.pwr_out_watts) * 1e-6,
     label="loco pwr_out",
 )
 ax[i].plot(
     t_s,
-    np.array(sim.power_trace.pwr_watts) * 1e-6,
+    np.asarray(sim.power_trace.pwr_watts) * 1e-6,
     linestyle="--",
     label="power_trace",
 )
@@ -106,7 +106,7 @@ ax[i].legend(fontsize=fontsize)
 i += 1
 ax[i].plot(
     t_s,
-    np.array(sim.loco_unit.history.pwr_out_watts),
+    np.asarray(sim.loco_unit.history.pwr_out_watts),
 )
 ax[i].set_ylabel("Total Tractive\nEffort [MW]", fontsize=fontsize)
 

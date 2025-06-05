@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 from itertools import repeat
 from pathlib import Path
 
 import numpy as np
 import polars as pl
 import polars.selectors as cs
-from __future__ import annotations
 
 import altrios as alt
 from altrios import defaults

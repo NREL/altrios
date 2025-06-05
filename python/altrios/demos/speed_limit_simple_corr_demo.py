@@ -117,54 +117,54 @@ def plot_train_level_powers() -> tuple[plt.Figure, plt.Axes]:
     fig, ax = plt.subplots(4, 1, sharex=True)
     plt.suptitle("Train Power")
     ax[0].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.pwr_whl_out_watts) / 1e6,
         label="tract pwr",
     )
     ax[0].set_ylabel("Power [MW]")
     ax[0].legend()
 
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.res_aero_newtons) / 1e3,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.res_aero_newtons) / 1e3,
         label="aero",
     )
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.res_rolling_newtons) / 1e3,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.res_rolling_newtons) / 1e3,
         label="rolling",
     )
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.res_curve_newtons) / 1e3,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.res_curve_newtons) / 1e3,
         label="curve",
     )
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.res_bearing_newtons) / 1e3,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.res_bearing_newtons) / 1e3,
         label="bearing",
     )
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.res_grade_newtons) / 1e3,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.res_grade_newtons) / 1e3,
         label="grade",
     )
     ax[1].set_ylabel("Force [MN]")
     ax[1].legend()
 
     ax[2].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(loco0.res.history.soc),
+        np.asarray(train_sim.history.time_seconds) / 3_600,
+        np.asarray(loco0.res.history.soc),
     )
     ax[2].set_ylabel("SOC")
 
     ax[-1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
         train_sim.history.speed_meters_per_second,
         label="achieved",
     )
     ax[-1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
         train_sim.history.speed_limit_meters_per_second,
         label="limit",
     )
@@ -180,20 +180,20 @@ def plot_train_network_info() -> tuple[plt.Figure, plt.Axes]:
     fig, ax = plt.subplots(3, 1, sharex=True)
     plt.suptitle("Train Position in Network")
     ax[0].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.offset_in_link_meters) / 1_000,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.offset_in_link_meters) / 1_000,
         label="current link",
     )
     ax[0].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.offset_meters) / 1_000,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.offset_meters) / 1_000,
         label="overall",
     )
     ax[0].legend()
     ax[0].set_ylabel("Net Dist. [km]")
 
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
         train_sim.history.link_idx_front,
         linestyle="",
         marker=".",
@@ -201,7 +201,7 @@ def plot_train_network_info() -> tuple[plt.Figure, plt.Axes]:
     ax[1].set_ylabel("Link Idx Front")
 
     ax[-1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
         train_sim.history.speed_meters_per_second,
     )
     ax[-1].set_xlabel("Time [hr]")
@@ -217,21 +217,21 @@ def plot_consist_pwr() -> tuple[plt.Figure, plt.Axes]:
     fig, ax = plt.subplots(3, 1, sharex=True)
     plt.suptitle("Loco. Consist")
     ax[0].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.pwr_whl_out_watts) / 1e6,
         label="consist tract pwr",
     )
     ax[0].set_ylabel("Power [MW]")
     ax[0].legend()
 
     ax[1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
-        np.array(train_sim.history.grade_front) * 100.,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.grade_front) * 100.,
     )
     ax[1].set_ylabel("Grade [%] at\nHead End")
 
     ax[-1].plot(
-        np.array(train_sim.history.time_seconds) / 3_600,
+        np.asarray(train_sim.history.time_seconds) / 3_600,
         train_sim.history.speed_meters_per_second,
     )
     ax[-1].set_xlabel("Time [hr]")
@@ -252,31 +252,31 @@ def plot_hel_pwr_and_soc() -> tuple[plt.Figure, plt.Axes]:
     ax_idx = 0
     ax[ax_idx].plot(
         ts_dict["history"]["time_seconds"],
-        np.array(hybrid_loco["history"]["pwr_out_watts"]) / 1e3,
+        np.asarray(hybrid_loco["history"]["pwr_out_watts"]) / 1e3,
         label="tract. pwr.",
     )
     ax[ax_idx].plot(
         ts_dict["history"]["time_seconds"],
-        np.array(
+        np.asarray(
             hybrid_loco["loco_type"][hel_type]["res"]["history"]["pwr_disch_max_watts"],
         ) / 1e3,
         label="batt. max disch. pwr",
     )
     ax[ax_idx].plot(
         ts_dict["history"]["time_seconds"],
-        np.array(
+        np.asarray(
             hybrid_loco["loco_type"][hel_type]["res"]["history"]["pwr_charge_max_watts"],
         ) / 1e3,
         label="batt. max chrg. pwr",
     )
     ax[ax_idx].plot(
         ts_dict["history"]["time_seconds"],
-        np.array(hybrid_loco["loco_type"][hel_type]["res"]
+        np.asarray(hybrid_loco["loco_type"][hel_type]["res"]
                  ["history"]["pwr_out_electrical_watts"]) / 1e3,
         label="batt. elec. pwr.",
     )
-    pwr_gen_elect_out = np.array(hybrid_loco["loco_type"][hel_type]["gen"]["history"]["pwr_elec_prop_out_watts"]) \
-        + np.array(hybrid_loco["loco_type"][hel_type]
+    pwr_gen_elect_out = np.asarray(hybrid_loco["loco_type"][hel_type]["gen"]["history"]["pwr_elec_prop_out_watts"]) \
+        + np.asarray(hybrid_loco["loco_type"][hel_type]
                    ["gen"]["history"]["pwr_elec_aux_watts"])
     ax[ax_idx].plot(
         ts_dict["history"]["time_seconds"],
@@ -334,26 +334,26 @@ def plot_bel_pwr_and_soc() -> tuple[plt.Figure, plt.Axes]:
     ax_idx = 0
     ax[ax_idx].plot(
         ts_dict["history"]["time_seconds"],
-        np.array(batt_loco["history"]["pwr_out_watts"]) / 1e3,
+        np.asarray(batt_loco["history"]["pwr_out_watts"]) / 1e3,
         label="tract. pwr.",
     )
     ax[ax_idx].plot(
         ts_dict["history"]["time_seconds"],
-        np.array(
+        np.asarray(
             batt_loco["loco_type"][bel_type]["res"]["history"]["pwr_disch_max_watts"],
         ) / 1e3,
         label="batt. max disch. pwr",
     )
     ax[ax_idx].plot(
         ts_dict["history"]["time_seconds"],
-        np.array(
+        np.asarray(
             batt_loco["loco_type"][bel_type]["res"]["history"]["pwr_charge_max_watts"],
         ) / 1e3,
         label="batt. max chrg. pwr",
     )
     ax[ax_idx].plot(
         ts_dict["history"]["time_seconds"],
-        np.array(batt_loco["loco_type"][bel_type]["res"]
+        np.asarray(batt_loco["loco_type"][bel_type]["res"]
                  ["history"]["pwr_out_electrical_watts"]) / 1e3,
         label="batt. elec. pwr.",
     )

@@ -138,18 +138,18 @@ if SHOW_PLOTS:
 
         if loco0.fc is not None:
             ax[0].plot(
-                np.array(sim.history.time_seconds) / 3_600,
-                np.array(loco0.fc.history.pwr_fuel_watts) / 1e6,
+                np.asarray(sim.history.time_seconds) / 3_600,
+                np.asarray(loco0.fc.history.pwr_fuel_watts) / 1e6,
                 # label='fuel'
             )
         # ax[0].plot(
-        #     np.array(sim.history.time_seconds) / 3_600,
-        #     np.array(loco0.history.pwr_out_watts) / 1e6,
+        #     np.asarray(sim.history.time_seconds) / 3_600,
+        #     np.asarray(loco0.history.pwr_out_watts) / 1e6,
         #     label='conv. loco. tractive'
         # )
         # ax[0].plot(
-        #     np.array(sim.history.time_seconds) / 3_600,
-        #     np.array(loco1.history.pwr_out_watts) / 1e6
+        #     np.asarray(sim.history.time_seconds) / 3_600,
+        #     np.asarray(loco1.history.pwr_out_watts) / 1e6
         #     label='BEL tractive'
         # )
         ax[0].set_ylabel("Single Loco.\nFuel Power [MW]")
@@ -160,18 +160,18 @@ if SHOW_PLOTS:
             loco1 = sim.loco_con.loco_vec.tolist()[1]
             if loco1.res is not None:
                 ax[1].plot(
-                    np.array(sim.history.time_seconds) / 3_600,
+                    np.asarray(sim.history.time_seconds) / 3_600,
                     loco1.res.history.soc,
                 )
                 ax[1].set_ylabel("SOC")
 
         ax[-1].plot(
-            np.array(sim.history.time_seconds) / 3_600,
+            np.asarray(sim.history.time_seconds) / 3_600,
             sim.history.speed_meters_per_second,
             label="actual",
         )
         ax[-1].plot(
-            np.array(sim.history.time_seconds) / 3_600,
+            np.asarray(sim.history.time_seconds) / 3_600,
             sim.history.speed_limit_meters_per_second,
             label="limit",
         )

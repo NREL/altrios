@@ -1,5 +1,7 @@
 """Module for general functions, classes, and unit conversion factors."""
 
+from __future__ import annotations
+
 import datetime
 import logging
 import os
@@ -12,7 +14,6 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import polars as pl
-from __future__ import annotations
 
 # local imports
 from altrios import __version__
@@ -99,10 +100,30 @@ def set_param_from_path_dict(mod_dict: dict, path: str, value: float) -> dict:
 
 
 def set_param_from_path(
-    model: SetSpeedTrainSim | ConsistSimulation | Consist | LocomotiveSimulation | Locomotive | FuelConverter | ReversibleEnergyStorage | Generator | ElectricDrivetrain | PowerTrace,
+    model: SetSpeedTrainSim
+    | ConsistSimulation
+    | Consist
+    | LocomotiveSimulation
+    | Locomotive
+    | FuelConverter
+    | ReversibleEnergyStorage
+    | Generator
+    | ElectricDrivetrain
+    | PowerTrace,
     path: str,
     value: Any,
-) -> SetSpeedTrainSim | ConsistSimulation | Consist | LocomotiveSimulation | Locomotive | FuelConverter | ReversibleEnergyStorage | Generator | ElectricDrivetrain | PowerTrace:
+) -> (
+    SetSpeedTrainSim
+    | ConsistSimulation
+    | Consist
+    | LocomotiveSimulation
+    | Locomotive
+    | FuelConverter
+    | ReversibleEnergyStorage
+    | Generator
+    | ElectricDrivetrain
+    | PowerTrace
+):
     """
     Set parameter `value` on `model` for `path` to parameter
 
@@ -146,7 +167,9 @@ def set_param_from_path(
 
     # iterate through remaining containers, inner to outer
     for list_tuple, container, path_elem in zip(
-        lists[-1::-1], containers[-1::-1], path_list[-1::-1],
+        lists[-1::-1],
+        containers[-1::-1],
+        path_list[-1::-1],
     ):
         if list_tuple is not None:
             list_attr, list_name, list_index = list_tuple
@@ -162,7 +185,7 @@ def set_param_from_path(
 
 
 def range_minmax(self) -> pl.Expr:
-     return self.max() - self.min()
+    return self.max() - self.min()
 
 
 pl.Expr.range = range_minmax
@@ -173,12 +196,11 @@ def cumPctWithinGroup(
     df: pl.DataFrame | pl.LazyFrame,
     grouping_vars: list[str],
 ) -> pl.DataFrame | pl.LazyFrame:
-    return (df
-        .with_columns(
-            ((pl.int_range(pl.len(), dtype=pl.UInt32).over(grouping_vars).add(1)) /
-            pl.count().over(grouping_vars))
-            .alias("Percent_Within_Group_Cumulative"),
-        )
+    return df.with_columns(
+        (
+            (pl.int_range(pl.len(), dtype=pl.UInt32).over(grouping_vars).add(1))
+            / pl.count().over(grouping_vars)
+        ).alias("Percent_Within_Group_Cumulative"),
     )
 
 
@@ -187,19 +209,25 @@ def allocateIntegerEvenly(
     target: str,
     grouping_vars: list[str],
 ) -> pl.DataFrame | pl.LazyFrame:
-    return (df
-    .sort(grouping_vars)
-    .pipe(cumPctWithinGroup, grouping_vars=grouping_vars)
-    .with_columns(
-        pl.col(target).mul("Percent_Within_Group_Cumulative").round().alias(f"{target}_Group_Cumulative"),
-    )
-    .with_columns(
-        (pl.col(f"{target}_Group_Cumulative") - pl.col(f"{target}_Group_Cumulative").shift(1).over(grouping_vars))
+    return (
+        df.sort(grouping_vars)
+        .pipe(cumPctWithinGroup, grouping_vars=grouping_vars)
+        .with_columns(
+            pl.col(target)
+            .mul("Percent_Within_Group_Cumulative")
+            .round()
+            .alias(f"{target}_Group_Cumulative"),
+        )
+        .with_columns(
+            (
+                pl.col(f"{target}_Group_Cumulative")
+                - pl.col(f"{target}_Group_Cumulative").shift(1).over(grouping_vars)
+            )
             .fill_null(pl.col(f"{target}_Group_Cumulative"))
             .alias(f"{target}"),
+        )
+        .drop(f"{target}_Group_Cumulative")
     )
-    .drop(f"{target}_Group_Cumulative")
-)
 
 
 def allocateItems(
@@ -207,17 +235,28 @@ def allocateItems(
     grouping_vars: list[str],
     count_target: str,
 ) -> pl.DataFrame | pl.LazyFrame:
-    return (df
-        .sort(grouping_vars + [count_target], descending=True)
+    return (
+        df.sort(grouping_vars + [count_target], descending=True)
         .with_columns(
             pl.col(count_target).sum().over(grouping_vars).round().alias(f"{count_target}_Group"),
-            (pl.col(count_target).sum().over(grouping_vars).round() *
-                (
-                    pl.col(count_target).cum_sum().over(grouping_vars) /
-                    pl.col(count_target).sum().over(grouping_vars)
+            (
+                pl.col(count_target).sum().over(grouping_vars).round()
+                * (
+                    pl.col(count_target).cum_sum().over(grouping_vars)
+                    / pl.col(count_target).sum().over(grouping_vars)
                 )
-            ).round().alias(f"{count_target}_Group_Cumulative"))
-        .with_columns((pl.col(f"{count_target}_Group_Cumulative") - pl.col(f"{count_target}_Group_Cumulative").shift(1).over(grouping_vars)).fill_null(pl.col(f"{count_target}_Group_Cumulative")).alias("Count"))
+            )
+            .round()
+            .alias(f"{count_target}_Group_Cumulative"),
+        )
+        .with_columns(
+            (
+                pl.col(f"{count_target}_Group_Cumulative")
+                - pl.col(f"{count_target}_Group_Cumulative").shift(1).over(grouping_vars)
+            )
+            .fill_null(pl.col(f"{count_target}_Group_Cumulative"))
+            .alias("Count"),
+        )
     )
 
 
@@ -241,8 +280,9 @@ def resample(
     new_dict = dict()
 
     new_time = np.arange(
-        0, np.floor(df[time_col].to_numpy()[-1] / dt_new) *
-        dt_new + dt_new, dt_new,
+        0,
+        np.floor(df[time_col].to_numpy()[-1] / dt_new) * dt_new + dt_new,
+        dt_new,
     )
 
     for col in df.columns:
@@ -251,8 +291,7 @@ def resample(
             cumu_vals = (df[time_col].diff().fillna(0) * df[col]).cum_sum()
             new_dict[col] = (
                 np.diff(
-                    np.interp(
-                        x=new_time, xp=df[time_col].to_numpy(), fp=cumu_vals),
+                    np.interp(x=new_time, xp=df[time_col].to_numpy(), fp=cumu_vals),
                     prepend=0,
                 )
                 / dt_new
@@ -265,7 +304,9 @@ def resample(
         else:
             # just interpolate -- i.e. state variables like temperatures
             new_dict[col] = np.interp(
-                x=new_time, xp=df[time_col].to_numpy(), fp=df[col].to_numpy(),
+                x=new_time,
+                xp=df[time_col].to_numpy(),
+                fp=df[col].to_numpy(),
             )
 
     return pd.DataFrame(new_dict)
@@ -303,7 +344,7 @@ def set_log_level(level: str | int) -> int:
     ----------
     level: `str` | `int`
         Logging level to set. `str` level name or `int` logging level
-        
+
         =========== ================
         Level       Numeric value
         =========== ================
@@ -313,7 +354,7 @@ def set_log_level(level: str | int) -> int:
         INFO        20
         DEBUG       10
         NOTSET      0
-    
+
     Returns
     -------
     `int`
@@ -344,8 +385,8 @@ def set_log_level(level: str | int) -> int:
 
     # Extract previous log level and set new log level
     python_logger = logging.getLogger("altrios")
-    previous_level = python_logger .level
-    python_logger .setLevel(level)
+    previous_level = python_logger.level
+    python_logger.setLevel(level)
     return previous_level
 
 
@@ -403,4 +444,6 @@ def show_plots() -> bool:
             # defaults to true if not provided
             "true",
             # only true if provided input is exactly "true", case insensitive
-        ).lower() == "true")
+        ).lower()
+        == "true"
+    )

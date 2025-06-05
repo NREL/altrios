@@ -33,7 +33,7 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
 ]
 dependencies = [
-    "pandas>=2",
+    "pandas>=2.1.2",
     "numpy>=1.18, <=2.2.5",
     "pymoo==0.6",
     "openpyxl",
@@ -117,7 +117,7 @@ exclude = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["altrios"]
-section-order = ["standard-library", "third-party", "first-party", "local-folder"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
 
 [tool.ruff.format]
 quote-style = "double"

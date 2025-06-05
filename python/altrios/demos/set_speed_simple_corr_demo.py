@@ -87,8 +87,8 @@ loco0: alt.Locomotive = train_sim.loco_con.loco_vec.tolist()[0]
 
 fig, ax = plt.subplots(4, 1, sharex=True, figsize=((8, 6)))
 ax[0].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
+    np.asarray(train_sim.history.time_seconds) / 3_600,
+    np.asarray(train_sim.history.pwr_whl_out_watts) / 1e6,
     label="tract pwr",
 )
 ax[0].set_ylabel("Power [MW]")
@@ -102,27 +102,27 @@ ax[0].set_xlim(
 ax[0].legend()
 
 ax[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
+    np.asarray(train_sim.history.time_seconds) / 3_600,
     train_sim.history.res_aero_newtons,
     label="aero",
 )
 ax[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
+    np.asarray(train_sim.history.time_seconds) / 3_600,
     train_sim.history.res_rolling_newtons,
     label="rolling",
 )
 ax[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
+    np.asarray(train_sim.history.time_seconds) / 3_600,
     train_sim.history.res_curve_newtons,
     label="curve",
 )
 ax[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
+    np.asarray(train_sim.history.time_seconds) / 3_600,
     train_sim.history.res_bearing_newtons,
     label="bearing",
 )
 ax[1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
+    np.asarray(train_sim.history.time_seconds) / 3_600,
     train_sim.history.res_grade_newtons,
     label="grade",
 )
@@ -130,15 +130,15 @@ ax[1].set_ylabel("Force [N]")
 ax[1].legend(loc="right")
 
 ax[-1].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
+    np.asarray(train_sim.history.time_seconds) / 3_600,
     train_sim.speed_trace.speed_meters_per_second,
 )
 ax[-1].set_xlabel("Time [hr]")
 ax[-1].set_ylabel("Speed [m/s]")
 
 ax[2].plot(
-    np.array(train_sim.history.time_seconds) / 3_600,
-    np.array(loco0.res.history.soc),
+    np.asarray(train_sim.history.time_seconds) / 3_600,
+    np.asarray(loco0.res.history.soc),
 )
 
 ax[2].set_ylabel("SOC")

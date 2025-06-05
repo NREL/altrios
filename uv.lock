@@ -78,7 +78,7 @@ requires-dist = [
     { name = "msgpack", specifier = "==1.1.0" },
     { name = "numpy", specifier = ">=1.18,<=2.2.5" },
     { name = "openpyxl" },
-    { name = "pandas", specifier = ">=2" },
+    { name = "pandas", specifier = ">=2.1.2" },
     { name = "pip" },
     { name = "plotly", specifier = "~=6.0" },
     { name = "polars", specifier = "==1.20.0" },

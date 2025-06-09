@@ -101,6 +101,19 @@ where
         Ok(())
     }
 
+    // Note that `anyhow::Error` is fine here because this should result only in
+    // logic errors and not runtime errors for end users
+    /// Update the value of the tracked state without verifying that it has not
+    /// already been updated -- to be used sparingly!
+    /// # Arguments
+    /// - `value`: new value
+    /// - `loc`: closure that returns file and line number where called
+    pub fn update_unchecked<F: Fn() -> String>(&mut self, value: T, loc: F) -> anyhow::Result<()> {
+        self.0 = value;
+        self.1 = StateStatus::Fresh;
+        Ok(())
+    }
+
     /// Verify that state is [State::Stale] and mark state as [State::Fresh]
     /// without updating
     /// # Arguments

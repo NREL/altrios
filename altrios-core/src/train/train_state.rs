@@ -38,9 +38,9 @@ impl SerdeAPI for InitTrainState {}
 impl Default for InitTrainState {
     fn default() -> Self {
         Self {
-            time: si::Time::ZERO,
-            offset: f64::NAN * uc::M,
-            speed: si::Velocity::ZERO,
+            time: TrackedState::new(si::Time::ZERO),
+            offset: TrackedState::new(f64::NAN * uc::M),
+            speed: TrackedState::new(si::Velocity::ZERO),
         }
     }
 }
@@ -53,9 +53,15 @@ impl InitTrainState {
     ) -> Self {
         let base = InitTrainState::default();
         Self {
-            time: time.unwrap_or(base.time),
-            offset: offset.unwrap_or(base.offset),
-            speed: speed.unwrap_or(base.speed),
+            time: TrackedState::new(
+                time.unwrap_or(*base.time.get_fresh(|| format_dbg!()).unwrap()),
+            ),
+            offset: TrackedState::new(
+                offset.unwrap_or(*base.offset.get_fresh(|| format_dbg!()).unwrap()),
+            ),
+            speed: TrackedState::new(
+                speed.unwrap_or(*base.speed.get_fresh(|| format_dbg!()).unwrap()),
+            ),
         }
     }
 }
@@ -150,13 +156,13 @@ impl Default for TrainState {
             i: Default::default(),
             offset: Default::default(),
             offset_back: Default::default(),
-            total_dist: si::Length::ZERO,
+            total_dist: Default::default(),
             link_idx_front: Default::default(),
             link_idx_back: Default::default(),
             offset_in_link: Default::default(),
             speed: Default::default(),
             speed_limit: Default::default(),
-            dt: uc::S,
+            dt: TrackedState::new(uc::S),
             length: Default::default(),
             mass_static: Default::default(),
             mass_rot: Default::default(),
@@ -198,7 +204,7 @@ impl Mass for TrainState {
     }
 
     fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
-        Ok(Some(self.mass_static))
+        Ok(Some(*self.mass_static.get_fresh(|| format_dbg!())?))
     }
 
     fn expunge_mass_fields(&mut self) {}
@@ -214,32 +220,36 @@ impl TrainState {
         init_train_state: Option<InitTrainState>,
     ) -> Self {
         let init_train_state = init_train_state.unwrap_or_default();
-        let offset = init_train_state.offset.max(length);
+        let offset = init_train_state
+            .offset
+            .get_fresh(|| format_dbg!())
+            .unwrap()
+            .max(length);
         Self {
             time: init_train_state.time,
             i: Default::default(),
-            offset,
-            offset_back: offset - length,
-            total_dist: si::Length::ZERO,
-            speed: init_train_state.speed,
+            offset: TrackedState::new(offset),
+            offset_back: TrackedState::new(offset - length),
+            total_dist: TrackedState::new(si::Length::ZERO),
+            speed: init_train_state.speed.clone(),
             // this needs to be set to something greater than or equal to actual speed and will be
             // updated after the first time step anyway
             speed_limit: init_train_state.speed,
-            length,
-            mass_static,
-            mass_rot,
-            mass_freight,
+            length: TrackedState::new(length),
+            mass_static: TrackedState::new(mass_static),
+            mass_rot: TrackedState::new(mass_rot),
+            mass_freight: TrackedState::new(mass_freight),
             ..Self::default()
         }
     }
 
-    pub fn res_net(&self) -> si::Force {
-        self.res_rolling
-            + self.res_bearing
-            + self.res_davis_b
-            + self.res_aero
-            + self.res_grade
-            + self.res_curve
+    pub fn res_net(&self) -> anyhow::Result<si::Force> {
+        Ok(*self.res_rolling.get_fresh(|| format_dbg!())?
+            + *self.res_bearing.get_fresh(|| format_dbg!())?
+            + *self.res_davis_b.get_fresh(|| format_dbg!())?
+            + *self.res_aero.get_fresh(|| format_dbg!())?
+            + *self.res_grade.get_fresh(|| format_dbg!())?
+            + *self.res_curve.get_fresh(|| format_dbg!())?)
     }
 
     /// All base, freight, and rotational mass
@@ -248,20 +258,20 @@ impl TrainState {
             .mass()
             .with_context(|| format_dbg!())?
             .with_context(|| format!("{}\nExpected `Some`", format_dbg!()))?
-            + self.mass_rot)
+            + *self.mass_rot.get_fresh(|| format_dbg!())?)
     }
 }
 
 impl Valid for TrainState {
     fn valid() -> Self {
         Self {
-            length: 2000.0 * uc::M,
-            offset: 2000.0 * uc::M,
-            offset_back: si::Length::ZERO,
-            mass_static: 6000.0 * uc::TON,
-            mass_rot: 200.0 * uc::TON,
+            length: TrackedState::new(2000.0 * uc::M),
+            offset: TrackedState::new(2000.0 * uc::M),
+            offset_back: TrackedState::new(si::Length::ZERO),
+            mass_static: TrackedState::new(6000.0 * uc::TON),
+            mass_rot: TrackedState::new(200.0 * uc::TON),
 
-            dt: uc::S,
+            dt: TrackedState::new(uc::S),
             ..Self::default()
         }
     }
@@ -271,8 +281,24 @@ impl Valid for TrainState {
 impl ObjState for TrainState {
     fn validate(&self) -> ValidationResults {
         let mut errors = ValidationErrors::new();
-        si_chk_num_gtz_fin(&mut errors, &self.mass_static, "Mass static");
-        si_chk_num_gtz_fin(&mut errors, &self.length, "Length");
+        if let Err(err) = self.mass_static.get_fresh(|| format_dbg!()) {
+            errors.push(err);
+            return errors.make_err();
+        }
+        if let Err(err) = self.length.get_fresh(|| format_dbg!()) {
+            errors.push(err);
+            return errors.make_err();
+        }
+        si_chk_num_gtz_fin(
+            &mut errors,
+            self.mass_static.get_fresh(|| format_dbg!()).unwrap(),
+            "Mass static",
+        );
+        si_chk_num_gtz_fin(
+            &mut errors,
+            self.length.get_fresh(|| format_dbg!()).unwrap(),
+            "Length",
+        );
         // si_chk_num_gtz_fin(&mut errors, &self.res_bearing, "Resistance bearing");
         // si_chk_num_fin(&mut errors, &self.res_davis_b, "Resistance Davis B");
         // si_chk_num_gtz_fin(&mut errors, &self.cd_area, "cd area");
@@ -287,10 +313,11 @@ pub fn set_link_and_offset(state: &mut TrainState, path_tpc: &PathTpc) -> anyhow
     // index of current link within `path_tpc`
     // if the link_point.offset is greater than the train `state` offset, then
     // the train is in the previous link
+    let offset = *state.offset.get_fresh(|| format_dbg!())?;
     let idx_curr_link = path_tpc
         .link_points()
         .iter()
-        .position(|&lp| lp.offset > state.offset)
+        .position(|&lp| lp.offset > offset)
         // if None, assume that it's the last element
         .unwrap_or_else(|| path_tpc.link_points().len())
         - 1;
@@ -298,23 +325,32 @@ pub fn set_link_and_offset(state: &mut TrainState, path_tpc: &PathTpc) -> anyhow
         .link_points()
         .get(idx_curr_link)
         .with_context(|| format_dbg!())?;
-    state.link_idx_front = link_point.link_idx.idx() as u32;
-    state.offset_in_link = state.offset - link_point.offset;
+    state
+        .link_idx_front
+        .update(link_point.link_idx.idx() as u32, || format_dbg!())?;
+    state.offset_in_link.update(
+        *state.offset.get_fresh(|| format_dbg!())? - link_point.offset,
+        || format_dbg!(),
+    )?;
 
     // link index of back of train at current time step
+    let offset_back = *state.offset_back.get_fresh(|| format_dbg!())?;
     let idx_back_link = path_tpc
         .link_points()
         .iter()
-        .position(|&lp| lp.offset > state.offset_back)
+        .position(|&lp| lp.offset > offset_back)
         // if None, assume that it's the last element
         .unwrap_or_else(|| path_tpc.link_points().len())
         - 1;
-    state.link_idx_back = path_tpc
-        .link_points()
-        .get(idx_back_link)
-        .with_context(|| format_dbg!())?
-        .link_idx
-        .idx() as u32;
+    state.link_idx_back.update(
+        path_tpc
+            .link_points()
+            .get(idx_back_link)
+            .with_context(|| format_dbg!())?
+            .link_idx
+            .idx() as u32,
+        || format_dbg!(),
+    )?;
 
     Ok(())
 }

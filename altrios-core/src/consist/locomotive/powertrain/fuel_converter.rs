@@ -211,7 +211,7 @@ impl FuelConverter {
 
         self.pwr_out_max_init = self.pwr_out_max_init.max(self.pwr_out_max / 10.);
         self.state.pwr_out_max.update(
-            *self.state.pwr_mech_out.get_stale(|| format_dbg!())?
+            *self.state.pwr_shaft.get_stale(|| format_dbg!())?
                 + ((self.pwr_out_max / self.pwr_ramp_lag) * dt)
                     .min(self.pwr_out_max)
                     .min(pwr_max_derated)
@@ -273,9 +273,7 @@ impl FuelConverter {
             )
         );
 
-        self.state
-            .pwr_mech_out
-            .update(pwr_out_req, || format_dbg!())?;
+        self.state.pwr_shaft.update(pwr_out_req, || format_dbg!())?;
         self.state.eta.update(
             uc::R
                 * interp1d(
@@ -329,7 +327,7 @@ impl FuelConverter {
         );
         self.state.pwr_loss.update(
             *self.state.pwr_fuel.get_fresh(|| format_dbg!())?
-                - *self.state.pwr_mech_out.get_fresh(|| format_dbg!())?,
+                - *self.state.pwr_shaft.get_fresh(|| format_dbg!())?,
             || format_dbg!(),
         );
 
@@ -386,16 +384,16 @@ pub struct FuelConverterState {
     pub pwr_out_max: TrackedState<si::Power>,
     /// efficiency evaluated at current demand
     pub eta: TrackedState<si::Ratio>,
-    /// instantaneous power going to generator
-    pub pwr_mech_out: TrackedState<si::Power>,
+    /// instantaneous shaft power going to generator
+    pub pwr_shaft: TrackedState<si::Power>,
     /// instantaneous fuel power flow
     pub pwr_fuel: TrackedState<si::Power>,
     /// loss power, including idle
     pub pwr_loss: TrackedState<si::Power>,
     /// idle fuel flow rate power
     pub pwr_idle_fuel: TrackedState<si::Power>,
-    /// cumulative propulsion energy fc has produced
-    pub energy_brake: TrackedState<si::Energy>,
+    /// cumulative shaft energy fc has provided to generator
+    pub energy_shaft: TrackedState<si::Energy>,
     /// cumulative fuel energy fc has consumed
     pub energy_fuel: TrackedState<si::Energy>,
     /// cumulative energy fc has lost due to imperfect efficiency
@@ -420,11 +418,11 @@ impl Default for FuelConverterState {
             pwr_out_max: Default::default(),
             eta: Default::default(),
             pwr_fuel: Default::default(),
-            pwr_mech_out: Default::default(),
+            pwr_shaft: Default::default(),
             pwr_loss: Default::default(),
             pwr_idle_fuel: Default::default(),
             energy_fuel: Default::default(),
-            energy_brake: Default::default(),
+            energy_shaft: Default::default(),
             energy_loss: Default::default(),
             energy_idle_fuel: Default::default(),
             engine_on: TrackedState::new(true),
@@ -457,7 +455,7 @@ mod tests {
             .unwrap();
         assert!(
             fc.state.energy_fuel.get_fresh(|| format_dbg!()).unwrap()
-                > fc.state.energy_brake.get_fresh(|| format_dbg!()).unwrap()
+                > fc.state.energy_shaft.get_fresh(|| format_dbg!()).unwrap()
         );
     }
 

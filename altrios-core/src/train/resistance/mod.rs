@@ -64,6 +64,9 @@ pub enum TrainRes {
     Strap(method::Strap),
 }
 
+impl Init for TrainRes {}
+impl SerdeAPI for TrainRes {}
+
 impl ResMethod for TrainRes {
     fn update_res(
         &mut self,

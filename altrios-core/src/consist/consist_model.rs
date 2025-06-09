@@ -32,7 +32,7 @@ impl StateMethods for Vec<Locomotive> {}
 impl SetCumulative for Vec<Locomotive> {
     fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
         for (loco_idx, loco) in self.iter_mut().enumerate() {
-            loco.set_cumulative(dt, || format_dbg!(loco_idx))?;
+            loco.set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!(loco_idx)))?;
         }
         Ok(())
     }
@@ -41,7 +41,7 @@ impl SetCumulative for Vec<Locomotive> {
 impl SaveState for Vec<Locomotive> {
     fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         for (loco_idx, loco) in self.iter_mut().enumerate() {
-            loco.save_state(|| format_dbg!(loco_idx))?;
+            loco.save_state(|| format!("{}\n{}", loc(), format_dbg!(loco_idx)))?;
         }
         Ok(())
     }
@@ -50,7 +50,7 @@ impl SaveState for Vec<Locomotive> {
 impl Step for Vec<Locomotive> {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         for (loco_idx, loco) in self.iter_mut().enumerate() {
-            loco.step(|| format_dbg!(loco_idx))?;
+            loco.step(|| format!("{}\n{}", loc(), format_dbg!(loco_idx)))?;
         }
         Ok(())
     }
@@ -59,7 +59,7 @@ impl Step for Vec<Locomotive> {
 impl CheckAndResetState for Vec<Locomotive> {
     fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         for (loco_idx, loco) in self.iter_mut().enumerate() {
-            loco.check_and_reset(|| format_dbg!(loco_idx))?;
+            loco.check_and_reset(|| format!("{}\n{}", loc(), format_dbg!(loco_idx)))?;
         }
         Ok(())
     }
@@ -138,13 +138,13 @@ impl Consist {
     }
 
     #[pyo3(name = "get_net_energy_res_joules")]
-    fn get_net_energy_res_py(&self) -> f64 {
-        self.get_net_energy_res().get::<si::joule>()
+    fn get_net_energy_res_py(&self) -> anyhow::Result<f64> {
+        Ok(self.get_net_energy_res()?.get::<si::joule>())
     }
 
     #[pyo3(name = "get_energy_fuel_joules")]
-    fn get_energy_fuel_py(&self) -> f64 {
-        self.get_energy_fuel().get::<si::joule>()
+    fn get_energy_fuel_py(&self) -> anyhow::Result<f64> {
+        Ok(self.get_energy_fuel()?.get::<si::joule>())
     }
 
     #[getter("force_max_lbs")]
@@ -271,33 +271,52 @@ impl Consist {
             if offset < cpl.offset_start {
                 break;
             } else if offset <= cpl.offset_end {
-                self.state.pwr_cat_lim = cpl.power_limit;
-                return;
+                self.state
+                    .pwr_cat_lim
+                    .update(cpl.power_limit, || format_dbg!())?;
+                return Ok(());
             }
         }
-        self.state.pwr_cat_lim = si::Power::ZERO;
+        self.state
+            .pwr_cat_lim
+            .update(si::Power::ZERO, || format_dbg!())?;
         Ok(())
     }
 
-    pub fn get_energy_fuel(&self) -> si::Energy {
-        self.loco_vec
-            .iter()
-            .map(|loco| match loco.loco_type {
+    pub fn get_energy_fuel(&self) -> anyhow::Result<si::Energy> {
+        let mut energy = si::Energy::ZERO;
+        for loco in self.loco_vec.clone() {
+            energy += match loco.loco_type {
                 PowertrainType::BatteryElectricLoco(_) => si::Energy::ZERO,
-                _ => loco.fuel_converter().unwrap().state.energy_fuel,
-            })
-            .sum::<si::Energy>()
+                _ => *loco
+                    .fuel_converter()
+                    .unwrap()
+                    .state
+                    .energy_fuel
+                    .get_fresh(|| format_dbg!())?,
+            };
+        }
+        Ok(energy)
     }
 
-    pub fn get_net_energy_res(&self) -> si::Energy {
-        self.loco_vec
-            .iter()
-            .map(|lt| match &lt.loco_type {
-                PowertrainType::BatteryElectricLoco(loco) => loco.res.state.energy_out_chemical,
-                PowertrainType::HybridLoco(loco) => loco.res.state.energy_out_chemical,
+    pub fn get_net_energy_res(&self) -> anyhow::Result<si::Energy> {
+        let mut energy = si::Energy::ZERO;
+        for loco in self.loco_vec.clone() {
+            energy += match &loco.loco_type {
+                PowertrainType::BatteryElectricLoco(loco) => *loco
+                    .res
+                    .state
+                    .energy_out_chemical
+                    .get_fresh(|| format_dbg!())?,
+                PowertrainType::HybridLoco(loco) => *loco
+                    .res
+                    .state
+                    .energy_out_chemical
+                    .get_fresh(|| format_dbg!())?,
                 _ => si::Energy::ZERO,
-            })
-            .sum::<si::Energy>()
+            };
+        }
+        Ok(energy)
     }
 
     pub fn set_pwr_aux(&mut self, engine_on: Option<bool>) -> anyhow::Result<()> {
@@ -318,32 +337,42 @@ impl Consist {
         // TODO: account for catenary in here
         if self.assert_limits {
             ensure!(
-                -pwr_out_req <= self.state.pwr_dyn_brake_max,
+                -pwr_out_req <= *self.state.pwr_dyn_brake_max.get_fresh(|| format_dbg!())?,
                 "{}\nbraking power required ({} MW)\nexceeds max DB power ({} MW)",
                 format_dbg!(),
                 (-pwr_out_req.get::<si::megawatt>()).format_eng(Some(5)),
                 self.state
                     .pwr_dyn_brake_max
+                    .get_fresh(|| format_dbg!())?
                     .get::<si::megawatt>()
                     .format_eng(Some(5)),
             );
             ensure!(
-                pwr_out_req <= self.state.pwr_out_max,
+                pwr_out_req <= *self.state.pwr_out_max.get_fresh(|| format_dbg!())?,
                 "{}\npower required ({} MW)\nexceeds max power ({} MW)",
                 format_dbg!(),
                 pwr_out_req.get::<si::megawatt>().format_eng(Some(5)),
                 self.state
                     .pwr_out_max
+                    .get_fresh(|| format_dbg!())?
                     .get::<si::megawatt>()
                     .format_eng(Some(5))
             );
         }
 
-        self.state.pwr_out_req = pwr_out_req;
-        self.state.pwr_out_deficit =
-            (pwr_out_req - self.state.pwr_out_max_reves).max(si::Power::ZERO);
-        self.state.pwr_regen_deficit =
-            (-pwr_out_req - self.state.pwr_regen_max).max(si::Power::ZERO);
+        self.state
+            .pwr_out_req
+            .update(pwr_out_req, || format_dbg!())?;
+        self.state.pwr_out_deficit.update(
+            (pwr_out_req - *self.state.pwr_out_max_reves.get_fresh(|| format_dbg!())?)
+                .max(si::Power::ZERO),
+            || format_dbg!(),
+        )?;
+        self.state.pwr_regen_deficit.update(
+            (-pwr_out_req - *self.state.pwr_regen_max.get_fresh(|| format_dbg!())?)
+                .max(si::Power::ZERO),
+            || format_dbg!(),
+        )?;
 
         // Sum of dynamic braking capability, including regenerative capability
         self.set_pwr_dyn_brake_max();
@@ -369,13 +398,20 @@ impl Consist {
             vec![si::Power::ZERO; self.loco_vec.len()]
         };
 
-        self.state.pwr_out = pwr_out_vec
-            .iter()
-            .fold(si::Power::ZERO, |acc, &curr| acc + curr);
+        self.state.pwr_out.update(
+            pwr_out_vec
+                .iter()
+                .fold(si::Power::ZERO, |acc, &curr| acc + curr),
+            || format_dbg!(),
+        )?;
 
         if self.assert_limits {
             ensure!(
-                utils::almost_eq_uom(&self.state.pwr_out_req, &self.state.pwr_out, None),
+                utils::almost_eq_uom(
+                    self.state.pwr_out_req.get_fresh(|| format_dbg!())?,
+                    self.state.pwr_out.get_fresh(|| format_dbg!())?,
+                    None
+                ),
                 format!(
                     "{}
                     self.state.pwr_out_req: {:.6} MW
@@ -383,9 +419,21 @@ impl Consist {
                     self.state.pwr_out_deficit: {:.6} MW
                     pwr_out_vec: {:?}",
                     format_dbg!(),
-                    &self.state.pwr_out_req.get::<si::megawatt>(),
-                    &self.state.pwr_out.get::<si::megawatt>(),
-                    &self.state.pwr_out_deficit.get::<si::megawatt>(),
+                    &self
+                        .state
+                        .pwr_out_req
+                        .get_fresh(|| format_dbg!())?
+                        .get::<si::megawatt>(),
+                    &self
+                        .state
+                        .pwr_out
+                        .get_fresh(|| format_dbg!())?
+                        .get::<si::megawatt>(),
+                    &self
+                        .state
+                        .pwr_out_deficit
+                        .get_fresh(|| format_dbg!())?
+                        .get::<si::megawatt>(),
                     &pwr_out_vec,
                 )
             );
@@ -405,51 +453,90 @@ impl Consist {
                 })?;
         }
 
-        self.state.pwr_fuel = self
-            .loco_vec
-            .iter()
-            .map(|loco| match &loco.loco_type {
-                PowertrainType::ConventionalLoco(cl) => cl.fc.state.pwr_fuel,
-                PowertrainType::HybridLoco(hel) => hel.fc.state.pwr_fuel,
-                PowertrainType::BatteryElectricLoco(_) => si::Power::ZERO,
-                PowertrainType::DummyLoco(_) => f64::NAN * uc::W,
-            })
-            .sum();
+        self.state.pwr_fuel.update(
+            {
+                let mut pwr_fuel = si::Power::ZERO;
+                for loco in self.loco_vec.clone() {
+                    pwr_fuel += match &loco.loco_type {
+                        PowertrainType::ConventionalLoco(cl) => {
+                            *cl.fc.state.pwr_fuel.get_fresh(|| format_dbg!())?
+                        }
+                        PowertrainType::HybridLoco(hel) => {
+                            *hel.fc.state.pwr_fuel.get_fresh(|| format_dbg!())?
+                        }
+                        PowertrainType::BatteryElectricLoco(_) => si::Power::ZERO,
+                        PowertrainType::DummyLoco(_) => f64::NAN * uc::W,
+                    }
+                }
+                pwr_fuel
+            },
+            || format_dbg!(),
+        )?;
 
-        self.state.pwr_reves = self
-            .loco_vec
-            .iter()
-            .map(|loco| match &loco.loco_type {
-                PowertrainType::ConventionalLoco(_cl) => si::Power::ZERO,
-                PowertrainType::HybridLoco(hel) => hel.res.state.pwr_out_chemical,
-                PowertrainType::BatteryElectricLoco(bel) => bel.res.state.pwr_out_chemical,
-                PowertrainType::DummyLoco(_) => f64::NAN * uc::W,
-            })
-            .sum();
+        self.state.pwr_reves.update(
+            {
+                let mut pwr_out_chem = si::Power::ZERO;
+                for loco in self.loco_vec.clone() {
+                    pwr_out_chem += match &loco.loco_type {
+                        PowertrainType::ConventionalLoco(_cl) => si::Power::ZERO,
+                        PowertrainType::HybridLoco(hel) => {
+                            *hel.res.state.pwr_out_chemical.get_fresh(|| format_dbg!())?
+                        }
+                        PowertrainType::BatteryElectricLoco(bel) => {
+                            *bel.res.state.pwr_out_chemical.get_fresh(|| format_dbg!())?
+                        }
+                        PowertrainType::DummyLoco(_) => f64::NAN * uc::W,
+                    }
+                }
+                pwr_out_chem
+            },
+            || format_dbg!(),
+        )?;
 
-        self.state.energy_out += self.state.pwr_out * dt;
-        if self.state.pwr_out >= 0. * uc::W {
-            self.state.energy_out_pos += self.state.pwr_out * dt;
+        self.state.energy_out.increment(
+            *self.state.pwr_out.get_fresh(|| format_dbg!())? * dt,
+            || format_dbg!(),
+        )?;
+        if *self.state.pwr_out.get_fresh(|| format_dbg!())? >= si::Power::ZERO {
+            self.state.energy_out_pos.increment(
+                *self.state.pwr_out.get_fresh(|| format_dbg!())? * dt,
+                || format_dbg!(),
+            )?;
         } else {
-            self.state.energy_out_neg -= self.state.pwr_out * dt;
+            self.state.energy_out_neg.increment(
+                *self.state.pwr_out.get_fresh(|| format_dbg!())? * dt,
+                || format_dbg!(),
+            )?;
         }
-        self.state.energy_fuel += self.state.pwr_fuel * dt;
-        self.state.energy_res += self.state.pwr_reves * dt;
+        self.state.energy_fuel.increment(
+            *self.state.pwr_fuel.get_fresh(|| format_dbg!())? * dt,
+            || format_dbg!(),
+        )?;
+        self.state.energy_res.increment(
+            *self.state.pwr_reves.get_fresh(|| format_dbg!())? * dt,
+            || format_dbg!(),
+        )?;
         Ok(())
     }
 
-    pub fn set_pwr_dyn_brake_max(&mut self) {
-        self.state.pwr_dyn_brake_max = self
-            .loco_vec
-            .iter()
-            .map(|loco| match &loco.loco_type {
-                PowertrainType::ConventionalLoco(conv) => conv.edrv.pwr_out_max,
-                PowertrainType::HybridLoco(hel) => hel.edrv.pwr_out_max,
-                PowertrainType::BatteryElectricLoco(bel) => bel.edrv.pwr_out_max,
-                // really big number that is not inf to avoid null in json
-                PowertrainType::DummyLoco(_) => uc::W * 1e15,
-            })
-            .sum();
+    pub fn set_pwr_dyn_brake_max(&mut self) -> anyhow::Result<()> {
+        self.state.pwr_dyn_brake_max.update(
+            {
+                let mut pwr_out_max = si::Power::ZERO;
+                for loco in self.loco_vec.clone() {
+                    pwr_out_max += match &loco.loco_type {
+                        PowertrainType::ConventionalLoco(conv) => conv.edrv.pwr_out_max,
+                        PowertrainType::HybridLoco(hel) => hel.edrv.pwr_out_max,
+                        PowertrainType::BatteryElectricLoco(bel) => bel.edrv.pwr_out_max,
+                        // really big number that is not inf to avoid null in json
+                        PowertrainType::DummyLoco(_) => uc::W * 1e15,
+                    };
+                }
+                pwr_out_max
+            },
+            || format_dbg!(),
+        )?;
+        Ok(())
     }
 }
 
@@ -526,30 +613,61 @@ impl LocoTrait for Consist {
                     ))
                 })?;
         }
-        self.state.pwr_out_max = self
-            .loco_vec
-            .iter()
-            .fold(si::Power::ZERO, |acc, loco| acc + loco.state.pwr_out_max);
-        self.state.pwr_rate_out_max =
-            self.loco_vec.iter().fold(si::PowerRate::ZERO, |acc, loco| {
-                acc + loco.state.pwr_rate_out_max
-            });
-        self.state.pwr_regen_max = self
-            .loco_vec
-            .iter()
-            .fold(si::Power::ZERO, |acc, loco| acc + loco.state.pwr_regen_max);
-        self.state.pwr_out_max_reves = self
-            .loco_vec
-            .iter()
-            .map(|loco| match &loco.loco_type {
-                PowertrainType::ConventionalLoco(_) => si::Power::ZERO,
-                PowertrainType::HybridLoco(_) => loco.state.pwr_out_max,
-                PowertrainType::BatteryElectricLoco(_) => loco.state.pwr_out_max,
-                // really big number that is not inf to avoid null in json
-                PowertrainType::DummyLoco(_) => 1e15 * uc::W,
-            })
-            .sum();
-        self.state.pwr_out_max_non_reves = self.state.pwr_out_max - self.state.pwr_out_max_reves;
+        self.state.pwr_out_max.update(
+            {
+                let mut pwr_out_max = si::Power::ZERO;
+                for loco in self.loco_vec.clone() {
+                    pwr_out_max += *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?;
+                }
+                pwr_out_max
+            },
+            || format_dbg!(),
+        )?;
+        self.state.pwr_rate_out_max.update(
+            {
+                let mut pwr_rate_out_max = si::PowerRate::ZERO;
+                for loco in self.loco_vec.clone() {
+                    pwr_rate_out_max += *loco.state.pwr_rate_out_max.get_fresh(|| format_dbg!())?;
+                }
+                pwr_rate_out_max
+            },
+            || format_dbg!(),
+        )?;
+        self.state.pwr_regen_max.update(
+            {
+                let mut pwr_regen_max = si::Power::ZERO;
+                for loco in self.loco_vec.clone() {
+                    pwr_regen_max += *loco.state.pwr_regen_max.get_fresh(|| format_dbg!())?
+                }
+                pwr_regen_max
+            },
+            || format_dbg!(),
+        );
+        self.state.pwr_out_max_reves.update(
+            {
+                let mut pwr_out_max_reves = si::Power::ZERO;
+                for loco in self.loco_vec.clone() {
+                    pwr_out_max_reves += match &loco.loco_type {
+                        PowertrainType::ConventionalLoco(_) => si::Power::ZERO,
+                        PowertrainType::HybridLoco(_) => {
+                            *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?
+                        }
+                        PowertrainType::BatteryElectricLoco(_) => {
+                            *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?
+                        }
+                        // really big number that is not inf to avoid null in json
+                        PowertrainType::DummyLoco(_) => 1e15 * uc::W,
+                    };
+                }
+                pwr_out_max_reves
+            },
+            || format_dbg!(),
+        )?;
+        self.state.pwr_out_max_non_reves.update(
+            *self.state.pwr_out_max.get_fresh(|| format_dbg!())?
+                - *self.state.pwr_out_max_reves.get_fresh(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
 
         Ok(())
     }

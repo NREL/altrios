@@ -424,7 +424,8 @@ impl SetSpeedTrainSim {
         );
 
         // res for resistance is a horrible name.  It collides with reversible energy storage.  This like is calculating train resistance for the time step.
-        self.state.pwr_res = self.state.res_net() * self.speed_trace.mean(self.state.i);
+        self.state.pwr_res = self.state.res_net().with_context(|| format_dbg!())?
+            * self.speed_trace.mean(self.state.i);
         // find power to accelerate the train mass from an energy perspective.
         self.state.pwr_accel = self.state.mass_compound().with_context(|| format_dbg!())?
             / (2.0 * self.speed_trace.dt(self.state.i))

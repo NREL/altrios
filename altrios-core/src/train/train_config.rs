@@ -79,9 +79,8 @@ impl TrainConfig {
 
     #[pyo3(name = "make_train_params")]
     /// - `rail_vehicles` - list of `RailVehicle` objects with 1 element for each _type_ of rail vehicle
-    #[allow(clippy::useless_conversion)]
-    fn make_train_params_py(&self) -> PyResult<TrainParams> {
-        Ok(self.make_train_params()?)
+    fn make_train_params_py(&self) -> anyhow::Result<TrainParams> {
+        self.make_train_params()
     }
 
     #[getter]

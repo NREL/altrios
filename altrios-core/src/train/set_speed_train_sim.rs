@@ -560,13 +560,11 @@ impl SetCumulative for SetSpeedTrainSim {
 impl Step for SetSpeedTrainSim {
     /// Solves step, saves state, steps nested `loco_con`, and increments `self.i`.
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
-        if let Err(err) = self.solve_step() {
-            return Err(err.context(format!(
-                "{}\ntime step: {}",
-                loc(),
-                self.state.i.get_fresh(|| format_dbg!())?
-            )));
-        }
+        let i = *self.state.i.get_fresh(|| format_dbg!())?;
+        self.check_and_reset(|| format_dbg!())?;
+        self.solve_step()
+            .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
+
         self.save_state(|| format_dbg!())?;
         self.loco_con.step(|| format_dbg!())?;
         Ok(())

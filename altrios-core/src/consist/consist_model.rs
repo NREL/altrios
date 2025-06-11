@@ -169,7 +169,7 @@ impl Init for Consist {
             .mass()
             .map_err(|err| Error::InitError(format_dbg!(err)))?;
         self.set_pwr_dyn_brake_max()
-            .map_err(|err| Error::InitError(format_dbg!(err)))?;
+            .map_err(|err| Error::InitError(format!("{}\n{err}", format_dbg!())))?;
         self.loco_vec.init()?;
         self.pdct.init()?;
         self.state.init()?;

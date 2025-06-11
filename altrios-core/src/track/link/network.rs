@@ -372,8 +372,8 @@ pub struct Network(pub NetworkErrTol, pub Vec<Link>);
 #[pyo3_api]
 impl Network {
     #[pyo3(name = "set_speed_set_for_train_type")]
-    fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> PyResult<()> {
-        Ok(self.set_speed_set_for_train_type(train_type)?)
+    fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> anyhow::Result<()> {
+        self.set_speed_set_for_train_type(train_type)
     }
 }
 

@@ -171,7 +171,10 @@ impl Default for ReversibleEnergyStorage {
     fn default() -> Self {
         let file_contents = include_str!("reversible_energy_storage.default.yaml");
         let mut res = Self::from_yaml(file_contents, false).unwrap();
-        res.state.soc.update(res.max_soc, || format_dbg!()).unwrap();
+        res.state
+            .soc
+            .update_unchecked(res.max_soc, || format_dbg!())
+            .unwrap();
         res.init().unwrap();
         res
     }

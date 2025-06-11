@@ -154,8 +154,7 @@ impl SpeedLimitTrainSim {
     }
 
     #[pyo3(name = "get_energy_fuel_soc_corrected_joules")]
-    #[allow(clippy::useless_conversion)]
-    pub fn get_energy_fuel_soc_corrected_py(&self) -> PyResult<f64> {
+    pub fn get_energy_fuel_soc_corrected_py(&self) -> anyhow::Result<f64> {
         Ok(self
             .get_energy_fuel_soc_corrected()
             .map_err(|err| anyhow!("{:?}", err))?
@@ -1041,14 +1040,11 @@ impl SaveState for SpeedLimitTrainSim {
 }
 
 impl Step for SpeedLimitTrainSim {
-    fn step<F: Fn() -> String>(&mut self, _loc: F) -> anyhow::Result<()> {
-        if let Err(err) = self.solve_step() {
-            bail!(
-                "{}\ntime step: {}",
-                err,
-                self.state.i.get_fresh(|| format_dbg!())?
-            );
-        }
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        let i = *self.state.i.get_fresh(|| format_dbg!())?;
+        self.check_and_reset(|| format_dbg!())?;
+        self.solve_step()
+            .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
         self.save_state(|| format_dbg!())?;
         self.loco_con.step(|| format_dbg!())?;
         self.fric_brake.step(|| format_dbg!())?;

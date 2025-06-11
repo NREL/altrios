@@ -301,6 +301,7 @@ impl LocomotiveSimulation {
 
 impl Step for LocomotiveSimulation {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.check_and_reset(|| format_dbg!())?;
         self.solve_step()
             .with_context(|| format!("{}\ntime step: {}", loc(), self.i))?;
         self.save_state(|| format_dbg!())?;

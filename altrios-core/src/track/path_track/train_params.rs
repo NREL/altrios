@@ -3,7 +3,7 @@ use crate::imports::*;
 
 #[serde_api]
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
-
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Train parameters used in simulation, pre-processed from [crate::prelude::TrainConfig]
 pub struct TrainParams {
     pub length: si::Length,

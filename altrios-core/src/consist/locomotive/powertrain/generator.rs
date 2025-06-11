@@ -496,7 +496,7 @@ mod tests {
     #[test]
     fn test_that_i_increments() {
         let mut gen = test_gen();
-        gen.step(|| format_dbg!());
+        gen.step(|| format_dbg!()).unwrap();
         assert_eq!(2, *gen.state.i.get_fresh(|| format_dbg!()).unwrap());
     }
 
@@ -504,22 +504,22 @@ mod tests {
     fn test_that_loss_is_monotonic() {
         let mut gen = test_gen();
         gen.save_interval = Some(1);
-        gen.save_state(|| format_dbg!());
+        gen.save_state(|| format_dbg!()).unwrap();
         gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
-        gen.step(|| format_dbg!());
-        gen.save_state(|| format_dbg!());
+        gen.step(|| format_dbg!()).unwrap();
+        gen.save_state(|| format_dbg!()).unwrap();
         gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
-        gen.step(|| format_dbg!());
-        gen.save_state(|| format_dbg!());
+        gen.step(|| format_dbg!()).unwrap();
+        gen.save_state(|| format_dbg!()).unwrap();
         gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
-        gen.step(|| format_dbg!());
-        gen.save_state(|| format_dbg!());
+        gen.step(|| format_dbg!()).unwrap();
+        gen.save_state(|| format_dbg!()).unwrap();
         gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, true, uc::S * 1.0)
             .unwrap();
-        gen.step(|| format_dbg!());
+        gen.step(|| format_dbg!()).unwrap();
         let energy_loss_j = gen
             .history
             .energy_loss
@@ -537,7 +537,7 @@ mod tests {
         let mut gen: Generator = Generator::default();
         gen.save_interval = Some(1);
         assert!(gen.history.is_empty());
-        gen.save_state(|| format_dbg!());
+        gen.save_state(|| format_dbg!()).unwrap();
         assert_eq!(1, gen.history.len());
     }
 
@@ -545,7 +545,7 @@ mod tests {
     fn test_that_history_has_len_0() {
         let mut gen: Generator = Generator::default();
         assert!(gen.history.is_empty());
-        gen.save_state(|| format_dbg!());
+        gen.save_state(|| format_dbg!()).unwrap();
         assert!(gen.history.is_empty());
     }
 

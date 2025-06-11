@@ -34,11 +34,13 @@ pub(crate) fn cumu_method_derive(input: TokenStream) -> TokenStream {
             .filter_map(|x| {
                 let field_str = &x.ident.as_ref().unwrap().to_string();
                 if ENERGY_REGEX.is_match(field_str) {
+                    // the field name looks like `energy_*`
                     let key = ENERGY_REGEX.captures(field_str).unwrap()[1].to_string();
                     if fields
                         .iter()
                         .any(|x| *x.ident.as_ref().unwrap() == format!("pwr_{}", key))
                     {
+                        // there is also a matching `pwr_*` field
                         Some((
                             format!("pwr_{}", key).parse().unwrap(),
                             field_str.clone().parse().unwrap(),

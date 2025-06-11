@@ -11,14 +11,14 @@ pub struct Basic {
 #[pyo3_api]
 impl Basic {}
 
-impl Init for Basic{}
-impl SerdeAPI for Basic{}
+impl Init for Basic {}
+impl SerdeAPI for Basic {}
 
 impl Basic {
     pub fn new(ratio: si::Ratio) -> Self {
         Self { ratio }
     }
-    pub fn calc_res(&mut self, state: &TrainState) -> si::Force {
-        self.ratio * state.weight_static
+    pub fn calc_res(&mut self, state: &TrainState) -> anyhow::Result<si::Force> {
+        Ok(self.ratio * *state.weight_static.get_fresh(|| format_dbg!())?)
     }
 }

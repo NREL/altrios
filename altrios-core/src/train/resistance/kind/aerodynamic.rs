@@ -24,7 +24,10 @@ impl Basic {
     /// [the drag equation](https://en.wikipedia.org/wiki/Drag_(physics)#The_drag_equation)
     /// is traditionally lumped into a coefficient in the Davis equation and is treated
     /// the same here.
-    pub fn calc_res(&mut self, state: &TrainState) -> si::Force {
-        self.cd_area * uc::rho_air() * state.speed * state.speed
+    pub fn calc_res(&mut self, state: &TrainState) -> anyhow::Result<si::Force> {
+        Ok(self.cd_area
+            * uc::rho_air()
+            * *state.speed.get_fresh(|| format_dbg!())?
+            * *state.speed.get_fresh(|| format_dbg!())?)
     }
 }

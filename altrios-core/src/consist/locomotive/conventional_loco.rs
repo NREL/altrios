@@ -68,14 +68,22 @@ impl ConventionalLoco {
 
         self.gen.set_pwr_in_req(
             // TODO: maybe this should be either zero or greater than or equal to zero if not loco_on
-            *self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?,
+            *self
+                .edrv
+                .state
+                .pwr_elec_prop_in
+                .get_stale(|| format_dbg!())?,
             pwr_aux,
             loco_on,
             dt,
         )?;
 
-        self.fc
-            .solve_energy_consumption(*self.gen.state.pwr_mech_in.get_stale(|| format_dbg!())?, dt, loco_on, assert_limits)?;
+        self.fc.solve_energy_consumption(
+            *self.gen.state.pwr_mech_in.get_stale(|| format_dbg!())?,
+            dt,
+            loco_on,
+            assert_limits,
+        )?;
         Ok(())
     }
 }
@@ -132,16 +140,29 @@ impl LocoTrait for ConventionalLoco {
             *self.fc.state.pwr_out_max.get_stale(|| format_dbg!())?,
             Some(pwr_aux.with_context(|| format_dbg!("`pwr_aux` not provided"))?),
         )?;
-        self.edrv
-            .set_cur_pwr_max_out(*self.gen.state.pwr_elec_prop_out_max.get_stale(|| format_dbg!())?, None)?;
+        self.edrv.set_cur_pwr_max_out(
+            *self
+                .gen
+                .state
+                .pwr_elec_prop_out_max
+                .get_stale(|| format_dbg!())?,
+            None,
+        )?;
         self.gen
-            .set_pwr_rate_out_max(self.fc.pwr_out_max / self.fc.pwr_ramp_lag);
-        self.edrv
-            .set_pwr_rate_out_max(*self.gen.state.pwr_rate_out_max.get_stale(|| format_dbg!())?);
+            .set_pwr_rate_out_max(self.fc.pwr_out_max / self.fc.pwr_ramp_lag)?;
+        self.edrv.set_pwr_rate_out_max(
+            *self
+                .gen
+                .state
+                .pwr_rate_out_max
+                .get_stale(|| format_dbg!())?,
+        )?;
         Ok(())
     }
 
-    fn get_energy_loss(&self) -> si::Energy {
-        *self.fc.state.energy_loss.get_stale(|| format_dbg!())? + *self.gen.state.energy_loss.get_stale(|| format_dbg!())? + *self.edrv.state.energy_loss.get_stale(|| format_dbg!())?
+    fn get_energy_loss(&self) -> anyhow::Result<si::Energy> {
+        Ok(*self.fc.state.energy_loss.get_stale(|| format_dbg!())?
+            + *self.gen.state.energy_loss.get_stale(|| format_dbg!())?
+            + *self.edrv.state.energy_loss.get_stale(|| format_dbg!())?)
     }
 }

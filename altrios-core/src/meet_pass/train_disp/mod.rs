@@ -241,7 +241,11 @@ mod test_train_disp {
         TrainDisp::new(
             speed_limit_train_sim.train_id.clone(),
             NonZeroU16::new(1),
-            speed_limit_train_sim.state.time,
+            *speed_limit_train_sim
+                .state
+                .time
+                .get_fresh(|| format_dbg!())
+                .unwrap(),
             8.0 * uc::MIN,
             30.0 * uc::MI,
             10.0 * uc::MI,
@@ -273,7 +277,11 @@ mod test_train_disp {
         TrainDisp::new(
             speed_limit_train_sim.train_id.clone(),
             NonZeroU16::new(1),
-            speed_limit_train_sim.state.time,
+            *speed_limit_train_sim
+                .state
+                .time
+                .get_fresh(|| format_dbg!())
+                .unwrap(),
             8.0 * uc::MIN,
             30.0 * uc::MI,
             10.0 * uc::MI,

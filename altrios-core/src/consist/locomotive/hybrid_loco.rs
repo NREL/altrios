@@ -24,7 +24,6 @@ pub struct HybridLoco {
     #[has_state]
     pub edrv: ElectricDrivetrain,
     /// control strategy for distributing power demand between `fc` and `res`
-
     #[serde(default)]
     pub pt_cntrl: HybridPowertrainControls,
 }
@@ -116,8 +115,8 @@ impl LocoTrait for Box<HybridLoco> {
                 format_dbg!()
             )
         })?;
-        match &self.pt_cntrl {
-            HybridPowertrainControls::RGWDB(rgwb) => {
+        match &mut self.pt_cntrl {
+            HybridPowertrainControls::RGWDB( rgwb) => {
                 if *self.fc.state.engine_on.get_stale(|| format_dbg!())? && *self.fc.state.time_on.get_stale(|| format_dbg!())?
                     < rgwb.fc_min_time_on.with_context(|| {
                     anyhow!(
@@ -173,7 +172,12 @@ impl LocoTrait for Box<HybridLoco> {
         )?;
 
         self.edrv.set_cur_pwr_max_out(
-            *self.gen.state.pwr_elec_prop_out_max.get_stale(|| format_dbg!())? + *self.res.state.pwr_prop_max.get_stale(|| format_dbg!())?,
+            *self
+                .gen
+                .state
+                .pwr_elec_prop_out_max
+                .get_stale(|| format_dbg!())?
+                + *self.res.state.pwr_prop_max.get_stale(|| format_dbg!())?,
             None,
         )?;
 
@@ -181,17 +185,22 @@ impl LocoTrait for Box<HybridLoco> {
             .set_cur_pwr_regen_max(*self.res.state.pwr_charge_max.get_stale(|| format_dbg!())?)?;
 
         self.gen
-            .set_pwr_rate_out_max(self.fc.pwr_out_max / self.fc.pwr_ramp_lag);
-        self.edrv
-            .set_pwr_rate_out_max(*self.gen.state.pwr_rate_out_max.get_stale(|| format_dbg!())?);
+            .set_pwr_rate_out_max(self.fc.pwr_out_max / self.fc.pwr_ramp_lag)?;
+        self.edrv.set_pwr_rate_out_max(
+            *self
+                .gen
+                .state
+                .pwr_rate_out_max
+                .get_stale(|| format_dbg!())?,
+        )?;
         Ok(())
     }
 
-    fn get_energy_loss(&self) -> si::Energy {
-        *self.fc.state.energy_loss.get_stale(|| format_dbg!())?
+    fn get_energy_loss(&self) -> anyhow::Result<si::Energy> {
+        Ok(*self.fc.state.energy_loss.get_stale(|| format_dbg!())?
             + *self.gen.state.energy_loss.get_stale(|| format_dbg!())?
             + *self.res.state.energy_loss.get_stale(|| format_dbg!())?
-            + *self.edrv.state.energy_loss.get_stale(|| format_dbg!())?
+            + *self.edrv.state.energy_loss.get_stale(|| format_dbg!())?)
     }
 }
 
@@ -216,7 +225,11 @@ impl HybridLoco {
         let (gen_pwr_out_req, res_pwr_out_req) = self
             .pt_cntrl
             .get_pwr_gen_and_res(
-                *self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?,
+                *self
+                    .edrv
+                    .state
+                    .pwr_elec_prop_in
+                    .get_stale(|| format_dbg!())?,
                 train_mass,
                 train_speed,
                 &self.fc,
@@ -236,7 +249,7 @@ impl HybridLoco {
                 fc_on,
                 dt,
             )
-            .with_context(|| format!("{}", format_dbg!(fc_on)))?;
+            .with_context(|| format_dbg!(fc_on))?;
         let fc_pwr_mech_out = *self.gen.state.pwr_mech_in.get_stale(|| format_dbg!())?;
 
         self.fc
@@ -262,23 +275,16 @@ impl HybridLoco {
 {} kW",
                     format_dbg!(fc_on).replace("\"", ""),
                     format_dbg!(pwr_out_req.get::<si::kilowatt>()).replace("\"", ""),
-                    format_dbg!(self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
-                        .replace("\"", ""),
+                    format_dbg!(self.edrv.state.pwr_elec_prop_in).replace("\"", ""),
                     format_dbg!(gen_pwr_out_req.get::<si::kilowatt>()).replace("\"", ""),
-                    format_dbg!(self.gen.state.pwr_elec_aux.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
-                        .replace("\"", ""),
-                    format_dbg!(self.gen.state.pwr_elec_out_max.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
-                        .replace("\"", ""),
-                    format_dbg!(self.gen.state.pwr_mech_in.get_stale(|| format_dbg!())?.get::<si::kilowatt>()).replace("\"", ""),
+                    format_dbg!(self.gen.state.pwr_elec_aux).replace("\"", ""),
+                    format_dbg!(self.gen.state.pwr_elec_out_max).replace("\"", ""),
+                    format_dbg!(self.gen.state.pwr_mech_in).replace("\"", ""),
                     format_dbg!(res_pwr_out_req.get::<si::kilowatt>()).replace("\"", ""),
-                    format_dbg!(self.res.state.pwr_prop_max.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
-                        .replace("\"", ""),
-                    format_dbg!(self.res.state.pwr_disch_max.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
-                        .replace("\"", ""),
-                    format_dbg!(self.res.state.pwr_regen_max.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
-                        .replace("\"", ""),
-                    format_dbg!(self.res.state.pwr_charge_max.get_stale(|| format_dbg!())?.get::<si::kilowatt>())
-                        .replace("\"", ""),
+                    format_dbg!(self.res.state.pwr_prop_max).replace("\"", ""),
+                    format_dbg!(self.res.state.pwr_disch_max).replace("\"", ""),
+                    format_dbg!(self.res.state.pwr_regen_max).replace("\"", ""),
+                    format_dbg!(self.res.state.pwr_charge_max).replace("\"", ""),
                 )
             })?;
 
@@ -364,19 +370,23 @@ impl HybridPowertrainControls {
             // `almost` is in case of negligible numerical precision discrepancies
             almost_le_uom(
                 &pwr_res_and_gen_to_edrv,
-                &(gen.state.pwr_elec_prop_out_max + res.state.pwr_prop_max),
+                &(*gen
+                    .state
+                    .pwr_elec_prop_out_max
+                    .get_fresh(|| format_dbg!())?
+                    + *res.state.pwr_prop_max.get_fresh(|| format_dbg!())?),
                 None
             ),
             "{}
-`pwr_out_req`: {} kW
-`em_state.pwr_mech_fwd_out_max`: {} kW
-`fc_state.pwr_prop_max`: {} kW
-`res.state.soc`: {}",
+`pwr_out_req`: {:?}
+`em_state.pwr_mech_fwd_out_max`: {:?}
+`fc_state.pwr_prop_max`: {:?}
+`res.state.soc`: {:?}",
             format_dbg!(),
-            pwr_res_and_gen_to_edrv.get::<si::kilowatt>(),
-            edrv_state.pwr_mech_out_max.get::<si::kilowatt>(),
-            fc_state.pwr_out_max.get::<si::kilowatt>(),
-            res.state.soc.get::<si::ratio>()
+            pwr_res_and_gen_to_edrv,
+            edrv_state.pwr_mech_out_max,
+            fc_state.pwr_out_max,
+            res.state.soc
         );
 
         let (gen_prop_pwr, res_prop_pwr) = match self {
@@ -392,8 +402,8 @@ impl HybridPowertrainControls {
                 )?;
 
                 let res_prop_pwr = pwr_res_and_gen_to_edrv
-                    .min(res.state.pwr_prop_max)
-                    .max(-res.state.pwr_regen_max);
+                    .min(*res.state.pwr_prop_max.get_fresh(|| format_dbg!())?)
+                    .max(-*res.state.pwr_regen_max.get_fresh(|| format_dbg!())?);
 
                 if !rgwdb.state.fc_on().with_context(|| format_dbg!())? {
                     // engine is off, and `em_pwr` has already been limited within bounds
@@ -413,7 +423,8 @@ impl HybridPowertrainControls {
                     let gen_pwr = if pwr_res_and_gen_to_edrv < si::Power::ZERO {
                         // negative tractive power
                         // max power system can receive from engine during negative traction
-                        (res.state.pwr_regen_max + pwr_res_and_gen_to_edrv)
+                        (*res.state.pwr_regen_max.get_fresh(|| format_dbg!())?
+                            + pwr_res_and_gen_to_edrv)
                             // or peak efficiency power if it's lower than above
                             .min(pwr_gen_elec_out_for_eff_fc)
                             // but not negative
@@ -435,22 +446,33 @@ impl HybridPowertrainControls {
                                 .max(pwr_gen_elec_out_for_eff_fc)
                                 // but don't exceed what what the battery can
                                 // absorb + tractive demand
-                                .min(pwr_res_and_gen_to_edrv + res.state.pwr_regen_max)
+                                .min(
+                                    pwr_res_and_gen_to_edrv
+                                        + *res.state.pwr_regen_max.get_fresh(|| format_dbg!())?,
+                                )
                         }
                     }
                     // and don't exceed what the fc -> gen can do
-                    .min(gen.state.pwr_elec_prop_out_max);
+                    .min(
+                        *gen.state
+                            .pwr_elec_prop_out_max
+                            .get_fresh(|| format_dbg!())?,
+                    );
 
                     // recalculate `em_pwr` based on `fc_pwr`
-                    let res_pwr_corrected =
-                        (pwr_res_and_gen_to_edrv - gen_pwr).max(-res.state.pwr_regen_max);
+                    let res_pwr_corrected = (pwr_res_and_gen_to_edrv - gen_pwr)
+                        .max(-*res.state.pwr_regen_max.get_fresh(|| format_dbg!())?);
                     (gen_pwr, res_pwr_corrected)
                 }
             }
         };
 
         ensure!(
-            almost_le_uom(&res_prop_pwr, &res.state.pwr_prop_max, None),
+            almost_le_uom(
+                &res_prop_pwr,
+                res.state.pwr_prop_max.get_fresh(|| format_dbg!())?,
+                None
+            ),
             format!(
                 "{}\n{}",
                 format_dbg!(res_prop_pwr),
@@ -481,8 +503,9 @@ fn get_pwr_gen_elec_out_for_eff_fc(
                 Some(si::Power::ZERO),
             )
             .with_context(|| format_dbg!())?;
-            rgwdb.pwr_gen_elec_out_for_eff_fc = Some(gen.state.pwr_elec_out_max);
-            gen.state.pwr_elec_out_max
+            rgwdb.pwr_gen_elec_out_for_eff_fc =
+                Some(*gen.state.pwr_elec_out_max.get_fresh(|| format_dbg!())?);
+            *gen.state.pwr_elec_out_max.get_fresh(|| format_dbg!())?
         };
 
     Ok(pwr_gen_elec_out_for_eff_fc)
@@ -553,20 +576,23 @@ impl RESGreedyWithDynamicBuffers {
         mass: si::Mass,
         train_speed: si::Velocity,
     ) -> anyhow::Result<()> {
-        self.state.soc_fc_on_buffer = {
-            let energy_delta_to_buffer_speed: si::Energy = 0.5
-                * mass
-                * (self
-                    .speed_soc_fc_on_buffer
-                    .with_context(|| format_dbg!())?
-                    .powi(typenum::P2::new())
-                    - train_speed.powi(typenum::P2::new()));
-            energy_delta_to_buffer_speed.max(si::Energy::ZERO)
-                * self
-                    .speed_soc_fc_on_buffer_coeff
-                    .with_context(|| format_dbg!())?
-        } / res.energy_capacity_usable()
-            + res.min_soc;
+        self.state.soc_fc_on_buffer.update(
+            {
+                let energy_delta_to_buffer_speed: si::Energy = 0.5
+                    * mass
+                    * (self
+                        .speed_soc_fc_on_buffer
+                        .with_context(|| format_dbg!())?
+                        .powi(typenum::P2::new())
+                        - train_speed.powi(typenum::P2::new()));
+                energy_delta_to_buffer_speed.max(si::Energy::ZERO)
+                    * self
+                        .speed_soc_fc_on_buffer_coeff
+                        .with_context(|| format_dbg!())?
+            } / res.energy_capacity_usable()
+                + res.min_soc,
+            || format_dbg!(),
+        )?;
         Ok(())
     }
 
@@ -581,17 +607,17 @@ impl RESGreedyWithDynamicBuffers {
         let frac_pwr_demand_fc_forced_on: si::Ratio = self
             .frac_pwr_demand_fc_forced_on
             .with_context(|| format_dbg!())?;
-        if pwr_out_req > frac_pwr_demand_fc_forced_on * res_state.pwr_disch_max {
-            self.state
-                .propulsion_power_demand_soft
-                .update(true, || format_dbg!())?;
-        }
-        if pwr_out_req - *gen_state.pwr_elec_out_max.get_fresh(|| format_dbg!())? >= si::Power::ZERO
-        {
-            self.state
-                .propulsion_power_demand
-                .update(true, || format_dbg!())?;
-        }
+        self.state.propulsion_power_demand_soft.update(
+            pwr_out_req
+                > frac_pwr_demand_fc_forced_on
+                    * *res_state.pwr_disch_max.get_fresh(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
+        self.state.propulsion_power_demand.update(
+            pwr_out_req - *gen_state.pwr_elec_out_max.get_fresh(|| format_dbg!())?
+                >= si::Power::ZERO,
+            || format_dbg!(),
+        )?;
         Ok(())
     }
 

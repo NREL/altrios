@@ -20,7 +20,6 @@ pub struct ReversibleEnergyStorage {
     #[serde(default)]
     mass: Option<si::Mass>,
     /// ReversibleEnergyStorage volume, used as a sanity check
-
     #[serde(default)]
     volume: Option<si::Volume>,
     /// ReversibleEnergyStorage specific energy
@@ -172,7 +171,7 @@ impl Default for ReversibleEnergyStorage {
     fn default() -> Self {
         let file_contents = include_str!("reversible_energy_storage.default.yaml");
         let mut res = Self::from_yaml(file_contents, false).unwrap();
-        res.state.soc.update(res.max_soc, || format_dbg!());
+        res.state.soc.update(res.max_soc, || format_dbg!()).unwrap();
         res.init().unwrap();
         res
     }
@@ -596,12 +595,12 @@ impl ReversibleEnergyStorage {
 
         if pwr_prop_req + pwr_aux_req >= si::Power::ZERO {
             ensure!(
-                utils::almost_le_uom(&(pwr_prop_req), &*state.pwr_disch_max.get_fresh(||format_dbg!())?, Some(TOL)),
+                utils::almost_le_uom(&(pwr_prop_req), state.pwr_disch_max.get_fresh(||format_dbg!())?, Some(TOL)),
                 "{}\nres required power for propulsion ({:.6} MW) exceeds transient max propulsion power ({:.6} MW)\nstate.soc = {}
 {}
 {}
 ",
-                format_dbg!(utils::almost_le_uom(&(pwr_prop_req), &*state.pwr_prop_max.get_fresh(||format_dbg!())?, Some(TOL))),
+                format_dbg!(utils::almost_le_uom(&(pwr_prop_req), state.pwr_prop_max.get_fresh(||format_dbg!())?, Some(TOL))),
                 pwr_prop_req.get::<si::megawatt>(),
                 state.pwr_prop_max.get_fresh(||format_dbg!())?.get::<si::megawatt>(),
                 state.soc.get_fresh(||format_dbg!())?.get::<si::ratio>(),
@@ -609,8 +608,9 @@ impl ReversibleEnergyStorage {
                 format_dbg!(state.pwr_disch_max.get_fresh(||format_dbg!())?.get::<si::kilowatt>())
             );
             ensure!(
-                utils::almost_le_uom(&(pwr_prop_req + pwr_aux_req), &self.pwr_out_max, Some(TOL)),
+                utils::almost_le_uom(&(pwr_prop_req + pwr_aux_req), state.pwr_disch_max.get_fresh(|| format_dbg!())?, Some(TOL)),
                 "{}\nres required power ({:.6} MW) exceeds static max discharge power ({:.6} MW)\nstate.soc = {}",
+
                 format_dbg!(utils::almost_le_uom(
                     &(pwr_prop_req + pwr_aux_req),
                     &self.pwr_out_max,
@@ -621,9 +621,9 @@ impl ReversibleEnergyStorage {
                 state.soc.get_fresh(||format_dbg!())?.get::<si::ratio>()
             );
             ensure!(
-                utils::almost_le_uom(&(pwr_prop_req + pwr_aux_req), &*state.pwr_disch_max.get_fresh(||format_dbg!())?, Some(TOL)),
+                utils::almost_le_uom(&(pwr_prop_req + pwr_aux_req), state.pwr_disch_max.get_fresh(||format_dbg!())?, Some(TOL)),
                 "{}\nres required power ({:.6} MW) exceeds transient max discharge power ({:.6} MW)\nstate.soc = {}",
-                format_dbg!(utils::almost_le_uom(&(pwr_prop_req + pwr_aux_req), &*state.pwr_disch_max.get_fresh(||format_dbg!())?, Some(TOL))),
+                format_dbg!(utils::almost_le_uom(&(pwr_prop_req + pwr_aux_req), state.pwr_disch_max.get_fresh(||format_dbg!())?, Some(TOL))),
                 (pwr_prop_req + pwr_aux_req).get::<si::megawatt>(),
                 state.pwr_disch_max.get_fresh(||format_dbg!())?.get::<si::megawatt>(),
                 state.soc.get_fresh(||format_dbg!())?.get::<si::ratio>()
@@ -1039,7 +1039,10 @@ mod tests {
         let mut res = _mock_res();
         res.max_soc = 0.9 * uc::R;
         res.min_soc = 0.1 * uc::R;
-        res.state.soc.update(0.98 * uc::R, || format_dbg!());
+        res.state
+            .soc
+            .update(0.98 * uc::R, || format_dbg!())
+            .unwrap();
         let energy_usable = res.energy_capacity_usable();
         res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
             .unwrap();
@@ -1050,7 +1053,7 @@ mod tests {
                 .unwrap(),
             si::Power::ZERO
         );
-        res.state.soc.update(0.8 * uc::R, || format_dbg!());
+        res.state.soc.update(0.8 * uc::R, || format_dbg!()).unwrap();
         res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
             .unwrap();
         assert_eq!(
@@ -1060,7 +1063,10 @@ mod tests {
                 .unwrap(),
             res.pwr_out_max
         );
-        res.state.soc.update(0.85 * uc::R, || format_dbg!());
+        res.state
+            .soc
+            .update(0.85 * uc::R, || format_dbg!())
+            .unwrap();
         res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
             .unwrap();
         assert!(
@@ -1077,7 +1083,7 @@ mod tests {
                 .unwrap()
                 > res.pwr_out_max / 2.0 * 0.9999
         );
-        res.state.soc.update(0.9 * uc::R, || format_dbg!());
+        res.state.soc.update(0.9 * uc::R, || format_dbg!()).unwrap();
         res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
             .unwrap();
         assert_eq!(
@@ -1087,7 +1093,7 @@ mod tests {
                 .unwrap(),
             si::Power::ZERO
         );
-        res.state.soc.update(0.9 * uc::R, || format_dbg!());
+        res.state.soc.update(0.9 * uc::R, || format_dbg!()).unwrap();
         res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
             .unwrap();
         assert_eq!(
@@ -1097,14 +1103,17 @@ mod tests {
                 .unwrap(),
             si::Power::ZERO
         );
-        res.state.soc.update(0.2 * uc::R, || format_dbg!());
+        res.state.soc.update(0.2 * uc::R, || format_dbg!()).unwrap();
         res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
             .unwrap();
         assert_eq!(
             *res.state.pwr_disch_max.get_fresh(|| format_dbg!()).unwrap(),
             res.pwr_out_max
         );
-        res.state.soc.update(0.15 * uc::R, || format_dbg!());
+        res.state
+            .soc
+            .update(0.15 * uc::R, || format_dbg!())
+            .unwrap();
         res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
             .unwrap();
         assert!(
@@ -1118,7 +1127,7 @@ mod tests {
                 .unwrap()
                 > res.pwr_out_max / 2.0 * 0.9999
         );
-        res.state.soc.update(0.1 * uc::R, || format_dbg!());
+        res.state.soc.update(0.1 * uc::R, || format_dbg!()).unwrap();
         res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
             .unwrap();
         assert_eq!(

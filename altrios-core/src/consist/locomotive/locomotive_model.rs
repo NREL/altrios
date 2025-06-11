@@ -63,7 +63,7 @@ impl LocoTrait for PowertrainType {
         }
     }
 
-    fn get_energy_loss(&self) -> si::Energy {
+    fn get_energy_loss(&self) -> anyhow::Result<si::Energy> {
         match self {
             PowertrainType::ConventionalLoco(conv) => conv.get_energy_loss(),
             PowertrainType::HybridLoco(hel) => hel.get_energy_loss(),
@@ -76,10 +76,18 @@ impl LocoTrait for PowertrainType {
 impl SaveState for PowertrainType {
     fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         match self {
-            PowertrainType::ConventionalLoco(conv) => conv.save_state(|| format_dbg!())?,
-            PowertrainType::HybridLoco(hel) => hel.save_state(|| format_dbg!())?,
-            PowertrainType::BatteryElectricLoco(bel) => bel.save_state(|| format_dbg!())?,
-            PowertrainType::DummyLoco(dummy) => dummy.save_state(|| format_dbg!())?,
+            PowertrainType::ConventionalLoco(conv) => {
+                conv.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
+            PowertrainType::HybridLoco(hel) => {
+                hel.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
+            PowertrainType::BatteryElectricLoco(bel) => {
+                bel.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
+            PowertrainType::DummyLoco(dummy) => {
+                dummy.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
         }
         Ok(())
     }
@@ -88,10 +96,18 @@ impl SaveState for PowertrainType {
 impl Step for PowertrainType {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         match self {
-            PowertrainType::ConventionalLoco(conv) => conv.step(|| format_dbg!())?,
-            PowertrainType::HybridLoco(hel) => hel.step(|| format_dbg!())?,
-            PowertrainType::BatteryElectricLoco(bel) => bel.step(|| format_dbg!())?,
-            PowertrainType::DummyLoco(dummy) => dummy.step(|| format_dbg!())?,
+            PowertrainType::ConventionalLoco(conv) => {
+                conv.step(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
+            PowertrainType::HybridLoco(hel) => {
+                hel.step(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
+            PowertrainType::BatteryElectricLoco(bel) => {
+                bel.step(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
+            PowertrainType::DummyLoco(dummy) => {
+                dummy.step(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
         }
         Ok(())
     }
@@ -100,16 +116,41 @@ impl Step for PowertrainType {
 impl CheckAndResetState for PowertrainType {
     fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         match self {
-            PowertrainType::ConventionalLoco(conv) => conv.check_and_reset(|| format_dbg!())?,
-            PowertrainType::HybridLoco(hel) => hel.check_and_reset(|| format_dbg!())?,
-            PowertrainType::BatteryElectricLoco(bel) => bel.check_and_reset(|| format_dbg!())?,
-            PowertrainType::DummyLoco(dummy) => dummy.check_and_reset(|| format_dbg!())?,
+            PowertrainType::ConventionalLoco(conv) => {
+                conv.check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
+            PowertrainType::HybridLoco(hel) => {
+                hel.check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
+            PowertrainType::BatteryElectricLoco(bel) => {
+                bel.check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
+            PowertrainType::DummyLoco(dummy) => {
+                dummy.check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
         }
         Ok(())
     }
 }
 
 impl StateMethods for PowertrainType {}
+
+impl SetCumulative for PowertrainType {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
+        match self {
+            Self::ConventionalLoco(loco) => {
+                loco.set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))
+            }
+            Self::HybridLoco(loco) => {
+                loco.set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))
+            }
+            Self::BatteryElectricLoco(loco) => {
+                loco.set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))
+            }
+            Self::DummyLoco(_loco) => Ok(()),
+        }
+    }
+}
 
 impl From<HybridLoco> for PowertrainType {
     fn from(value: HybridLoco) -> Self {
@@ -302,8 +343,8 @@ impl LocoTrait for DummyLoco {
     ) -> anyhow::Result<()> {
         Ok(())
     }
-    fn get_energy_loss(&self) -> si::Energy {
-        si::Energy::ZERO
+    fn get_energy_loss(&self) -> anyhow::Result<si::Energy> {
+        Ok(si::Energy::ZERO)
     }
 }
 impl SaveState for DummyLoco {
@@ -317,11 +358,10 @@ impl Step for DummyLoco {
     }
 }
 impl CheckAndResetState for DummyLoco {
-    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+    fn check_and_reset<F: Fn() -> String>(&mut self, _loc: F) -> anyhow::Result<()> {
         Ok(())
     }
 }
-impl StateMethods for DummyLoco {}
 
 #[serde_api]
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, StateMethods, SetCumulative)]
@@ -1128,19 +1168,30 @@ impl Locomotive {
     ) -> anyhow::Result<()> {
         // maybe put logic for toggling `engine_on` here
 
-        self.state.pwr_out = pwr_out_req;
+        self.state.pwr_out.update(pwr_out_req, || format_dbg!())?;
         match &mut self.loco_type {
             PowertrainType::ConventionalLoco(loco) => {
                 loco.solve_energy_consumption(
                     pwr_out_req,
                     dt,
                     engine_on.unwrap_or(true),
-                    self.state.pwr_aux,
+                    *self.state.pwr_aux.get_fresh(|| format_dbg!())?,
                     self.assert_limits,
                 )
                 .with_context(|| format_dbg!("ConventionalLoco"))?;
-                self.state.pwr_out =
-                    loco.edrv.state.pwr_mech_prop_out - loco.edrv.state.pwr_mech_dyn_brake;
+                self.state.pwr_out.update(
+                    *loco
+                        .edrv
+                        .state
+                        .pwr_mech_prop_out
+                        .get_fresh(|| format_dbg!())?
+                        - *loco
+                            .edrv
+                            .state
+                            .pwr_mech_dyn_brake
+                            .get_fresh(|| format_dbg!())?,
+                    || format_dbg!(),
+                )?;
             }
             PowertrainType::HybridLoco(loco) => {
                 loco.solve_energy_consumption(
@@ -1154,25 +1205,49 @@ impl Locomotive {
                         , format_dbg!()
                     ))?,
                     dt,
-                    self.state.pwr_aux,
+                    *self.state.pwr_aux.get_fresh(|| format_dbg!())?,
                     self.assert_limits,
                 ).with_context(|| format_dbg!("HybridLoco"))?;
                 // TODO: add `engine_on` and `pwr_aux` here as inputs
-                self.state.pwr_out =
-                    loco.edrv.state.pwr_mech_prop_out - loco.edrv.state.pwr_mech_dyn_brake;
+                self.state.pwr_out.update(
+                    *loco
+                        .edrv
+                        .state
+                        .pwr_mech_prop_out
+                        .get_fresh(|| format_dbg!())?
+                        - *loco
+                            .edrv
+                            .state
+                            .pwr_mech_dyn_brake
+                            .get_fresh(|| format_dbg!())?,
+                    || format_dbg!(),
+                )?;
             }
             PowertrainType::BatteryElectricLoco(loco) => {
                 // todo: put something in here for deep sleep that is the
                 // equivalent of engine_on in conventional loco
-                loco.solve_energy_consumption(pwr_out_req, dt, self.state.pwr_aux)
-                    .with_context(|| format_dbg!("BatteryElectricLoco"))?;
-                self.state.pwr_out =
-                    loco.edrv.state.pwr_mech_prop_out - loco.edrv.state.pwr_mech_dyn_brake;
+                loco.solve_energy_consumption(
+                    pwr_out_req,
+                    dt,
+                    *self.state.pwr_aux.get_fresh(|| format_dbg!())?,
+                )
+                .with_context(|| format_dbg!("BatteryElectricLoco"))?;
+                self.state.pwr_out.update(
+                    *loco
+                        .edrv
+                        .state
+                        .pwr_mech_prop_out
+                        .get_fresh(|| format_dbg!())?
+                        - *loco
+                            .edrv
+                            .state
+                            .pwr_mech_dyn_brake
+                            .get_fresh(|| format_dbg!())?,
+                    || format_dbg!(),
+                )?;
             }
             PowertrainType::DummyLoco(_) => { /* maybe put an error error in the future */ }
         }
-        self.state.energy_out += self.state.pwr_out * dt;
-        self.state.energy_aux += self.state.pwr_aux * dt;
 
         Ok(())
     }
@@ -1180,14 +1255,19 @@ impl Locomotive {
     /// Sets aux power for locomotive
     /// # Arguments
     /// - `loco_on` whether this locomotive is active or just dead weight
-    pub fn set_pwr_aux(&mut self, loco_on: Option<bool>) {
-        self.state.pwr_aux = if loco_on.unwrap_or(true) {
-            // TODO: make this optionally asymmetrical to allow for locomotives that
-            // do not have an aux penalty related to dynamic braking
-            self.pwr_aux_offset + self.pwr_aux_traction_coeff * self.state.pwr_out.abs()
-        } else {
-            si::Power::ZERO
-        };
+    pub fn set_pwr_aux(&mut self, loco_on: Option<bool>) -> anyhow::Result<()> {
+        self.state.pwr_aux.update(
+            if loco_on.unwrap_or(true) {
+                // TODO: make this optionally asymmetrical to allow for locomotives that
+                // do not have an aux penalty related to dynamic braking
+                self.pwr_aux_offset
+                    + self.pwr_aux_traction_coeff
+                        * self.state.pwr_out.get_fresh(|| format_dbg!())?.abs()
+            } else {
+                si::Power::ZERO
+            },
+            || format_dbg!(),
+        )
     }
 
     pub fn mu(&self) -> anyhow::Result<Option<si::Ratio>> {
@@ -1218,14 +1298,24 @@ impl Locomotive {
     }
 }
 
-fn set_pwr_lims(state: &mut LocomotiveState, edrv: &ElectricDrivetrain) {
-    state.pwr_out_max = edrv.state.pwr_mech_out_max;
-    state.pwr_rate_out_max = edrv.state.pwr_rate_out_max;
-    state.pwr_regen_max = edrv.state.pwr_mech_regen_max;
+fn set_pwr_lims(state: &mut LocomotiveState, edrv: &ElectricDrivetrain) -> anyhow::Result<()> {
+    state.pwr_out_max.update(
+        *edrv.state.pwr_mech_out_max.get_fresh(|| format_dbg!())?,
+        || format_dbg!(),
+    )?;
+    state.pwr_rate_out_max.update(
+        *edrv.state.pwr_rate_out_max.get_fresh(|| format_dbg!())?,
+        || format_dbg!(),
+    )?;
+    state.pwr_regen_max.update(
+        *edrv.state.pwr_mech_regen_max.get_fresh(|| format_dbg!())?,
+        || format_dbg!(),
+    )?;
+    Ok(())
 }
 
 impl LocoTrait for Locomotive {
-    fn get_energy_loss(&self) -> si::Energy {
+    fn get_energy_loss(&self) -> anyhow::Result<si::Energy> {
         self.loco_type.get_energy_loss()
     }
 
@@ -1242,12 +1332,12 @@ impl LocoTrait for Locomotive {
             format!(
                 "{}\ntime step: {}",
                 format_dbg!(pwr_aux.is_none()),
-                self.state.i
+                self.state.i.get_fresh(|| format_dbg!())?
             )
         );
 
         self.loco_type.set_curr_pwr_max_out(
-            Some(self.state.pwr_aux),
+            Some(*self.state.pwr_aux.get_fresh(|| format_dbg!())?),
             elev_and_temp,
             train_mass_for_loco,
             train_speed,
@@ -1255,22 +1345,31 @@ impl LocoTrait for Locomotive {
         )?;
         match &self.loco_type {
             PowertrainType::ConventionalLoco(loco) => {
-                set_pwr_lims(&mut self.state, &loco.edrv);
-                assert_eq!(self.state.pwr_regen_max, si::Power::ZERO);
+                set_pwr_lims(&mut self.state, &loco.edrv)?;
+                assert_eq!(
+                    *self.state.pwr_regen_max.get_fresh(|| format_dbg!())?,
+                    si::Power::ZERO
+                );
             }
             PowertrainType::HybridLoco(loco) => {
-                set_pwr_lims(&mut self.state, &loco.edrv);
+                set_pwr_lims(&mut self.state, &loco.edrv)?;
             }
             PowertrainType::BatteryElectricLoco(loco) => {
-                set_pwr_lims(&mut self.state, &loco.edrv);
+                set_pwr_lims(&mut self.state, &loco.edrv)?;
             }
             PowertrainType::DummyLoco(_) => {
                 // this locomotive has the power of 1,000 suns and more
                 // power absorption ability than really big numbers that
                 // are not inf to avoid null in json
-                self.state.pwr_out_max = uc::W * 1e15;
-                self.state.pwr_rate_out_max = uc::WPS * 1e15;
-                self.state.pwr_regen_max = uc::W * 1e15;
+                self.state
+                    .pwr_out_max
+                    .update(uc::W * 1e15, || format_dbg!())?;
+                self.state
+                    .pwr_rate_out_max
+                    .update(uc::WPS * 1e15, || format_dbg!())?;
+                self.state
+                    .pwr_regen_max
+                    .update(uc::W * 1e15, || format_dbg!())?;
             }
         }
         Ok(())
@@ -1280,7 +1379,15 @@ impl LocoTrait for Locomotive {
 /// Locomotive state for current time step
 #[serde_api]
 #[derive(
-    Clone, Debug, Deserialize, Serialize, PartialEq, HistoryVec, StateMethods, SetCumulative,
+    Clone,
+    Default,
+    Debug,
+    Deserialize,
+    Serialize,
+    PartialEq,
+    HistoryVec,
+    StateMethods,
+    SetCumulative,
 )]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct LocomotiveState {
@@ -1310,20 +1417,6 @@ impl LocomotiveState {}
 
 impl Init for LocomotiveState {}
 impl SerdeAPI for LocomotiveState {}
-impl Default for LocomotiveState {
-    fn default() -> Self {
-        Self {
-            i: Default::default(),
-            pwr_out_max: Default::default(),
-            pwr_rate_out_max: Default::default(),
-            pwr_out: Default::default(),
-            pwr_regen_max: Default::default(),
-            energy_out: Default::default(),
-            pwr_aux: Default::default(),
-            energy_aux: Default::default(),
-        }
-    }
-}
 
 pub enum MuSideEffect {
     /// Update `mass`

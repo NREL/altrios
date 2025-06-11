@@ -11,7 +11,6 @@ use crate::imports::*;
 pub struct ConsistSimulation {
     pub loco_con: Consist,
     pub power_trace: PowerTrace,
-    pub i: usize,
 }
 
 #[pyo3_api]
@@ -57,7 +56,6 @@ impl ConsistSimulation {
         let mut consist_sim = Self {
             loco_con: consist,
             power_trace,
-            i: Default::default(),
         };
         consist_sim.loco_con.set_save_interval(save_interval);
         consist_sim
@@ -65,10 +63,13 @@ impl ConsistSimulation {
 
     /// Trims off any portion of the trip that failed to run
     pub fn trim_failed_steps(&mut self) -> anyhow::Result<()> {
-        if self.i <= 1 {
+        if *self.loco_con.state.i.get_fresh(|| format_dbg!())? <= 1 {
             bail!("`walk` method has not proceeded past first time step.")
         }
-        self.power_trace.trim(None, Some(self.i))?;
+        self.power_trace.trim(
+            None,
+            Some(*self.loco_con.state.i.get_fresh(|| format_dbg!())?),
+        )?;
 
         Ok(())
     }
@@ -81,30 +82,29 @@ impl ConsistSimulation {
         self.loco_con.set_pwr_aux(Some(true))?;
         let train_mass = self.power_trace.train_mass;
         let train_speed = if !self.power_trace.train_speed.is_empty() {
-            Some(self.power_trace.train_speed[self.i])
+            Some(self.power_trace.train_speed[*self.loco_con.state.i.get_fresh(|| format_dbg!())?])
         } else {
             None
         };
-        self.loco_con.set_curr_pwr_max_out(
-            None,
-            None,
-            train_mass,
-            train_speed,
-            self.power_trace.dt(self.i),
-        )?;
+        let dt = self
+            .power_trace
+            .dt(*self.loco_con.state.i.get_fresh(|| format_dbg!())?);
+        self.loco_con
+            .set_curr_pwr_max_out(None, None, train_mass, train_speed, dt)?;
         self.solve_energy_consumption(
-            self.power_trace.pwr[self.i],
+            self.power_trace.pwr[*self.loco_con.state.i.get_fresh(|| format_dbg!())?],
             train_mass,
             train_speed,
-            self.power_trace.dt(self.i),
+            dt,
         )?;
+        self.set_cumulative(dt, || format_dbg!())?;
         Ok(())
     }
 
     /// Iterates step to solve all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
-        self.save_state(|| format_dbg!());
-        while self.i < self.power_trace.len() {
+        self.save_state(|| format_dbg!())?;
+        while *self.loco_con.state.i.get_fresh(|| format_dbg!())? < self.power_trace.len() {
             self.step(|| format_dbg!())?;
         }
         Ok(())
@@ -138,7 +138,7 @@ impl StateMethods for ConsistSimulation {}
 impl SetCumulative for ConsistSimulation {
     fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
         self.loco_con
-            .save_state(|| format!("{}\n{}", loc(), format_dbg!()))?;
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
         Ok(())
     }
 }
@@ -153,18 +153,19 @@ impl CheckAndResetState for ConsistSimulation {
 
 impl Step for ConsistSimulation {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        let i = *self.loco_con.state.i.get_fresh(|| format_dbg!())?;
         self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.i)))?;
-        self.save_state(|| format_dbg!());
-        self.i += 1;
-        self.loco_con.step(|| format_dbg!());
+            .map_err(|err| err.context(format!("{}\ntime step: {}", loc(), i)))?;
+        self.save_state(|| format_dbg!())?;
+        self.loco_con.step(|| format_dbg!())?;
         Ok(())
     }
 }
 
 impl SaveState for ConsistSimulation {
     fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
-        self.loco_con.save_state(|| format_dbg!())
+        self.loco_con
+            .save_state(|| format!("{}\n{}", loc(), format_dbg!()))
     }
 }
 

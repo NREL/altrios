@@ -41,18 +41,42 @@ impl BatteryElectricLoco {
         pwr_aux: si::Power,
     ) -> anyhow::Result<()> {
         self.edrv.set_pwr_in_req(pwr_out_req, dt)?;
-        if *self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())? > si::Power::ZERO {
+        if *self
+            .edrv
+            .state
+            .pwr_elec_prop_in
+            .get_stale(|| format_dbg!())?
+            > si::Power::ZERO
+        {
             // positive traction
-            self.res
-                .solve_energy_consumption(*self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?, pwr_aux, dt)?;
+            self.res.solve_energy_consumption(
+                *self
+                    .edrv
+                    .state
+                    .pwr_elec_prop_in
+                    .get_stale(|| format_dbg!())?,
+                pwr_aux,
+                dt,
+            )?;
         } else {
             // negative traction
             self.res.solve_energy_consumption(
-                *self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?,
+                *self
+                    .edrv
+                    .state
+                    .pwr_elec_prop_in
+                    .get_stale(|| format_dbg!())?,
                 // limit aux power to whatever is actually available
                 pwr_aux
                     // whatever power is available from regen plus normal
-                    .min(*self.res.state.pwr_prop_max.get_stale(|| format_dbg!())? - *self.edrv.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?)
+                    .min(
+                        *self.res.state.pwr_prop_max.get_stale(|| format_dbg!())?
+                            - *self
+                                .edrv
+                                .state
+                                .pwr_elec_prop_in
+                                .get_stale(|| format_dbg!())?,
+                    )
                     .max(si::Power::ZERO),
                 dt,
             )?;
@@ -153,21 +177,34 @@ impl LocoTrait for BatteryElectricLoco {
             disch_buffer,
             chrg_buffer,
         )?;
-        self.edrv
-            .set_cur_pwr_max_out(*self.res.state.pwr_prop_max.get_stale(|| format_dbg!())?, None)?;
+        self.edrv.set_cur_pwr_max_out(
+            *self.res.state.pwr_prop_max.get_stale(|| format_dbg!())?,
+            None,
+        )?;
         self.edrv
             .set_cur_pwr_regen_max(*self.res.state.pwr_charge_max.get_stale(|| format_dbg!())?)?;
 
         // power rate is never limiting in BEL, but assuming dt will be same
         // in next time step, we can synthesize a rate
         self.edrv.set_pwr_rate_out_max(
-            (*self.edrv.state.pwr_mech_out_max.get_fresh(|| format_dbg!())? - *self.edrv.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())?) / dt,
-        );
+            (*self
+                .edrv
+                .state
+                .pwr_mech_out_max
+                .get_fresh(|| format_dbg!())?
+                - *self
+                    .edrv
+                    .state
+                    .pwr_mech_prop_out
+                    .get_fresh(|| format_dbg!())?)
+                / dt,
+        )?;
         Ok(())
     }
 
-    fn get_energy_loss(&self) -> si::Energy {
-        *self.res.state.energy_loss.get_fresh(|| format_dbg!())? + *self.edrv.state.energy_loss.get_fresh(|| format_dbg!())?
+    fn get_energy_loss(&self) -> anyhow::Result<si::Energy> {
+        Ok(*self.res.state.energy_loss.get_fresh(|| format_dbg!())?
+            + *self.edrv.state.energy_loss.get_fresh(|| format_dbg!())?)
     }
 }
 
@@ -208,7 +245,7 @@ impl SetCumulative for BatteryPowertrainControls {
 impl Step for BatteryPowertrainControls {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         match self {
-            Self::RGWDB(rgwdb) => rgwdb.step(|| format_dbg!())?,
+            Self::RGWDB(rgwdb) => rgwdb.step(|| format!("{}\n{}", loc(), format_dbg!()))?,
         }
         Ok(())
     }
@@ -217,7 +254,7 @@ impl Step for BatteryPowertrainControls {
 impl SaveState for BatteryPowertrainControls {
     fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         match self {
-            Self::RGWDB(rgwdb) => rgwdb.save_state(|| format_dbg!())?,
+            Self::RGWDB(rgwdb) => rgwdb.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?,
         }
         Ok(())
     }
@@ -226,7 +263,9 @@ impl SaveState for BatteryPowertrainControls {
 impl CheckAndResetState for BatteryPowertrainControls {
     fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         match self {
-            Self::RGWDB(rgwdb) => rgwdb.check_and_reset(|| format_dbg!())?,
+            Self::RGWDB(rgwdb) => {
+                rgwdb.check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
         }
         Ok(())
     }

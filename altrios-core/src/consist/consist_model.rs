@@ -168,7 +168,8 @@ impl Init for Consist {
         let _mass = self
             .mass()
             .map_err(|err| Error::InitError(format_dbg!(err)))?;
-        self.set_pwr_dyn_brake_max();
+        self.set_pwr_dyn_brake_max()
+            .map_err(|err| Error::InitError(format_dbg!(err)))?;
         self.loco_vec.init()?;
         self.pdct.init()?;
         self.state.init()?;
@@ -322,7 +323,7 @@ impl Consist {
     pub fn set_pwr_aux(&mut self, engine_on: Option<bool>) -> anyhow::Result<()> {
         self.loco_vec
             .iter_mut()
-            .for_each(|l| l.set_pwr_aux(engine_on));
+            .try_for_each(|l| l.set_pwr_aux(engine_on))?;
         Ok(())
     }
 
@@ -375,7 +376,7 @@ impl Consist {
         )?;
 
         // Sum of dynamic braking capability, including regenerative capability
-        self.set_pwr_dyn_brake_max();
+        self.set_pwr_dyn_brake_max()?;
 
         let pwr_out_vec: Vec<si::Power> = if pwr_out_req > si::Power::ZERO {
             // positive tractive power `pwr_out_vec`
@@ -642,7 +643,7 @@ impl LocoTrait for Consist {
                 pwr_regen_max
             },
             || format_dbg!(),
-        );
+        )?;
         self.state.pwr_out_max_reves.update(
             {
                 let mut pwr_out_max_reves = si::Power::ZERO;
@@ -672,11 +673,12 @@ impl LocoTrait for Consist {
         Ok(())
     }
 
-    fn get_energy_loss(&self) -> si::Energy {
+    fn get_energy_loss(&self) -> anyhow::Result<si::Energy> {
         self.loco_vec
             .iter()
-            .map(|loco| loco.get_energy_loss())
-            .sum()
+            .try_fold(si::Energy::ZERO, |acc, loco| {
+                Ok(acc + loco.get_energy_loss()?)
+            })
     }
 }
 

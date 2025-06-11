@@ -229,23 +229,19 @@ impl LocomotiveSimulation {
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         // linear aux model
         let engine_on = self.power_trace.engine_on[self.i];
-        self.loco_unit.set_pwr_aux(engine_on);
+        self.loco_unit.set_pwr_aux(engine_on)?;
         let train_mass = self.power_trace.train_mass;
         let train_speed = if !self.power_trace.train_speed.is_empty() {
             Some(self.power_trace.train_speed[self.i])
         } else {
             None
         };
-        self.loco_unit.set_curr_pwr_max_out(
-            None,
-            None,
-            train_mass,
-            train_speed,
-            self.power_trace.dt(self.i),
-        )?;
+        let dt = self.power_trace.dt(self.i);
+        self.loco_unit
+            .set_curr_pwr_max_out(None, None, train_mass, train_speed, dt)?;
         self.solve_energy_consumption(
             self.power_trace.pwr[self.i],
-            self.power_trace.dt(self.i),
+            dt,
             engine_on,
             train_mass,
             train_speed,
@@ -253,23 +249,24 @@ impl LocomotiveSimulation {
         ensure!(
             utils::almost_eq_uom(
                 &self.power_trace.pwr[self.i],
-                &self.loco_unit.state.pwr_out,
+                self.loco_unit.state.pwr_out.get_fresh(|| format_dbg!())?,
                 None
             ),
             format_dbg!(
                 (utils::almost_eq_uom(
                     &self.power_trace.pwr[self.i],
-                    &self.loco_unit.state.pwr_out,
+                    self.loco_unit.state.pwr_out.get_fresh(|| format_dbg!())?,
                     None
                 ))
             )
         );
+        self.set_cumulative(dt, || format_dbg!())?;
         Ok(())
     }
 
     /// Iterates `save_state` and `step` through all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
-        self.save_state(|| format_dbg!());
+        self.save_state(|| format_dbg!())?;
         while self.i < self.power_trace.len() {
             self.step(|| format_dbg!())?
         }
@@ -305,18 +302,33 @@ impl LocomotiveSimulation {
 impl Step for LocomotiveSimulation {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.i)))?;
-        self.save_state(|| format_dbg!());
+            .with_context(|| format!("{}\ntime step: {}", loc(), self.i))?;
+        self.save_state(|| format_dbg!())?;
         self.i += 1;
-        self.loco_unit.step(|| format_dbg!());
+        self.loco_unit.step(|| format_dbg!())?;
         Ok(())
     }
 }
 
 impl SaveState for LocomotiveSimulation {
     fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
-        self.loco_unit.save_state(|| format_dbg!())?;
+        self.loco_unit
+            .save_state(|| format!("{}\n{}", loc(), format_dbg!()))?;
         Ok(())
+    }
+}
+
+impl CheckAndResetState for LocomotiveSimulation {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.loco_unit
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))
+    }
+}
+
+impl SetCumulative for LocomotiveSimulation {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
+        self.loco_unit
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))
     }
 }
 

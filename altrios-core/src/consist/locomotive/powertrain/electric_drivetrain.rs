@@ -245,7 +245,7 @@ impl ElectricDrivetrain {
         self.state.pwr_mech_prop_out.update(
             pwr_out_req.max(-*self.state.pwr_mech_regen_max.get_stale(|| format_dbg!())?),
             || format_dbg!(),
-        );
+        )?;
         self.state.energy_mech_prop_out.increment(
             *self.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())? * dt,
             || format_dbg!(),
@@ -274,7 +274,7 @@ impl ElectricDrivetrain {
                     * *self.state.eta.get_stale(|| format_dbg!())?
             },
             || format_dbg!(),
-        );
+        )?;
         self.state.energy_elec_prop_in.increment(
             *self.state.pwr_elec_prop_in.get_fresh(|| format_dbg!())? * dt,
             || format_dbg!(),
@@ -447,7 +447,7 @@ mod tests {
     #[test]
     fn test_that_i_increments() {
         let mut edrv = test_edrv();
-        edrv.step(|| format_dbg!());
+        edrv.step(|| format_dbg!()).unwrap();
         assert_eq!(2, *edrv.state.i.get_fresh(|| format_dbg!()).unwrap());
     }
 
@@ -456,24 +456,25 @@ mod tests {
         let mut edrv = test_edrv();
         edrv.state
             .pwr_mech_out_max
-            .update(edrv.pwr_out_max, || format_dbg!());
+            .update(edrv.pwr_out_max, || format_dbg!())
+            .unwrap();
         edrv.save_interval = Some(1);
-        edrv.save_state(|| format_dbg!());
+        edrv.save_state(|| format_dbg!()).unwrap();
         edrv.set_pwr_in_req(uc::W * 1_000e3, uc::S * 1.0).unwrap();
-        edrv.step(|| format_dbg!());
-        edrv.save_state(|| format_dbg!());
+        edrv.step(|| format_dbg!()).unwrap();
+        edrv.save_state(|| format_dbg!()).unwrap();
         edrv.set_pwr_in_req(uc::W * 1_100e3, uc::S * 1.0).unwrap();
-        edrv.step(|| format_dbg!());
-        edrv.save_state(|| format_dbg!());
+        edrv.step(|| format_dbg!()).unwrap();
+        edrv.save_state(|| format_dbg!()).unwrap();
         edrv.set_pwr_in_req(uc::W * 1_000e3, uc::S * 1.0).unwrap();
-        edrv.step(|| format_dbg!());
-        edrv.save_state(|| format_dbg!());
+        edrv.step(|| format_dbg!()).unwrap();
+        edrv.save_state(|| format_dbg!()).unwrap();
         edrv.set_pwr_in_req(uc::W * -500e3, uc::S * 1.0).unwrap();
-        edrv.step(|| format_dbg!());
-        edrv.save_state(|| format_dbg!());
+        edrv.step(|| format_dbg!()).unwrap();
+        edrv.save_state(|| format_dbg!()).unwrap();
         edrv.set_pwr_in_req(uc::W * -1_500e3, uc::S * 1.0).unwrap();
-        edrv.step(|| format_dbg!());
-        edrv.save_state(|| format_dbg!());
+        edrv.step(|| format_dbg!()).unwrap();
+        edrv.save_state(|| format_dbg!()).unwrap();
         assert!(edrv.history.energy_loss.windows(2).all(|w| *w[1]
             .get_fresh(|| format_dbg!())
             .unwrap()
@@ -487,7 +488,7 @@ mod tests {
         let mut edrv: ElectricDrivetrain = ElectricDrivetrain::default();
         edrv.save_interval = Some(1);
         assert!(edrv.history.is_empty());
-        edrv.save_state(|| format_dbg!());
+        edrv.save_state(|| format_dbg!()).unwrap();
         assert_eq!(1, edrv.history.len());
     }
 
@@ -495,7 +496,7 @@ mod tests {
     fn test_that_history_has_len_0() {
         let mut edrv: ElectricDrivetrain = ElectricDrivetrain::default();
         assert!(edrv.history.is_empty());
-        edrv.save_state(|| format_dbg!());
+        edrv.save_state(|| format_dbg!()).unwrap();
         assert!(edrv.history.is_empty());
     }
 

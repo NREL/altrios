@@ -12,13 +12,15 @@ pub struct Basic {
 impl Basic {}
 
 impl Init for Basic {}
-impl SerdeAPI for Basic{}
+impl SerdeAPI for Basic {}
 
 impl Basic {
     pub fn new(davis_b: si::InverseVelocity) -> Self {
         Self { davis_b }
     }
-    pub fn calc_res(&mut self, state: &TrainState) -> si::Force {
-        self.davis_b * state.speed * state.weight_static
+    pub fn calc_res(&mut self, state: &TrainState) -> anyhow::Result<si::Force> {
+        Ok(self.davis_b
+            * *state.speed.get_fresh(|| format_dbg!())?
+            * *state.weight_static.get_fresh(|| format_dbg!())?)
     }
 }

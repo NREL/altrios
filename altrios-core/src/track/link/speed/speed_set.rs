@@ -44,8 +44,8 @@ pub struct SpeedSet {
 #[pyo3_api]
 impl SpeedSet {}
 
-impl Init for SpeedSet{}
-impl SerdeAPI for SpeedSet{}
+impl Init for SpeedSet {}
+impl SerdeAPI for SpeedSet {}
 
 #[serde_api]
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]

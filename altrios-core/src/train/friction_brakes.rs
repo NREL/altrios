@@ -81,7 +81,10 @@ impl FricBrake {
         save_interval: Option<usize>,
     ) -> Self {
         let mut state = state.unwrap_or_default();
-        state.force_max_curr = force_max;
+        state
+            .force_max_curr
+            .update_unchecked(force_max, || format_dbg!())
+            .unwrap();
         let fric_brake_def: Self = Default::default();
         let ramp_up_time = ramp_up_time.unwrap_or(fric_brake_def.ramp_up_time);
         let ramp_up_coeff = ramp_up_coeff.unwrap_or(fric_brake_def.ramp_up_coeff);
@@ -98,16 +101,29 @@ impl FricBrake {
 
     pub fn set_cur_force_max_out(&mut self, dt: si::Time) -> anyhow::Result<()> {
         // maybe check parameter values here and propagate any errors
-        self.state.force_max_curr =
-            (self.state.force + self.force_max / self.ramp_up_time * dt).min(self.force_max);
-        Ok(())
+        self.state.force_max_curr.update(
+            (*self.state.force.get_stale(|| format_dbg!())?
+                + self.force_max / self.ramp_up_time * dt)
+                .min(self.force_max),
+            || format_dbg!(),
+        )
     }
 }
 
 // TODO: figure out a way to make the braking reasonably polymorphic (e.g. for autonomous rail
 // vehicles)
 #[serde_api]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, HistoryVec)]
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    HistoryVec,
+    StateMethods,
+    SetCumulative,
+)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct FricBrakeState {
     /// index counter

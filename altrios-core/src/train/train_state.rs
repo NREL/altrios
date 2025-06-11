@@ -70,6 +70,7 @@ impl InitTrainState {
 #[derive(
     Debug, Clone, Serialize, Deserialize, HistoryVec, PartialEq, StateMethods, SetCumulative,
 )]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct TrainState {
     /// time since user-defined datum
     pub time: TrackedState<si::Time>,

@@ -108,7 +108,7 @@ where
     /// # Arguments
     /// - `value`: new value
     /// - `loc`: closure that returns file and line number where called
-    pub fn update_unchecked<F: Fn() -> String>(&mut self, value: T, loc: F) -> anyhow::Result<()> {
+    pub fn update_unchecked<F: Fn() -> String>(&mut self, value: T, _loc: F) -> anyhow::Result<()> {
         self.0 = value;
         self.1 = StateStatus::Fresh;
         Ok(())

@@ -44,10 +44,12 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
         let extension = filepath
             .extension()
             .and_then(OsStr::to_str)
-            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        let file = Self::RESOURCES_DIR
-            .get_file(&filepath)
-            .with_context(|| format!("File not found in resources: {filepath:?}"))?;
+            .ok_or_else(|| {
+                Error::SerdeError(format!("File extension could not be parsed: {filepath:?}"))
+            })?;
+        let file = Self::RESOURCES_DIR.get_file(&filepath).ok_or_else(|| {
+            Error::SerdeError(format!("File not found in resources: {filepath:?}"))
+        })?;
         Self::from_reader(&mut file.contents(), extension, skip_init)
     }
 

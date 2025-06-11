@@ -324,12 +324,12 @@ impl FuelConverter {
         self.state.pwr_fuel.update(
             pwr_out_req / *self.state.eta.get_fresh(|| format_dbg!())? + self.pwr_idle_fuel,
             || format_dbg!(),
-        );
+        )?;
         self.state.pwr_loss.update(
             *self.state.pwr_fuel.get_fresh(|| format_dbg!())?
                 - *self.state.pwr_shaft.get_fresh(|| format_dbg!())?,
             || format_dbg!(),
-        );
+        )?;
 
         ensure!(
             self.state
@@ -450,7 +450,10 @@ mod tests {
     #[test]
     fn test_that_fuel_grtr_than_shaft_energy() {
         let mut fc = test_fc();
-        fc.state.pwr_out_max.update(uc::MW * 2., || format_dbg!());
+        fc.state
+            .pwr_out_max
+            .update(uc::MW * 2., || format_dbg!())
+            .unwrap();
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
         assert!(
@@ -475,23 +478,26 @@ mod tests {
     #[test]
     fn test_that_i_increments() {
         let mut fc = test_fc();
-        fc.step(|| format_dbg!());
+        fc.step(|| format_dbg!()).unwrap();
         assert_eq!(2, *fc.state.i.get_fresh(|| format_dbg!()).unwrap());
     }
 
     #[test]
     fn test_that_fuel_is_monotonic() {
         let mut fc = test_fc();
-        fc.state.pwr_out_max.update(uc::MW * 2.0, || format_dbg!());
+        fc.state
+            .pwr_out_max
+            .update(uc::MW * 2.0, || format_dbg!())
+            .unwrap();
         fc.save_interval = Some(1);
-        fc.save_state(|| format_dbg!());
+        fc.save_state(|| format_dbg!()).unwrap();
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
-        fc.step(|| format_dbg!());
-        fc.save_state(|| format_dbg!());
+        fc.step(|| format_dbg!()).unwrap();
+        fc.save_state(|| format_dbg!()).unwrap();
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
-        fc.step(|| format_dbg!());
+        fc.step(|| format_dbg!()).unwrap();
         assert!(
             fc.history.energy_fuel[1]
                 .get_fresh(|| format_dbg!())
@@ -516,7 +522,7 @@ mod tests {
         let mut fc: FuelConverter = FuelConverter::default();
         fc.save_interval = Some(1);
         assert!(fc.history.is_empty());
-        fc.save_state(|| format_dbg!());
+        fc.save_state(|| format_dbg!()).unwrap();
         assert_eq!(1, fc.history.len());
     }
 
@@ -524,7 +530,7 @@ mod tests {
     fn test_that_history_has_len_0() {
         let mut fc: FuelConverter = FuelConverter::default();
         assert!(fc.history.is_empty());
-        fc.save_state(|| format_dbg!());
+        fc.save_state(|| format_dbg!()).unwrap();
         assert!(fc.history.is_empty());
     }
 

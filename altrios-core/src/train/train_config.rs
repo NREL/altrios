@@ -79,8 +79,9 @@ impl TrainConfig {
 
     #[pyo3(name = "make_train_params")]
     /// - `rail_vehicles` - list of `RailVehicle` objects with 1 element for each _type_ of rail vehicle
-    fn make_train_params_py(&self) -> anyhow::Result<TrainParams> {
-        self.make_train_params()
+    #[allow(clippy::useless_conversion)]
+    fn make_train_params_py(&self) -> PyResult<TrainParams> {
+        Ok(self.make_train_params()?)
     }
 
     #[getter]
@@ -520,7 +521,7 @@ impl TrainSimBuilder {
             train_mass_static,
             mass_rot,
             mass_freight,
-            self.init_train_state,
+            self.init_train_state.clone(),
         );
 
         let path_tpc = PathTpc::new(train_params);
@@ -1019,42 +1020,48 @@ pub fn run_speed_limit_train_sims(
                     .loco_vec
                     .iter_mut()
                     .zip(departing_soc_pct_vec)
-                    .for_each(|(loco, soc)| {
-                        if let Some(loco) = &mut loco.reversible_energy_storage_mut() {
-                            loco.state.soc = soc * uc::R
+                    .try_for_each(|(loco, soc)| {
+                        if let Some(res) = &mut loco.reversible_energy_storage_mut() {
+                            res.state.soc.update(soc * uc::R, || format_dbg!())
+                        } else {
+                            Ok(())
                         }
-                    });
+                    })?;
                 let _ = sim
                     .walk_timed_path(&network, &timed_paths[idx])
                     .map_err(|err| err.context(format!("train sim idx: {}", idx)));
 
-                let new_soc_vec: Vec<f64> = sim
-                    .loco_con
-                    .loco_vec
-                    .iter()
-                    .map(|loco| match loco.loco_type {
+                let mut new_soc_vec: Vec<f64> = vec![];
+                for loco in sim.loco_con.loco_vec.clone() {
+                    match loco.loco_type {
                         PowertrainType::BatteryElectricLoco(_) => {
-                            (loco.reversible_energy_storage().unwrap().state.soc
-                                * loco.reversible_energy_storage().unwrap().energy_capacity)
-                                .get::<si::joule>()
+                            new_soc_vec.push(
+                                (*loco
+                                    .reversible_energy_storage()
+                                    .unwrap()
+                                    .state
+                                    .soc
+                                    .get_fresh(|| format_dbg!())?
+                                    * loco.reversible_energy_storage().unwrap().energy_capacity)
+                                    .get::<si::joule>(),
+                            );
                         }
-                        _ => f64::ZERO,
-                    })
-                    .collect();
-                let new_energy_j_vec: Vec<f64> = sim
-                    .loco_con
-                    .loco_vec
-                    .iter()
-                    .map(|loco| match loco.loco_type {
-                        PowertrainType::BatteryElectricLoco(_) => (loco
+                        _ => new_soc_vec.push(f64::ZERO),
+                    }
+                }
+                let mut new_energy_j_vec: Vec<f64> = vec![];
+                for loco in sim.loco_con.loco_vec.clone() {
+                    new_energy_j_vec.push(match loco.loco_type {
+                        PowertrainType::BatteryElectricLoco(_) => loco
                             .reversible_energy_storage()
                             .unwrap()
                             .state
-                            .energy_out_chemical)
+                            .energy_out_chemical
+                            .get_fresh(|| format_dbg!())?
                             .get::<si::joule>(),
                         _ => f64::ZERO,
-                    })
-                    .collect();
+                    });
+                }
                 let mut all_current_socs: Vec<f64> = loco_pool
                     .column("SOC_J")
                     .with_context(|| format_dbg!())?
@@ -1394,27 +1401,27 @@ pub struct SpeedLimitTrainSimVec(pub Vec<SpeedLimitTrainSim>);
 impl SpeedLimitTrainSimVec {
     #![allow(non_snake_case)]
     #[pyo3(name = "get_energy_fuel_joules")]
-    pub fn get_energy_fuel_py(&self, annualize: bool) -> f64 {
-        self.get_energy_fuel(annualize).get::<si::joule>()
+    pub fn get_energy_fuel_py(&self, annualize: bool) -> anyhow::Result<f64> {
+        Ok(self.get_energy_fuel(annualize)?.get::<si::joule>())
     }
 
     #[pyo3(name = "get_net_energy_res_joules")]
-    pub fn get_net_energy_res_py(&self, annualize: bool) -> f64 {
-        self.get_net_energy_res(annualize).get::<si::joule>()
+    pub fn get_net_energy_res_py(&self, annualize: bool) -> anyhow::Result<f64> {
+        Ok(self.get_net_energy_res(annualize)?.get::<si::joule>())
     }
 
     #[pyo3(name = "get_kilometers")]
-    pub fn get_kilometers_py(&self, annualize: bool) -> f64 {
+    pub fn get_kilometers_py(&self, annualize: bool) -> anyhow::Result<f64> {
         self.get_kilometers(annualize)
     }
 
     #[pyo3(name = "get_megagram_kilometers")]
-    pub fn get_megagram_kilometers_py(&self, annualize: bool) -> f64 {
+    pub fn get_megagram_kilometers_py(&self, annualize: bool) -> anyhow::Result<f64> {
         self.get_megagram_kilometers(annualize)
     }
 
     #[pyo3(name = "get_car_kilometers")]
-    pub fn get_car_kilometers_py(&self, annualize: bool) -> f64 {
+    pub fn get_car_kilometers_py(&self, annualize: bool) -> anyhow::Result<f64> {
         self.get_car_kilometers(annualize)
     }
 
@@ -1424,12 +1431,12 @@ impl SpeedLimitTrainSimVec {
     }
 
     #[pyo3(name = "get_res_kilometers")]
-    pub fn get_res_kilometers_py(&mut self, annualize: bool) -> f64 {
+    pub fn get_res_kilometers_py(&mut self, annualize: bool) -> anyhow::Result<f64> {
         self.get_res_kilometers(annualize)
     }
 
     #[pyo3(name = "get_non_res_kilometers")]
-    pub fn get_non_res_kilometers_py(&mut self, annualize: bool) -> f64 {
+    pub fn get_non_res_kilometers_py(&mut self, annualize: bool) -> anyhow::Result<f64> {
         self.get_non_res_kilometers(annualize)
     }
 
@@ -1451,54 +1458,50 @@ impl SpeedLimitTrainSimVec {
         Self(value)
     }
 
-    pub fn get_energy_fuel(&self, annualize: bool) -> si::Energy {
-        self.0
-            .iter()
-            .map(|sim| sim.get_energy_fuel(annualize))
-            .sum()
+    pub fn get_energy_fuel(&self, annualize: bool) -> anyhow::Result<si::Energy> {
+        self.0.iter().try_fold(si::Energy::ZERO, |acc, sim| {
+            Ok(acc + sim.get_energy_fuel(annualize)?)
+        })
     }
 
-    pub fn get_net_energy_res(&self, annualize: bool) -> si::Energy {
-        self.0
-            .iter()
-            .map(|sim| sim.get_net_energy_res(annualize))
-            .sum()
+    pub fn get_net_energy_res(&self, annualize: bool) -> anyhow::Result<si::Energy> {
+        self.0.iter().try_fold(si::Energy::ZERO, |acc, sim| {
+            Ok(acc + sim.get_net_energy_res(annualize)?)
+        })
     }
 
-    pub fn get_kilometers(&self, annualize: bool) -> f64 {
-        self.0.iter().map(|sim| sim.get_kilometers(annualize)).sum()
-    }
-
-    pub fn get_megagram_kilometers(&self, annualize: bool) -> f64 {
+    pub fn get_kilometers(&self, annualize: bool) -> anyhow::Result<f64> {
         self.0
             .iter()
-            .map(|sim| sim.get_megagram_kilometers(annualize))
-            .sum()
+            .try_fold(0.0, |acc, sim| Ok(acc + sim.get_kilometers(annualize)?))
     }
 
-    pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
+    pub fn get_megagram_kilometers(&self, annualize: bool) -> anyhow::Result<f64> {
+        self.0.iter().try_fold(0.0, |acc, sim| {
+            Ok(acc + sim.get_megagram_kilometers(annualize)?)
+        })
+    }
+
+    pub fn get_car_kilometers(&self, annualize: bool) -> anyhow::Result<f64> {
         self.0
             .iter()
-            .map(|sim| sim.get_car_kilometers(annualize))
-            .sum()
+            .try_fold(0.0, |acc, sim| Ok(acc + sim.get_car_kilometers(annualize)?))
     }
 
     pub fn get_cars_moved(&self, annualize: bool) -> f64 {
         self.0.iter().map(|sim| sim.get_cars_moved(annualize)).sum()
     }
 
-    pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {
+    pub fn get_res_kilometers(&mut self, annualize: bool) -> anyhow::Result<f64> {
         self.0
             .iter_mut()
-            .map(|sim| sim.get_res_kilometers(annualize))
-            .sum()
+            .try_fold(0.0, |acc, sim| Ok(acc + sim.get_res_kilometers(annualize)?))
     }
 
-    pub fn get_non_res_kilometers(&mut self, annualize: bool) -> f64 {
-        self.0
-            .iter_mut()
-            .map(|sim| sim.get_non_res_kilometers(annualize))
-            .sum()
+    pub fn get_non_res_kilometers(&mut self, annualize: bool) -> anyhow::Result<f64> {
+        self.0.iter_mut().try_fold(0.0, |acc, sim| {
+            Ok(acc + sim.get_non_res_kilometers(annualize)?)
+        })
     }
 
     pub fn set_save_interval(&mut self, save_interval: Option<usize>) {

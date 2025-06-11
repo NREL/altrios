@@ -20,11 +20,11 @@ pub trait LocoTrait {
         dt: si::Time,
     ) -> anyhow::Result<()>;
     /// Get energy loss in components
-    fn get_energy_loss(&self) -> si::Energy;
+    fn get_energy_loss(&self) -> anyhow::Result<si::Energy>;
 }
 
 #[serde_api]
-#[derive(Default, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Wrapper struct for `Vec<Locomotive>` to expose various methods to Python.
 pub struct Pyo3VecLocoWrapper(pub Vec<Locomotive>);
@@ -83,51 +83,66 @@ impl SolvePower for RESGreedy {
         _train_mass: Option<si::Mass>,
         _train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
-        let loco_pwr_out_vec: Vec<si::Power> = if state.pwr_out_deficit == si::Power::ZERO {
+        let loco_pwr_out_vec: Vec<si::Power> = if *state
+            .pwr_out_deficit
+            .get_fresh(|| format_dbg!())?
+            == si::Power::ZERO
+        {
             // draw all power from RES-equipped locomotives
-            loco_vec
-                .iter()
-                .map(|loco| match &loco.loco_type {
+            let mut loco_pwr_out_vec: Vec<si::Power> = vec![];
+            for loco in loco_vec {
+                loco_pwr_out_vec.push(match &loco.loco_type {
                     PowertrainType::ConventionalLoco(_) => si::Power::ZERO,
                     PowertrainType::HybridLoco(_) => {
-                        loco.state.pwr_out_max / state.pwr_out_max_reves * state.pwr_out_req
+                        *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?
+                            / *state.pwr_out_max_reves.get_fresh(|| format_dbg!())?
+                            * *state.pwr_out_req.get_fresh(|| format_dbg!())?
                     }
                     PowertrainType::BatteryElectricLoco(_) => {
-                        loco.state.pwr_out_max / state.pwr_out_max_reves * state.pwr_out_req
+                        *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?
+                            / *state.pwr_out_max_reves.get_fresh(|| format_dbg!())?
+                            * *state.pwr_out_req.get_fresh(|| format_dbg!())?
                     }
                     // if the DummyLoco is present in the consist, it should be the only locomotive
                     // and pwr_out_deficit should be 0.0
-                    PowertrainType::DummyLoco(_) => state.pwr_out_req,
+                    PowertrainType::DummyLoco(_) => {
+                        *state.pwr_out_req.get_fresh(|| format_dbg!())?
+                    }
                 })
-                .collect()
+            }
+            loco_pwr_out_vec
         } else {
             // draw deficit power from conventional and hybrid locomotives
-            loco_vec
-                .iter()
-                .map(|loco| match &loco.loco_type {
+            let mut loco_pwr_out_vec: Vec<si::Power> = vec![];
+            for loco in loco_vec {
+                loco_pwr_out_vec.push( match &loco.loco_type {
                     PowertrainType::ConventionalLoco(_) => {
-                        loco.state.pwr_out_max / state.pwr_out_max_non_reves
-                            * state.pwr_out_deficit
+*                        loco.state.pwr_out_max.get_fresh(|| format_dbg!())? / *state.pwr_out_max_non_reves.get_fresh(|| format_dbg!())?
+                            * *state.pwr_out_deficit.get_fresh(|| format_dbg!())?
                     }
-                    PowertrainType::HybridLoco(_) => loco.state.pwr_out_max,
-                    PowertrainType::BatteryElectricLoco(_) => loco.state.pwr_out_max,
+                    PowertrainType::HybridLoco(_) => *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?,
+                    PowertrainType::BatteryElectricLoco(_) => *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?,
                     PowertrainType::DummyLoco(_) => {
                         si::Power::ZERO /* this else branch should not happen when DummyLoco is present */
                     }
                 })
-                .collect()
+            }
+            loco_pwr_out_vec
         };
         let loco_pwr_out_vec_sum: si::Power = loco_pwr_out_vec.iter().copied().sum();
         ensure!(
             utils::almost_eq_uom(
                 &loco_pwr_out_vec.iter().copied().sum(),
-                &state.pwr_out_req,
+                state.pwr_out_req.get_fresh(|| format_dbg!())?,
                 None,
             ),
             format!(
                 "{}\n{}",
                 format_dbg!(loco_pwr_out_vec_sum.get::<si::kilowatt>()),
-                format_dbg!(&state.pwr_out_req.get::<si::kilowatt>())
+                format_dbg!(state
+                    .pwr_out_req
+                    .get_fresh(|| format_dbg!())?
+                    .get::<si::kilowatt>())
             )
         );
         Ok(loco_pwr_out_vec)
@@ -144,19 +159,27 @@ impl SolvePower for RESGreedy {
     }
 }
 
-fn get_pwr_regen_vec(loco_vec: &[Locomotive], regen_frac: si::Ratio) -> Vec<si::Power> {
-    loco_vec
-        .iter()
-        .map(|loco| match &loco.loco_type {
+fn get_pwr_regen_vec(
+    loco_vec: &[Locomotive],
+    regen_frac: si::Ratio,
+) -> anyhow::Result<Vec<si::Power>> {
+    let mut pwr_regen_vec: Vec<si::Power> = vec![];
+    for loco in loco_vec {
+        pwr_regen_vec.push(match &loco.loco_type {
             // no braking power from conventional locos if there is capacity to regen all power
             PowertrainType::ConventionalLoco(_) => si::Power::ZERO,
-            PowertrainType::HybridLoco(_) => loco.state.pwr_regen_max * regen_frac,
-            PowertrainType::BatteryElectricLoco(_) => loco.state.pwr_regen_max * regen_frac,
+            PowertrainType::HybridLoco(_) => {
+                *loco.state.pwr_regen_max.get_fresh(|| format_dbg!())? * regen_frac
+            }
+            PowertrainType::BatteryElectricLoco(_) => {
+                *loco.state.pwr_regen_max.get_fresh(|| format_dbg!())? * regen_frac
+            }
             // if the DummyLoco is present in the consist, it should be the only locomotive
             // and pwr_regen_deficit should be 0.0
             PowertrainType::DummyLoco(_) => si::Power::ZERO,
         })
-        .collect()
+    }
+    Ok(pwr_regen_vec)
 }
 
 /// Used for apportioning negative tractive power throughout consist for several
@@ -168,22 +191,27 @@ fn solve_negative_traction(
     _train_speed: Option<si::Velocity>,
 ) -> anyhow::Result<Vec<si::Power>> {
     // positive during any kind of negative traction event
-    let pwr_brake_req = -consist_state.pwr_out_req;
+    let pwr_brake_req = -*consist_state.pwr_out_req.get_fresh(|| format_dbg!())?;
 
     // fraction of consist-level max regen required to fulfill required braking power
-    let regen_frac = if consist_state.pwr_regen_max == si::Power::ZERO {
+    let regen_frac = if *consist_state.pwr_regen_max.get_fresh(|| format_dbg!())? == si::Power::ZERO
+    {
         // divide-by-zero protection
         si::Ratio::ZERO
     } else {
-        (pwr_brake_req / consist_state.pwr_regen_max).min(uc::R * 1.)
+        (pwr_brake_req / *consist_state.pwr_regen_max.get_fresh(|| format_dbg!())?).min(uc::R * 1.)
     };
-    let pwr_out_vec: Vec<si::Power> = if consist_state.pwr_regen_deficit == si::Power::ZERO {
-        get_pwr_regen_vec(loco_vec, regen_frac)
+    let pwr_out_vec: Vec<si::Power> = if *consist_state
+        .pwr_regen_deficit
+        .get_fresh(|| format_dbg!())?
+        == si::Power::ZERO
+    {
+        get_pwr_regen_vec(loco_vec, regen_frac)?
     } else {
         // In this block, we know that all of the regen capability will be used so the goal is to spread
         // dynamic braking effort among the non-RES-equipped and then all locomotives up until they're doing
         // the same dynmamic braking effort
-        let pwr_regen_vec = get_pwr_regen_vec(loco_vec, regen_frac);
+        let pwr_regen_vec = get_pwr_regen_vec(loco_vec, regen_frac)?;
         // extra dynamic braking power after regen has been subtracted off
         let pwr_surplus_vec: Vec<si::Power> = loco_vec
             .iter()
@@ -196,7 +224,10 @@ fn solve_negative_traction(
             .fold(0.0 * uc::W, |acc, &curr| acc + curr);
 
         // needed braking power not including regen per total available braking power not including regen
-        let surplus_frac = consist_state.pwr_regen_deficit / pwr_surplus_sum;
+        let surplus_frac = *consist_state
+            .pwr_regen_deficit
+            .get_fresh(|| format_dbg!())?
+            / pwr_surplus_sum;
         ensure!(
             surplus_frac >= si::Ratio::ZERO && surplus_frac <= uc::R,
             format_dbg!(surplus_frac),
@@ -231,13 +262,16 @@ impl SolvePower for Proportional {
         _train_speed: Option<si::Velocity>,
     ) -> anyhow::Result<Vec<si::Power>> {
         todo!("this need some attention to make sure it handles the hybrid correctly");
-        Ok(loco_vec
-            .iter()
-            .map(|loco| {
+        let mut loco_pwr_vec: Vec<si::Power> = vec![];
+        for loco in loco_vec {
+            loco_pwr_vec.push(
                 // loco.state.pwr_out_max already accounts for rate
-                loco.state.pwr_out_max / state.pwr_out_max * state.pwr_out_req
-            })
-            .collect())
+                *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?
+                    / *state.pwr_out_max.get_fresh(|| format_dbg!())?
+                    * *state.pwr_out_req.get_fresh(|| format_dbg!())?,
+            )
+        }
+        Ok(loco_pwr_vec)
     }
 
     fn solve_negative_traction(

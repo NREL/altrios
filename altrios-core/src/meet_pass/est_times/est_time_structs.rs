@@ -31,9 +31,9 @@ pub struct SimpleState {
 impl SimpleState {
     pub fn from_train_state(train_state: &TrainState) -> Self {
         Self {
-            time: train_state.time,
-            offset: train_state.offset,
-            speed: train_state.speed,
+            time: train_state.time.clone(),
+            offset: train_state.offset.clone(),
+            speed: train_state.speed.clone(),
         }
     }
 }
@@ -56,26 +56,26 @@ impl SerdeAPI for SavedSim {}
 impl SavedSim {
     /// Step the train sim forward and save appropriate state data in the movement
     pub fn update_movement(&mut self, movement: &mut Vec<SimpleState>) -> anyhow::Result<()> {
-        let condition = |train_sim: &mut SpeedLimitTrainSim| -> bool {
+        let condition = |train_sim: &mut SpeedLimitTrainSim| -> anyhow::Result<bool> {
             let (_, speed_target) = train_sim.braking_points.calc_speeds(
-                train_sim.state.offset,
-                train_sim.state.speed,
+                *train_sim.state.offset.get_fresh(|| format_dbg!())?,
+                *train_sim.state.speed.get_fresh(|| format_dbg!())?,
                 train_sim.fric_brake.ramp_up_time * train_sim.fric_brake.ramp_up_coeff,
             );
-            speed_target > si::Velocity::ZERO
+            Ok(speed_target > si::Velocity::ZERO
                 || (
                     train_sim.is_finished()
                     // this needs to be reconsidered.  The issue is determining when SpeedLimitTrainSim is finished.
-                        && train_sim.state.speed > si::Velocity::ZERO
+                        && *train_sim.state.speed.get_fresh(|| format_dbg!())? > si::Velocity::ZERO
                     // train_sim.state.offset
                     //     < train_sim.path_tpc.offset_end() + train_sim.state.length
-                )
+                ))
         };
 
         movement.clear();
         movement.push(SimpleState::from_train_state(&self.train_sim.state));
         // TODO: Tighten up this bound using braking points.
-        while condition(&mut self.train_sim) {
+        while condition(&mut self.train_sim)? {
             self.train_sim.step(|| format_dbg!())?;
             movement.push(SimpleState::from_train_state(&self.train_sim.state));
         }

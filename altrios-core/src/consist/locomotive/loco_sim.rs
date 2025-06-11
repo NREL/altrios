@@ -51,8 +51,10 @@ impl PowerTrace {
         }
     }
 
-    pub fn dt(&self, i: usize) -> si::Time {
-        self.time[i] - self.time[i - 1]
+    pub fn dt_at_i(&self, i: usize) -> anyhow::Result<si::Time> {
+        ensure!(i > 0);
+        Ok(*self.time.get(i).with_context(|| format_dbg!(i))?
+            - *self.time.get(i - 1).with_context(|| format_dbg!(i - 1))?)
     }
 
     pub fn len(&self) -> usize {
@@ -147,7 +149,6 @@ pub struct PowerTraceElement {
 pub struct LocomotiveSimulation {
     pub loco_unit: Locomotive,
     pub power_trace: PowerTrace,
-    pub i: usize,
 }
 
 #[pyo3_api]
@@ -202,7 +203,6 @@ impl LocomotiveSimulation {
         let mut loco_sim = Self {
             loco_unit,
             power_trace,
-            i: Default::default(),
         };
         loco_sim.loco_unit.set_save_interval(save_interval);
         loco_sim
@@ -210,10 +210,13 @@ impl LocomotiveSimulation {
 
     /// Trims off any portion of the trip that failed to run
     pub fn trim_failed_steps(&mut self) -> anyhow::Result<()> {
-        if self.i <= 1 {
+        if *self.loco_unit.state.i.get_stale(|| format_dbg!())? <= 1 {
             bail!("`walk` method has not proceeded past first time step.")
         }
-        self.power_trace.trim(None, Some(self.i))?;
+        self.power_trace.trim(
+            None,
+            Some(*self.loco_unit.state.i.get_stale(|| format_dbg!())?),
+        )?;
 
         Ok(())
     }
@@ -228,33 +231,39 @@ impl LocomotiveSimulation {
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         // linear aux model
-        let engine_on = self.power_trace.engine_on[self.i];
+        let i = *self.loco_unit.state.i.get_fresh(|| format_dbg!())?;
+        let engine_on: Option<bool> = self
+            .power_trace
+            .engine_on
+            .get(i)
+            .cloned()
+            .with_context(|| format_dbg!())?;
         self.loco_unit.set_pwr_aux(engine_on)?;
         let train_mass = self.power_trace.train_mass;
         let train_speed = if !self.power_trace.train_speed.is_empty() {
-            Some(self.power_trace.train_speed[self.i])
+            Some(self.power_trace.train_speed[i])
         } else {
             None
         };
-        let dt = self.power_trace.dt(self.i);
+        let dt = self.power_trace.dt_at_i(i).with_context(|| format_dbg!())?;
         self.loco_unit
             .set_curr_pwr_max_out(None, None, train_mass, train_speed, dt)?;
-        self.solve_energy_consumption(
-            self.power_trace.pwr[self.i],
-            dt,
-            engine_on,
-            train_mass,
-            train_speed,
-        )?;
+        let pwr_out_req = self
+            .power_trace
+            .pwr
+            .get(i)
+            .cloned()
+            .with_context(|| format_dbg!())?;
+        self.solve_energy_consumption(pwr_out_req, dt, engine_on, train_mass, train_speed)?;
         ensure!(
             utils::almost_eq_uom(
-                &self.power_trace.pwr[self.i],
+                &pwr_out_req,
                 self.loco_unit.state.pwr_out.get_fresh(|| format_dbg!())?,
                 None
             ),
             format_dbg!(
                 (utils::almost_eq_uom(
-                    &self.power_trace.pwr[self.i],
+                    &pwr_out_req,
                     self.loco_unit.state.pwr_out.get_fresh(|| format_dbg!())?,
                     None
                 ))
@@ -267,10 +276,13 @@ impl LocomotiveSimulation {
     /// Iterates `save_state` and `step` through all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
         self.save_state(|| format_dbg!())?;
-        while self.i < self.power_trace.len() {
-            self.step(|| format_dbg!())?
+        loop {
+            self.step(|| format_dbg!())?;
+            if *self.loco_unit.state.i.get_fresh(|| format_dbg!())? < self.power_trace.len() - 1 {
+                break;
+            }
         }
-        ensure!(self.i == self.power_trace.len());
+        ensure!(*self.loco_unit.state.i.get_fresh(|| format_dbg!())? == self.power_trace.len());
         Ok(())
     }
 
@@ -302,11 +314,11 @@ impl LocomotiveSimulation {
 impl Step for LocomotiveSimulation {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         self.check_and_reset(|| format_dbg!())?;
-        self.solve_step()
-            .with_context(|| format!("{}\ntime step: {}", loc(), self.i))?;
-        self.save_state(|| format_dbg!())?;
-        self.i += 1;
         self.loco_unit.step(|| format_dbg!())?;
+        let i = *self.loco_unit.state.i.get_fresh(|| format_dbg!())?;
+        self.solve_step()
+            .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
+        self.save_state(|| format_dbg!())?;
         Ok(())
     }
 }

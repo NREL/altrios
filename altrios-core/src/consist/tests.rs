@@ -83,7 +83,7 @@ fn test_consist() {
     assert_eq!(
         *consist
             .state
-            .energy_res
+            .energy_reves
             .get_fresh(|| format_dbg!())
             .unwrap(),
         si::Energy::ZERO
@@ -116,7 +116,7 @@ fn test_consist() {
     assert!(
         *consist
             .state
-            .energy_res
+            .energy_reves
             .get_fresh(|| format_dbg!())
             .unwrap()
             > si::Energy::ZERO

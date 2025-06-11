@@ -370,6 +370,7 @@ impl CheckAndResetState for DummyLoco {
 pub struct Locomotive {
     /// type of locomotive including contained type-specific parameters
     /// and variables
+    #[has_state]
     pub loco_type: PowertrainType,
     /// current state of locomotive
     #[serde(default)]
@@ -1179,19 +1180,19 @@ impl Locomotive {
                     self.assert_limits,
                 )
                 .with_context(|| format_dbg!("ConventionalLoco"))?;
-                self.state.pwr_out.update(
-                    *loco
-                        .edrv
-                        .state
-                        .pwr_mech_prop_out
-                        .get_fresh(|| format_dbg!())?
-                        - *loco
-                            .edrv
-                            .state
-                            .pwr_mech_dyn_brake
-                            .get_fresh(|| format_dbg!())?,
-                    || format_dbg!(),
-                )?;
+                // self.state.pwr_out.update(
+                //     *loco
+                //         .edrv
+                //         .state
+                //         .pwr_mech_prop_out
+                //         .get_fresh(|| format_dbg!())?
+                //         - *loco
+                //             .edrv
+                //             .state
+                //             .pwr_mech_dyn_brake
+                //             .get_fresh(|| format_dbg!())?,
+                //     || format_dbg!(),
+                // )?;
             }
             PowertrainType::HybridLoco(loco) => {
                 loco.solve_energy_consumption(
@@ -1209,19 +1210,19 @@ impl Locomotive {
                     self.assert_limits,
                 ).with_context(|| format_dbg!("HybridLoco"))?;
                 // TODO: add `engine_on` and `pwr_aux` here as inputs
-                self.state.pwr_out.update(
-                    *loco
-                        .edrv
-                        .state
-                        .pwr_mech_prop_out
-                        .get_fresh(|| format_dbg!())?
-                        - *loco
-                            .edrv
-                            .state
-                            .pwr_mech_dyn_brake
-                            .get_fresh(|| format_dbg!())?,
-                    || format_dbg!(),
-                )?;
+                // self.state.pwr_out.update(
+                //     *loco
+                //         .edrv
+                //         .state
+                //         .pwr_mech_prop_out
+                //         .get_fresh(|| format_dbg!())?
+                //         - *loco
+                //             .edrv
+                //             .state
+                //             .pwr_mech_dyn_brake
+                //             .get_fresh(|| format_dbg!())?,
+                //     || format_dbg!(),
+                // )?;
             }
             PowertrainType::BatteryElectricLoco(loco) => {
                 // todo: put something in here for deep sleep that is the
@@ -1232,19 +1233,19 @@ impl Locomotive {
                     *self.state.pwr_aux.get_fresh(|| format_dbg!())?,
                 )
                 .with_context(|| format_dbg!("BatteryElectricLoco"))?;
-                self.state.pwr_out.update(
-                    *loco
-                        .edrv
-                        .state
-                        .pwr_mech_prop_out
-                        .get_fresh(|| format_dbg!())?
-                        - *loco
-                            .edrv
-                            .state
-                            .pwr_mech_dyn_brake
-                            .get_fresh(|| format_dbg!())?,
-                    || format_dbg!(),
-                )?;
+                // self.state.pwr_out.update(
+                //     *loco
+                //         .edrv
+                //         .state
+                //         .pwr_mech_prop_out
+                //         .get_fresh(|| format_dbg!())?
+                //         - *loco
+                //             .edrv
+                //             .state
+                //             .pwr_mech_dyn_brake
+                //             .get_fresh(|| format_dbg!())?,
+                //     || format_dbg!(),
+                // )?;
             }
             PowertrainType::DummyLoco(_) => { /* maybe put an error error in the future */ }
         }
@@ -1262,7 +1263,7 @@ impl Locomotive {
                 // do not have an aux penalty related to dynamic braking
                 self.pwr_aux_offset
                     + self.pwr_aux_traction_coeff
-                        * self.state.pwr_out.get_fresh(|| format_dbg!())?.abs()
+                        * self.state.pwr_out.get_stale(|| format_dbg!())?.abs()
             } else {
                 si::Power::ZERO
             },

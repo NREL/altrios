@@ -25,6 +25,7 @@ pub struct HybridLoco {
     pub edrv: ElectricDrivetrain,
     /// control strategy for distributing power demand between `fc` and `res`
     #[serde(default)]
+    #[has_state]
     pub pt_cntrl: HybridPowertrainControls,
 }
 
@@ -116,7 +117,7 @@ impl LocoTrait for Box<HybridLoco> {
             )
         })?;
         match &mut self.pt_cntrl {
-            HybridPowertrainControls::RGWDB( rgwb) => {
+            HybridPowertrainControls::RGWDB(rgwb) => {
                 if *self.fc.state.engine_on.get_stale(|| format_dbg!())? && *self.fc.state.time_on.get_stale(|| format_dbg!())?
                     < rgwb.fc_min_time_on.with_context(|| {
                     anyhow!(
@@ -125,6 +126,8 @@ impl LocoTrait for Box<HybridLoco> {
                     )
                 })? {
                     rgwb.state.on_time_too_short.update(true, || format_dbg!())?
+                } else {
+                    rgwb.state.on_time_too_short.update(false, || format_dbg!())?
                 }
             }
         };
@@ -176,13 +179,13 @@ impl LocoTrait for Box<HybridLoco> {
                 .gen
                 .state
                 .pwr_elec_prop_out_max
-                .get_stale(|| format_dbg!())?
-                + *self.res.state.pwr_prop_max.get_stale(|| format_dbg!())?,
+                .get_fresh(|| format_dbg!())?
+                + *self.res.state.pwr_prop_max.get_fresh(|| format_dbg!())?,
             None,
         )?;
 
         self.edrv
-            .set_cur_pwr_regen_max(*self.res.state.pwr_charge_max.get_stale(|| format_dbg!())?)?;
+            .set_cur_pwr_regen_max(*self.res.state.pwr_charge_max.get_fresh(|| format_dbg!())?)?;
 
         self.gen
             .set_pwr_rate_out_max(self.fc.pwr_out_max / self.fc.pwr_ramp_lag)?;
@@ -191,7 +194,7 @@ impl LocoTrait for Box<HybridLoco> {
                 .gen
                 .state
                 .pwr_rate_out_max
-                .get_stale(|| format_dbg!())?,
+                .get_fresh(|| format_dbg!())?,
         )?;
         Ok(())
     }
@@ -229,7 +232,7 @@ impl HybridLoco {
                     .edrv
                     .state
                     .pwr_elec_prop_in
-                    .get_stale(|| format_dbg!())?,
+                    .get_fresh(|| format_dbg!())?,
                 train_mass,
                 train_speed,
                 &self.fc,
@@ -250,7 +253,7 @@ impl HybridLoco {
                 dt,
             )
             .with_context(|| format_dbg!(fc_on))?;
-        let fc_pwr_mech_out = *self.gen.state.pwr_mech_in.get_stale(|| format_dbg!())?;
+        let fc_pwr_mech_out = *self.gen.state.pwr_mech_in.get_fresh(|| format_dbg!())?;
 
         self.fc
             .solve_energy_consumption(fc_pwr_mech_out, dt, fc_on, assert_limits)
@@ -316,6 +319,47 @@ pub enum HybridPowertrainControls {
     /// and discharge power inside of static min and max SOC range.  Also, includes
     /// buffer for forcing [FuelConverter] to be active/on.
     RGWDB(Box<RESGreedyWithDynamicBuffers>),
+}
+
+impl StateMethods for HybridPowertrainControls {}
+impl SaveState for HybridPowertrainControls {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        match self {
+            Self::RGWDB(rgwdb) => rgwdb.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?,
+        }
+        Ok(())
+    }
+}
+
+impl Step for HybridPowertrainControls {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        match self {
+            Self::RGWDB(rgwdb) => rgwdb.step(|| format!("{}\n{}", loc(), format_dbg!()))?,
+        }
+        Ok(())
+    }
+}
+
+impl CheckAndResetState for HybridPowertrainControls {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        match self {
+            Self::RGWDB(rgwdb) => {
+                rgwdb.check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
+        }
+        Ok(())
+    }
+}
+
+impl SetCumulative for HybridPowertrainControls {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
+        match self {
+            Self::RGWDB(rgwdb) => {
+                rgwdb.set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Default for HybridPowertrainControls {
@@ -405,6 +449,10 @@ impl HybridPowertrainControls {
                     .min(*res.state.pwr_prop_max.get_fresh(|| format_dbg!())?)
                     .max(-*res.state.pwr_regen_max.get_fresh(|| format_dbg!())?);
 
+                rgwdb
+                    .state
+                    .fc_temperature_too_low
+                    .mark_fresh(|| format_dbg!())?;
                 if !rgwdb.state.fc_on().with_context(|| format_dbg!())? {
                     // engine is off, and `em_pwr` has already been limited within bounds
                     ensure!(
@@ -498,6 +546,8 @@ fn get_pwr_gen_elec_out_for_eff_fc(
                 .with_context(|| format_dbg!())?;
             let mut gen = gen.clone();
             // this assumes that the generator has a fairly flat efficiency curve
+            gen.state.pwr_elec_out_max.mark_stale();
+            gen.state.pwr_elec_prop_out_max.mark_stale();
             gen.set_cur_pwr_max_out(
                 frac_of_pwr_for_peak_eff * fc.pwr_out_max,
                 Some(si::Power::ZERO),
@@ -516,7 +566,7 @@ fn get_pwr_gen_elec_out_for_eff_fc(
 /// buffer for forcing [FuelConverter] to be active/on. See [Self::init] for
 /// default values.
 #[serde_api]
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default, StateMethods, SetCumulative)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 #[non_exhaustive]
 pub struct RESGreedyWithDynamicBuffers {
@@ -640,11 +690,15 @@ impl RESGreedyWithDynamicBuffers {
     ) -> anyhow::Result<()> {
         self.set_soc_fc_on_buffer(res, mass, train_speed)?;
         if *res.state.soc.get_stale(|| format_dbg!())?
-            < *self.state.soc_fc_on_buffer.get_stale(|| format_dbg!())?
+            < *self.state.soc_fc_on_buffer.get_fresh(|| format_dbg!())?
         {
             self.state
                 .charging_for_low_soc
                 .update(true, || format_dbg!())?;
+        } else {
+            self.state
+                .charging_for_low_soc
+                .update(false, || format_dbg!())?;
         }
         Ok(())
     }
@@ -707,14 +761,12 @@ pub struct RGWDBState {
     propulsion_power_demand: TrackedState<bool>,
     /// Powertrain power demand exceeds optimal motor and/or battery output
     propulsion_power_demand_soft: TrackedState<bool>,
-    /// Aux power demand exceeds battery capability
-    aux_power_demand: TrackedState<bool>,
+    // TODO: actually use `aux_power_demand` and uncomment
+    // /// Aux power demand exceeds battery capability
+    // aux_power_demand: TrackedState<bool>,
     /// SOC is below min buffer so FC is charging RES
     charging_for_low_soc: TrackedState<bool>,
 
-    /// Number of `walk` iterations required to achieve SOC balance (i.e. SOC
-    /// ends at same starting value, ensuring no net [ReversibleEnergyStorage] usage)
-    pub soc_bal_iters: TrackedState<u32>,
     /// buffer at which FC is forced on
     pub soc_fc_on_buffer: TrackedState<si::Ratio>,
 }
@@ -737,7 +789,7 @@ impl FuelConverterOn for RGWDBState {
             || *self
                 .propulsion_power_demand_soft
                 .get_fresh(|| format_dbg!())?
-            || *self.aux_power_demand.get_fresh(|| format_dbg!())?
+            // || *self.aux_power_demand.get_fresh(|| format_dbg!())?
             || *self.charging_for_low_soc.get_fresh(|| format_dbg!())?)
     }
 }

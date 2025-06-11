@@ -72,14 +72,14 @@ impl ConventionalLoco {
                 .edrv
                 .state
                 .pwr_elec_prop_in
-                .get_stale(|| format_dbg!())?,
+                .get_fresh(|| format_dbg!())?,
             pwr_aux,
             loco_on,
             dt,
         )?;
 
         self.fc.solve_energy_consumption(
-            *self.gen.state.pwr_mech_in.get_stale(|| format_dbg!())?,
+            *self.gen.state.pwr_mech_in.get_fresh(|| format_dbg!())?,
             dt,
             loco_on,
             assert_limits,
@@ -137,7 +137,7 @@ impl LocoTrait for ConventionalLoco {
     ) -> anyhow::Result<()> {
         self.fc.set_cur_pwr_out_max(elev_and_temp, dt)?;
         self.gen.set_cur_pwr_max_out(
-            *self.fc.state.pwr_out_max.get_stale(|| format_dbg!())?,
+            *self.fc.state.pwr_out_max.get_fresh(|| format_dbg!())?,
             Some(pwr_aux.with_context(|| format_dbg!("`pwr_aux` not provided"))?),
         )?;
         self.edrv.set_cur_pwr_max_out(
@@ -145,9 +145,10 @@ impl LocoTrait for ConventionalLoco {
                 .gen
                 .state
                 .pwr_elec_prop_out_max
-                .get_stale(|| format_dbg!())?,
+                .get_fresh(|| format_dbg!())?,
             None,
         )?;
+        self.edrv.set_cur_pwr_regen_max(si::Power::ZERO)?;
         self.gen
             .set_pwr_rate_out_max(self.fc.pwr_out_max / self.fc.pwr_ramp_lag)?;
         self.edrv.set_pwr_rate_out_max(
@@ -155,7 +156,7 @@ impl LocoTrait for ConventionalLoco {
                 .gen
                 .state
                 .pwr_rate_out_max
-                .get_stale(|| format_dbg!())?,
+                .get_fresh(|| format_dbg!())?,
         )?;
         Ok(())
     }

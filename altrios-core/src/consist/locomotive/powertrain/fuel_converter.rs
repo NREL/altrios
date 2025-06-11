@@ -303,7 +303,7 @@ impl FuelConverter {
 
         self.state.engine_on.update(engine_on, || format_dbg!())?;
         self.state.pwr_idle_fuel.update(
-            if *self.state.engine_on.get_stale(|| format_dbg!())? {
+            if *self.state.engine_on.get_fresh(|| format_dbg!())? {
                 self.pwr_idle_fuel
             } else {
                 si::Power::ZERO
@@ -333,17 +333,17 @@ impl FuelConverter {
 
         ensure!(
             self.state
-                .energy_loss
+                .pwr_loss
                 .get_fresh(|| format_dbg!())?
-                .get::<si::joule>()
+                .get::<si::watt>()
                 >= 0.0,
             format!(
-                "{}\nEnergy loss must be non-negative",
+                "{}\n`pwr_loss` must be non-negative",
                 format_dbg!(
                     self.state
-                        .energy_loss
+                        .pwr_loss
                         .get_fresh(|| format_dbg!())?
-                        .get::<si::joule>()
+                        .get::<si::watt>()
                         >= 0.0
                 )
             )

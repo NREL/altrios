@@ -168,6 +168,7 @@ impl Init for Consist {
         let _mass = self
             .mass()
             .map_err(|err| Error::InitError(format_dbg!(err)))?;
+        self.state.pwr_dyn_brake_max.mark_stale();
         self.set_pwr_dyn_brake_max()
             .map_err(|err| Error::InitError(format!("{}\n{err}", format_dbg!())))?;
         self.loco_vec.init()?;
@@ -375,9 +376,6 @@ impl Consist {
             || format_dbg!(),
         )?;
 
-        // Sum of dynamic braking capability, including regenerative capability
-        self.set_pwr_dyn_brake_max()?;
-
         let pwr_out_vec: Vec<si::Power> = if pwr_out_req > si::Power::ZERO {
             // positive tractive power `pwr_out_vec`
             self.pdct.solve_positive_traction(
@@ -494,29 +492,23 @@ impl Consist {
             || format_dbg!(),
         )?;
 
-        self.state.energy_out.increment(
-            *self.state.pwr_out.get_fresh(|| format_dbg!())? * dt,
-            || format_dbg!(),
-        )?;
         if *self.state.pwr_out.get_fresh(|| format_dbg!())? >= si::Power::ZERO {
             self.state.energy_out_pos.increment(
                 *self.state.pwr_out.get_fresh(|| format_dbg!())? * dt,
                 || format_dbg!(),
             )?;
+            self.state
+                .energy_out_neg
+                .increment(si::Energy::ZERO, || format_dbg!())?;
         } else {
             self.state.energy_out_neg.increment(
                 *self.state.pwr_out.get_fresh(|| format_dbg!())? * dt,
                 || format_dbg!(),
             )?;
+            self.state
+                .energy_out_pos
+                .increment(si::Energy::ZERO, || format_dbg!())?;
         }
-        self.state.energy_fuel.increment(
-            *self.state.pwr_fuel.get_fresh(|| format_dbg!())? * dt,
-            || format_dbg!(),
-        )?;
-        self.state.energy_res.increment(
-            *self.state.pwr_reves.get_fresh(|| format_dbg!())? * dt,
-            || format_dbg!(),
-        )?;
         Ok(())
     }
 
@@ -670,6 +662,9 @@ impl LocoTrait for Consist {
             || format_dbg!(),
         )?;
 
+        // Sum of dynamic braking capability, including regenerative capability
+        self.set_pwr_dyn_brake_max()?;
+
         Ok(())
     }
 
@@ -808,7 +803,7 @@ pub struct ConsistState {
     /// Energy out during negative traction (positive value means negative traction)
     pub energy_out_neg: TrackedState<si::Energy>,
     /// Time-integrated energy form of [pwr_reves](Self::pwr_reves)
-    pub energy_res: TrackedState<si::Energy>,
+    pub energy_reves: TrackedState<si::Energy>,
     /// Time-integrated energy form of [pwr_fuel](Self::pwr_fuel)
     pub energy_fuel: TrackedState<si::Energy>,
 }

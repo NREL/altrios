@@ -45,7 +45,7 @@ impl BatteryElectricLoco {
             .edrv
             .state
             .pwr_elec_prop_in
-            .get_stale(|| format_dbg!())?
+            .get_fresh(|| format_dbg!())?
             > si::Power::ZERO
         {
             // positive traction
@@ -54,7 +54,7 @@ impl BatteryElectricLoco {
                     .edrv
                     .state
                     .pwr_elec_prop_in
-                    .get_stale(|| format_dbg!())?,
+                    .get_fresh(|| format_dbg!())?,
                 pwr_aux,
                 dt,
             )?;
@@ -65,17 +65,17 @@ impl BatteryElectricLoco {
                     .edrv
                     .state
                     .pwr_elec_prop_in
-                    .get_stale(|| format_dbg!())?,
+                    .get_fresh(|| format_dbg!())?,
                 // limit aux power to whatever is actually available
                 pwr_aux
                     // whatever power is available from regen plus normal
                     .min(
-                        *self.res.state.pwr_prop_max.get_stale(|| format_dbg!())?
+                        *self.res.state.pwr_prop_max.get_fresh(|| format_dbg!())?
                             - *self
                                 .edrv
                                 .state
                                 .pwr_elec_prop_in
-                                .get_stale(|| format_dbg!())?,
+                                .get_fresh(|| format_dbg!())?,
                     )
                     .max(si::Power::ZERO),
                 dt,
@@ -178,11 +178,11 @@ impl LocoTrait for BatteryElectricLoco {
             chrg_buffer,
         )?;
         self.edrv.set_cur_pwr_max_out(
-            *self.res.state.pwr_prop_max.get_stale(|| format_dbg!())?,
+            *self.res.state.pwr_prop_max.get_fresh(|| format_dbg!())?,
             None,
         )?;
         self.edrv
-            .set_cur_pwr_regen_max(*self.res.state.pwr_charge_max.get_stale(|| format_dbg!())?)?;
+            .set_cur_pwr_regen_max(*self.res.state.pwr_charge_max.get_fresh(|| format_dbg!())?)?;
 
         // power rate is never limiting in BEL, but assuming dt will be same
         // in next time step, we can synthesize a rate
@@ -196,7 +196,7 @@ impl LocoTrait for BatteryElectricLoco {
                     .edrv
                     .state
                     .pwr_mech_prop_out
-                    .get_fresh(|| format_dbg!())?)
+                    .get_stale(|| format_dbg!())?)
                 / dt,
         )?;
         Ok(())

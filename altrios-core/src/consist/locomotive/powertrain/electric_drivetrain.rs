@@ -178,7 +178,7 @@ impl ElectricDrivetrain {
     }
 
     /// Set `pwr_in_req` required to achieve desired `pwr_out_req` with time step size `dt`.
-    pub fn set_pwr_in_req(&mut self, pwr_out_req: si::Power, dt: si::Time) -> anyhow::Result<()> {
+    pub fn set_pwr_in_req(&mut self, pwr_out_req: si::Power, _dt: si::Time) -> anyhow::Result<()> {
         ensure!(
             almost_le_uom(&pwr_out_req.abs(), &self.pwr_out_max, None),
             format!(
@@ -243,20 +243,12 @@ impl ElectricDrivetrain {
         // `pwr_mech_prop_out` is `pwr_out_req` unless `pwr_out_req` is more negative than `pwr_mech_regen_max`,
         // in which case, excess is handled by `pwr_mech_dyn_brake`
         self.state.pwr_mech_prop_out.update(
-            pwr_out_req.max(-*self.state.pwr_mech_regen_max.get_stale(|| format_dbg!())?),
-            || format_dbg!(),
-        )?;
-        self.state.energy_mech_prop_out.increment(
-            *self.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())? * dt,
+            pwr_out_req.max(-*self.state.pwr_mech_regen_max.get_fresh(|| format_dbg!())?),
             || format_dbg!(),
         )?;
 
         self.state.pwr_mech_dyn_brake.update(
             -(pwr_out_req - *self.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())?),
-            || format_dbg!(),
-        )?;
-        self.state.energy_mech_dyn_brake.increment(
-            *self.state.pwr_mech_dyn_brake.get_fresh(|| format_dbg!())? * dt,
             || format_dbg!(),
         )?;
         ensure!(
@@ -267,38 +259,26 @@ impl ElectricDrivetrain {
         // if pwr_out_req is negative, need to multiply by eta
         self.state.pwr_elec_prop_in.update(
             if pwr_out_req > si::Power::ZERO {
-                *self.state.pwr_mech_prop_out.get_stale(|| format_dbg!())?
-                    / *self.state.eta.get_stale(|| format_dbg!())?
+                *self.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())?
+                    / *self.state.eta.get_fresh(|| format_dbg!())?
             } else {
-                *self.state.pwr_mech_prop_out.get_stale(|| format_dbg!())?
-                    * *self.state.eta.get_stale(|| format_dbg!())?
+                *self.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())?
+                    * *self.state.eta.get_fresh(|| format_dbg!())?
             },
-            || format_dbg!(),
-        )?;
-        self.state.energy_elec_prop_in.increment(
-            *self.state.pwr_elec_prop_in.get_fresh(|| format_dbg!())? * dt,
             || format_dbg!(),
         )?;
 
         self.state.pwr_elec_dyn_brake.update(
             *self.state.pwr_mech_dyn_brake.get_fresh(|| format_dbg!())?
-                * *self.state.eta.get_stale(|| format_dbg!())?,
-            || format_dbg!(),
-        )?;
-        self.state.energy_elec_dyn_brake.increment(
-            *self.state.pwr_elec_dyn_brake.get_fresh(|| format_dbg!())? * dt,
+                * *self.state.eta.get_fresh(|| format_dbg!())?,
             || format_dbg!(),
         )?;
 
         // loss does not account for dynamic braking
         self.state.pwr_loss.update(
-            (*self.state.pwr_mech_prop_out.get_stale(|| format_dbg!())?
-                - *self.state.pwr_elec_prop_in.get_stale(|| format_dbg!())?)
+            (*self.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())?
+                - *self.state.pwr_elec_prop_in.get_fresh(|| format_dbg!())?)
             .abs(),
-            || format_dbg!(),
-        )?;
-        self.state.energy_loss.increment(
-            *self.state.pwr_loss.get_stale(|| format_dbg!())? * dt,
             || format_dbg!(),
         )?;
 
@@ -364,8 +344,8 @@ impl ElectricMachine for ElectricDrivetrain {
     /// from upstream component.  
     fn set_pwr_rate_out_max(&mut self, pwr_rate_in_max: si::PowerRate) -> anyhow::Result<()> {
         self.state.pwr_rate_out_max.update(
-            if *self.state.eta.get_fresh(|| format_dbg!())? > si::Ratio::ZERO {
-                pwr_rate_in_max * *self.state.eta.get_fresh(|| format_dbg!())?
+            if *self.state.eta.get_stale(|| format_dbg!())? > si::Ratio::ZERO {
+                pwr_rate_in_max * *self.state.eta.get_stale(|| format_dbg!())?
             } else {
                 pwr_rate_in_max * uc::R * 1.0
             },

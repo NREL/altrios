@@ -479,11 +479,15 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
+        self.loco_con
+            .state
+            .pwr_cat_lim
+            .mark_fresh(|| format_dbg!())?;
         // set catenary power limit
-        self.loco_con.set_cat_power_limit(
-            &self.path_tpc,
-            *self.state.offset.get_fresh(|| format_dbg!())?,
-        )?;
+        // self.loco_con.set_cat_power_limit(
+        //     &self.path_tpc,
+        //     *self.state.offset.get_fresh(|| format_dbg!())?,
+        // )?;
         // set aux power for the consist
         self.loco_con.set_pwr_aux(Some(true))?;
 
@@ -976,12 +980,18 @@ impl SpeedLimitTrainSim {
                     * *self.state.dt.get_fresh(|| format_dbg!())?,
                 || format_dbg!(),
             )?;
+            self.state
+                .energy_whl_out_neg
+                .increment(si::Energy::ZERO, || format_dbg!())?;
         } else {
             self.state.energy_whl_out_neg.increment(
                 -*self.state.pwr_whl_out.get_fresh(|| format_dbg!())?
                     * *self.state.dt.get_fresh(|| format_dbg!())?,
                 || format_dbg!(),
             )?;
+            self.state
+                .energy_whl_out_pos
+                .increment(si::Energy::ZERO, || format_dbg!())?;
         }
 
         Ok(())

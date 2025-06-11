@@ -467,12 +467,12 @@ impl ReversibleEnergyStorage {
         self.state
             .soc_chrg_buffer
             .update(self.max_soc - soc_buffer_delta, || format_dbg!())?;
-        let pwr_max_for_dt = ((self.max_soc - *self.state.soc.get_fresh(|| format_dbg!())?)
+        let pwr_max_for_dt = ((self.max_soc - *self.state.soc.get_stale(|| format_dbg!())?)
             * self.energy_capacity
             / dt)
             .max(si::Power::ZERO);
         self.state.pwr_charge_max.update(
-            if *self.state.soc.get_fresh(|| format_dbg!())?
+            if *self.state.soc.get_stale(|| format_dbg!())?
                 <= *self.state.soc_chrg_buffer.get_fresh(|| format_dbg!())?
             {
                 self.pwr_out_max
@@ -524,19 +524,19 @@ impl ReversibleEnergyStorage {
         self.state
             .soc_disch_buffer
             .update(self.min_soc + soc_buffer_delta, || format_dbg!())?;
-        let pwr_max_for_dt = ((*self.state.soc.get_fresh(|| format_dbg!())? - self.min_soc)
+        let pwr_max_for_dt = ((*self.state.soc.get_stale(|| format_dbg!())? - self.min_soc)
             * self.energy_capacity
             / dt)
             .max(si::Power::ZERO);
         self.state.pwr_disch_max.update(
-            if *self.state.soc.get_fresh(|| format_dbg!())?
+            if *self.state.soc.get_stale(|| format_dbg!())?
                 > *self.state.soc_disch_buffer.get_fresh(|| format_dbg!())?
             {
                 self.pwr_out_max
             } else if *self.state.soc.get_fresh(|| format_dbg!())? > self.min_soc
                 && soc_buffer_delta > si::Ratio::ZERO
             {
-                self.pwr_out_max * (*self.state.soc.get_fresh(|| format_dbg!())? - self.min_soc)
+                self.pwr_out_max * (*self.state.soc.get_stale(|| format_dbg!())? - self.min_soc)
                     / soc_buffer_delta
             } else {
                 // current SOC is less than both
@@ -564,6 +564,9 @@ impl ReversibleEnergyStorage {
             || format_dbg!(),
         )?;
 
+        // TODO: remove this when implementing catenary
+        self.state.pwr_cat_max.mark_fresh(|| format_dbg!());
+
         Ok(())
     }
 
@@ -576,24 +579,24 @@ impl ReversibleEnergyStorage {
         let state = &mut self.state;
 
         ensure!(
-            *state.soc.get_fresh(|| format_dbg!())? <= self.max_soc
+            *state.soc.get_stale(|| format_dbg!())? <= self.max_soc
                 || pwr_prop_req >= si::Power::ZERO,
             "{}\npwr_prop_req must be greater than 0 if SOC is over max SOC\nstate.soc = {}",
             format_dbg!(
-                *state.soc.get_fresh(|| format_dbg!())? <= self.max_soc
+                *state.soc.get_stale(|| format_dbg!())? <= self.max_soc
                     || pwr_prop_req >= si::Power::ZERO
             ),
-            state.soc.get_fresh(|| format_dbg!())?.get::<si::ratio>()
+            state.soc.get_stale(|| format_dbg!())?.get::<si::ratio>()
         );
         ensure!(
-            *state.soc.get_fresh(|| format_dbg!())? >= self.min_soc
+            *state.soc.get_stale(|| format_dbg!())? >= self.min_soc
                 || pwr_prop_req <= si::Power::ZERO,
             "{}\npwr_prop_req must be less than 0 if SOC is below min SOC\nstate.soc = {}",
             format_dbg!(
-                *state.soc.get_fresh(|| format_dbg!())? >= self.min_soc
+                *state.soc.get_stale(|| format_dbg!())? >= self.min_soc
                     || pwr_prop_req <= si::Power::ZERO
             ),
-            state.soc.get_fresh(|| format_dbg!())?.get::<si::ratio>()
+            state.soc.get_stale(|| format_dbg!())?.get::<si::ratio>()
         );
 
         if pwr_prop_req + pwr_aux_req >= si::Power::ZERO {
@@ -606,7 +609,7 @@ impl ReversibleEnergyStorage {
                 format_dbg!(utils::almost_le_uom(&(pwr_prop_req), state.pwr_prop_max.get_fresh(||format_dbg!())?, Some(TOL))),
                 pwr_prop_req.get::<si::megawatt>(),
                 state.pwr_prop_max.get_fresh(||format_dbg!())?.get::<si::megawatt>(),
-                state.soc.get_fresh(||format_dbg!())?.get::<si::ratio>(),
+                state.soc.get_stale(||format_dbg!())?.get::<si::ratio>(),
                 format_dbg!(pwr_aux_req.get::<si::kilowatt>()),
                 format_dbg!(state.pwr_disch_max.get_fresh(||format_dbg!())?.get::<si::kilowatt>())
             );
@@ -673,22 +676,11 @@ impl ReversibleEnergyStorage {
         state
             .pwr_out_propulsion
             .update(pwr_prop_req, || format_dbg!())?;
-        state
-            .energy_out_propulsion
-            .increment(pwr_prop_req * dt, || format_dbg!())?;
         state.pwr_aux.update(pwr_aux_req, || format_dbg!())?;
-        state.energy_aux.increment(
-            *state.pwr_aux.get_fresh(|| format_dbg!())? * dt,
-            || format_dbg!(),
-        )?;
 
         state.pwr_out_electrical.update(
             *state.pwr_out_propulsion.get_fresh(|| format_dbg!())?
                 + *state.pwr_aux.get_fresh(|| format_dbg!())?,
-            || format_dbg!(),
-        )?;
-        state.energy_out_electrical.increment(
-            *state.pwr_out_electrical.get_fresh(|| format_dbg!())? * dt,
             || format_dbg!(),
         )?;
 
@@ -698,9 +690,10 @@ impl ReversibleEnergyStorage {
             .get::<si::watt>()
             / (self.energy_capacity.get::<si::watt_hour>());
         // evaluate the battery efficiency at the current state
+        state.temperature_celsius.mark_fresh(|| format_dbg!())?;
         let eta_point = [
             *state.temperature_celsius.get_fresh(|| format_dbg!())?,
-            state.soc.get_fresh(|| format_dbg!())?.get::<si::ratio>(),
+            state.soc.get_stale(|| format_dbg!())?.get::<si::ratio>(),
             c_rate,
         ];
         let eta = interp3d(&eta_point, &self.eta_interp_grid, &self.eta_interp_values).unwrap();
@@ -734,10 +727,6 @@ impl ReversibleEnergyStorage {
                 || format_dbg!(),
             )?;
         }
-        state.energy_out_chemical.increment(
-            *state.pwr_out_chemical.get_fresh(|| format_dbg!())? * dt,
-            || format_dbg!(),
-        )?;
 
         state.pwr_loss.update(
             (*state.pwr_out_chemical.get_fresh(|| format_dbg!())?
@@ -745,14 +734,14 @@ impl ReversibleEnergyStorage {
             .abs(),
             || format_dbg!(),
         )?;
-        state.energy_loss.increment(
-            *state.pwr_loss.get_fresh(|| format_dbg!())? * dt,
-            || format_dbg!(),
-        )?;
 
-        let new_soc = *state.soc.get_fresh(|| format_dbg!())?
+        let new_soc = *state.soc.get_stale(|| format_dbg!())?
             - *state.pwr_out_chemical.get_fresh(|| format_dbg!())? * dt / self.energy_capacity;
         state.soc.update(new_soc, || format_dbg!())?;
+
+        // TODO: change this when implementing soh
+        state.soh.mark_fresh(|| format_dbg!())?;
+
         Ok(())
     }
 

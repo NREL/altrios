@@ -251,7 +251,7 @@ impl Generator {
         pwr_prop_req: si::Power,
         pwr_aux: si::Power,
         engine_on: bool,
-        dt: si::Time,
+        _dt: si::Time,
     ) -> anyhow::Result<()> {
         // generator cannot regen
         ensure!(
@@ -319,16 +319,8 @@ impl Generator {
         self.state
             .pwr_elec_prop_out
             .update(pwr_prop_req, || format_dbg!())?;
-        self.state.energy_elec_prop_out.increment(
-            *self.state.pwr_elec_prop_out.get_fresh(|| format_dbg!())? * dt,
-            || format_dbg!(),
-        )?;
 
         self.state.pwr_elec_aux.update(pwr_aux, || format_dbg!())?;
-        self.state.energy_elec_aux.increment(
-            *self.state.pwr_elec_aux.get_fresh(|| format_dbg!())? * dt,
-            || format_dbg!(),
-        )?;
 
         self.state.pwr_mech_in.update(
             (*self.state.pwr_elec_prop_out.get_fresh(|| format_dbg!())?
@@ -345,10 +337,6 @@ impl Generator {
                 )
             ),
         );
-        self.state.energy_mech_in.increment(
-            *self.state.pwr_mech_in.get_fresh(|| format_dbg!())? * dt,
-            || format_dbg!(),
-        )?;
 
         self.state.pwr_loss.update(
             *self.state.pwr_mech_in.get_fresh(|| format_dbg!())?
@@ -356,10 +344,7 @@ impl Generator {
                     + *self.state.pwr_elec_aux.get_fresh(|| format_dbg!())?),
             || format_dbg!(),
         )?;
-        self.state.energy_loss.increment(
-            *self.state.pwr_loss.get_fresh(|| format_dbg!())? * dt,
-            || format_dbg!(),
-        )?;
+
         Ok(())
     }
 
@@ -424,11 +409,11 @@ impl ElectricMachine for Generator {
                 * if self
                     .state
                     .eta
-                    .get_fresh(|| format_dbg!())?
+                    .get_stale(|| format_dbg!())?
                     .get::<si::ratio>()
                     > 0.0
                 {
-                    *self.state.eta.get_fresh(|| format_dbg!())?
+                    *self.state.eta.get_stale(|| format_dbg!())?
                 } else {
                     uc::R * 1.0
                 },

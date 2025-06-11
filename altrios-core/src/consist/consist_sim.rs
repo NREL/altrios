@@ -79,24 +79,35 @@ impl ConsistSimulation {
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
-        self.loco_con.set_pwr_aux(Some(true))?;
+        self.loco_con
+            .state
+            .pwr_cat_lim
+            .mark_fresh(|| format_dbg!())?;
+        // self.loco_con.set_cat_power_limit(
+        //     &self.path_tpc,
+        //     *self.state.offset.get_fresh(|| format_dbg!())?,
+        // )?;
+        self.loco_con
+            .set_pwr_aux(Some(true))
+            .with_context(|| format_dbg!())?;
         let train_mass = self.power_trace.train_mass;
+        let i = *self.loco_con.state.i.get_fresh(|| format_dbg!())?;
         let train_speed = if !self.power_trace.train_speed.is_empty() {
-            Some(self.power_trace.train_speed[*self.loco_con.state.i.get_fresh(|| format_dbg!())?])
+            Some(self.power_trace.train_speed[i])
         } else {
             None
         };
-        let dt = self
-            .power_trace
-            .dt(*self.loco_con.state.i.get_fresh(|| format_dbg!())?);
+        let dt = self.power_trace.dt_at_i(i).with_context(|| format_dbg!())?;
         self.loco_con
-            .set_curr_pwr_max_out(None, None, train_mass, train_speed, dt)?;
+            .set_curr_pwr_max_out(None, None, train_mass, train_speed, dt)
+            .with_context(|| format_dbg!())?;
         self.solve_energy_consumption(
             self.power_trace.pwr[*self.loco_con.state.i.get_fresh(|| format_dbg!())?],
             train_mass,
             train_speed,
             dt,
-        )?;
+        )
+        .with_context(|| format_dbg!())?;
         self.set_cumulative(dt, || format_dbg!())?;
         Ok(())
     }
@@ -104,8 +115,11 @@ impl ConsistSimulation {
     /// Iterates step to solve all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
         self.save_state(|| format_dbg!())?;
-        while *self.loco_con.state.i.get_fresh(|| format_dbg!())? < self.power_trace.len() {
+        loop {
             self.step(|| format_dbg!())?;
+            if *self.loco_con.state.i.get_fresh(|| format_dbg!())? < self.power_trace.len() - 1 {
+                break;
+            }
         }
         Ok(())
     }
@@ -153,12 +167,17 @@ impl CheckAndResetState for ConsistSimulation {
 
 impl Step for ConsistSimulation {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
-        let i = *self.loco_con.state.i.get_fresh(|| format_dbg!())?;
-        self.check_and_reset(|| format_dbg!())?;
+        self.check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .step(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        let i = *self
+            .loco_con
+            .state
+            .i
+            .get_fresh(|| format!("{}\n{}", loc(), format_dbg!()))?;
         self.solve_step()
-            .map_err(|err| err.context(format!("{}\ntime step: {}", loc(), i)))?;
-        self.save_state(|| format_dbg!())?;
-        self.loco_con.step(|| format_dbg!())?;
+            .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
+        self.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?;
         Ok(())
     }
 }

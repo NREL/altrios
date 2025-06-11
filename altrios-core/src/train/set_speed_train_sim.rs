@@ -347,11 +347,15 @@ impl SetSpeedTrainSim {
                     >= si::Velocity::ZERO
             )
         );
+        self.loco_con
+            .state
+            .pwr_cat_lim
+            .mark_fresh(|| format_dbg!())?;
         // set the catenary power limit.  I'm assuming it is 0 at this point.
-        self.loco_con.set_cat_power_limit(
-            &self.path_tpc,
-            *self.state.offset.get_fresh(|| format_dbg!())?,
-        )?;
+        // self.loco_con.set_cat_power_limit(
+        //     &self.path_tpc,
+        //     *self.state.offset.get_fresh(|| format_dbg!())?,
+        // )?;
         // set aux power loads.  this will be calculated in the locomotive model and be loco type dependent.
         self.loco_con.set_pwr_aux(Some(true))?;
         let train_mass = Some(self.state.mass_compound().with_context(|| format_dbg!())?);
@@ -433,8 +437,11 @@ impl SetSpeedTrainSim {
     /// Iterates `save_state` and `step` through all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
         self.save_state(|| format_dbg!())?;
-        while *self.state.i.get_fresh(|| format_dbg!())? < self.speed_trace.len() {
+        loop {
             self.step(|| format_dbg!())?;
+            if *self.state.i.get_fresh(|| format_dbg!())? < self.speed_trace.len() - 1 {
+                break;
+            }
         }
         Ok(())
     }
@@ -527,11 +534,17 @@ impl SetSpeedTrainSim {
                 *self.state.pwr_whl_out.get_fresh(|| format_dbg!())? * dt,
                 || format_dbg!(),
             )?;
+            self.state
+                .energy_whl_out_neg
+                .increment(si::Energy::ZERO, || format_dbg!())?;
         } else {
             self.state.energy_whl_out_neg.increment(
                 -*self.state.pwr_whl_out.get_fresh(|| format_dbg!())? * dt,
                 || format_dbg!(),
             )?;
+            self.state
+                .energy_whl_out_pos
+                .increment(si::Energy::ZERO, || format_dbg!())?;
         }
         Ok(())
     }

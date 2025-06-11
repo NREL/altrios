@@ -5,8 +5,10 @@ use crate::imports::*;
 #[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Heading {
+    // #[serde(alias = "offset")] // TODO: uncomment
     pub offset: si::Length,
 
+    // #[serde(alias = "heading")] // TODO: uncomment
     pub heading: si::Angle,
     /// Optional latitude at `self.offset`.  No checks are currently performed to ensure consistency
     /// between headind and lat/lon, and this is not actually used in the code.  

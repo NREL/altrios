@@ -32,6 +32,7 @@ pub struct Link {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub osm_id: Option<String>,
     /// Total length of [Self]
+    // #[serde(alias = "length")] // TODO: uncomment
     pub length: si::Length,
 
     /// Spatial vector of elevation values and corresponding positions along track

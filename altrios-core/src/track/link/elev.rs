@@ -5,7 +5,9 @@ use crate::imports::*;
 #[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Elev {
+    // #[serde(alias = "offset")] // TODO: uncomment
     pub offset: si::Length,
+    // #[serde(alias = "elev")] // TODO: uncomment
     pub elev: si::Length,
 }
 

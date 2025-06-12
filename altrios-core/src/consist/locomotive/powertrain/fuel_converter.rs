@@ -450,15 +450,18 @@ mod tests {
     #[test]
     fn test_that_fuel_grtr_than_shaft_energy() {
         let mut fc = test_fc();
+        //performing check and reset on entire state for the new engine we created
+        fc.state.check_and_reset(|| format_dbg!()).unwrap();
         fc.state
             .pwr_out_max
             .update(uc::MW * 2., || format_dbg!())
             .unwrap();
+        //fc.state.eta.mark_fresh(|| format_dbg!()).unwrap();
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
         assert!(
-            fc.state.energy_fuel.get_fresh(|| format_dbg!()).unwrap()
-                > fc.state.energy_shaft.get_fresh(|| format_dbg!()).unwrap()
+            fc.state.pwr_fuel.get_fresh(|| format_dbg!()).unwrap()
+                > fc.state.pwr_shaft.get_fresh(|| format_dbg!()).unwrap()
         );
     }
 
@@ -485,6 +488,7 @@ mod tests {
     #[test]
     fn test_that_fuel_is_monotonic() {
         let mut fc = test_fc();
+        fc.step(|| format_dbg!()).unwrap();
         fc.state
             .pwr_out_max
             .update(uc::MW * 2.0, || format_dbg!())

@@ -31,6 +31,7 @@ fn test_consist() {
         si::Power::ZERO
     );
     consist.check_and_reset(|| format_dbg!()).unwrap();
+    consist.set_pwr_aux(Some(true)).unwrap();
     consist
         .set_curr_pwr_max_out(
             None,
@@ -89,10 +90,6 @@ fn test_consist() {
             .unwrap(),
         si::Energy::ZERO
     );
-    consist
-        .set_pwr_aux(Some(true))
-        .with_context(|| format_dbg!())
-        .unwrap();
     consist
         .solve_energy_consumption(
             uc::W * 1e6,

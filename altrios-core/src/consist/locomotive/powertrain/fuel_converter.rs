@@ -474,6 +474,7 @@ mod tests {
     #[test]
     fn test_that_max_power_includes_rate() {
         let mut fc = test_fc();
+        fc.check_and_reset(|| format_dbg!()).unwrap();
         fc.set_cur_pwr_out_max(None, uc::S * 1.0).unwrap();
         let pwr_out_max = *fc.state.pwr_out_max.get_fresh(|| format_dbg!()).unwrap();
         assert!(pwr_out_max < fc.pwr_out_max);
@@ -491,6 +492,8 @@ mod tests {
     fn test_that_fuel_is_monotonic() {
         let mut fc = test_fc();
         fc.check_and_reset(|| format_dbg!()).unwrap();
+        fc.step(|| format_dbg!()).unwrap();
+        
         fc.state
             .pwr_out_max
             .update(uc::MW * 2.0, || format_dbg!())
@@ -498,14 +501,19 @@ mod tests {
         fc.save_interval = Some(1);
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
+        fc.set_cumulative(uc::S * 1.0, || format_dbg!()).unwrap();
         fc.save_state(|| format_dbg!()).unwrap();
+        fc.check_and_reset(|| format_dbg!()).unwrap();
         fc.step(|| format_dbg!()).unwrap();
-        //fc.check_and_reset(|| format_dbg!()).unwrap();
-        fc.save_state(|| format_dbg!()).unwrap();
+        fc.state
+            .pwr_out_max
+            .update(uc::MW * 2.0, || format_dbg!())
+            .unwrap();
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
-        //fc.step(|| format_dbg!()).unwrap();
-        //fc.check_and_reset(|| format_dbg!()).unwrap();
+        fc.set_cumulative(uc::S * 1.0, || format_dbg!()).unwrap();
+        fc.save_state(|| format_dbg!()).unwrap();
+
         assert!(
             fc.history.energy_fuel[1]
                 .get_fresh(|| format_dbg!())

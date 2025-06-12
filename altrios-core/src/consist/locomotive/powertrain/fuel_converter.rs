@@ -474,6 +474,7 @@ mod tests {
     #[test]
     fn test_that_max_power_includes_rate() {
         let mut fc = test_fc();
+        fc.check_and_reset(|| format_dbg!()).unwrap();
         fc.set_cur_pwr_out_max(None, uc::S * 1.0).unwrap();
         let pwr_out_max = *fc.state.pwr_out_max.get_fresh(|| format_dbg!()).unwrap();
         assert!(pwr_out_max < fc.pwr_out_max);

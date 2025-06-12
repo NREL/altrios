@@ -69,7 +69,7 @@ fn test_consist() {
         *consist
             .state
             .energy_out
-            .get_fresh(|| format_dbg!())
+            .get_stale(|| format_dbg!())
             .unwrap(),
         si::Energy::ZERO
     );
@@ -77,7 +77,7 @@ fn test_consist() {
         *consist
             .state
             .energy_fuel
-            .get_fresh(|| format_dbg!())
+            .get_stale(|| format_dbg!())
             .unwrap(),
         si::Energy::ZERO
     );
@@ -85,10 +85,14 @@ fn test_consist() {
         *consist
             .state
             .energy_reves
-            .get_fresh(|| format_dbg!())
+            .get_stale(|| format_dbg!())
             .unwrap(),
         si::Energy::ZERO
     );
+    consist
+        .set_pwr_aux(Some(true))
+        .with_context(|| format_dbg!())
+        .unwrap();
     consist
         .solve_energy_consumption(
             uc::W * 1e6,
@@ -98,6 +102,7 @@ fn test_consist() {
             Some(true),
         )
         .unwrap();
+    consist.set_cumulative(uc::S, || format_dbg!()).unwrap();
     assert!(
         *consist
             .state

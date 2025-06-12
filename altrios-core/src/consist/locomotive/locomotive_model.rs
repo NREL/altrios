@@ -1338,7 +1338,7 @@ impl LocoTrait for Locomotive {
         );
 
         self.loco_type.set_curr_pwr_max_out(
-            Some(*self.state.pwr_aux.get_fresh(|| format_dbg!())?),
+            Some(*self.state.pwr_aux.get_stale(|| format_dbg!())?),
             elev_and_temp,
             train_mass_for_loco,
             train_speed,

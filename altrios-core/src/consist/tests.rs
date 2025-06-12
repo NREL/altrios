@@ -30,6 +30,7 @@ fn test_consist() {
             .unwrap(),
         si::Power::ZERO
     );
+    consist.check_and_reset(|| format_dbg!()).unwrap();
     consist
         .set_curr_pwr_max_out(
             None,

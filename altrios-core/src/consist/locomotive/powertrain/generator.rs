@@ -481,8 +481,9 @@ mod tests {
     #[test]
     fn test_that_i_increments() {
         let mut gen = test_gen();
+        gen.check_and_reset(|| format_dbg!()).unwrap();
         gen.step(|| format_dbg!()).unwrap();
-        assert_eq!(2, *gen.state.i.get_fresh(|| format_dbg!()).unwrap());
+        assert_eq!(1, *gen.state.i.get_fresh(|| format_dbg!()).unwrap());
     }
 
     #[test]

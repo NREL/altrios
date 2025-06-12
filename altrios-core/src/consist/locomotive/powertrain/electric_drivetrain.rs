@@ -427,8 +427,9 @@ mod tests {
     #[test]
     fn test_that_i_increments() {
         let mut edrv = test_edrv();
+        edrv.check_and_reset(|| format_dbg!()).unwrap();
         edrv.step(|| format_dbg!()).unwrap();
-        assert_eq!(2, *edrv.state.i.get_fresh(|| format_dbg!()).unwrap());
+        assert_eq!(1, *edrv.state.i.get_fresh(|| format_dbg!()).unwrap());
     }
 
     #[test]

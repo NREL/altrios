@@ -341,13 +341,6 @@ impl LocoTrait for DummyLoco {
     }
 
     #[staticmethod]
-    #[pyo3(name = "default_hybrid_electric_loco")]
-    fn default_hybrid_electric_loco_py () -> anyhow::Result<Self> {
-        Ok(Self::default_hybrid_electric_loco())
-    }
-
-
-    #[staticmethod]
     fn build_dummy_loco() -> Self {
         let mut dummy  = Self {
             loco_type: PowertrainType::DummyLoco(DummyLoco::default()),

@@ -12,7 +12,7 @@ where
     T: std::fmt::Debug + Clone + PartialEq + Default,
 {
     fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
-        self.ensure_fresh(loc)?;
+        self.ensure_fresh(|| format!("{}\n{}", loc(), format_dbg!()))?;
         self.mark_stale();
         Ok(())
     }
@@ -95,7 +95,7 @@ where
     /// - `value`: new value
     /// - `loc`: closure that returns file and line number where called
     pub fn update<F: Fn() -> String>(&mut self, value: T, loc: F) -> anyhow::Result<()> {
-        self.ensure_stale(loc)?;
+        self.ensure_stale(|| format!("{}\n{}", loc(), format_dbg!()))?;
         self.0 = value;
         self.1 = StateStatus::Fresh;
         Ok(())
@@ -119,7 +119,7 @@ where
     /// # Arguments
     /// - `loc`: closure that returns file and line number where called
     pub fn mark_fresh<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
-        self.ensure_stale(loc)?;
+        self.ensure_stale(|| format!("{}\n{}", loc(), format_dbg!()))?;
         self.1 = StateStatus::Fresh;
         Ok(())
     }
@@ -128,7 +128,7 @@ where
     /// # Arguments
     /// - `loc`: call site location filename and line number
     pub fn get_fresh<F: Fn() -> String>(&self, loc: F) -> anyhow::Result<&T> {
-        self.ensure_fresh(loc)?;
+        self.ensure_fresh(|| format!("{}\n{}", loc(), format_dbg!()))?;
         Ok(&self.0)
     }
 
@@ -136,7 +136,7 @@ where
     /// # Arguments
     /// - `loc`: call site location filename and line number
     pub fn get_stale<F: Fn() -> String>(&self, loc: F) -> anyhow::Result<&T> {
-        self.ensure_stale(loc)?;
+        self.ensure_stale(|| format!("{}\n{}", loc(), format_dbg!()))?;
         Ok(&self.0)
     }
 }
@@ -150,7 +150,7 @@ impl<T: std::fmt::Debug + Clone + PartialEq + Default + std::ops::AddAssign> Tra
     /// - `value`: new value
     /// - `loc`: closure that returns file and line number where called
     pub fn increment<F: Fn() -> String>(&mut self, value: T, loc: F) -> anyhow::Result<()> {
-        self.ensure_stale(loc)?;
+        self.ensure_stale(|| format!("{}\n{}", loc(), format_dbg!()))?;
         self.0 += value;
         self.1 = StateStatus::Fresh;
         Ok(())

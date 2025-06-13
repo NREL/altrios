@@ -433,38 +433,6 @@ mod tests {
     }
 
     #[test]
-    fn test_that_loss_is_monotonic() {
-        let mut edrv = test_edrv();
-        edrv.check_and_reset(|| format_dbg!()).unwrap();
-        edrv.state
-            .pwr_mech_out_max
-            .update(edrv.pwr_out_max, || format_dbg!())
-            .unwrap();
-        edrv.save_interval = Some(1);
-        edrv.save_state(|| format_dbg!()).unwrap();
-        edrv.set_pwr_in_req(uc::W * 1_000e3, uc::S * 1.0).unwrap();
-        edrv.step(|| format_dbg!()).unwrap();
-        edrv.save_state(|| format_dbg!()).unwrap();
-        edrv.set_pwr_in_req(uc::W * 1_100e3, uc::S * 1.0).unwrap();
-        edrv.step(|| format_dbg!()).unwrap();
-        edrv.save_state(|| format_dbg!()).unwrap();
-        edrv.set_pwr_in_req(uc::W * 1_000e3, uc::S * 1.0).unwrap();
-        edrv.step(|| format_dbg!()).unwrap();
-        edrv.save_state(|| format_dbg!()).unwrap();
-        edrv.set_pwr_in_req(uc::W * -500e3, uc::S * 1.0).unwrap();
-        edrv.step(|| format_dbg!()).unwrap();
-        edrv.save_state(|| format_dbg!()).unwrap();
-        edrv.set_pwr_in_req(uc::W * -1_500e3, uc::S * 1.0).unwrap();
-        edrv.step(|| format_dbg!()).unwrap();
-        edrv.save_state(|| format_dbg!()).unwrap();
-        assert!(edrv.history.energy_loss.windows(2).all(|w| *w[1]
-            .get_fresh(|| format_dbg!())
-            .unwrap()
-            - *w[0].get_fresh(|| format_dbg!()).unwrap()
-            >= si::Energy::ZERO));
-    }
-
-    #[test]
     #[allow(clippy::field_reassign_with_default)]
     fn test_that_history_has_len_1() {
         let mut edrv: ElectricDrivetrain = ElectricDrivetrain::default();

@@ -574,11 +574,11 @@ impl Step for SetSpeedTrainSim {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         let i = *self.state.i.get_fresh(|| format_dbg!())?;
         self.check_and_reset(|| format_dbg!())?;
+        self.loco_con.step(|| format_dbg!())?;
         self.solve_step()
             .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
 
         self.save_state(|| format_dbg!())?;
-        self.loco_con.step(|| format_dbg!())?;
         Ok(())
     }
 }

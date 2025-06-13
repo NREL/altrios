@@ -314,11 +314,11 @@ impl LocomotiveSimulation {
 impl Step for LocomotiveSimulation {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         self.check_and_reset(|| format_dbg!())?;
+        self.loco_unit.step(|| format_dbg!())?;
         let i = *self.loco_unit.state.i.get_fresh(|| format_dbg!())?;
         self.solve_step()
             .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
         self.save_state(|| format_dbg!())?;
-        self.loco_unit.step(|| format_dbg!())?;
         Ok(())
     }
 }

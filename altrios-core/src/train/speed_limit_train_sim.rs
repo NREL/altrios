@@ -1082,13 +1082,6 @@ impl Step for SpeedLimitTrainSim {
         let i = *self.state.i.get_fresh(|| format_dbg!())?;
         // NOTE: change this if length becomes dynamic
         self.check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
-        self.state.length.mark_fresh(|| format_dbg!())?;
-        self.state.mass_static.mark_fresh(|| format_dbg!())?;
-        self.state.mass_rot.mark_fresh(|| format_dbg!())?;
-        self.state.mass_freight.mark_fresh(|| format_dbg!())?;
-        self.solve_step()
-            .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
-        self.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?;
         self.state
             .i
             .increment(1, || format!("{}\n{}", loc(), format_dbg!()))?;
@@ -1096,6 +1089,13 @@ impl Step for SpeedLimitTrainSim {
             .step(|| format!("{}\n{}", loc(), format_dbg!()))?;
         self.fric_brake
             .step(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        self.state.length.mark_fresh(|| format_dbg!())?;
+        self.state.mass_static.mark_fresh(|| format_dbg!())?;
+        self.state.mass_rot.mark_fresh(|| format_dbg!())?;
+        self.state.mass_freight.mark_fresh(|| format_dbg!())?;
+        self.solve_step()
+            .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
+        self.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?;
         Ok(())
     }
 }

@@ -205,7 +205,8 @@ impl Mass for TrainState {
     }
 
     fn derived_mass(&self) -> anyhow::Result<Option<si::Mass>> {
-        Ok(Some(*self.mass_static.get_fresh(|| format_dbg!())?))
+        // NOTE: if we ever dynamically change mass, this needs attention!
+        Ok(Some(*self.mass_static.get_unchecked(|| format_dbg!())?))
     }
 
     fn expunge_mass_fields(&mut self) {}
@@ -256,10 +257,10 @@ impl TrainState {
     /// All base, freight, and rotational mass
     pub fn mass_compound(&self) -> anyhow::Result<si::Mass> {
         Ok(self
-            .mass()
-            .with_context(|| format_dbg!())?
-            .with_context(|| format!("{}\nExpected `Some`", format_dbg!()))?
-            + *self.mass_rot.get_fresh(|| format_dbg!())?)
+            .mass() 
+            .with_context(|| format_dbg!())? // extract result
+            .with_context(|| format!("{}\nExpected `Some`", format_dbg!()))? // extract option
+            + *self.mass_rot.get_unchecked(|| format_dbg!())?)
     }
 }
 
@@ -314,7 +315,7 @@ pub fn set_link_and_offset(state: &mut TrainState, path_tpc: &PathTpc) -> anyhow
     // index of current link within `path_tpc`
     // if the link_point.offset is greater than the train `state` offset, then
     // the train is in the previous link
-    let offset = *state.offset.get_fresh(|| format_dbg!())?;
+    let offset = *state.offset.get_stale(|| format_dbg!())?;
     let idx_curr_link = path_tpc
         .link_points()
         .iter()
@@ -330,7 +331,7 @@ pub fn set_link_and_offset(state: &mut TrainState, path_tpc: &PathTpc) -> anyhow
         .link_idx_front
         .update(link_point.link_idx.idx() as u32, || format_dbg!())?;
     state.offset_in_link.update(
-        *state.offset.get_fresh(|| format_dbg!())? - link_point.offset,
+        *state.offset.get_stale(|| format_dbg!())? - link_point.offset,
         || format_dbg!(),
     )?;
 

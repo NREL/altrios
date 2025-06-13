@@ -19,6 +19,6 @@ impl Basic {
         Self { ratio }
     }
     pub fn calc_res(&mut self, state: &TrainState) -> anyhow::Result<si::Force> {
-        Ok(self.ratio * *state.weight_static.get_fresh(|| format_dbg!())?)
+        Ok(self.ratio * *state.weight_static.get_unchecked(|| format_dbg!())?)
     }
 }

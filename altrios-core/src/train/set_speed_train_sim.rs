@@ -399,11 +399,10 @@ impl SetSpeedTrainSim {
                 .dt(*self.state.i.get_fresh(|| format_dbg!())?),
             Some(true),
         )?;
+        let dt = self.speed_trace.time[*self.state.i.get_fresh(|| format_dbg!())?]
+            - *self.state.time.get_stale(|| format_dbg!())?;
         // advance time
-        self.state.time.update(
-            self.speed_trace.time[*self.state.i.get_fresh(|| format_dbg!())?],
-            || format_dbg!(),
-        )?;
+        self.state.time.update(dt, || format_dbg!())?;
         // update speed
         self.state.speed.update(
             self.speed_trace.speed[*self.state.i.get_fresh(|| format_dbg!())?],

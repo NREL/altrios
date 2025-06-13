@@ -48,13 +48,12 @@ impl ResMethod for Strap {
         path_tpc: &PathTpc,
         dir: &Dir,
     ) -> anyhow::Result<()> {
-        // TODO: think about pulling the next one or two lines out to somewhere else
-        state.offset_back.update(
-            *state.offset.get_fresh(|| format_dbg!())?
-                - *state.length.get_fresh(|| format_dbg!())?,
+        state.offset_back.update_unchecked(
+            *state.offset.get_unchecked(|| format_dbg!())?
+                - *state.length.get_unchecked(|| format_dbg!())?,
             || format_dbg!(),
         )?;
-        state.weight_static.update(
+        state.weight_static.update_unchecked(
             state
                 .mass()
                 .with_context(|| format_dbg!())? // extract result
@@ -64,37 +63,37 @@ impl ResMethod for Strap {
         )?;
         state
             .res_bearing
-            .update(self.bearing.calc_res(), || format_dbg!())?;
+            .update_unchecked(self.bearing.calc_res(), || format_dbg!())?;
         state
             .res_rolling
-            .update(self.rolling.calc_res(state)?, || format_dbg!())?;
+            .update_unchecked(self.rolling.calc_res(state)?, || format_dbg!())?;
         state
             .res_davis_b
-            .update(self.davis_b.calc_res(state)?, || format_dbg!())?;
+            .update_unchecked(self.davis_b.calc_res(state)?, || format_dbg!())?;
         state
             .res_aero
-            .update(self.aerodynamic.calc_res(state)?, || format_dbg!())?;
-        state.res_grade.update(
+            .update_unchecked(self.aerodynamic.calc_res(state)?, || format_dbg!())?;
+        state.res_grade.update_unchecked(
             self.grade.calc_res(path_tpc.grades(), state, dir)?,
             || format_dbg!(),
         )?;
-        state.res_curve.update(
+        state.res_curve.update_unchecked(
             self.curve.calc_res(path_tpc.curves(), state, dir)?,
             || format_dbg!(),
         )?;
-        state.grade_front.update(
+        state.grade_front.update_unchecked(
             self.grade.res_coeff_front(path_tpc.grades()),
             || format_dbg!(),
         )?;
-        state.grade_back.update(
+        state.grade_back.update_unchecked(
             self.grade.res_coeff_back(path_tpc.grades()),
             || format_dbg!(),
         )?;
-        state.elev_front.update(
+        state.elev_front.update_unchecked(
             self.grade.res_net_front(path_tpc.grades(), state)?,
             || format_dbg!(),
         )?;
-        state.elev_back.update(
+        state.elev_back.update_unchecked(
             self.grade.res_net_back(path_tpc.grades(), state)?,
             || format_dbg!(),
         )?;

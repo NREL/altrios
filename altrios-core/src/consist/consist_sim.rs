@@ -168,16 +168,16 @@ impl CheckAndResetState for ConsistSimulation {
 impl Step for ConsistSimulation {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         self.check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
-        self.loco_con
-            .step(|| format!("{}\n{}", loc(), format_dbg!()))?;
         let i = *self
             .loco_con
             .state
             .i
-            .get_fresh(|| format!("{}\n{}", loc(), format_dbg!()))?;
+            .get_stale(|| format!("{}\n{}", loc(), format_dbg!()))?;
         self.solve_step()
             .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
         self.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .step(|| format!("{}\n{}", loc(), format_dbg!()))?;
         Ok(())
     }
 }

@@ -97,12 +97,13 @@ impl BrakingPoints {
 
         let mut train_state = train_state.clone();
         let mut train_res = train_res.clone();
+        // `update_unchecked` is needed here because `solve_required_pwr` also calls this
         train_state
             .offset
-            .update(path_tpc.offset_end(), || format_dbg!())?;
+            .update_unchecked(path_tpc.offset_end(), || format_dbg!())?;
         train_state
             .speed
-            .update(si::Velocity::ZERO, || format_dbg!())?;
+            .update_unchecked(si::Velocity::ZERO, || format_dbg!())?;
         train_res.update_res(&mut train_state, path_tpc, &Dir::Unk)?;
         let speed_points = path_tpc.speed_points();
         let mut idx = path_tpc.speed_points().len();

@@ -103,6 +103,7 @@ where
 
     // Note that `anyhow::Error` is fine here because this should result only in
     // logic errors and not runtime errors for end users
+    // TODO: try to get rid of all uses of this method!
     /// Update the value of the tracked state without verifying that it has not
     /// already been updated -- to be used sparingly!
     /// # Arguments
@@ -124,6 +125,15 @@ where
         Ok(())
     }
 
+    /// Verify that state is [State::Stale] and mark state as [State::Fresh]
+    /// without updating -- to be used sparingly!
+    /// # Arguments
+    /// - `loc`: closure that returns file and line number where called
+    pub fn mark_fresh_unchecked<F: Fn() -> String>(&mut self, _loc: F) -> anyhow::Result<()> {
+        self.1 = StateStatus::Fresh;
+        Ok(())
+    }
+
     /// Check that value has been updated and then return as a result
     /// # Arguments
     /// - `loc`: call site location filename and line number
@@ -137,6 +147,13 @@ where
     /// - `loc`: call site location filename and line number
     pub fn get_stale<F: Fn() -> String>(&self, loc: F) -> anyhow::Result<&T> {
         self.ensure_stale(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(&self.0)
+    }
+
+    /// Return fresh or stale value -- use with _EXTREME_ caution
+    /// # Arguments
+    /// - `loc`: call site location filename and line number
+    pub fn get_unchecked<F: Fn() -> String>(&self, _loc: F) -> anyhow::Result<&T> {
         Ok(&self.0)
     }
 }

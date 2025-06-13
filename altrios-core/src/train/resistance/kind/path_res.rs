@@ -82,11 +82,11 @@ impl [PathResCoeff] {
         idx_back: usize,
         state: &TrainState,
     ) -> anyhow::Result<si::Ratio> {
-        debug_assert!(*state.length.get_fresh(|| format_dbg!())? > si::Length::ZERO);
+        debug_assert!(*state.length.get_unchecked(|| format_dbg!())? > si::Length::ZERO);
         Ok(
-            (self[idx_front].calc_res_val(*state.offset.get_fresh(|| format_dbg!())?)
-                - self[idx_back].calc_res_val(*state.offset_back.get_fresh(|| format_dbg!())?))
-                / *state.length.get_fresh(|| format_dbg!())?,
+            (self[idx_front].calc_res_val(*state.offset.get_unchecked(|| format_dbg!())?)
+                - self[idx_back].calc_res_val(*state.offset_back.get_unchecked(|| format_dbg!())?))
+                / *state.length.get_unchecked(|| format_dbg!())?,
         )
     }
 }
@@ -141,26 +141,26 @@ impl Strap {
         match dir {
             Dir::Fwd => {
                 self.idx_front = path_res_coeffs.calc_idx(
-                    *state.offset.get_fresh(|| format_dbg!())?,
+                    *state.offset.get_unchecked(|| format_dbg!())?,
                     self.idx_front,
                     dir,
                 )?;
             }
             Dir::Bwd => {
                 self.idx_back = path_res_coeffs.calc_idx(
-                    *state.offset_back.get_fresh(|| format_dbg!())?,
+                    *state.offset_back.get_unchecked(|| format_dbg!())?,
                     self.idx_back,
                     dir,
                 )?;
             }
             Dir::Unk => {
                 self.idx_front = path_res_coeffs.calc_idx(
-                    *state.offset.get_fresh(|| format_dbg!())?,
+                    *state.offset.get_unchecked(|| format_dbg!())?,
                     self.idx_front,
                     dir,
                 )?;
                 self.idx_back = path_res_coeffs.calc_idx(
-                    *state.offset_back.get_fresh(|| format_dbg!())?,
+                    *state.offset_back.get_unchecked(|| format_dbg!())?,
                     self.idx_back,
                     dir,
                 )?;
@@ -173,14 +173,14 @@ impl Strap {
             match dir {
                 Dir::Fwd => {
                     self.idx_back = path_res_coeffs.calc_idx(
-                        *state.offset_back.get_fresh(|| format_dbg!())?,
+                        *state.offset_back.get_unchecked(|| format_dbg!())?,
                         self.idx_back,
                         dir,
                     )?;
                 }
                 Dir::Bwd => {
                     self.idx_front = path_res_coeffs.calc_idx(
-                        *state.offset.get_fresh(|| format_dbg!())?,
+                        *state.offset.get_unchecked(|| format_dbg!())?,
                         self.idx_front,
                         dir,
                     )?;
@@ -207,10 +207,8 @@ impl Strap {
         path_res_coeffs: &[PathResCoeff],
         state: &TrainState,
     ) -> anyhow::Result<si::Length> {
-        Ok(
-            path_res_coeffs[self.idx_front]
-                .calc_res_val(*state.offset.get_fresh(|| format_dbg!())?),
-        )
+        Ok(path_res_coeffs[self.idx_front]
+            .calc_res_val(*state.offset.get_unchecked(|| format_dbg!())?))
     }
 
     pub fn res_net_back(

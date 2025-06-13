@@ -20,7 +20,7 @@ impl Basic {
     }
     pub fn calc_res(&mut self, state: &TrainState) -> anyhow::Result<si::Force> {
         Ok(self.davis_b
-            * *state.speed.get_fresh(|| format_dbg!())?
-            * *state.weight_static.get_fresh(|| format_dbg!())?)
+            * *state.speed.get_unchecked(|| format_dbg!())?
+            * *state.weight_static.get_unchecked(|| format_dbg!())?)
     }
 }

@@ -339,6 +339,10 @@ impl SetSpeedTrainSim {
     /// Solves time step.
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         // checking on speed trace to ensure it is at least stopped or moving forward (no backwards)
+        let dt = self.speed_trace.time[*self.state.i.get_fresh(|| format_dbg!())?]
+            - *self.state.time.get_stale(|| format_dbg!())?;
+        self.state.dt.update(dt, || format_dbg!())?;
+
         ensure!(
             self.speed_trace.speed[*self.state.i.get_fresh(|| format_dbg!())?]
                 >= si::Velocity::ZERO,
@@ -379,7 +383,7 @@ impl SetSpeedTrainSim {
             None,
             elev_and_temp,
             train_mass,
-            Some(*self.state.speed.get_fresh(|| format_dbg!())?),
+            Some(*self.state.speed.get_stale(|| format_dbg!())?),
             self.speed_trace
                 .dt(*self.state.i.get_fresh(|| format_dbg!())?),
         )?;
@@ -399,15 +403,14 @@ impl SetSpeedTrainSim {
                 .dt(*self.state.i.get_fresh(|| format_dbg!())?),
             Some(true),
         )?;
-        let dt = self.speed_trace.time[*self.state.i.get_fresh(|| format_dbg!())?]
-            - *self.state.time.get_stale(|| format_dbg!())?;
         // advance time
-        self.state.time.update(dt, || format_dbg!())?;
+        self.state.time.increment(dt, || format_dbg!())?;
         // update speed
         self.state.speed.update(
             self.speed_trace.speed[*self.state.i.get_fresh(|| format_dbg!())?],
             || format_dbg!(),
         )?;
+        set_link_and_offset(&mut self.state, &self.path_tpc)?;
         // update offset
         self.state.offset.increment(
             self.speed_trace
@@ -415,8 +418,6 @@ impl SetSpeedTrainSim {
                 * *self.state.dt.get_fresh(|| format_dbg!())?,
             || format_dbg!(),
         )?;
-        // I'm not too familiar with this bit, but I am assuming this is related to finding the way through the network and is not a difference between set speed and speed limit train sim.
-        set_link_and_offset(&mut self.state, &self.path_tpc)?;
         // update total distance
         self.state.total_dist.increment(
             (self
@@ -440,7 +441,7 @@ impl SetSpeedTrainSim {
             if *self.state.i.get_fresh(|| format_dbg!())? > self.speed_trace.len() - 2 {
                 break;
             }
-            self.step(|| format_dbg!())?;
+            self.step(|| format_dbg!()).with_context(|| format_dbg!())?;
         }
         Ok(())
     }
@@ -459,7 +460,7 @@ impl SetSpeedTrainSim {
             .get_fresh(|| format_dbg!())?
             .min(
                 si::Power::ZERO.max(
-                    *self.state.pwr_whl_out.get_fresh(|| format_dbg!())?
+                    *self.state.pwr_whl_out.get_stale(|| format_dbg!())?
                         + *self
                             .loco_con
                             .state
@@ -469,7 +470,7 @@ impl SetSpeedTrainSim {
                 ),
             );
 
-        // find max dynamic braking power. I am liking that we use a positive dyn braking.  This feels like we need a coordinate system where the math works out better rather than ad hoc'ing it.
+        // find max dynamic braking power as positive value
         let pwr_neg_max = self
             .loco_con
             .state
@@ -504,26 +505,14 @@ impl SetSpeedTrainSim {
                         .powi(typenum::P2::new())),
             || format_dbg!(),
         )?;
-        // store the used `dt` value in `state`
-        self.state.dt.update(
-            self.speed_trace
-                .dt(*self.state.i.get_fresh(|| format_dbg!())?),
-            || format_dbg!(),
-        )?;
 
         // total power exerted by the consist to move the train, without limits applied
-        self.state.pwr_whl_out.update(
-            *self.state.pwr_accel.get_fresh(|| format_dbg!())?
-                + *self.state.pwr_res.get_fresh(|| format_dbg!())?,
-            || format_dbg!(),
-        )?;
+        let pwr_whl_out_unclipped = *self.state.pwr_accel.get_fresh(|| format_dbg!())?
+            + *self.state.pwr_res.get_fresh(|| format_dbg!())?;
+
         // limit power to within the consist capability
         self.state.pwr_whl_out.update(
-            self.state
-                .pwr_whl_out
-                .get_fresh(|| format_dbg!())?
-                .max(-pwr_neg_max)
-                .min(pwr_pos_max),
+            pwr_whl_out_unclipped.max(-pwr_neg_max).min(pwr_pos_max),
             || format_dbg!(),
         )?;
 
@@ -552,6 +541,7 @@ impl SetSpeedTrainSim {
 impl StateMethods for SetSpeedTrainSim {}
 impl CheckAndResetState for SetSpeedTrainSim {
     fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        // self.state.speed_limit.mark_fresh(|| format_dbg!())?;
         self.state
             .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
         self.loco_con
@@ -574,6 +564,9 @@ impl Step for SetSpeedTrainSim {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         let i = *self.state.i.get_fresh(|| format_dbg!())?;
         self.check_and_reset(|| format_dbg!())?;
+        self.state
+            .i
+            .increment(1, || format!("{}\n{}", loc(), format_dbg!()))?;
         self.loco_con.step(|| format_dbg!())?;
         self.solve_step()
             .with_context(|| format!("{}\ntime step: {}", loc(), i))?;

@@ -435,6 +435,7 @@ mod tests {
     #[test]
     fn test_that_loss_is_monotonic() {
         let mut edrv = test_edrv();
+        edrv.check_and_reset(|| format_dbg!()).unwrap();
         edrv.state
             .pwr_mech_out_max
             .update(edrv.pwr_out_max, || format_dbg!())

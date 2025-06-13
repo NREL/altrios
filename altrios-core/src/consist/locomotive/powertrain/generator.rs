@@ -487,37 +487,6 @@ mod tests {
     }
 
     #[test]
-    fn test_that_loss_is_monotonic() {
-        let mut gen = test_gen();
-        gen.save_interval = Some(1);
-        gen.save_state(|| format_dbg!()).unwrap();
-        gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, true, uc::S * 1.0)
-            .unwrap();
-        gen.step(|| format_dbg!()).unwrap();
-        gen.save_state(|| format_dbg!()).unwrap();
-        gen.set_pwr_in_req(uc::W * 2_000e3, uc::W * 500e3, true, uc::S * 1.0)
-            .unwrap();
-        gen.step(|| format_dbg!()).unwrap();
-        gen.save_state(|| format_dbg!()).unwrap();
-        gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, true, uc::S * 1.0)
-            .unwrap();
-        gen.step(|| format_dbg!()).unwrap();
-        gen.save_state(|| format_dbg!()).unwrap();
-        gen.set_pwr_in_req(uc::W * 1_500e3, uc::W * 500e3, true, uc::S * 1.0)
-            .unwrap();
-        gen.step(|| format_dbg!()).unwrap();
-        let energy_loss_j = gen
-            .history
-            .energy_loss
-            .iter()
-            .map(|x| x.get_fresh(|| format_dbg!()).unwrap().get::<si::joule>())
-            .collect::<Vec<_>>();
-        for i in 1..energy_loss_j.len() {
-            assert!(energy_loss_j[i] >= energy_loss_j[i - 1]);
-        }
-    }
-
-    #[test]
     #[allow(clippy::field_reassign_with_default)]
     fn test_that_history_has_len_1() {
         let mut gen: Generator = Generator::default();

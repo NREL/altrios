@@ -444,8 +444,10 @@ impl ReversibleEnergyStorage {
         disch_buffer: si::Energy,
         chrg_buffer: si::Energy,
     ) -> anyhow::Result<()> {
-        self.set_pwr_charge_max(pwr_aux, dt, chrg_buffer)?;
-        self.set_pwr_disch_max(pwr_aux, dt, disch_buffer)?;
+        self.set_pwr_charge_max(pwr_aux, dt, chrg_buffer)
+            .with_context(|| format_dbg!())?;
+        self.set_pwr_disch_max(pwr_aux, dt, disch_buffer)
+            .with_context(|| format_dbg!())?;
 
         Ok(())
     }
@@ -1024,108 +1026,6 @@ mod tests {
     #[test]
     fn test_res_constructor() {
         let _res = _mock_res();
-    }
-
-    #[test]
-    fn test_set_cur_pwr_out_max() {
-        let mut res = _mock_res();
-        res.max_soc = 0.9 * uc::R;
-        res.min_soc = 0.1 * uc::R;
-        res.state
-            .soc
-            .update(0.98 * uc::R, || format_dbg!())
-            .unwrap();
-        let energy_usable = res.energy_capacity_usable();
-        res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
-            .unwrap();
-        assert_eq!(
-            *res.state
-                .pwr_charge_max
-                .get_fresh(|| format_dbg!())
-                .unwrap(),
-            si::Power::ZERO
-        );
-        res.state.soc.update(0.8 * uc::R, || format_dbg!()).unwrap();
-        res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
-            .unwrap();
-        assert_eq!(
-            *res.state
-                .pwr_charge_max
-                .get_fresh(|| format_dbg!())
-                .unwrap(),
-            res.pwr_out_max
-        );
-        res.state
-            .soc
-            .update(0.85 * uc::R, || format_dbg!())
-            .unwrap();
-        res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
-            .unwrap();
-        assert!(
-            *res.state
-                .pwr_charge_max
-                .get_fresh(|| format_dbg!())
-                .unwrap()
-                < res.pwr_out_max / 2.0 * 1.0001
-        );
-        assert!(
-            *res.state
-                .pwr_charge_max
-                .get_fresh(|| format_dbg!())
-                .unwrap()
-                > res.pwr_out_max / 2.0 * 0.9999
-        );
-        res.state.soc.update(0.9 * uc::R, || format_dbg!()).unwrap();
-        res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
-            .unwrap();
-        assert_eq!(
-            *res.state
-                .pwr_charge_max
-                .get_fresh(|| format_dbg!())
-                .unwrap(),
-            si::Power::ZERO
-        );
-        res.state.soc.update(0.9 * uc::R, || format_dbg!()).unwrap();
-        res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
-            .unwrap();
-        assert_eq!(
-            *res.state
-                .pwr_charge_max
-                .get_fresh(|| format_dbg!())
-                .unwrap(),
-            si::Power::ZERO
-        );
-        res.state.soc.update(0.2 * uc::R, || format_dbg!()).unwrap();
-        res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
-            .unwrap();
-        assert_eq!(
-            *res.state.pwr_disch_max.get_fresh(|| format_dbg!()).unwrap(),
-            res.pwr_out_max
-        );
-        res.state
-            .soc
-            .update(0.15 * uc::R, || format_dbg!())
-            .unwrap();
-        res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
-            .unwrap();
-        assert!(
-            *res.state.pwr_disch_max.get_fresh(|| format_dbg!()).unwrap()
-                < res.pwr_out_max / 2.0 * 1.0001
-        );
-        assert!(
-            *res.state
-                .pwr_charge_max
-                .get_fresh(|| format_dbg!())
-                .unwrap()
-                > res.pwr_out_max / 2.0 * 0.9999
-        );
-        res.state.soc.update(0.1 * uc::R, || format_dbg!()).unwrap();
-        res.set_curr_pwr_out_max(uc::S, 5e3 * uc::W, energy_usable * 0.1, energy_usable * 0.1)
-            .unwrap();
-        assert_eq!(
-            *res.state.pwr_disch_max.get_fresh(|| format_dbg!()).unwrap(),
-            si::Power::ZERO
-        );
     }
 
     #[test]

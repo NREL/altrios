@@ -116,10 +116,10 @@ impl ConsistSimulation {
     pub fn walk(&mut self) -> anyhow::Result<()> {
         self.save_state(|| format_dbg!())?;
         loop {
-            self.step(|| format_dbg!())?;
-            if *self.loco_con.state.i.get_fresh(|| format_dbg!())? < self.power_trace.len() - 1 {
+            if *self.loco_con.state.i.get_fresh(|| format_dbg!())? > self.power_trace.len() - 2 {
                 break;
             }
+            self.step(|| format_dbg!())?;
         }
         Ok(())
     }

@@ -168,7 +168,7 @@ def to_dataframe(self,
     key_substrings_to_keep: List[str] = ['history.', 'speed_trace.', 'power_trace.']
 ) -> Union[pd.DataFrame, pl.DataFrame]:
     """
-    Returns time series results from fastsim object as a Polars or Pandas dataframe.
+    Returns time series results from altrios object as a Polars or Pandas dataframe.
 
     # Arguments
     - `pandas`: returns pandas dataframe if True; otherwise, returns polars dataframe by default

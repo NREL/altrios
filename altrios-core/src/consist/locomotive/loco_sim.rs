@@ -315,6 +315,7 @@ impl Step for LocomotiveSimulation {
     fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
         self.check_and_reset(|| format_dbg!())?;
         let i = *self.loco_unit.state.i.get_fresh(|| format_dbg!())?;
+        
         self.solve_step()
             .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
         self.save_state(|| format_dbg!())?;
@@ -434,7 +435,7 @@ impl LocomotiveSimulationVec {
 #[cfg(test)]
 mod tests {
     use super::{Locomotive, LocomotiveSimulation, LocomotiveSimulationVec, PowerTrace};
-    use crate::consist::locomotive::PowertrainType;
+    use crate::{consist::locomotive::PowertrainType, utils::CheckAndResetState};
 
     #[test]
     fn test_loco_sim_vec_par() {

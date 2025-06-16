@@ -6,8 +6,23 @@ use super::LocoTrait;
 use super::*;
 use crate::imports::*;
 
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods)]
-#[altrios_api(
+#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, StateMethods, SetCumulative)]
+#[serde_api]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Conventional locomotive
+pub struct ConventionalLoco {
+    // The fields in this struct are all locally defined structs and are therefore not documented in
+    // this context
+    #[has_state]
+    pub fc: FuelConverter,
+    #[has_state]
+    pub gen: Generator,
+    #[has_state]
+    pub edrv: ElectricDrivetrain,
+}
+
+#[pyo3_api]
+impl ConventionalLoco {
     #[new]
     pub fn __new__(
         fuel_converter: FuelConverter,
@@ -20,17 +35,6 @@ use crate::imports::*;
             edrv: electric_drivetrain,
         }
     }
-)]
-/// Conventional locomotive
-pub struct ConventionalLoco {
-    // The fields in this struct are all locally defined structs and are therefore not documented in
-    // this context
-    #[has_state]
-    pub fc: FuelConverter,
-    #[has_state]
-    pub gen: Generator,
-    #[has_state]
-    pub edrv: ElectricDrivetrain,
 }
 
 impl ConventionalLoco {
@@ -64,14 +68,22 @@ impl ConventionalLoco {
 
         self.gen.set_pwr_in_req(
             // TODO: maybe this should be either zero or greater than or equal to zero if not loco_on
-            self.edrv.state.pwr_elec_prop_in,
+            *self
+                .edrv
+                .state
+                .pwr_elec_prop_in
+                .get_fresh(|| format_dbg!())?,
             pwr_aux,
             loco_on,
             dt,
         )?;
 
-        self.fc
-            .solve_energy_consumption(self.gen.state.pwr_mech_in, dt, loco_on, assert_limits)?;
+        self.fc.solve_energy_consumption(
+            *self.gen.state.pwr_mech_in.get_fresh(|| format_dbg!())?,
+            dt,
+            loco_on,
+            assert_limits,
+        )?;
         Ok(())
     }
 }
@@ -118,33 +130,40 @@ impl LocoTrait for ConventionalLoco {
     fn set_curr_pwr_max_out(
         &mut self,
         pwr_aux: Option<si::Power>,
+        elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         _train_mass: Option<si::Mass>,
         _train_speed: Option<si::Velocity>,
         dt: si::Time,
     ) -> anyhow::Result<()> {
-        self.fc.set_cur_pwr_out_max(dt)?;
+        self.fc.set_cur_pwr_out_max(elev_and_temp, dt)?;
         self.gen.set_cur_pwr_max_out(
-            self.fc.state.pwr_out_max,
+            *self.fc.state.pwr_out_max.get_fresh(|| format_dbg!())?,
             Some(pwr_aux.with_context(|| format_dbg!("`pwr_aux` not provided"))?),
         )?;
-        self.edrv
-            .set_cur_pwr_max_out(self.gen.state.pwr_elec_prop_out_max, None)?;
+        self.edrv.set_cur_pwr_max_out(
+            *self
+                .gen
+                .state
+                .pwr_elec_prop_out_max
+                .get_fresh(|| format_dbg!())?,
+            None,
+        )?;
+        self.edrv.set_cur_pwr_regen_max(si::Power::ZERO)?;
         self.gen
-            .set_pwr_rate_out_max(self.fc.pwr_out_max / self.fc.pwr_ramp_lag);
-        self.edrv
-            .set_pwr_rate_out_max(self.gen.state.pwr_rate_out_max);
+            .set_pwr_rate_out_max(self.fc.pwr_out_max / self.fc.pwr_ramp_lag)?;
+        self.edrv.set_pwr_rate_out_max(
+            *self
+                .gen
+                .state
+                .pwr_rate_out_max
+                .get_fresh(|| format_dbg!())?,
+        )?;
         Ok(())
     }
 
-    fn save_state(&mut self) {
-        self.save_state();
-    }
-
-    fn step(&mut self) {
-        self.step()
-    }
-
-    fn get_energy_loss(&self) -> si::Energy {
-        self.fc.state.energy_loss + self.gen.state.energy_loss + self.edrv.state.energy_loss
+    fn get_energy_loss(&self) -> anyhow::Result<si::Energy> {
+        Ok(*self.fc.state.energy_loss.get_stale(|| format_dbg!())?
+            + *self.gen.state.energy_loss.get_stale(|| format_dbg!())?
+            + *self.edrv.state.energy_loss.get_stale(|| format_dbg!())?)
     }
 }

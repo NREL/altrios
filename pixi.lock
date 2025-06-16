@@ -789,8 +789,8 @@ packages:
   requires_python: '>=3.9,<4'
 - pypi: .
   name: altrios
-  version: 0.2.3
-  sha256: 1ce89aad5cf9853958c09600c9702792ab7c84231e4277444016cf1e199334fc
+  version: 0.3.0
+  sha256: 9cf62bf44dff9064020e41be41bb2f9c44f4799874560c168f4a32f46ff692d3
   requires_dist:
   - pandas>=2
   - numpy~=1.24

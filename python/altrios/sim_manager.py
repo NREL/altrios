@@ -3,7 +3,7 @@ Module for getting the output of the Train Consist Planner and Meet Pass Planner
 """
 
 import polars as pl
-from typing import Any, Union, Dict, List, Tuple
+from typing import Optional, Union, Dict, List, Tuple
 from pathlib import Path
 import time
 from altrios import defaults
@@ -21,14 +21,14 @@ def main(
     scenario_year: int = defaults.BASE_ANALYSIS_YEAR,
     target_bel_share: float = 0.5,
     debug: bool = False,
-    loco_pool: pl.DataFrame = None,
-    refuelers: pl.DataFrame = None,
-    grid_emissions_factors: pl.DataFrame = None,
-    nodal_energy_prices: pl.DataFrame = None,
+    loco_pool: Optional[pl.DataFrame ]= None,
+    refuelers: Optional[pl.DataFrame ]= None,
+    grid_emissions_factors: Optional[pl.DataFrame ]= None,
+    nodal_energy_prices: Optional[pl.DataFrame ]= None,
     train_planner_config: planner_config.TrainPlannerConfig = planner_config.TrainPlannerConfig(),
-    train_type: alt.TrainType = alt.TrainType.Freight, 
+    train_type: alt.TrainType = alt.TrainType.Freight,
     demand_file: Union[pl.DataFrame, Path, str] = str(defaults.DEMAND_FILE),
-    network_charging_guidelines: pl.DataFrame = None
+    network_charging_guidelines: Optional[pl.DataFrame ]= None,
 ) -> Tuple[
     pl.DataFrame,
     pl.DataFrame,
@@ -82,16 +82,16 @@ def main(
         speed_limit_train_sims, 
         est_time_nets
     ) = planner.run_train_planner(
-        rail_vehicles = rail_vehicles,
-        location_map = location_map,
-        network = network,
-        loco_pool= loco_pool,
-        refuelers = refuelers,
-        scenario_year = scenario_year,
-        config = train_planner_config,
-        demand_file = demand_file,
-        train_type = train_type,
-        network_charging_guidelines = network_charging_guidelines,
+        rail_vehicles=rail_vehicles,
+        location_map=location_map,
+        network=network,
+        loco_pool=loco_pool,
+        refuelers=refuelers,
+        scenario_year=scenario_year,
+        config=train_planner_config,
+        demand_file=demand_file,
+        train_type=train_type,
+        network_charging_guidelines=network_charging_guidelines,
     )
     t1_ptc = time.perf_counter()
 
@@ -159,7 +159,7 @@ def main(
     timed_paths = [timed_paths[i-1] for i in to_keep]
 
     return (
-        train_consist_plan,
+        train_consist_plan, # NOTE: we generate this and therefore don't need it
         loco_pool,
         refuelers,
         grid_emissions_factors,

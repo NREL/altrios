@@ -1,3 +1,4 @@
+use super::environment::TemperatureTrace;
 use super::resistance::kind as res_kind;
 use super::resistance::method as res_method;
 #[cfg(feature = "pyo3")]
@@ -6,7 +7,8 @@ use crate::consist::locomotive::locomotive_model::PowertrainType;
 
 use super::{
     friction_brakes::*, rail_vehicle::RailVehicle, train_imports::*, InitTrainState, LinkIdxTime,
-    SetSpeedTrainSim, SpeedLimitTrainSim, SpeedTrace, TrainState,
+    SetSpeedTrainSim, SetSpeedTrainSimBuilder, SpeedLimitTrainSim, SpeedLimitTrainSimBuilder,
+    SpeedTrace, TrainState,
 };
 use crate::track::link::link_idx::LinkPath;
 use crate::track::link::network::Network;
@@ -18,7 +20,35 @@ use polars_lazy::dsl::max_horizontal;
 use polars_lazy::prelude::*;
 use pyo3_polars::PyDataFrame;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// User-defined train configuration used to generate
+/// [crate::prelude::TrainParams]. Any optional fields will be populated later
+/// in [TrainSimBuilder::make_train_sim_parts]
+pub struct TrainConfig {
+    /// Types of rail vehicle composing the train
+    pub rail_vehicles: Vec<RailVehicle>,
+    /// Number of railcars by type on the train
+    pub n_cars_by_type: HashMap<String, u32>,
+    /// Train type matching one of the PTC types
+    pub train_type: TrainType,
+    /// Train length that overrides the railcar specific value, if provided
+    pub train_length: Option<si::Length>,
+    /// Total train mass that overrides the railcar specific values, if provided
+    pub train_mass: Option<si::Mass>,
+
+    #[serde(default)]
+    /// Optional vector of drag areas (i.e. drag coeff. times frontal area)
+    /// for each car.  If provided, the total drag area (drag coefficient
+    /// times frontal area) calculated from this vector is the sum of these
+    /// coefficients. Otherwise, each rail car's drag contribution based on its
+    /// drag coefficient and frontal area will be summed across the train.
+    pub cd_area_vec: Option<Vec<si::Area>>,
+}
+
+#[pyo3_api]
+impl TrainConfig {
     #[new]
     #[pyo3(signature = (
         rail_vehicles,
@@ -42,7 +72,7 @@ use pyo3_polars::PyDataFrame;
             train_type.unwrap_or_default(),
             train_length_meters.map(|v| v * uc::M),
             train_mass_kilograms.map(|v| v * uc::KG),
-            cd_area_vec.map(|dcv| dcv.iter().map(|dc| *dc * uc::M2).collect())
+            cd_area_vec.map(|dcv| dcv.iter().map(|dc| *dc * uc::M2).collect()),
         )
     }
 
@@ -76,11 +106,12 @@ use pyo3_polars::PyDataFrame;
 
     #[getter]
     fn get_cd_area_vec_meters_squared(&self) -> Option<Vec<f64>> {
-        self.cd_area_vec
-            .as_ref()
-                .map(
-                    |dcv| dcv.iter().cloned().map(|x| x.get::<si::square_meter>()).collect()
-                )
+        self.cd_area_vec.as_ref().map(|dcv| {
+            dcv.iter()
+                .cloned()
+                .map(|x| x.get::<si::square_meter>())
+                .collect()
+        })
     }
 
     #[setter]
@@ -88,33 +119,6 @@ use pyo3_polars::PyDataFrame;
         self.cd_area_vec = Some(new_val.iter().map(|x| *x * uc::M2).collect());
         Ok(())
     }
-)]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
-/// User-defined train configuration used to generate
-/// [crate::prelude::TrainParams]. Any optional fields will be populated later
-/// in [TrainSimBuilder::make_train_sim_parts]
-pub struct TrainConfig {
-    /// Types of rail vehicle composing the train
-    pub rail_vehicles: Vec<RailVehicle>,
-    /// Number of railcars by type on the train
-    pub n_cars_by_type: HashMap<String, u32>,
-    /// Train type matching one of the PTC types
-    pub train_type: TrainType,
-    /// Train length that overrides the railcar specific value, if provided
-    #[api(skip_get, skip_set)]
-    pub train_length: Option<si::Length>,
-    /// Total train mass that overrides the railcar specific values, if provided
-    #[api(skip_set, skip_get)]
-    pub train_mass: Option<si::Mass>,
-    #[api(skip_get, skip_set)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
-    /// Optional vector of drag areas (i.e. drag coeff. times frontal area)
-    /// for each car.  If provided, the total drag area (drag coefficient
-    /// times frontal area) calculated from this vector is the sum of these
-    /// coefficients. Otherwise, each rail car's drag contribution based on its
-    /// drag coefficient and frontal area will be summed across the train.
-    pub cd_area_vec: Option<Vec<si::Area>>,
 }
 
 impl Init for TrainConfig {
@@ -246,7 +250,26 @@ impl Valid for TrainConfig {
     }
 }
 
-#[altrios_api(
+#[serde_api]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct TrainSimBuilder {
+    /// Unique, user-defined identifier for the train
+    pub train_id: String,
+    pub train_config: TrainConfig,
+    pub loco_con: Consist,
+    /// Origin_ID from train planner to map to track network locations.  Only needed if
+    /// [Self::make_speed_limit_train_sim] will be called.
+    pub origin_id: Option<String>,
+    /// Destination_ID from train planner to map to track network locations.  Only needed if
+    /// [Self::make_speed_limit_train_sim] will be called.
+    pub destination_id: Option<String>,
+
+    init_train_state: Option<InitTrainState>,
+}
+
+#[pyo3_api]
+impl TrainSimBuilder {
     #[new]
     #[pyo3(signature = (
         train_id,
@@ -281,6 +304,7 @@ impl Valid for TrainConfig {
             link_path,
             speed_trace,
             save_interval=None,
+            temp_trace=None,
         )
     )]
     fn make_set_speed_train_sim_py(
@@ -288,30 +312,30 @@ impl Valid for TrainConfig {
         network: &Bound<PyAny>,
         link_path: &Bound<PyAny>,
         speed_trace: SpeedTrace,
-        save_interval: Option<usize>
+        save_interval: Option<usize>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<SetSpeedTrainSim> {
         let network = match network.extract::<Network>() {
             Ok(n) => n,
             Err(_) => {
-                let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network( Default::default(), n)
+                let n = network
+                    .extract::<Vec<Link>>()
+                    .map_err(|_| anyhow!("{}", format_dbg!()))?;
+                Network(Default::default(), n)
             }
         };
 
         let link_path = match link_path.extract::<LinkPath>() {
             Ok(lp) => lp,
             Err(_) => {
-                let lp = link_path.extract::<Vec<LinkIdx>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                let lp = link_path
+                    .extract::<Vec<LinkIdx>>()
+                    .map_err(|_| anyhow!("{}", format_dbg!()))?;
                 LinkPath(lp)
             }
         };
 
-        self.make_set_speed_train_sim(
-            network,
-            link_path,
-            speed_trace,
-            save_interval
-        )
+        self.make_set_speed_train_sim(network, link_path, speed_trace, save_interval, temp_trace)
     }
 
     #[pyo3(
@@ -321,6 +345,7 @@ impl Valid for TrainConfig {
             link_path,
             speed_trace,
             save_interval=None,
+            temp_trace=None,
         )
     )]
     fn make_set_speed_train_sim_and_parts_py(
@@ -328,30 +353,44 @@ impl Valid for TrainConfig {
         network: &Bound<PyAny>,
         link_path: &Bound<PyAny>,
         speed_trace: SpeedTrace,
-        save_interval: Option<usize>
-    ) -> anyhow::Result<(SetSpeedTrainSim, TrainParams, PathTpc, TrainResWrapper, FricBrake)> {
+        save_interval: Option<usize>,
+        temp_trace: Option<TemperatureTrace>,
+    ) -> anyhow::Result<(
+        SetSpeedTrainSim,
+        TrainParams,
+        PathTpc,
+        TrainResWrapper,
+        FricBrake,
+    )> {
         let network = match network.extract::<Network>() {
             Ok(n) => n,
             Err(_) => {
-                let n = network.extract::<Vec<Link>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
-                Network( Default::default(), n)
+                let n = network
+                    .extract::<Vec<Link>>()
+                    .map_err(|_| anyhow!("{}", format_dbg!()))?;
+                Network(Default::default(), n)
             }
         };
 
         let link_path = match link_path.extract::<LinkPath>() {
             Ok(lp) => lp,
             Err(_) => {
-                let lp = link_path.extract::<Vec<LinkIdx>>().map_err(|_| anyhow!("{}", format_dbg!()))?;
+                let lp = link_path
+                    .extract::<Vec<LinkIdx>>()
+                    .map_err(|_| anyhow!("{}", format_dbg!()))?;
                 LinkPath(lp)
             }
         };
 
-        let (train_sim, train_params, path_tpc, tr, fb) = self.make_set_speed_train_sim_and_parts(
-            network,
-            link_path,
-            speed_trace,
-            save_interval
-        ).with_context(|| format_dbg!())?;
+        let (train_sim, train_params, path_tpc, tr, fb) = self
+            .make_set_speed_train_sim_and_parts(
+                network,
+                link_path,
+                speed_trace,
+                save_interval,
+                temp_trace,
+            )
+            .with_context(|| format_dbg!())?;
 
         let trw = TrainResWrapper(tr);
         Ok((train_sim, train_params, path_tpc, trw, fb))
@@ -364,6 +403,7 @@ impl Valid for TrainConfig {
             save_interval=None,
             simulation_days=None,
             scenario_year=None,
+            temp_trace=None,
         )
     )]
     fn make_speed_limit_train_sim_py(
@@ -372,12 +412,14 @@ impl Valid for TrainConfig {
         save_interval: Option<usize>,
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<SpeedLimitTrainSim> {
         self.make_speed_limit_train_sim(
             &location_map,
             save_interval,
             simulation_days,
             scenario_year,
+            temp_trace,
         )
     }
 
@@ -388,6 +430,7 @@ impl Valid for TrainConfig {
             save_interval=None,
             simulation_days=None,
             scenario_year=None,
+            temp_trace=None,
         )
     )]
     fn make_speed_limit_train_sim_and_parts_py(
@@ -396,33 +439,23 @@ impl Valid for TrainConfig {
         save_interval: Option<usize>,
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<(SpeedLimitTrainSim, PathTpc, TrainResWrapper, FricBrake)> {
-        let (ts, path_tpc, tr, fb) =  self.make_speed_limit_train_sim_and_parts(
+        let (ts, path_tpc, tr, fb) = self.make_speed_limit_train_sim_and_parts(
             &location_map,
             save_interval,
             simulation_days,
             scenario_year,
+            temp_trace,
         )?;
 
         let trw = TrainResWrapper(tr);
         Ok((ts, path_tpc, trw, fb))
     }
-)]
-#[derive(Debug, Default, Clone, Deserialize, Serialize, PartialEq, SerdeAPI)]
-pub struct TrainSimBuilder {
-    /// Unique, user-defined identifier for the train
-    pub train_id: String,
-    pub train_config: TrainConfig,
-    pub loco_con: Consist,
-    /// Origin_ID from train planner to map to track network locations.  Only needed if
-    /// [Self::make_speed_limit_train_sim] will be called.
-    pub origin_id: Option<String>,
-    /// Destination_ID from train planner to map to track network locations.  Only needed if
-    /// [Self::make_speed_limit_train_sim] will be called.
-    pub destination_id: Option<String>,
-    #[api(skip_set)]
-    init_train_state: Option<InitTrainState>,
 }
+
+impl Init for TrainSimBuilder {}
+impl SerdeAPI for TrainSimBuilder {}
 
 impl TrainSimBuilder {
     pub fn new(
@@ -486,7 +519,7 @@ impl TrainSimBuilder {
             train_mass_static,
             mass_rot,
             mass_freight,
-            self.init_train_state,
+            self.init_train_state.clone(),
         );
 
         let path_tpc = PathTpc::new(train_params);
@@ -588,6 +621,7 @@ impl TrainSimBuilder {
         link_path: R,
         speed_trace: SpeedTrace,
         save_interval: Option<usize>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<SetSpeedTrainSim> {
         ensure!(
             self.origin_id.is_none() & self.destination_id.is_none(),
@@ -600,15 +634,17 @@ impl TrainSimBuilder {
             .with_context(|| format_dbg!())?;
 
         path_tpc.extend(network, link_path)?;
-        Ok(SetSpeedTrainSim::new(
-            self.loco_con.clone(),
-            self.train_config.n_cars_by_type.clone(),
+        Ok(SetSpeedTrainSimBuilder {
+            loco_con: self.loco_con.clone(),
+            n_cars_by_type: self.train_config.n_cars_by_type.clone(),
             state,
             speed_trace,
             train_res,
             path_tpc,
             save_interval,
-        ))
+            temp_trace,
+        }
+        .into())
     }
 
     pub fn make_set_speed_train_sim_and_parts<Q: AsRef<[Link]>, R: AsRef<[LinkIdx]>>(
@@ -617,6 +653,7 @@ impl TrainSimBuilder {
         link_path: R,
         speed_trace: SpeedTrace,
         save_interval: Option<usize>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<(SetSpeedTrainSim, TrainParams, PathTpc, TrainRes, FricBrake)> {
         ensure!(
             self.origin_id.is_none() & self.destination_id.is_none(),
@@ -630,15 +667,17 @@ impl TrainSimBuilder {
 
         path_tpc.extend(network, link_path)?;
         Ok((
-            SetSpeedTrainSim::new(
-                self.loco_con.clone(),
-                self.train_config.n_cars_by_type.clone(),
+            SetSpeedTrainSimBuilder {
+                loco_con: self.loco_con.clone(),
+                n_cars_by_type: self.train_config.n_cars_by_type.clone(),
                 state,
                 speed_trace,
-                train_res.clone(),
-                path_tpc.clone(),
+                train_res: train_res.clone(),
+                path_tpc: path_tpc.clone(),
                 save_interval,
-            ),
+                temp_trace,
+            }
+            .into(),
             train_params,
             path_tpc,
             train_res,
@@ -652,6 +691,7 @@ impl TrainSimBuilder {
         save_interval: Option<usize>,
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<SpeedLimitTrainSim> {
         let (_, state, path_tpc, train_res, fric_brake) = self
             .make_train_sim_parts(save_interval)
@@ -664,10 +704,10 @@ impl TrainSimBuilder {
             "`TrainSimBuilder` for `make_speed_limit_train_sim` to work."
         );
 
-        Ok(SpeedLimitTrainSim::new(
-            self.train_id.clone(),
+        Ok(SpeedLimitTrainSimBuilder {
+            train_id: self.train_id.clone(),
             // `self.origin_id` verified to be `Some` earlier
-            location_map
+            origs: location_map
                 .get(self.origin_id.as_ref().unwrap())
                 .with_context(|| {
                     anyhow!(format!(
@@ -676,9 +716,10 @@ impl TrainSimBuilder {
                         self.origin_id.as_ref().unwrap(),
                         location_map.keys(),
                     ))
-                })?,
+                })?
+                .to_vec(),
             // `self.destination_id` verified to be `Some` earlier
-            location_map
+            dests: location_map
                 .get(self.destination_id.as_ref().unwrap())
                 .with_context(|| {
                     anyhow!(format!(
@@ -687,9 +728,10 @@ impl TrainSimBuilder {
                         self.destination_id.as_ref().unwrap(),
                         location_map.keys(),
                     ))
-                })?,
-            self.loco_con.clone(),
-            self.train_config.n_cars_by_type.clone(),
+                })?
+                .to_vec(),
+            loco_con: self.loco_con.clone(),
+            n_cars_by_type: self.train_config.n_cars_by_type.clone(),
             state,
             train_res,
             path_tpc,
@@ -697,7 +739,9 @@ impl TrainSimBuilder {
             save_interval,
             simulation_days,
             scenario_year,
-        ))
+            temp_trace,
+        }
+        .into())
     }
 
     pub fn make_speed_limit_train_sim_and_parts(
@@ -706,6 +750,7 @@ impl TrainSimBuilder {
         save_interval: Option<usize>,
         simulation_days: Option<i32>,
         scenario_year: Option<i32>,
+        temp_trace: Option<TemperatureTrace>,
     ) -> anyhow::Result<(SpeedLimitTrainSim, PathTpc, TrainRes, FricBrake)> {
         let (_, state, path_tpc, train_res, fric_brake) = self
             .make_train_sim_parts(save_interval)
@@ -718,10 +763,10 @@ impl TrainSimBuilder {
             "`TrainSimBuilder` for `make_speed_limit_train_sim` to work."
         );
 
-        let ts = SpeedLimitTrainSim::new(
-            self.train_id.clone(),
+        let ts = SpeedLimitTrainSimBuilder {
+            train_id: self.train_id.clone(),
             // `self.origin_id` verified to be `Some` earlier
-            location_map
+            origs: location_map
                 .get(self.origin_id.as_ref().unwrap())
                 .with_context(|| {
                     anyhow!(format!(
@@ -730,9 +775,10 @@ impl TrainSimBuilder {
                         self.origin_id.as_ref().unwrap(),
                         location_map.keys(),
                     ))
-                })?,
+                })?
+                .to_vec(),
             // `self.destination_id` verified to be `Some` earlier
-            location_map
+            dests: location_map
                 .get(self.destination_id.as_ref().unwrap())
                 .with_context(|| {
                     anyhow!(format!(
@@ -741,48 +787,21 @@ impl TrainSimBuilder {
                         self.destination_id.as_ref().unwrap(),
                         location_map.keys(),
                     ))
-                })?,
-            self.loco_con.clone(),
-            self.train_config.n_cars_by_type.clone(),
+                })?
+                .to_vec(),
+            loco_con: self.loco_con.clone(),
+            n_cars_by_type: self.train_config.n_cars_by_type.clone(),
             state,
-            train_res.clone(),
-            path_tpc.clone(),
-            fric_brake.clone(),
+            train_res: train_res.clone(),
+            path_tpc: path_tpc.clone(),
+            fric_brake: fric_brake.clone(),
             save_interval,
             simulation_days,
             scenario_year,
-        );
-        Ok((ts, path_tpc, train_res, fric_brake))
+            temp_trace,
+        };
+        Ok((ts.into(), path_tpc, train_res, fric_brake))
     }
-}
-
-/// This may be deprecated soon! Slts building occurs in train planner.
-#[cfg(feature = "pyo3")]
-#[pyfunction]
-#[pyo3(signature = (
-    train_sim_builders,
-    location_map,
-    save_interval=None,
-    simulation_days=None,
-    scenario_year=None,
-))]
-pub fn build_speed_limit_train_sims(
-    train_sim_builders: Vec<TrainSimBuilder>,
-    location_map: LocationMap,
-    save_interval: Option<usize>,
-    simulation_days: Option<i32>,
-    scenario_year: Option<i32>,
-) -> anyhow::Result<SpeedLimitTrainSimVec> {
-    let mut speed_limit_train_sims = Vec::with_capacity(train_sim_builders.len());
-    for tsb in train_sim_builders.iter() {
-        speed_limit_train_sims.push(tsb.make_speed_limit_train_sim(
-            &location_map,
-            save_interval,
-            simulation_days,
-            scenario_year,
-        )?);
-    }
-    Ok(SpeedLimitTrainSimVec(speed_limit_train_sims))
 }
 
 /// Converts either `Column::Series` or `Column::Scalar` to `Series`
@@ -999,42 +1018,48 @@ pub fn run_speed_limit_train_sims(
                     .loco_vec
                     .iter_mut()
                     .zip(departing_soc_pct_vec)
-                    .for_each(|(loco, soc)| {
-                        if let Some(loco) = &mut loco.reversible_energy_storage_mut() {
-                            loco.state.soc = soc * uc::R
+                    .try_for_each(|(loco, soc)| {
+                        if let Some(res) = &mut loco.reversible_energy_storage_mut() {
+                            res.state.soc.update(soc * uc::R, || format_dbg!())
+                        } else {
+                            Ok(())
                         }
-                    });
+                    })?;
                 let _ = sim
                     .walk_timed_path(&network, &timed_paths[idx])
                     .map_err(|err| err.context(format!("train sim idx: {}", idx)));
 
-                let new_soc_vec: Vec<f64> = sim
-                    .loco_con
-                    .loco_vec
-                    .iter()
-                    .map(|loco| match loco.loco_type {
+                let mut new_soc_vec: Vec<f64> = vec![];
+                for loco in sim.loco_con.loco_vec.clone() {
+                    match loco.loco_type {
                         PowertrainType::BatteryElectricLoco(_) => {
-                            (loco.reversible_energy_storage().unwrap().state.soc
-                                * loco.reversible_energy_storage().unwrap().energy_capacity)
-                                .get::<si::joule>()
+                            new_soc_vec.push(
+                                (*loco
+                                    .reversible_energy_storage()
+                                    .unwrap()
+                                    .state
+                                    .soc
+                                    .get_fresh(|| format_dbg!())?
+                                    * loco.reversible_energy_storage().unwrap().energy_capacity)
+                                    .get::<si::joule>(),
+                            );
                         }
-                        _ => f64::ZERO,
-                    })
-                    .collect();
-                let new_energy_j_vec: Vec<f64> = sim
-                    .loco_con
-                    .loco_vec
-                    .iter()
-                    .map(|loco| match loco.loco_type {
-                        PowertrainType::BatteryElectricLoco(_) => (loco
+                        _ => new_soc_vec.push(f64::ZERO),
+                    }
+                }
+                let mut new_energy_j_vec: Vec<f64> = vec![];
+                for loco in sim.loco_con.loco_vec.clone() {
+                    new_energy_j_vec.push(match loco.loco_type {
+                        PowertrainType::BatteryElectricLoco(_) => loco
                             .reversible_energy_storage()
                             .unwrap()
                             .state
-                            .energy_out_chemical)
+                            .energy_out_chemical
+                            .get_fresh(|| format_dbg!())?
                             .get::<si::joule>(),
                         _ => f64::ZERO,
-                    })
-                    .collect();
+                    });
+                }
                 let mut all_current_socs: Vec<f64> = loco_pool
                     .column("SOC_J")
                     .with_context(|| format_dbg!())?
@@ -1365,30 +1390,36 @@ pub fn run_speed_limit_train_sims(
 }
 
 // This MUST remain a unit struct to trigger correct tolist() behavior
-#[altrios_api(
+#[serde_api]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct SpeedLimitTrainSimVec(pub Vec<SpeedLimitTrainSim>);
+
+#[pyo3_api]
+impl SpeedLimitTrainSimVec {
     #![allow(non_snake_case)]
     #[pyo3(name = "get_energy_fuel_joules")]
-    pub fn get_energy_fuel_py(&self, annualize: bool) -> f64 {
-        self.get_energy_fuel(annualize).get::<si::joule>()
+    pub fn get_energy_fuel_py(&self, annualize: bool) -> anyhow::Result<f64> {
+        Ok(self.get_energy_fuel(annualize)?.get::<si::joule>())
     }
 
     #[pyo3(name = "get_net_energy_res_joules")]
-    pub fn get_net_energy_res_py(&self, annualize: bool) -> f64 {
-        self.get_net_energy_res(annualize).get::<si::joule>()
+    pub fn get_net_energy_res_py(&self, annualize: bool) -> anyhow::Result<f64> {
+        Ok(self.get_net_energy_res(annualize)?.get::<si::joule>())
     }
 
     #[pyo3(name = "get_kilometers")]
-    pub fn get_kilometers_py(&self, annualize: bool) -> f64 {
+    pub fn get_kilometers_py(&self, annualize: bool) -> anyhow::Result<f64> {
         self.get_kilometers(annualize)
     }
 
     #[pyo3(name = "get_megagram_kilometers")]
-    pub fn get_megagram_kilometers_py(&self, annualize: bool) -> f64 {
+    pub fn get_megagram_kilometers_py(&self, annualize: bool) -> anyhow::Result<f64> {
         self.get_megagram_kilometers(annualize)
     }
 
     #[pyo3(name = "get_car_kilometers")]
-    pub fn get_car_kilometers_py(&self, annualize: bool) -> f64 {
+    pub fn get_car_kilometers_py(&self, annualize: bool) -> anyhow::Result<f64> {
         self.get_car_kilometers(annualize)
     }
 
@@ -1398,12 +1429,12 @@ pub fn run_speed_limit_train_sims(
     }
 
     #[pyo3(name = "get_res_kilometers")]
-    pub fn get_res_kilometers_py(&mut self, annualize: bool) -> f64 {
+    pub fn get_res_kilometers_py(&mut self, annualize: bool) -> anyhow::Result<f64> {
         self.get_res_kilometers(annualize)
     }
 
     #[pyo3(name = "get_non_res_kilometers")]
-    pub fn get_non_res_kilometers_py(&mut self, annualize: bool) -> f64 {
+    pub fn get_non_res_kilometers_py(&mut self, annualize: bool) -> anyhow::Result<f64> {
         self.get_non_res_kilometers(annualize)
     }
 
@@ -1418,63 +1449,57 @@ pub fn run_speed_limit_train_sims(
     fn __new__(v: Vec<SpeedLimitTrainSim>) -> Self {
         Self(v)
     }
-)]
-#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct SpeedLimitTrainSimVec(pub Vec<SpeedLimitTrainSim>);
+}
 
 impl SpeedLimitTrainSimVec {
     pub fn new(value: Vec<SpeedLimitTrainSim>) -> Self {
         Self(value)
     }
 
-    pub fn get_energy_fuel(&self, annualize: bool) -> si::Energy {
-        self.0
-            .iter()
-            .map(|sim| sim.get_energy_fuel(annualize))
-            .sum()
+    pub fn get_energy_fuel(&self, annualize: bool) -> anyhow::Result<si::Energy> {
+        self.0.iter().try_fold(si::Energy::ZERO, |acc, sim| {
+            Ok(acc + sim.get_energy_fuel(annualize)?)
+        })
     }
 
-    pub fn get_net_energy_res(&self, annualize: bool) -> si::Energy {
-        self.0
-            .iter()
-            .map(|sim| sim.get_net_energy_res(annualize))
-            .sum()
+    pub fn get_net_energy_res(&self, annualize: bool) -> anyhow::Result<si::Energy> {
+        self.0.iter().try_fold(si::Energy::ZERO, |acc, sim| {
+            Ok(acc + sim.get_net_energy_res(annualize)?)
+        })
     }
 
-    pub fn get_kilometers(&self, annualize: bool) -> f64 {
-        self.0.iter().map(|sim| sim.get_kilometers(annualize)).sum()
-    }
-
-    pub fn get_megagram_kilometers(&self, annualize: bool) -> f64 {
+    pub fn get_kilometers(&self, annualize: bool) -> anyhow::Result<f64> {
         self.0
             .iter()
-            .map(|sim| sim.get_megagram_kilometers(annualize))
-            .sum()
+            .try_fold(0.0, |acc, sim| Ok(acc + sim.get_kilometers(annualize)?))
     }
 
-    pub fn get_car_kilometers(&self, annualize: bool) -> f64 {
+    pub fn get_megagram_kilometers(&self, annualize: bool) -> anyhow::Result<f64> {
+        self.0.iter().try_fold(0.0, |acc, sim| {
+            Ok(acc + sim.get_megagram_kilometers(annualize)?)
+        })
+    }
+
+    pub fn get_car_kilometers(&self, annualize: bool) -> anyhow::Result<f64> {
         self.0
             .iter()
-            .map(|sim| sim.get_car_kilometers(annualize))
-            .sum()
+            .try_fold(0.0, |acc, sim| Ok(acc + sim.get_car_kilometers(annualize)?))
     }
 
     pub fn get_cars_moved(&self, annualize: bool) -> f64 {
         self.0.iter().map(|sim| sim.get_cars_moved(annualize)).sum()
     }
 
-    pub fn get_res_kilometers(&mut self, annualize: bool) -> f64 {
+    pub fn get_res_kilometers(&mut self, annualize: bool) -> anyhow::Result<f64> {
         self.0
             .iter_mut()
-            .map(|sim| sim.get_res_kilometers(annualize))
-            .sum()
+            .try_fold(0.0, |acc, sim| Ok(acc + sim.get_res_kilometers(annualize)?))
     }
 
-    pub fn get_non_res_kilometers(&mut self, annualize: bool) -> f64 {
-        self.0
-            .iter_mut()
-            .map(|sim| sim.get_non_res_kilometers(annualize))
-            .sum()
+    pub fn get_non_res_kilometers(&mut self, annualize: bool) -> anyhow::Result<f64> {
+        self.0.iter_mut().try_fold(0.0, |acc, sim| {
+            Ok(acc + sim.get_non_res_kilometers(annualize)?)
+        })
     }
 
     pub fn set_save_interval(&mut self, save_interval: Option<usize>) {

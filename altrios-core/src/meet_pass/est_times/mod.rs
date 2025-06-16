@@ -14,7 +14,7 @@ use update_times::*;
 
 /// Estimated time node for dispatching
 /// Specifies the expected time of arrival when taking the shortest path with no delays
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, SerdeAPI, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct EstTime {
     /// Scheduled time of arrival at the node
     pub time_sched: si::Time,
@@ -61,16 +61,24 @@ impl Default for EstTime {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, SerdeAPI, PartialEq)]
-#[altrios_api(
-    pub fn get_running_time_hours(&self) -> f64 {
-        (self.val.last().unwrap().time_sched - self.val.first().unwrap().time_sched).get::<si::hour>()
-    }
-)]
+#[serde_api]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct EstTimeNet {
-    #[api(skip_get, skip_set)]
     pub val: Vec<EstTime>,
 }
+
+#[pyo3_api]
+impl EstTimeNet {
+    pub fn get_running_time_hours(&self) -> f64 {
+        (self.val.last().unwrap().time_sched - self.val.first().unwrap().time_sched)
+            .get::<si::hour>()
+    }
+}
+
+impl Init for EstTimeNet {}
+impl SerdeAPI for EstTimeNet {}
+
 impl EstTimeNet {
     pub fn new(val: Vec<EstTime>) -> Self {
         Self { val }
@@ -162,17 +170,18 @@ fn update_est_times_add(
     movement: &[SimpleState],
     link_pts: &[LinkPoint],
     length: si::Length,
-) {
+) -> anyhow::Result<()> {
     est_times_add.clear();
     let state_first = movement.first().unwrap();
 
     // Initialize location indices
     let mut pt_idx_back = 0;
-    while link_pts[pt_idx_back].offset <= state_first.offset - length {
+    while link_pts[pt_idx_back].offset <= *state_first.offset.get_fresh(|| format_dbg!())? - length
+    {
         pt_idx_back += 1;
     }
     let mut pt_idx_front = pt_idx_back;
-    while link_pts[pt_idx_front].offset <= state_first.offset {
+    while link_pts[pt_idx_front].offset <= *state_first.offset.get_fresh(|| format_dbg!())? {
         pt_idx_front += 1;
     }
 
@@ -182,14 +191,19 @@ fn update_est_times_add(
         .min(link_pts[pt_idx_back].offset + length);
     for i in 1..movement.len() {
         // Add estimated times while in range
-        while offset_next <= movement[i].offset {
-            let dist_diff_x2 = 2.0 * (movement[i].offset - offset_next);
-            let speed = (movement[i].speed * movement[i].speed
-                - (movement[i].speed - movement[i - 1].speed)
-                    / (movement[i].time - movement[i - 1].time)
+        while offset_next <= *movement[i].offset.get_fresh(|| format_dbg!())? {
+            let dist_diff_x2 =
+                2.0 * (*movement[i].offset.get_fresh(|| format_dbg!())? - offset_next);
+            let speed = (*movement[i].speed.get_fresh(|| format_dbg!())?
+                * *movement[i].speed.get_fresh(|| format_dbg!())?
+                - (*movement[i].speed.get_fresh(|| format_dbg!())?
+                    - *movement[i - 1].speed.get_fresh(|| format_dbg!())?)
+                    / (*movement[i].time.get_fresh(|| format_dbg!())?
+                        - *movement[i - 1].time.get_fresh(|| format_dbg!())?)
                     * dist_diff_x2)
                 .sqrt();
-            let time_to_next = movement[i].time - dist_diff_x2 / (movement[i].speed + speed);
+            let time_to_next = *movement[i].time.get_fresh(|| format_dbg!())?
+                - dist_diff_x2 / (*movement[i].speed.get_fresh(|| format_dbg!())? + speed);
 
             // Add either an arrive or a clear event depending on which happened earlier
             let link_event =
@@ -225,6 +239,7 @@ fn update_est_times_add(
                 .min(link_pts[pt_idx_back].offset + length);
         }
     }
+    Ok(())
 }
 
 /// Insert a new estimated time into the network.
@@ -537,7 +552,10 @@ pub fn make_est_times<N: AsRef<[Link]>>(
     let mut link_event_map =
         LinkEventMap::with_capacity_and_hasher(est_times.capacity(), Default::default());
     // The departure time for all initial events
-    let time_depart = speed_limit_train_sim.state.time;
+    let time_depart = *speed_limit_train_sim
+        .state
+        .time
+        .get_fresh(|| format_dbg!())?;
 
     // -----------------------------------------------------------------------
     // Push initial "fake" nodes.
@@ -600,7 +618,11 @@ pub fn make_est_times<N: AsRef<[Link]>>(
             &mut link_event_map,
             &EstTime {
                 time_to_next: time_depart,
-                dist_to_next: orig.offset + speed_limit_train_sim.state.length,
+                dist_to_next: orig.offset
+                    + *speed_limit_train_sim
+                        .state
+                        .length
+                        .get_fresh(|| format_dbg!())?,
                 speed: si::Velocity::ZERO,
                 link_event: LinkEvent {
                     link_idx: orig.link_idx,
@@ -669,8 +691,8 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                 &mut est_times_add,
                 &movement,
                 sim.train_sim.link_points(),
-                sim.train_sim.state.length,
-            );
+                *sim.train_sim.state.length.get_fresh(|| format_dbg!())?,
+            )?;
 
             // Step 2b: for each new EstTime, either insert it or try to join an existing path.
             for est_time_add in &est_times_add {
@@ -724,7 +746,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
                 }
                 break;
             }
-            // Step 2d: Otherwise, append the next link options and continue simulating
+            // Otherwise, append the next link options and continue simulating
             else {
                 let link_idx_prev = &sim.train_sim.link_idx_last().unwrap();
                 let link_idx_next = network[link_idx_prev.idx()].idx_next;

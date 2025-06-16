@@ -39,7 +39,7 @@ runtime computational performance penalty.
 
 ### Manually
 
-Whenever updating code, always run `cargo test --release` inside `ALTRIOS/rust/` to ensure that all
+Whenever updating code, always run `cargo test --release` inside `ALTRIOS/` to ensure that all
 tests pass. Also, be sure to rebuild the Python API regularly to ensure that it is up to date.
 Python unit tests run with `python -m unittest discover` in the root folder of the git repository.
 
@@ -93,7 +93,7 @@ In the future, we may incorporate this into GitHub Actions.
 To release this crate, you need to be setup as developer for this crate in crates.io. Follow these steps:
 
 1. Increment the version number in
-   [rust/Cargo.toml](https://github.com/NREL/altrios/blob/dced44b42c456da88363d03dc43259b039a94e6d/rust/Cargo.toml#L48):
+   [Cargo.toml](https://github.com/NREL/altrios/blob/dced44b42c456da88363d03dc43259b039a94e6d/Cargo.toml#L48):
    
    `altrios-proc-macros = { path = "./altrios-core/altrios-proc-macros", version = "0.2.0" }`.
 1. Run `git tag apm<major>.<minor>.<patch>`, where `apm<major>.<minor>.<patch>` should look like

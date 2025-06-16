@@ -116,7 +116,7 @@ pub fn run_dispatch<N: AsRef<[Link]>>(
         train_disps.push(TrainDisp::new(
             slts.train_id.clone(),
             (idx + 1).try_from_idx()?,
-            slts.state.time,
+            *slts.state.time.get_fresh(|| format_dbg!())?,
             8.0 * uc::MIN,
             30.0 * uc::MI,
             10.0 * uc::MI,

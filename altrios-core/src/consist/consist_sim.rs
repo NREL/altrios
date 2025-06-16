@@ -1,4 +1,3 @@
-use altrios_proc_macros::altrios_api;
 use serde::{Deserialize, Serialize};
 
 use crate::consist::locomotive::loco_sim::PowerTrace;
@@ -6,8 +5,16 @@ use crate::consist::Consist;
 use crate::consist::LocoTrait;
 use crate::imports::*;
 
+#[serde_api]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-#[altrios_api(
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct ConsistSimulation {
+    pub loco_con: Consist,
+    pub power_trace: PowerTrace,
+}
+
+#[pyo3_api]
+impl ConsistSimulation {
     #[new]
     #[pyo3(signature = (consist, power_trace, save_interval=None))]
     fn __new__(consist: Consist, power_trace: PowerTrace, save_interval: Option<usize>) -> Self {
@@ -22,7 +29,7 @@ use crate::imports::*;
 
     #[pyo3(name = "step")]
     fn step_py(&mut self) -> anyhow::Result<()> {
-        self.step()
+        self.step(|| format_dbg!())
     }
 
     #[pyo3(name = "set_save_interval")]
@@ -42,11 +49,6 @@ use crate::imports::*;
         self.trim_failed_steps()?;
         Ok(())
     }
-)]
-pub struct ConsistSimulation {
-    pub loco_con: Consist,
-    pub power_trace: PowerTrace,
-    pub i: usize,
 }
 
 impl ConsistSimulation {
@@ -54,7 +56,6 @@ impl ConsistSimulation {
         let mut consist_sim = Self {
             loco_con: consist,
             power_trace,
-            i: 1,
         };
         consist_sim.loco_con.set_save_interval(save_interval);
         consist_sim
@@ -62,10 +63,13 @@ impl ConsistSimulation {
 
     /// Trims off any portion of the trip that failed to run
     pub fn trim_failed_steps(&mut self) -> anyhow::Result<()> {
-        if self.i <= 1 {
+        if *self.loco_con.state.i.get_fresh(|| format_dbg!())? <= 1 {
             bail!("`walk` method has not proceeded past first time step.")
         }
-        self.power_trace.trim(None, Some(self.i))?;
+        self.power_trace.trim(
+            None,
+            Some(*self.loco_con.state.i.get_fresh(|| format_dbg!())?),
+        )?;
 
         Ok(())
     }
@@ -74,47 +78,48 @@ impl ConsistSimulation {
         self.loco_con.set_save_interval(save_interval);
     }
 
-    pub fn step(&mut self) -> anyhow::Result<()> {
-        self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.i)))?;
-        self.save_state();
-        self.i += 1;
-        self.loco_con.step();
-        Ok(())
-    }
-
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
-        self.loco_con.set_pwr_aux(Some(true))?;
+        self.loco_con
+            .state
+            .pwr_cat_lim
+            .mark_fresh(|| format_dbg!())?;
+        // self.loco_con.set_cat_power_limit(
+        //     &self.path_tpc,
+        //     *self.state.offset.get_fresh(|| format_dbg!())?,
+        // )?;
+        self.loco_con
+            .set_pwr_aux(Some(true))
+            .with_context(|| format_dbg!())?;
         let train_mass = self.power_trace.train_mass;
+        let i = *self.loco_con.state.i.get_fresh(|| format_dbg!())?;
         let train_speed = if !self.power_trace.train_speed.is_empty() {
-            Some(self.power_trace.train_speed[self.i])
+            Some(self.power_trace.train_speed[i])
         } else {
             None
         };
-        self.loco_con.set_curr_pwr_max_out(
-            None,
-            train_mass,
-            train_speed,
-            self.power_trace.dt(self.i),
-        )?;
+        let dt = self.power_trace.dt_at_i(i).with_context(|| format_dbg!())?;
+        self.loco_con
+            .set_curr_pwr_max_out(None, None, train_mass, train_speed, dt)
+            .with_context(|| format_dbg!())?;
         self.solve_energy_consumption(
-            self.power_trace.pwr[self.i],
+            self.power_trace.pwr[*self.loco_con.state.i.get_fresh(|| format_dbg!())?],
             train_mass,
             train_speed,
-            self.power_trace.dt(self.i),
-        )?;
+            dt,
+        )
+        .with_context(|| format_dbg!())?;
+        self.set_cumulative(dt, || format_dbg!())?;
         Ok(())
-    }
-
-    fn save_state(&mut self) {
-        self.loco_con.save_state();
     }
 
     /// Iterates step to solve all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
-        self.save_state();
-        while self.i < self.power_trace.len() {
-            self.step()?;
+        self.save_state(|| format_dbg!())?;
+        loop {
+            if *self.loco_con.state.i.get_fresh(|| format_dbg!())? > self.power_trace.len() - 2 {
+                break;
+            }
+            self.step(|| format_dbg!())?;
         }
         Ok(())
     }
@@ -139,6 +144,48 @@ impl ConsistSimulation {
             Some(true),
         )?;
         Ok(())
+    }
+}
+
+impl StateMethods for ConsistSimulation {}
+
+impl SetCumulative for ConsistSimulation {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
+        self.loco_con
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+
+impl CheckAndResetState for ConsistSimulation {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.loco_con
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+
+impl Step for ConsistSimulation {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .step(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        let i = *self
+            .loco_con
+            .state
+            .i
+            .get_fresh(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        self.solve_step()
+            .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
+        self.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+
+impl SaveState for ConsistSimulation {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        self.loco_con
+            .save_state(|| format!("{}\n{}", loc(), format_dbg!()))
     }
 }
 

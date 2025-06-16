@@ -6,25 +6,31 @@ use crate::imports::*;
 ///
 /// Note that for the `*_count` fields, these represent points contained in the link for which grade,
 /// curve, ... information is known, not including the final point in the link.
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct LinkPoint {
     /// Distance relative to the start of the PathTpc where `link_idx` starts
-    #[api(skip_set)]
     pub offset: si::Length,
-    #[api(skip_set)]
+
     /// Number of grade points in the current link
     pub grade_count: usize,
-    #[api(skip_set)]
+
     /// Number of curve points in the current link
     pub curve_count: usize,
-    #[api(skip_set)]
+
     /// Number of catenary power limit points in the current link
     pub cat_power_count: usize,
-    #[api(skip_set)]
+
     /// [LinkIdx] of current link
     pub link_idx: LinkIdx,
 }
+
+#[pyo3_api]
+impl LinkPoint {}
+
+impl Init for LinkPoint {}
+impl SerdeAPI for LinkPoint {}
 
 impl LinkPoint {
     pub fn add_counts(&mut self, other: &Self) {
@@ -66,38 +72,6 @@ impl ObjState for Vec<LinkPoint> {
 impl GetOffset for LinkPoint {
     fn get_offset(&self) -> si::Length {
         self.offset
-    }
-}
-
-impl LinSearchHint for &[LinkPoint] {
-    /// # Arguments
-    /// - `offset`: linear displacement of front of train from initial starting
-    ///   position of back of train along entire PathTPC
-    /// - `idx`: index of front (TODO: clarify this) of train within corresponding [PathResCoeff]
-    /// - `dir`: direction of train along PathTPC
-    fn calc_idx(&self, offset: si::Length, mut idx: usize, dir: &Dir) -> anyhow::Result<usize> {
-        if dir != &Dir::Bwd {
-            ensure!(
-                offset <= self.last().unwrap().get_offset(),
-                "{}\nOffset in forward direction larger than last slice offset at idx: {}!",
-                format_dbg!(),
-                idx
-            );
-            while self[idx + 1].get_offset() < offset {
-                idx += 1;
-            }
-        } else if dir != &Dir::Fwd {
-            ensure!(
-                self.first().unwrap().get_offset() <= offset,
-                "{}\nOffset in reverse direction smaller than first slice offset at idx: {}!",
-                format_dbg!(),
-                idx
-            );
-            while offset < self[idx].get_offset() {
-                idx -= 1;
-            }
-        }
-        Ok(idx)
     }
 }
 

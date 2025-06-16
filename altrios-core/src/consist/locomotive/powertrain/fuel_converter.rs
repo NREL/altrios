@@ -211,13 +211,17 @@ impl FuelConverter {
 
         self.pwr_out_max_init = self.pwr_out_max_init.max(self.pwr_out_max / 10.);
         self.state.pwr_out_max.update(
-            *self.state.pwr_shaft.get_stale(|| format_dbg!())?
-                + ((self.pwr_out_max / self.pwr_ramp_lag) * dt)
-                    .min(self.pwr_out_max)
-                    .min(pwr_max_derated)
-                    .max(self.pwr_out_max_init),
+            (*self.state.pwr_shaft.get_stale(|| format_dbg!())?
+                + self.pwr_out_max / self.pwr_ramp_lag * dt)
+                .min(self.pwr_out_max)
+                .min(pwr_max_derated)
+                .max(self.pwr_out_max_init),
             || format_dbg!(),
         )?;
+        #[cfg(test)]
+        {
+            ensure!(self.state.pwr_out_max.get_fresh(|| format_dbg!())? <= &self.pwr_out_max)
+        }
         Ok(())
     }
 
@@ -493,7 +497,7 @@ mod tests {
         let mut fc = test_fc();
         fc.check_and_reset(|| format_dbg!()).unwrap();
         fc.step(|| format_dbg!()).unwrap();
-        
+
         fc.state
             .pwr_out_max
             .update(uc::MW * 2.0, || format_dbg!())

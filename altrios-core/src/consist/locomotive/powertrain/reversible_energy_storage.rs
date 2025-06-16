@@ -478,10 +478,10 @@ impl ReversibleEnergyStorage {
                 <= *self.state.soc_chrg_buffer.get_fresh(|| format_dbg!())?
             {
                 self.pwr_out_max
-            } else if *self.state.soc.get_fresh(|| format_dbg!())? < self.max_soc
+            } else if *self.state.soc.get_stale(|| format_dbg!())? < self.max_soc
                 && soc_buffer_delta > si::Ratio::ZERO
             {
-                self.pwr_out_max * (self.max_soc - *self.state.soc.get_fresh(|| format_dbg!())?)
+                self.pwr_out_max * (self.max_soc - *self.state.soc.get_stale(|| format_dbg!())?)
                     / soc_buffer_delta
             } else {
                 // current SOC is less than both
@@ -535,7 +535,7 @@ impl ReversibleEnergyStorage {
                 > *self.state.soc_disch_buffer.get_fresh(|| format_dbg!())?
             {
                 self.pwr_out_max
-            } else if *self.state.soc.get_fresh(|| format_dbg!())? > self.min_soc
+            } else if *self.state.soc.get_stale(|| format_dbg!())? > self.min_soc
                 && soc_buffer_delta > si::Ratio::ZERO
             {
                 self.pwr_out_max * (*self.state.soc.get_stale(|| format_dbg!())? - self.min_soc)

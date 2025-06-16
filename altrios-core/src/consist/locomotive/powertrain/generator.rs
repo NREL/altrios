@@ -271,6 +271,20 @@ impl Generator {
             ),
         );
 
+        ensure!(
+            utils::almost_le_uom(
+                &(pwr_prop_req + pwr_aux),
+                self.state.pwr_elec_out_max.get_fresh(|| format_dbg!())?,
+                None
+            ),
+            format!(
+                "{}\ngen required power ({:.6} MW) exceeds static max power ({:.6} MW)",
+                format_dbg!(pwr_prop_req + pwr_aux <= self.pwr_out_max),
+                (pwr_prop_req + pwr_aux).get::<si::megawatt>(),
+                self.pwr_out_max.get::<si::megawatt>()
+            ),
+        );
+
         // if the engine is not on, `pwr_out_req` should be 0.0
         ensure!(
             engine_on || (pwr_prop_req + pwr_aux == si::Power::ZERO),
@@ -378,6 +392,10 @@ impl ElectricMachine for Generator {
                 &self.eta_interp,
                 false,
             )?;
+        ensure!(
+            eta <= uc::R && eta >= uc::R * 0.0,
+            format!("Invalid `eta`: {}", eta.get::<si::ratio>())
+        );
         self.state
             .pwr_elec_out_max
             .update((pwr_in_max * eta).min(self.pwr_out_max), || format_dbg!())?;

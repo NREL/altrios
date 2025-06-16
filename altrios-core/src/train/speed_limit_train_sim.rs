@@ -950,19 +950,6 @@ impl SpeedLimitTrainSim {
             }
             // If the friction braking must increase, max out the regen dyn first
             else {
-                ensure!(
-                    utils::almost_le_uom(
-                        self.fric_brake.state.force.get_fresh(|| format_dbg!())?,
-                        self.fric_brake
-                            .state
-                            .force_max_curr
-                            .get_fresh(|| format_dbg!())?,
-                        None
-                    ),
-                    "Too much force requested from friction brake! Req={:?}, max={:?}",
-                    self.fric_brake.state.force,
-                    self.fric_brake.state.force_max_curr,
-                );
                 (
                     -f_max_consist_regen_dyn,
                     -(f_applied + f_max_consist_regen_dyn),
@@ -974,6 +961,20 @@ impl SpeedLimitTrainSim {
             .state
             .force
             .update(fric_brake_force, || format_dbg!())?;
+
+        ensure!(
+            utils::almost_le_uom(
+                self.fric_brake.state.force.get_fresh(|| format_dbg!())?,
+                self.fric_brake
+                    .state
+                    .force_max_curr
+                    .get_fresh(|| format_dbg!())?,
+                None
+            ),
+            "Too much force requested from friction brake! Req={:?}, max={:?}",
+            self.fric_brake.state.force,
+            self.fric_brake.state.force_max_curr,
+        );
 
         let pwr_whl_out_unclipped = f_consist * *self.state.speed.get_fresh(|| format_dbg!())?;
 

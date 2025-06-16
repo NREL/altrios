@@ -118,17 +118,13 @@ impl LocoTrait for Box<HybridLoco> {
         })?;
         match &mut self.pt_cntrl {
             HybridPowertrainControls::RGWDB(rgwb) => {
-                if *self.fc.state.engine_on.get_stale(|| format_dbg!())? && *self.fc.state.time_on.get_stale(|| format_dbg!())?
+                rgwb.state.on_time_too_short.update(*self.fc.state.engine_on.get_stale(|| format_dbg!())? && *self.fc.state.time_on.get_stale(|| format_dbg!())?
                     < rgwb.fc_min_time_on.with_context(|| {
                     anyhow!(
                         "{}\n Expected `ResGreedyWithBuffers::init` to have been called beforehand.",
                         format_dbg!()
                     )
-                })? {
-                    rgwb.state.on_time_too_short.update(true, || format_dbg!())?
-                } else {
-                    rgwb.state.on_time_too_short.update(false, || format_dbg!())?
-                }
+                })?, || format_dbg!())?;
             }
         };
 
@@ -673,11 +669,10 @@ impl RESGreedyWithDynamicBuffers {
 
     /// Determines whether enigne must be on for high speed
     fn handle_fc_on_causes_for_speed(&mut self, train_speed: si::Velocity) -> anyhow::Result<()> {
-        if train_speed > self.speed_fc_forced_on.with_context(|| format_dbg!())? {
-            self.state
-                .train_speed_above_threshold
-                .update(true, || format_dbg!())?;
-        }
+        self.state.train_speed_above_threshold.update(
+            train_speed > self.speed_fc_forced_on.with_context(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
         Ok(())
     }
 
@@ -689,17 +684,11 @@ impl RESGreedyWithDynamicBuffers {
         train_speed: si::Velocity,
     ) -> anyhow::Result<()> {
         self.set_soc_fc_on_buffer(res, mass, train_speed)?;
-        if *res.state.soc.get_stale(|| format_dbg!())?
-            < *self.state.soc_fc_on_buffer.get_fresh(|| format_dbg!())?
-        {
-            self.state
-                .charging_for_low_soc
-                .update(true, || format_dbg!())?;
-        } else {
-            self.state
-                .charging_for_low_soc
-                .update(false, || format_dbg!())?;
-        }
+        self.state.charging_for_low_soc.update(
+            *res.state.soc.get_stale(|| format_dbg!())?
+                < *self.state.soc_fc_on_buffer.get_fresh(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
         Ok(())
     }
 }

@@ -75,7 +75,7 @@ impl SavedSim {
         movement.clear();
         movement.push(SimpleState::from_train_state(&self.train_sim.state));
         // TODO: Tighten up this bound using braking points.
-        while condition(&mut self.train_sim)? {
+        while condition(&mut self.train_sim).with_context(|| format_dbg!())? {
             self.train_sim.step(|| format_dbg!())?;
             movement.push(SimpleState::from_train_state(&self.train_sim.state));
         }

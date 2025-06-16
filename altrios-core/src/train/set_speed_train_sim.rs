@@ -355,6 +355,18 @@ impl SetSpeedTrainSim {
             .state
             .pwr_cat_lim
             .mark_fresh(|| format_dbg!())?;
+        // not used in set_speed_train_sim
+        self.state.speed_limit.mark_fresh(|| format_dbg!())?;
+        // not used in set_speed_train_sim
+        self.state.speed_target.mark_fresh(|| format_dbg!())?;
+        // not used in set_speed_train_sim
+        self.state.mass_static.mark_fresh(|| format_dbg!())?;
+        // not used in set_speed_train_sim
+        self.state.mass_rot.mark_fresh(|| format_dbg!())?;
+        // not used in set_speed_train_sim
+        self.state.mass_freight.mark_fresh(|| format_dbg!())?;
+        // TODO: update this if length ever becomes dynamic
+        self.state.length.mark_fresh(|| format_dbg!())?;
         // set the catenary power limit.  I'm assuming it is 0 at this point.
         // self.loco_con.set_cat_power_limit(
         //     &self.path_tpc,

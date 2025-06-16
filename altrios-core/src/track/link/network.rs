@@ -29,7 +29,6 @@ pub struct Link {
     /// if it does not exist, it should be `LinkIdx{idx: 0}`
     pub idx_prev_alt: LinkIdx,
     /// Optional OpenStreetMap ID -- not used in simulation
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub osm_id: Option<String>,
     /// Total length of [Self]
     // #[serde(alias = "length")] // TODO: uncomment

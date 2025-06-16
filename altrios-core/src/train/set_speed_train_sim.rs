@@ -203,7 +203,6 @@ pub struct SetSpeedTrainSim {
     pub loco_con: Consist,
     pub n_cars_by_type: HashMap<String, u32>,
     #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: TrainState,
     pub speed_trace: SpeedTrace,
 

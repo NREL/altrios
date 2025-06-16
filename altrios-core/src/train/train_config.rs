@@ -38,7 +38,6 @@ pub struct TrainConfig {
     /// Total train mass that overrides the railcar specific values, if provided
     pub train_mass: Option<si::Mass>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     /// Optional vector of drag areas (i.e. drag coeff. times frontal area)
     /// for each car.  If provided, the total drag area (drag coefficient

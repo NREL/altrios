@@ -17,7 +17,6 @@ pub struct Consist {
     /// whether to panic if TPC requires more power than consist can deliver
     assert_limits: bool,
     #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ConsistState,
     #[serde(default)]
     /// Custom vector of [Self::state]

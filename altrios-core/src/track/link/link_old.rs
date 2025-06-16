@@ -40,7 +40,6 @@ pub struct LinkOld {
     /// Index of adjacent link in reverse direction
     pub idx_flip: LinkIdx,
     /// Optional OpenStreetMap ID -- not used in simulation
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub osm_id: Option<String>,
     #[serde(default)]
     pub link_idxs_lockout: Vec<LinkIdx>,

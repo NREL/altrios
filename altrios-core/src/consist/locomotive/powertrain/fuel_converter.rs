@@ -10,7 +10,6 @@ const TOL: f64 = 1e-3;
 /// Struct for modeling Fuel Converter (e.g. engine, fuel cell.)
 pub struct FuelConverter {
     #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     /// struct for tracking current state
     pub state: FuelConverterState,
     /// FuelConverter mass
@@ -47,7 +46,6 @@ pub struct FuelConverter {
     /// Custom vector of [Self::state]
     #[serde(
         default,
-        skip_serializing_if = "FuelConverterStateHistoryVec::is_empty"
     )]
     pub history: FuelConverterStateHistoryVec, // TODO: spec out fuel tank size and track kg of fuel
 }

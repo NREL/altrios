@@ -11,7 +11,6 @@ use crate::pyo3::*;
 /// everything involved in converting high voltage electrical power to force exerted by the wheel on the track.  
 pub struct ElectricDrivetrain {
     #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     /// struct for tracking current state
     pub state: ElectricDrivetrainState,
     /// Shaft output power fraction array at which efficiencies are evaluated.
@@ -29,10 +28,7 @@ pub struct ElectricDrivetrain {
     /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state] haha
-    #[serde(
-        default,
-        skip_serializing_if = "ElectricDrivetrainStateHistoryVec::is_empty"
-    )]
+    #[serde(default)]
     pub history: ElectricDrivetrainStateHistoryVec,
 }
 

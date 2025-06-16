@@ -14,7 +14,6 @@ const TOL: f64 = 1e-3;
 pub struct ReversibleEnergyStorage {
     /// struct for tracking current state
     #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ReversibleEnergyStorageState,
     /// ReversibleEnergyStorage mass
     #[serde(default)]
@@ -46,10 +45,7 @@ pub struct ReversibleEnergyStorage {
     pub max_soc: si::Ratio,
     /// Time step interval at which history is saved
     pub save_interval: Option<usize>,
-    #[serde(
-        default,
-        skip_serializing_if = "ReversibleEnergyStorageStateHistoryVec::is_empty"
-    )]
+    #[serde(default)]
     /// Custom vector of [Self::state]
     pub history: ReversibleEnergyStorageStateHistoryVec,
 }

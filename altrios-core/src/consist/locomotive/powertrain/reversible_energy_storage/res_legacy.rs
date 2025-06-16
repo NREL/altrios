@@ -7,7 +7,6 @@ use super::*;
 pub struct ReversibleEnergyStorageLegacy {
     /// struct for tracking current state
     #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ReversibleEnergyStorageState,
     /// ReversibleEnergyStorage mass
     #[serde(default)]
@@ -45,10 +44,7 @@ pub struct ReversibleEnergyStorageLegacy {
     pub soc_lo_ramp_start: Option<si::Ratio>,
     /// Time step interval at which history is saved
     pub save_interval: Option<usize>,
-    #[serde(
-        default,
-        skip_serializing_if = "ReversibleEnergyStorageStateHistoryVec::is_empty"
-    )]
+    #[serde(default)]
     /// Custom vector of [Self::state]
     pub history: ReversibleEnergyStorageStateHistoryVec,
 }

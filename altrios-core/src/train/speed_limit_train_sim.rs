@@ -77,7 +77,6 @@ pub struct SpeedLimitTrainSim {
     /// Number of railcars by type on the train
     pub n_cars_by_type: HashMap<String, u32>,
     #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: TrainState,
 
     pub train_res: TrainRes,
@@ -1228,8 +1227,7 @@ mod tests {
         // test to and from file for msgpack
         let temp_msgpack_path = tempdir.path().join("ts.msgpack");
         ts0.to_file(temp_msgpack_path.clone()).unwrap();
-        let ts_msgpack =
-            crate::prelude::SpeedLimitTrainSim::from_file(temp_msgpack_path, false).unwrap();
+        let ts_msgpack = SpeedLimitTrainSim::from_file(temp_msgpack_path, false).unwrap();
 
         // `to_yaml` is probably needed to get around problems with NAN
         assert_eq!(ts_msgpack.to_yaml().unwrap(), ts0.to_yaml().unwrap());

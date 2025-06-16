@@ -374,7 +374,6 @@ pub struct Locomotive {
     pub loco_type: PowertrainType,
     /// current state of locomotive
     #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: LocomotiveState,
 
     #[serde(default)]
@@ -394,7 +393,7 @@ pub struct Locomotive {
     /// no saving occurs.
     save_interval: Option<usize>,
     /// Custom vector of [Self::state]
-    #[serde(default, skip_serializing_if = "LocomotiveStateHistoryVec::is_empty")]
+    #[serde(default)]
     pub history: LocomotiveStateHistoryVec,
     #[serde(default = "utils::return_true")]
     /// If true, requires power demand to not exceed consist

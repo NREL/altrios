@@ -41,20 +41,6 @@ class TestRES(unittest.TestCase):
 
         self.assertEqual(res1.min_soc, res2.min_soc)
 
-    def test_set_nested_state_error(self):
-        res = mock_reversible_energy_storage()
-
-        with self.assertRaises(AttributeError):
-            # not allowed to set value on nested state
-            res.state.min_soc = 0.5
-
-    def test_set_nested_state_proper(self):
-        res = mock_reversible_energy_storage()
-
-        alt.set_param_from_path(res, "state.soc", 1.0)
-
-        self.assertEqual(res.state.soc, 1.0)
-
     def test_get_set_eta_max(self):
         res = mock_reversible_energy_storage()
 

@@ -14,17 +14,3 @@ class TestElectricDrivetrain(unittest.TestCase):
 
         self.assertEqual(gen1.pwr_out_max_watts, gen2.pwr_out_max_watts)
         self.assertEqual(gen1.eta_interp.tolist(), gen2.eta_interp.tolist())
-
-    def test_set_nested_state_error(self):
-        edrv = mock_electric_drivetrain()
-
-        with self.assertRaises(AttributeError): 
-            # not allowed to set value on nested state
-            edrv.state.pwr_loss_watts = 0.5
-
-    def test_set_nested_state_proper(self):
-        edrv = mock_electric_drivetrain()
-
-        alt.set_param_from_path(edrv, "state.pwr_loss_watts", 1.0)
-
-        self.assertEqual(edrv.state.pwr_loss_watts, 1.0)

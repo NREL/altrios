@@ -105,6 +105,12 @@ impl Generator {
         self.specific_pwr
             .map(|sp| sp.get::<si::kilowatt_per_kilogram>())
     }
+
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
+    }
 }
 
 impl Init for Generator {

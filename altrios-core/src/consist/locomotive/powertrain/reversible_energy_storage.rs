@@ -161,6 +161,12 @@ impl ReversibleEnergyStorage {
         self.specific_energy
             .map(|se| se.get::<si::kilojoule_per_kilogram>())
     }
+
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
+    }
 }
 
 impl Default for ReversibleEnergyStorage {

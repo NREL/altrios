@@ -44,9 +44,7 @@ pub struct FuelConverter {
     /// time step interval between saves. 1 is a good option. If None, no saving occurs.
     pub save_interval: Option<usize>,
     /// Custom vector of [Self::state]
-    #[serde(
-        default,
-    )]
+    #[serde(default)]
     pub history: FuelConverterStateHistoryVec, // TODO: spec out fuel tank size and track kg of fuel
 }
 
@@ -94,6 +92,12 @@ impl FuelConverter {
     #[pyo3(name = "set_default_elev_and_temp_derate")]
     fn set_default_elev_and_temp_derate_py(&mut self) {
         self.set_default_elev_and_temp_derate()
+    }
+
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
     }
 }
 

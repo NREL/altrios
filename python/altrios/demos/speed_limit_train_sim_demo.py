@@ -96,16 +96,16 @@ hel_sans_buffers = alt.Locomotive.from_pydict(hel_new_dict)
 # construct a vector of one BEL, one HEL, and several conventional locomotives
 loco_vec = (
     []
-    # + [bel.clone()]
-    + [hel.clone()]
+    # + [bel.copy()]
+    + [hel.copy()]
     + [alt.Locomotive.default()] * 1
 )
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
 loco_vec_sans_buffers = (
     []
-    # + [bel_sans_buffers.clone()]
-    + [hel_sans_buffers.clone()]
+    # + [bel_sans_buffers.copy()]
+    + [hel_sans_buffers.copy()]
     + [alt.Locomotive.default()] * 1
 )
 

@@ -57,13 +57,13 @@ conv_with_derate = alt.Locomotive.from_pydict(conv_new_dict)
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
 loco_vec = (
-    [hel.clone()]
+    [hel.copy()]
     + [alt.Locomotive.default()] * 1
 )
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
 loco_vec_with_derating = (
-    [hel_with_derate.clone()]
+    [hel_with_derate.copy()]
     + [conv_with_derate] * 1
 )
 

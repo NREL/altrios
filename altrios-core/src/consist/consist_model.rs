@@ -160,6 +160,12 @@ impl Consist {
     fn get_mass_kg_py(&self) -> anyhow::Result<Option<f64>> {
         Ok(self.mass()?.map(|m| m.get::<si::kilogram>()))
     }
+
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
+    }
 }
 
 impl Init for Consist {

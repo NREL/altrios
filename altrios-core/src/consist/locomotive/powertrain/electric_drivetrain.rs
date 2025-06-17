@@ -82,6 +82,12 @@ impl ElectricDrivetrain {
             .set_eta_range(eta_range)
             .map_err(PyValueError::new_err)?)
     }
+
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
+    }
 }
 
 impl ElectricDrivetrain {

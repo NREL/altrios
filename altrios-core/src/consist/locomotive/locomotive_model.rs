@@ -247,6 +247,12 @@ impl LocoParams {
     fn from_dict_py(param_dict: &Bound<PyDict>) -> anyhow::Result<Self> {
         Self::from_dict(param_dict)
     }
+
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
+    }
 }
 
 impl LocoParams {
@@ -651,6 +657,18 @@ impl Locomotive {
     fn set_mu_py(&mut self, mu: f64, mu_side_effect: String) -> anyhow::Result<()> {
         self.set_mu(mu * uc::R, mu_side_effect.try_into()?)?;
         Ok(())
+    }
+
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
+    }
+
+    #[staticmethod]
+    #[pyo3(name = "default_battery_electric_loco")]
+    fn default_battery_electric_loco_py() -> Self {
+        Self::default_battery_electric_loco()
     }
 }
 

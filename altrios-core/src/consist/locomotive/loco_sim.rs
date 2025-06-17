@@ -35,6 +35,12 @@ impl PowerTrace {
     fn __len__(&self) -> usize {
         self.len()
     }
+
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
+    }
 }
 
 impl Init for PowerTrace {}

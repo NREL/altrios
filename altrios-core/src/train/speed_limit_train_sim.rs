@@ -210,6 +210,12 @@ impl SpeedLimitTrainSim {
         };
         self.walk_timed_path(&network, timed_path)
     }
+
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
+    }
 }
 
 pub struct SpeedLimitTrainSimBuilder {

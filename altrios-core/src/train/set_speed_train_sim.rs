@@ -43,6 +43,12 @@ impl SpeedTrace {
     fn to_csv_file_py(&self, filepath: &Bound<PyAny>) -> anyhow::Result<()> {
         self.to_csv_file(PathBuf::extract_bound(filepath)?)
     }
+
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
+    }
 }
 
 impl SpeedTrace {

@@ -501,10 +501,10 @@ impl SpeedLimitTrainSim {
         let elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)> =
             if let Some(tt) = &self.temp_trace {
                 Some((
-                    *self.state.elev_front.get_fresh(|| format_dbg!())?,
+                    *self.state.elev_front.get_stale(|| format_dbg!())?,
                     tt.get_temp_at_time_and_elev(
-                        *self.state.time.get_fresh(|| format_dbg!())?,
-                        *self.state.elev_front.get_fresh(|| format_dbg!())?,
+                        *self.state.time.get_stale(|| format_dbg!())?,
+                        *self.state.elev_front.get_stale(|| format_dbg!())?,
                     )
                     .with_context(|| format_dbg!())?,
                 ))

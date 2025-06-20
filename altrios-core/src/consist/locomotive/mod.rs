@@ -7,6 +7,8 @@ pub mod loco_sim;
 pub mod locomotive_model;
 pub mod powertrain;
 pub use locomotive_model::*;
+pub mod loco_utils;
+pub use loco_utils::*;
 
 use super::*;
 pub use crate::consist::locomotive::battery_electric_loco::{
@@ -20,7 +22,6 @@ pub use crate::consist::locomotive::hybrid_loco::{
 };
 #[allow(unused_imports)] // probably gets used in tests
 use crate::imports::*;
-use altrios_proc_macros::{altrios_api, HistoryVec};
 
 use crate::consist::locomotive::powertrain::electric_drivetrain::ElectricDrivetrain;
 use crate::consist::locomotive::powertrain::fuel_converter::FuelConverter;

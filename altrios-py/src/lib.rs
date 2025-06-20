@@ -51,10 +51,6 @@ fn altrios_pyo3(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<Network>()?;
     m.add_class::<PathTpc>()?;
     m.add_class::<PowerTrace>()?;
-    m.add_class::<Pyo3Vec2Wrapper>()?;
-    m.add_class::<Pyo3Vec3Wrapper>()?;
-    m.add_class::<Pyo3VecBoolWrapper>()?;
-    m.add_class::<Pyo3VecWrapper>()?;
     m.add_class::<RESGreedyWithDynamicBuffers>()?;
     m.add_class::<RESGreedyWithDynamicBuffersBEL>()?;
     m.add_class::<RailVehicle>()?;

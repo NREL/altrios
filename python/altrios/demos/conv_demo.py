@@ -48,20 +48,21 @@ pt = alt.PowerTrace.default()
 sim = alt.LocomotiveSimulation(conv, pt, SAVE_INTERVAL)
 t1 = time.perf_counter()
 
-print(f"Time to load: {t1-t0:.3g}")
+print(f"Time to load: {t1 - t0:.3g}")
 
 # simulate
 t0 = time.perf_counter()
 sim.walk()
 t1 = time.perf_counter()
-print(f"Time to simulate: {t1-t0:.5g}")
+print(f"Time to simulate: {t1 - t0:.5g}")
 
 
 # %%
 
 
-conv_rslt = sim.loco_unit
-t_s = np.array(sim.power_trace.time_seconds)
+sim_dict = sim.to_pydict()
+conv_rslt = sim_dict["loco_unit"]
+t_s = np.array(sim_dict["power_trace"]["time_seconds"])
 
 fig, ax = plt.subplots(2, 1, sharex=True, figsize=(10, 12))
 
@@ -72,27 +73,33 @@ i = 0
 
 ax[i].plot(
     t_s,
-    np.array(conv_rslt.fc.history.pwr_fuel_watts) * 1e-6,
+    np.array(
+        conv_rslt["loco_type"]["ConventionalLoco"]["fc"]["history"]["pwr_fuel_watts"]
+    )
+    * 1e-6,
     label="fc pwr_out_fuel",
 )
 ax[i].plot(
     t_s,
-    np.array(conv_rslt.fc.history.pwr_out_max_watts) * 1e-6,
+    np.array(
+        conv_rslt["loco_type"]["ConventionalLoco"]["fc"]["history"]["pwr_out_max_watts"]
+    )
+    * 1e-6,
     label="fc pwr_out_max",
 )
 ax[i].plot(
     t_s,
-    np.array(conv_rslt.history.pwr_out_max_watts) * 1e-6,
+    np.array(conv_rslt["history"]["pwr_out_max_watts"]) * 1e-6,
     label="loco pwr_out_max",
 )
 ax[i].plot(
     t_s,
-    np.array(conv_rslt.history.pwr_out_watts) * 1e-6,
+    np.array(conv_rslt["history"]["pwr_out_watts"]) * 1e-6,
     label="loco pwr_out",
 )
 ax[i].plot(
     t_s,
-    np.array(sim.power_trace.pwr_watts) * 1e-6,
+    np.array(sim_dict["power_trace"]["pwr_watts"]) * 1e-6,
     linestyle="--",
     label="power_trace",
 )
@@ -105,7 +112,7 @@ ax[i].legend(fontsize=fontsize)
 i += 1
 ax[i].plot(
     t_s,
-    np.array(sim.loco_unit.history.pwr_out_watts),
+    np.array(sim_dict["loco_unit"]["history"]["pwr_out_watts"]),
 )
 ax[i].set_ylabel("Total Tractive\nEffort [MW]", fontsize=fontsize)
 

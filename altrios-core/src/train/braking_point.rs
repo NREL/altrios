@@ -1,12 +1,19 @@
 use super::{friction_brakes::FricBrake, train_imports::*};
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct BrakingPoint {
     pub offset: si::Length,
     pub speed_limit: si::Velocity,
     pub speed_target: si::Velocity,
 }
+
+#[pyo3_api]
+impl BrakingPoint {}
+
+impl Init for BrakingPoint {}
+impl SerdeAPI for BrakingPoint {}
 
 impl ObjState for BrakingPoint {
     fn validate(&self) -> ValidationResults {
@@ -18,13 +25,20 @@ impl ObjState for BrakingPoint {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct BrakingPoints {
     points: Vec<BrakingPoint>,
     /// index within [Self::points]
     idx_curr: usize,
 }
+
+impl Init for BrakingPoints {}
+impl SerdeAPI for BrakingPoints {}
+
+#[pyo3_api]
+impl BrakingPoints {}
 
 impl BrakingPoints {
     /// Arguments:
@@ -81,10 +95,15 @@ impl BrakingPoints {
             ..Default::default()
         });
 
-        let mut train_state = *train_state;
+        let mut train_state = train_state.clone();
         let mut train_res = train_res.clone();
-        train_state.offset = path_tpc.offset_end();
-        train_state.speed = si::Velocity::ZERO;
+        // `update_unchecked` is needed here because `solve_required_pwr` also calls this
+        train_state
+            .offset
+            .update_unchecked(path_tpc.offset_end(), || format_dbg!())?;
+        train_state
+            .speed
+            .update_unchecked(si::Velocity::ZERO, || format_dbg!())?;
         train_res.update_res(&mut train_state, path_tpc, &Dir::Unk)?;
         let speed_points = path_tpc.speed_points();
         let mut idx = path_tpc.speed_points().len();
@@ -103,19 +122,23 @@ impl BrakingPoints {
                     }
                     let speed_limit = speed_points[idx].speed_limit.abs();
 
-                    train_state.offset = bp_curr.offset;
-                    train_state.speed = bp_curr.speed_limit;
+                    train_state
+                        .offset
+                        .update_unchecked(bp_curr.offset, || format_dbg!())?;
+                    train_state
+                        .speed
+                        .update_unchecked(bp_curr.speed_limit, || format_dbg!())?;
                     train_res.update_res(&mut train_state, path_tpc, &Dir::Bwd)?;
 
                     ensure!(
-                        fric_brake.force_max + train_state.res_net() > si::Force::ZERO,
+                        fric_brake.force_max + train_state.res_net()? > si::Force::ZERO,
                         format!(
                             "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
                             format_dbg!(
-                                fric_brake.force_max + train_state.res_net() > si::Force::ZERO
+                                fric_brake.force_max + train_state.res_net()? > si::Force::ZERO
                             ),
                             format_dbg!(fric_brake.force_max),
-                            format_dbg!(train_state.res_net()),
+                            format_dbg!(train_state.res_net()?),
                             format_dbg!(train_state.res_grade),
                             format_dbg!(train_state.grade_front),
                             format_dbg!(train_state.grade_back),
@@ -134,14 +157,15 @@ impl BrakingPoints {
                             format_dbg!(train_state.offset_in_link)
                         )
                     );
-                    let vel_change = train_state.dt
-                        * (fric_brake.force_max + train_state.res_net())
+                    let vel_change = *train_state.dt.get_fresh(|| format_dbg!())?
+                        * (fric_brake.force_max + train_state.res_net()?)
                         / train_state.mass_compound().with_context(|| format_dbg!())?;
 
                     // exit after adding a couple of points if the next braking curve point will exceed the speed limit
                     if speed_limit < bp_curr.speed_limit + vel_change {
                         self.points.push(BrakingPoint {
-                            offset: bp_curr.offset - train_state.dt * speed_limit,
+                            offset: bp_curr.offset
+                                - *train_state.dt.get_fresh(|| format_dbg!())? * speed_limit,
                             speed_limit,
                             speed_target: bp_curr.speed_target,
                         });
@@ -152,7 +176,8 @@ impl BrakingPoints {
                         // Add normal point to braking curve
                         self.points.push(BrakingPoint {
                             offset: bp_curr.offset
-                                - train_state.dt * (bp_curr.speed_limit + 0.5 * vel_change),
+                                - *train_state.dt.get_fresh(|| format_dbg!())?
+                                    * (bp_curr.speed_limit + 0.5 * vel_change),
                             speed_limit: bp_curr.speed_limit + vel_change,
                             speed_target: bp_curr.speed_target,
                         });

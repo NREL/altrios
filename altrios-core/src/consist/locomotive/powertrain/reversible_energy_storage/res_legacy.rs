@@ -1,13 +1,12 @@
 use super::*;
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, StateMethods, SetCumulative)]
 /// Legacy veryion of [ReversibleEnergyStorage]
 ///
 /// Struct for modeling technology-naive Reversible Energy Storage (e.g. battery, flywheel).
 pub struct ReversibleEnergyStorageLegacy {
     /// struct for tracking current state
     #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
     pub state: ReversibleEnergyStorageState,
     /// ReversibleEnergyStorage mass
     #[serde(default)]
@@ -45,79 +44,76 @@ pub struct ReversibleEnergyStorageLegacy {
     pub soc_lo_ramp_start: Option<si::Ratio>,
     /// Time step interval at which history is saved
     pub save_interval: Option<usize>,
-    #[serde(
-        default,
-        skip_serializing_if = "ReversibleEnergyStorageStateHistoryVec::is_empty"
-    )]
+    #[serde(default)]
     /// Custom vector of [Self::state]
     pub history: ReversibleEnergyStorageStateHistoryVec,
 }
 impl Init for ReversibleEnergyStorageLegacy {}
 impl SerdeAPI for ReversibleEnergyStorageLegacy {}
 
-#[derive(Clone, Copy, Deserialize, Serialize, Debug, PartialEq, HistoryVec)]
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, HistoryVec)]
 // component limits
 /// ReversibleEnergyStorage state variables
 pub struct ReversibleEnergyStorageStateLegacy {
     // limits
     // TODO: create separate binning for cat power and maximum catenary power capability
-    pub pwr_cat_max: si::Power,
+    pub pwr_cat_max: TrackedState<si::Power>,
     /// max output power for propulsion during positive traction
-    pub pwr_prop_out_max: si::Power,
+    pub pwr_prop_out_max: TrackedState<si::Power>,
     /// max regen power for propulsion during negative traction
-    pub pwr_regen_out_max: si::Power,
+    pub pwr_regen_out_max: TrackedState<si::Power>,
     /// max discharge power total
-    pub pwr_disch_max: si::Power,
+    pub pwr_disch_max: TrackedState<si::Power>,
     /// max charge power on the output side
-    pub pwr_charge_max: si::Power,
+    pub pwr_charge_max: TrackedState<si::Power>,
 
     /// simulation step
-    pub i: usize,
+    pub i: TrackedState<usize>,
 
     /// state of charge (SOC)
-    pub soc: si::Ratio,
+    pub soc: TrackedState<si::Ratio>,
     /// Chemical <-> Electrical conversion efficiency based on current power demand
-    pub eta: si::Ratio,
+    pub eta: TrackedState<si::Ratio>,
     /// State of Health (SOH)
-    pub soh: f64,
+    pub soh: TrackedState<f64>,
 
     // TODO: add `pwr_out_neg_electrical` and `pwr_out_pos_electrical` and corresponding energies
 
     // powers
     /// total electrical power; positive is discharging
-    pub pwr_out_electrical: si::Power,
+    pub pwr_out_electrical: TrackedState<si::Power>,
     /// electrical power going to propulsion
-    pub pwr_out_propulsion: si::Power,
+    pub pwr_out_propulsion: TrackedState<si::Power>,
     /// electrical power going to aux loads
-    pub pwr_aux: si::Power,
+    pub pwr_aux: TrackedState<si::Power>,
     /// power dissipated as loss
-    pub pwr_loss: si::Power,
+    pub pwr_loss: TrackedState<si::Power>,
     /// chemical power; positive is discharging
-    pub pwr_out_chemical: si::Power,
+    pub pwr_out_chemical: TrackedState<si::Power>,
 
     // cumulative energies
     /// cumulative total electrical energy; positive is discharging
-    pub energy_out_electrical: si::Energy,
+    pub energy_out_electrical: TrackedState<si::Energy>,
     /// cumulative electrical energy going to propulsion
-    pub energy_out_propulsion: si::Energy,
+    pub energy_out_propulsion: TrackedState<si::Energy>,
     /// cumulative electrical energy going to aux loads
-    pub energy_aux: si::Energy,
+    pub energy_aux: TrackedState<si::Energy>,
     /// cumulative energy dissipated as loss
-    pub energy_loss: si::Energy,
+    pub energy_loss: TrackedState<si::Energy>,
     /// cumulative chemical energy; positive is discharging
-    pub energy_out_chemical: si::Energy,
+    pub energy_out_chemical: TrackedState<si::Energy>,
 
     /// dynamically updated max SOC limit
-    pub max_soc: si::Ratio,
+    pub max_soc: TrackedState<si::Ratio>,
     /// dynamically updated SOC at which negative/charge power begins to ramp down.
-    pub soc_hi_ramp_start: si::Ratio,
+    pub soc_hi_ramp_start: TrackedState<si::Ratio>,
     /// dynamically updated min SOC limit
-    pub min_soc: si::Ratio,
+    pub min_soc: TrackedState<si::Ratio>,
     /// dynamically updated SOC at which positive/discharge power begins to ramp down.
-    pub soc_lo_ramp_start: si::Ratio,
+    pub soc_lo_ramp_start: TrackedState<si::Ratio>,
 
     /// component temperature
-    pub temperature_celsius: f64,
+    pub temperature_celsius: TrackedState<f64>,
 }
 
 impl Init for ReversibleEnergyStorageStateLegacy {}
@@ -126,9 +122,9 @@ impl SerdeAPI for ReversibleEnergyStorageStateLegacy {}
 impl Default for ReversibleEnergyStorageStateLegacy {
     fn default() -> Self {
         Self {
-            i: 1,
-            soc: uc::R * 0.95,
-            soh: 1.0,
+            i: Default::default(),
+            soc: TrackedState::new(uc::R * 0.95),
+            soh: TrackedState::new(1.0),
             eta: Default::default(),
             pwr_prop_out_max: Default::default(),
             pwr_regen_out_max: Default::default(),
@@ -145,11 +141,11 @@ impl Default for ReversibleEnergyStorageStateLegacy {
             energy_aux: Default::default(),
             energy_out_chemical: Default::default(),
             energy_loss: Default::default(),
-            max_soc: uc::R * 1.0,
-            soc_hi_ramp_start: uc::R * 1.0,
-            min_soc: si::Ratio::ZERO,
-            soc_lo_ramp_start: si::Ratio::ZERO,
-            temperature_celsius: 45.0,
+            max_soc: TrackedState::new(uc::R * 1.0),
+            soc_hi_ramp_start: TrackedState::new(uc::R * 1.0),
+            min_soc: TrackedState::new(si::Ratio::ZERO),
+            soc_lo_ramp_start: TrackedState::new(si::Ratio::ZERO),
+            temperature_celsius: TrackedState::new(45.0),
         }
     }
 }

@@ -2,12 +2,16 @@ import time
 import altrios as alt
 
 SAVE_INTERVAL = 100
+
+
 def get_solved_speed_limit_train_sim():
     # Build the train config
     rail_vehicle_loaded = alt.RailVehicle.from_file(
-        alt.resources_root() / "rolling_stock/Manifest_Loaded.yaml")
+        alt.resources_root() / "rolling_stock/Manifest_Loaded.yaml"
+    )
     rail_vehicle_empty = alt.RailVehicle.from_file(
-        alt.resources_root() / "rolling_stock/Manifest_Empty.yaml")
+        alt.resources_root() / "rolling_stock/Manifest_Empty.yaml"
+    )
 
     # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
     train_config = alt.TrainConfig(
@@ -24,34 +28,37 @@ def get_solved_speed_limit_train_sim():
     # instantiate battery model
     # https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/reversible_energy_storage/struct.ReversibleEnergyStorage.html#
     res = alt.ReversibleEnergyStorage.from_file(
-        alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
+        alt.resources_root()
+        / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
     )
 
     edrv = alt.ElectricDrivetrain(
-        pwr_out_frac_interp=[0., 1.],
+        pwr_out_frac_interp=[0.0, 1.0],
         eta_interp=[0.98, 0.98],
         pwr_out_max_watts=5e9,
         save_interval=SAVE_INTERVAL,
     )
 
-    bel = alt.Locomotive.from_pydict({
-        "loco_type": {"BatteryElectricLoco": {
-            "res": res.to_pydict(),
-            "edrv": edrv.to_pydict(),
-        }},
-        "pwr_aux_offset_watts": 8.55e3,
-        "pwr_aux_traction_coeff": 540.e-6,
-        "force_max_newtons": 667.2e3,
-        "mass_kilograms": alt.LocoParams.default().to_pydict()['mass_kilograms'],
-        "save_interval": SAVE_INTERVAL,
-    })  
+    bel = alt.Locomotive.from_pydict(
+        {
+            "loco_type": {
+                "BatteryElectricLoco": {
+                    "res": res.to_pydict(),
+                    "edrv": edrv.to_pydict(),
+                }
+            },
+            "pwr_aux_offset_watts": 8.55e3,
+            "pwr_aux_traction_coeff": 540.0e-6,
+            "force_max_newtons": 667.2e3,
+            "mass_kilograms": alt.LocoParams.default().to_pydict()["mass_kilograms"],
+            "save_interval": SAVE_INTERVAL,
+        }
+    )
 
     # construct a vector of one BEL and several conventional locomotives
-    loco_vec = [bel.clone()] + [alt.Locomotive.default()] * 7
+    loco_vec = [bel.copy()] + [alt.Locomotive.default()] * 7
     # instantiate consist
-    loco_con = alt.Consist(
-        loco_vec
-    )
+    loco_con = alt.Consist(loco_vec)
 
     # Instantiate the intermediate `TrainSimBuilder`
     tsb = alt.TrainSimBuilder(
@@ -64,10 +71,12 @@ def get_solved_speed_limit_train_sim():
 
     # Load the network and construct the timed link path through the network.
     network = alt.Network.from_file(
-        alt.resources_root() / 'networks/simple_corridor_network.yaml')
+        alt.resources_root() / "networks/simple_corridor_network.yaml"
+    )
 
     location_map = alt.import_locations(
-        alt.resources_root() / "networks/simple_corridor_locations.csv")
+        alt.resources_root() / "networks/simple_corridor_locations.csv"
+    )
     train_sim: alt.SetSpeedTrainSim = tsb.make_speed_limit_train_sim(
         location_map=location_map,
         save_interval=1,
@@ -87,7 +96,7 @@ def get_solved_speed_limit_train_sim():
         network=network,
         timed_path=timed_link_path,
     )
-    assert len(train_sim.history) > 1
+    assert len(train_sim.to_pydict()["history"]) > 1
 
     return train_sim
 
@@ -97,8 +106,7 @@ def test_pydict():
 
     t0 = time.perf_counter_ns()
     ts_dict_msg = ts.to_pydict(flatten=False, data_fmt="msg_pack")
-    ts_msg = alt.SpeedLimitTrainSim.from_pydict(
-        ts_dict_msg, data_fmt="msg_pack")
+    ts_msg = alt.SpeedLimitTrainSim.from_pydict(ts_dict_msg, data_fmt="msg_pack")
     t1 = time.perf_counter_ns()
     t_msg = t1 - t0
     print(f"\nElapsed time for MessagePack: {t_msg:.3e} ns ")
@@ -113,8 +121,7 @@ def test_pydict():
 
     t0 = time.perf_counter_ns()
     ts_dict_json = ts.to_pydict(flatten=False, data_fmt="json")
-    _ts_json = alt.SpeedLimitTrainSim.from_pydict(
-        ts_dict_json, data_fmt="json")
+    _ts_json = alt.SpeedLimitTrainSim.from_pydict(ts_dict_json, data_fmt="json")
     t1 = time.perf_counter_ns()
     t_json = t1 - t0
     print(f"Elapsed time for json: {t_json:.3e} ns ")
@@ -123,6 +130,7 @@ def test_pydict():
     # `to_pydict` is necessary because of some funkiness with direct equality comparison
     assert ts_msg.to_pydict() == ts.to_pydict()
     assert ts_yaml.to_pydict() == ts.to_pydict()
+
 
 if __name__ == "__main__":
     test_pydict()

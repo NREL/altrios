@@ -10,7 +10,7 @@
     idx_next_alt: 0
     idx_prev: 0
     idx_prev_alt: 0
-    length: 0.0
+    length_meters: 0.0
     elevs: []
     headings: []
     speed_set: ~
@@ -22,22 +22,22 @@
     idx_next_alt: 3
     idx_prev: 0
     idx_prev_alt: 0
-    length: 20000.0
+    length_meters: 20000.0
     elevs:
-      - offset: 0.0
-        elev: 0.0
-      - offset: 20000.0
-        elev: 10.0
+      - offset_meters: 0.0
+        elev_meters: 0.0
+      - offset_meters: 20000.0
+        elev_meters: 10.0
     headings:
-      - offset: 0.0
-        heading: 0.0
-      - offset: 20000.0
-        heading: 0.0
+      - offset_meters: 0.0
+        heading_radians: 0.0
+      - offset_meters: 20000.0
+        heading_radians: 0.0
     speed_set:
       speed_limits:
-        - offset_start: 0.0
-          offset_end: 20000.0
-          speed: 6.5
+        - offset_start_meters: 0.0
+          offset_end_meters: 20000.0
+          speed_meters_per_second: 6.5
       speed_params: []
       is_head_end: false
     cat_power_limits: []
@@ -48,26 +48,26 @@
     idx_next_alt: 0
     idx_prev: 1
     idx_prev_alt: 0
-    length: 20000.0
+    length_meters: 20000.0
     elevs:
-      - offset: 0.0
-        elev: 10.0
-      - offset: 20000.0
-        elev: 10.0
+      - offset_meters: 0.0
+        elev_meters: 10.0
+      - offset_meters: 20000.0
+        elev_meters: 10.0
     headings:
-      - offset: 0.0
-        heading: 0.1
-      - offset: 100.0
-        heading: 0.0
-      - offset: 19900.0
-        heading: 0.0
-      - offset: 20000.0
-        heading: 6.183
+      - offset_meters: 0.0
+        heading_radians: 0.1
+      - offset_meters: 100.0
+        heading_radians: 0.0
+      - offset_meters: 19900.0
+        heading_radians: 0.0
+      - offset_meters: 20000.0
+        heading_radians: 6.183
     speed_set:
       speed_limits:
-        - offset_start: 0.0
-          offset_end: 20000.0
-          speed: 6.5
+        - offset_start_meters: 0.0
+          offset_end_meters: 20000.0
+          speed_meters_per_second: 6.5
       speed_params: []
       is_head_end: false
     cat_power_limits: []
@@ -78,22 +78,22 @@
     idx_next_alt: 0
     idx_prev: 1
     idx_prev_alt: 0
-    length: 19999.0
+    length_meters: 19999.0
     elevs:
-      - offset: 0.0
-        elev: 10.0
-      - offset: 19999.0
-        elev: 10.0
+      - offset_meters: 0.0
+        elev_meters: 10.0
+      - offset_meters: 19999.0
+        elev_meters: 10.0
     headings:
-      - offset: 0.0
-        heading: 0.0
-      - offset: 19999.0
-        heading: 0.0
+      - offset_meters: 0.0
+        heading_radians: 0.0
+      - offset_meters: 19999.0
+        heading_radians: 0.0
     speed_set:
       speed_limits:
-        - offset_start: 0.0
-          offset_end: 19999.0
-          speed: 6.5
+        - offset_start_meters: 0.0
+          offset_end_meters: 19999.0
+          speed_meters_per_second: 6.5
       speed_params: []
       is_head_end: false
     cat_power_limits: []
@@ -104,22 +104,22 @@
     idx_next_alt: 0
     idx_prev: 2
     idx_prev_alt: 3
-    length: 20000.0
+    length_meters: 20000.0
     elevs:
-      - offset: 0.0
-        elev: 10.0
-      - offset: 20000.0
-        elev: 0.0
+      - offset_meters: 0.0
+        elev_meters: 10.0
+      - offset_meters: 20000.0
+        elev_meters: 0.0
     headings:
-      - offset: 0.0
-        heading: 0.0
-      - offset: 20000.0
-        heading: 0.0
+      - offset_meters: 0.0
+        heading_radians: 0.0
+      - offset_meters: 20000.0
+        heading_radians: 0.0
     speed_set:
       speed_limits:
-        - offset_start: 0.0
-          offset_end: 20000.0
-          speed: 6.5
+        - offset_start_meters: 0.0
+          offset_end_meters: 20000.0
+          speed_meters_per_second: 6.5
       speed_params: []
       is_head_end: false
     cat_power_limits: []
@@ -130,22 +130,22 @@
     idx_next_alt: 7
     idx_prev: 0
     idx_prev_alt: 0
-    length: 20000.0
+    length_meters: 20000.0
     elevs:
-      - offset: 0.0
-        elev: 0.0
-      - offset: 20000.0
-        elev: 10.0
+      - offset_meters: 0.0
+        elev_meters: 0.0
+      - offset_meters: 20000.0
+        elev_meters: 10.0
     headings:
-      - offset: 0.0
-        heading: 3.142
-      - offset: 20000.0
-        heading: 3.142
+      - offset_meters: 0.0
+        heading_radians: 3.142
+      - offset_meters: 20000.0
+        heading_radians: 3.142
     speed_set:
       speed_limits:
-        - offset_start: 0.0
-          offset_end: 20000.0
-          speed: 6.5
+        - offset_start_meters: 0.0
+          offset_end_meters: 20000.0
+          speed_meters_per_second: 6.5
       speed_params: []
       is_head_end: false
     cat_power_limits: []
@@ -156,22 +156,22 @@
     idx_next_alt: 0
     idx_prev: 5
     idx_prev_alt: 0
-    length: 19999.0
+    length_meters: 19999.0
     elevs:
-      - offset: 0.0
-        elev: 10.0
-      - offset: 19999.0
-        elev: 10.0
+      - offset_meters: 0.0
+        elev_meters: 10.0
+      - offset_meters: 19999.0
+        elev_meters: 10.0
     headings:
-      - offset: 0.0
-        heading: 3.142
-      - offset: 19999.0
-        heading: 3.142
+      - offset_meters: 0.0
+        heading_radians: 3.142
+      - offset_meters: 19999.0
+        heading_radians: 3.142
     speed_set:
       speed_limits:
-        - offset_start: 0.0
-          offset_end: 19999.0
-          speed: 6.5
+        - offset_start_meters: 0.0
+          offset_end_meters: 19999.0
+          speed_meters_per_second: 6.5
       speed_params: []
       is_head_end: false
     cat_power_limits: []
@@ -182,26 +182,26 @@
     idx_next_alt: 0
     idx_prev: 5
     idx_prev_alt: 0
-    length: 20000.0
+    length_meters: 20000.0
     elevs:
-      - offset: 0.0
-        elev: 10.0
-      - offset: 20000.0
-        elev: 10.0
+      - offset_meters: 0.0
+        elev_meters: 10.0
+      - offset_meters: 20000.0
+        elev_meters: 10.0
     headings:
-      - offset: 0.0
-        heading: 3.042
-      - offset: 100.0
-        heading: 3.142
-      - offset: 19900.0
-        heading: 3.142
-      - offset: 20000.0
-        heading: 3.242
+      - offset_meters: 0.0
+        heading_radians: 3.042
+      - offset_meters: 100.0
+        heading_radians: 3.142
+      - offset_meters: 19900.0
+        heading_radians: 3.142
+      - offset_meters: 20000.0
+        heading_radians: 3.242
     speed_set:
       speed_limits:
-        - offset_start: 0.0
-          offset_end: 20000.0
-          speed: 6.5
+        - offset_start_meters: 0.0
+          offset_end_meters: 20000.0
+          speed_meters_per_second: 6.5
       speed_params: []
       is_head_end: false
     cat_power_limits: []
@@ -212,22 +212,22 @@
     idx_next_alt: 0
     idx_prev: 6
     idx_prev_alt: 7
-    length: 20000.0
+    length_meters: 20000.0
     elevs:
-      - offset: 0.0
-        elev: 10.0
-      - offset: 20000.0
-        elev: 0.0
+      - offset_meters: 0.0
+        elev_meters: 10.0
+      - offset_meters: 20000.0
+        elev_meters: 0.0
     headings:
-      - offset: 0.0
-        heading: 3.142
-      - offset: 20000.0
-        heading: 3.142
+      - offset_meters: 0.0
+        heading_radians: 3.142
+      - offset_meters: 20000.0
+        heading_radians: 3.142
     speed_set:
       speed_limits:
-        - offset_start: 0.0
-          offset_end: 20000.0
-          speed: 6.5
+        - offset_start_meters: 0.0
+          offset_end_meters: 20000.0
+          speed_meters_per_second: 6.5
       speed_params: []
       is_head_end: false
     cat_power_limits: []

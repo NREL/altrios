@@ -60,7 +60,7 @@ def main(
 
     for loc_name in location_map:
         for loc in location_map[loc_name]:
-            if loc.link_idx.idx >= len(network):
+            if loc.to_pydict()["Link Index"] >= len(network.to_pydict()[1]):
                 raise ValueError(
                     "Location "
                     + loc.location_id

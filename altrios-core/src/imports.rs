@@ -35,5 +35,6 @@ pub(crate) use std::fs::File;
 pub(crate) use std::num::{NonZeroU16, NonZeroUsize};
 pub(crate) use std::ops::{Deref, DerefMut, IndexMut, Sub};
 pub(crate) use std::path::{Path, PathBuf};
+pub(crate) use std::time::Instant;
 pub(crate) use uom::typenum;
 pub(crate) use uom::ConstZero;

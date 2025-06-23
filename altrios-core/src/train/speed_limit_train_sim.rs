@@ -408,10 +408,12 @@ impl SpeedLimitTrainSim {
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         // set catenary power limit
-        self.loco_con
-            .set_cat_power_limit(&self.path_tpc, self.state.offset);
+
+        timer!(self
+            .loco_con
+            .set_cat_power_limit(&self.path_tpc, self.state.offset));
         // set aux power for the consist
-        self.loco_con.set_pwr_aux(Some(true))?;
+        timer!(self.loco_con.set_pwr_aux(Some(true))?);
 
         let elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)> =
             if let Some(tt) = &self.temp_trace {
@@ -425,27 +427,28 @@ impl SpeedLimitTrainSim {
             };
 
         // set the maximum power out based on dt.
-        self.loco_con.set_curr_pwr_max_out(
+        timer!(self.loco_con.set_curr_pwr_max_out(
             None,
             elev_and_temp,
             Some(self.state.mass_compound()?),
             Some(self.state.speed),
             self.state.dt,
-        )?;
+        )?);
         // calculate new resistance
-        self.train_res
-            .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
-        set_link_and_offset(&mut self.state, &self.path_tpc)?;
+        timer!(self
+            .train_res
+            .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?);
+        timer!(set_link_and_offset(&mut self.state, &self.path_tpc)?);
         // solve the required power
-        self.solve_required_pwr()?;
+        timer!(self.solve_required_pwr()?);
 
-        self.loco_con.solve_energy_consumption(
+        timer!(self.loco_con.solve_energy_consumption(
             self.state.pwr_whl_out,
             Some(self.state.mass_compound()?),
             Some(self.state.speed),
             self.state.dt,
             Some(true),
-        )?;
+        )?);
         Ok(())
     }
 

@@ -80,6 +80,8 @@ toml = ["dep:toml"]
 yaml = ["dep:serde_yaml"]
 ## Enables message pack serialization and deserialization via `rmp-serde`
 msgpack = ["dep:rmp-serde"]
+## Activates `timer` macros
+timer = []
 
 [lints.rust]
 # `'cfg(debug_advance_rewind)'` is expected for debugging in `advance_rewind.rs`

@@ -21,11 +21,12 @@ plot_dir = Path() / "plots"
 # make the dir if it doesn't exist
 plot_dir.mkdir(exist_ok=True)
 File = defaults.DEMAND_FILE
-#targets = [0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75, 0.8]
+# targets = [0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75, 0.8]
 train_planner_config = planner_config.TrainPlannerConfig(
     cars_per_locomotive={"Default": 50},
     target_cars_per_train={"Default": 90},
-    require_diesel=True)
+    require_diesel=True,
+)
 targets = [0.5]
 for target in targets:
     scenario_infos, metrics = rollout.simulate_prescribed_rollout(
@@ -39,7 +40,7 @@ for target in targets:
         freight_demand_percent_growth=0,
         save_interval=None,
         write_metrics=True,
-        network_filename_path=alt.resources_root() / "networks/Taconite-NoBalloon.yaml"
+        network_filename_path=alt.resources_root() / "networks/Taconite-NoBalloon.yaml",
     )
 
 # %%
@@ -47,30 +48,30 @@ for target in targets:
 to_plot = scenario_infos[0].sims.tolist()
 
 if SHOW_PLOTS:
-
     for idx, sim in enumerate(to_plot[:10]):
         # sim = altc.SpeedLimitTrainSim.from_bincode(
         #     sim.to_bincode())  # to support linting
         fig, ax = plt.subplots(3, 1, sharex=True)
 
-        loco0 = sim.loco_con.loco_vec.tolist()[0]
+        loco0 = next(iter(sim.loco_con.loco_vec.tolist())).to_pydict()
+        sim_dict = sim.to_pydict()
 
         # loco0 = altc.Locomotive.from_bincode(
         #     loco0.to_bincode())  # to support linting
         if len(sim.loco_con.loco_vec.tolist()) > 1:
-            loco1 = sim.loco_con.loco_vec.tolist()[1]
+            loco1 = next(iter(sim.loco_con.loco_vec.tolist())).to_pydict()
             plt.suptitle(f"sim #: {idx}")
 
         if loco0.fc is not None:
             ax[0].plot(
-                np.array(sim.history.time_seconds) / 3_600,
-                np.array(loco0.fc.history.pwr_fuel_watts) / 1e6,
+                np.array(sim["history"]["time_seconds"]) / 3_600,
+                np.array(loco0["fc"]["history"]["pwr_fuel_watts"]) / 1e6,
                 # label='fuel'
             )
             # ax[0].plot(
             #     np.array(sim.history.time_seconds) / 3_600,
             #     np.array(loco0.history.pwr_out_watts) / 1e6,
-        #     label='conv. loco. tractive'
+            #     label='conv. loco. tractive'
             # )
             # ax[0].plot(
             #     np.array(sim.history.time_seconds) / 3_600,
@@ -81,17 +82,20 @@ if SHOW_PLOTS:
             # ax[0].legend()
 
         if loco1.res is not None:
-            ax[1].plot(np.array(sim.history.time_seconds) / 3_600, loco1.res.history.soc)
+            ax[1].plot(
+                np.array(sim["history"]["time_seconds"]) / 3_600,
+                loco1["res"]["history"]["soc"],
+            )
             ax[1].set_ylabel("SOC")
 
         ax[-1].plot(
-            np.array(sim.history.time_seconds) / 3_600,
-            sim.history.speed_meters_per_second,
+            np.array(sim_dict["history"]["time_seconds"]) / 3_600,
+            sim_dict["history"]["speed_meters_per_second"],
             label="actual",
         )
         ax[-1].plot(
-            np.array(sim.history.time_seconds) / 3_600,
-            sim.history.speed_limit_meters_per_second,
+            np.array(sim_dict["history"]["time_seconds"]) / 3_600,
+            sim_dict["history"]["speed_limit_meters_per_second"],
             label="limit",
         )
         # ax[-1].plot(

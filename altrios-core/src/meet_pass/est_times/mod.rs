@@ -633,6 +633,7 @@ pub fn make_est_times<N: AsRef<[Link]>>(
         );
 
         // Save this train simulator state to be processed.
+        // NOTE, there may be a way to just clone the state(s) and not the whole thing
         saved_sims.push(SavedSim {
             train_sim: {
                 let mut train_sim = Box::new(speed_limit_train_sim.clone());

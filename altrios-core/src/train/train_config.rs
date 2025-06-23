@@ -1,6 +1,7 @@
 use super::environment::TemperatureTrace;
 use super::resistance::kind as res_kind;
 use super::resistance::method as res_method;
+use super::speed_limit_train_sim::TimedLinkPath;
 #[cfg(feature = "pyo3")]
 use super::TrainResWrapper;
 use crate::consist::locomotive::locomotive_model::PowertrainType;
@@ -87,21 +88,9 @@ impl TrainConfig {
         self.train_length.map(|l| l.get::<si::meter>())
     }
 
-    #[setter]
-    fn set_train_length_meters(&mut self, train_length: f64) -> anyhow::Result<()> {
-        self.train_length = Some(train_length * uc::M);
-        Ok(())
-    }
-
     #[getter]
     fn get_train_mass_kilograms(&self) -> Option<f64> {
         self.train_mass.map(|l| l.get::<si::kilogram>())
-    }
-
-    #[setter]
-    fn set_train_mass_kilograms(&mut self, train_mass: f64) -> anyhow::Result<()> {
-        self.train_mass = Some(train_mass * uc::KG);
-        Ok(())
     }
 
     #[getter]
@@ -114,7 +103,6 @@ impl TrainConfig {
         })
     }
 
-    #[setter]
     fn set_cd_area_vec(&mut self, new_val: Vec<f64>) -> anyhow::Result<()> {
         self.cd_area_vec = Some(new_val.iter().map(|x| *x * uc::M2).collect());
         Ok(())
@@ -822,7 +810,7 @@ pub fn run_speed_limit_train_sims(
     train_consist_plan_py: PyDataFrame,
     loco_pool_py: PyDataFrame,
     refuel_facilities_py: PyDataFrame,
-    timed_paths: Vec<Vec<LinkIdxTime>>,
+    timed_paths: Vec<TimedLinkPath>,
 ) -> anyhow::Result<(SpeedLimitTrainSimVec, PyDataFrame)> {
     let network = match network.extract::<Network>() {
         Ok(n) => n,
@@ -1020,7 +1008,9 @@ pub fn run_speed_limit_train_sims(
                     .zip(departing_soc_pct_vec)
                     .try_for_each(|(loco, soc)| {
                         if let Some(res) = &mut loco.reversible_energy_storage_mut() {
-                            res.state.soc.update(soc * uc::R, || format_dbg!())
+                            res.state
+                                .soc
+                                .update_unchecked(soc * uc::R, || format_dbg!())
                         } else {
                             Ok(())
                         }
@@ -1030,36 +1020,49 @@ pub fn run_speed_limit_train_sims(
                     .map_err(|err| err.context(format!("train sim idx: {}", idx)));
 
                 let mut new_soc_vec: Vec<f64> = vec![];
-                for loco in sim.loco_con.loco_vec.clone() {
-                    match loco.loco_type {
-                        PowertrainType::BatteryElectricLoco(_) => {
-                            new_soc_vec.push(
-                                (*loco
-                                    .reversible_energy_storage()
-                                    .unwrap()
-                                    .state
-                                    .soc
-                                    .get_fresh(|| format_dbg!())?
-                                    * loco.reversible_energy_storage().unwrap().energy_capacity)
-                                    .get::<si::joule>(),
-                            );
+                sim.loco_con
+                    .loco_vec
+                    .iter()
+                    .try_for_each(|loco| -> anyhow::Result<()> {
+                        match loco.loco_type {
+                            PowertrainType::BatteryElectricLoco(_) => {
+                                new_soc_vec.push(
+                                    (*loco
+                                        .reversible_energy_storage()
+                                        .unwrap()
+                                        .state
+                                        .soc
+                                        .get_fresh(|| format_dbg!())?
+                                        * loco
+                                            .reversible_energy_storage()
+                                            .unwrap()
+                                            .energy_capacity)
+                                        .get::<si::joule>(),
+                                );
+                            }
+                            _ => new_soc_vec.push(f64::ZERO),
                         }
-                        _ => new_soc_vec.push(f64::ZERO),
-                    }
-                }
+                        Ok(())
+                    })
+                    .with_context(|| format_dbg!())?;
                 let mut new_energy_j_vec: Vec<f64> = vec![];
-                for loco in sim.loco_con.loco_vec.clone() {
-                    new_energy_j_vec.push(match loco.loco_type {
-                        PowertrainType::BatteryElectricLoco(_) => loco
-                            .reversible_energy_storage()
-                            .unwrap()
-                            .state
-                            .energy_out_chemical
-                            .get_fresh(|| format_dbg!())?
-                            .get::<si::joule>(),
-                        _ => f64::ZERO,
-                    });
-                }
+                sim.loco_con
+                    .loco_vec
+                    .iter()
+                    .try_for_each(|loco| -> anyhow::Result<()> {
+                        new_energy_j_vec.push(match loco.loco_type {
+                            PowertrainType::BatteryElectricLoco(_) => loco
+                                .reversible_energy_storage()
+                                .unwrap()
+                                .state
+                                .energy_out_chemical
+                                .get_fresh(|| format_dbg!())?
+                                .get::<si::joule>(),
+                            _ => f64::ZERO,
+                        });
+                        Ok(())
+                    })
+                    .with_context(|| format_dbg!())?;
                 let mut all_current_socs: Vec<f64> = loco_pool
                     .column("SOC_J")
                     .with_context(|| format_dbg!())?

@@ -216,8 +216,12 @@ fn solve_negative_traction(
         let pwr_surplus_vec: Vec<si::Power> = loco_vec
             .iter()
             .zip(&pwr_regen_vec)
-            // this `unwrap` might cause problems for DummyLoco
-            .map(|(loco, pwr_regen)| loco.electric_drivetrain().unwrap().pwr_out_max - *pwr_regen)
+            .map(|(loco, pwr_regen)| {
+                loco.electric_drivetrain()
+                    .expect("this `expect` might cause problems for DummyLoco")
+                    .pwr_out_max
+                    - *pwr_regen
+            })
             .collect();
         let pwr_surplus_sum = pwr_surplus_vec
             .iter()

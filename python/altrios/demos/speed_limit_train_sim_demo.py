@@ -269,9 +269,10 @@ print(f"SOC-corrected fuel savings from buffers: {savings_soc_corrected:.5g}%")
 
 # Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `speed_trace`
 if OVERRIDE_SSTS_INPUTS:
+    ts_dict = train_sim.to_pydict()
     speed_trace = alt.SpeedTrace(
-        train_sim.history.time_seconds.tolist(),
-        train_sim.history.speed_meters_per_second.tolist(),
+        ts_dict["history"]["time_seconds"],
+        ts_dict["history"]["speed_meters_per_second"],
     )
     speed_trace.to_csv_file(alt.resources_root() / "demo_data/speed_trace.csv")
 
@@ -279,52 +280,53 @@ if OVERRIDE_SSTS_INPUTS:
 def plot_train_level_powers(
     ts: alt.SpeedLimitTrainSim, mod_str: str
 ) -> Tuple[plt.Figure, plt.Axes]:
+    ts_dict = ts.to_pydict()
     fig, ax = plt.subplots(3, 1, sharex=True)
     plt.suptitle("Train Power " + mod_str)
     ax[0].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.pwr_whl_out_watts) / 1e6,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        np.array(ts_dict["history"]["pwr_whl_out_watts"]) / 1e6,
         label="tract pwr",
     )
     ax[0].set_ylabel("Power [MW]")
     ax[0].legend()
 
     ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.res_aero_newtons) / 1e3,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        np.array(ts_dict["history"]["res_aero_newtons"]) / 1e3,
         label="aero",
     )
     ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.res_rolling_newtons) / 1e3,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        np.array(ts_dict["history"]["res_rolling_newtons"]) / 1e3,
         label="rolling",
     )
     ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.res_curve_newtons) / 1e3,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        np.array(ts_dict["history"]["res_curve_newtons"]) / 1e3,
         label="curve",
     )
     ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.res_bearing_newtons) / 1e3,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        np.array(ts_dict["history"]["res_bearing_newtons"]) / 1e3,
         label="bearing",
     )
     ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.res_grade_newtons) / 1e3,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        np.array(ts_dict["history"]["res_grade_newtons"]) / 1e3,
         label="grade",
     )
     ax[1].set_ylabel("Force [MN]")
     ax[1].legend()
 
     ax[-1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        ts.history.speed_meters_per_second,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        ts_dict["history"]["speed_meters_per_second"],
         label="achieved",
     )
     ax[-1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        ts.history.speed_limit_meters_per_second,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        ts_dict["history"]["speed_limit_meters_per_second"],
         label="limit",
     )
     ax[-1].set_xlabel("Time [hr]")
@@ -337,32 +339,34 @@ def plot_train_level_powers(
 def plot_train_network_info(
     ts: alt.SpeedLimitTrainSim, mod_str: str
 ) -> Tuple[plt.Figure, plt.Axes]:
+    ts_dict = ts.to_pydict()
+
     fig, ax = plt.subplots(3, 1, sharex=True)
     plt.suptitle("Train Position in Network " + mod_str)
     ax[0].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.offset_in_link_meters) / 1_000,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        np.array(ts_dict["history"]["offset_in_link_meters"]) / 1_000,
         label="current link",
     )
     ax[0].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.offset_meters) / 1_000,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        np.array(ts_dict["history"]["offset_meters"]) / 1_000,
         label="overall",
     )
     ax[0].legend()
     ax[0].set_ylabel("Net Dist. [km]")
 
     ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        ts.history.link_idx_front,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        ts_dict["history"]["link_idx_front"],
         linestyle="",
         marker=".",
     )
     ax[1].set_ylabel("Link Idx Front")
 
     ax[-1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        ts.history.speed_meters_per_second,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        ts_dict["history"]["speed_meters_per_second"],
     )
     ax[-1].set_xlabel("Time [hr]")
     ax[-1].set_ylabel("Speed [m/s]")
@@ -375,25 +379,27 @@ def plot_train_network_info(
 def plot_consist_pwr(
     ts: alt.SpeedLimitTrainSim, mod_str: str
 ) -> Tuple[plt.Figure, plt.Axes]:
+    ts_dict = ts.to_pydict()
+
     fig, ax = plt.subplots(3, 1, sharex=True)
     plt.suptitle("Loco. Consist " + mod_str)
     ax[0].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.pwr_whl_out_watts) / 1e6,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        np.array(ts_dict["history"]["pwr_whl_out_watts"]) / 1e6,
         label="consist tract pwr",
     )
     ax[0].set_ylabel("Power [MW]")
     ax[0].legend()
 
     ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.grade_front) * 100.0,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        np.array(ts_dict["history"]["grade_front"]) * 100.0,
     )
     ax[1].set_ylabel("Grade [%] at\nHead End")
 
     ax[-1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        ts.history.speed_meters_per_second,
+        np.array(ts_dict["history"]["time_seconds"]) / 3_600,
+        ts_dict["history"]["speed_meters_per_second"],
     )
     ax[-1].set_xlabel("Time [hr]")
     ax[-1].set_ylabel("Speed [m/s]")

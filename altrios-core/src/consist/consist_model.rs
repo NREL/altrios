@@ -76,15 +76,15 @@ impl Consist {
         ))
     }
 
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
+    }
+
     #[getter("loco_vec")]
     fn get_loco_vec_py(&self) -> anyhow::Result<Pyo3VecLocoWrapper> {
         Ok(Pyo3VecLocoWrapper(self.loco_vec.clone()))
-    }
-
-    #[setter("loco_vec")]
-    fn set_loco_vec_py(&mut self, loco_vec: Vec<Locomotive>) -> anyhow::Result<()> {
-        self.set_loco_vec(loco_vec);
-        Ok(())
     }
 
     #[pyo3(name = "drain_loco_vec")]
@@ -131,11 +131,6 @@ impl Consist {
         }
     }
 
-    #[setter("__assert_limits")]
-    fn set_assert_limits_py(&mut self, val: bool) {
-        self.set_assert_limits(val);
-    }
-
     #[pyo3(name = "get_net_energy_res_joules")]
     fn get_net_energy_res_py(&self) -> anyhow::Result<f64> {
         Ok(self.get_net_energy_res()?.get::<si::joule>())
@@ -159,12 +154,6 @@ impl Consist {
     #[getter("mass_kg")]
     fn get_mass_kg_py(&self) -> anyhow::Result<Option<f64>> {
         Ok(self.mass()?.map(|m| m.get::<si::kilogram>()))
-    }
-
-    #[staticmethod]
-    #[pyo3(name = "default")]
-    fn default_py() -> Self {
-        Self::default()
     }
 }
 
@@ -291,39 +280,45 @@ impl Consist {
     }
 
     pub fn get_energy_fuel(&self) -> anyhow::Result<si::Energy> {
-        let mut energy = si::Energy::ZERO;
-        for loco in self.loco_vec.clone() {
-            energy += match loco.loco_type {
-                PowertrainType::BatteryElectricLoco(_) => si::Energy::ZERO,
-                _ => *loco
-                    .fuel_converter()
-                    .unwrap()
-                    .state
-                    .energy_fuel
-                    .get_fresh(|| format_dbg!())?,
-            };
-        }
-        Ok(energy)
+        let energy_fuel = self.loco_vec.iter().try_fold(
+            si::Energy::ZERO,
+            |acc, loco| -> anyhow::Result<si::Energy> {
+                let new = match loco.loco_type {
+                    PowertrainType::BatteryElectricLoco(_) => si::Energy::ZERO,
+                    _ => *loco
+                        .fuel_converter()
+                        .unwrap()
+                        .state
+                        .energy_fuel
+                        .get_fresh(|| format_dbg!())?,
+                } + acc;
+                Ok(new)
+            },
+        )?;
+        Ok(energy_fuel)
     }
 
     pub fn get_net_energy_res(&self) -> anyhow::Result<si::Energy> {
-        let mut energy = si::Energy::ZERO;
-        for loco in self.loco_vec.clone() {
-            energy += match &loco.loco_type {
-                PowertrainType::BatteryElectricLoco(loco) => *loco
-                    .res
-                    .state
-                    .energy_out_chemical
-                    .get_fresh(|| format_dbg!())?,
-                PowertrainType::HybridLoco(loco) => *loco
-                    .res
-                    .state
-                    .energy_out_chemical
-                    .get_fresh(|| format_dbg!())?,
-                _ => si::Energy::ZERO,
-            };
-        }
-        Ok(energy)
+        let energy_res = self.loco_vec.iter().try_fold(
+            si::Energy::ZERO,
+            |acc, loco| -> anyhow::Result<si::Energy> {
+                let new = match &loco.loco_type {
+                    PowertrainType::BatteryElectricLoco(loco) => *loco
+                        .res
+                        .state
+                        .energy_out_chemical
+                        .get_fresh(|| format_dbg!())?,
+                    PowertrainType::HybridLoco(loco) => *loco
+                        .res
+                        .state
+                        .energy_out_chemical
+                        .get_fresh(|| format_dbg!())?,
+                    _ => si::Energy::ZERO,
+                } + acc;
+                Ok(new)
+            },
+        )?;
+        Ok(energy_res)
     }
 
     pub fn set_pwr_aux(&mut self, engine_on: Option<bool>) -> anyhow::Result<()> {
@@ -459,19 +454,23 @@ impl Consist {
 
         self.state.pwr_fuel.update(
             {
-                let mut pwr_fuel = si::Power::ZERO;
-                for loco in self.loco_vec.clone() {
-                    pwr_fuel += match &loco.loco_type {
-                        PowertrainType::ConventionalLoco(cl) => {
-                            *cl.fc.state.pwr_fuel.get_fresh(|| format_dbg!())?
-                        }
-                        PowertrainType::HybridLoco(hel) => {
-                            *hel.fc.state.pwr_fuel.get_fresh(|| format_dbg!())?
-                        }
-                        PowertrainType::BatteryElectricLoco(_) => si::Power::ZERO,
-                        PowertrainType::DummyLoco(_) => f64::NAN * uc::W,
-                    }
-                }
+                let pwr_fuel = self
+                    .loco_vec
+                    .iter()
+                    .try_fold(si::Power::ZERO, |acc, loco| -> anyhow::Result<si::Power> {
+                        let new = match &loco.loco_type {
+                            PowertrainType::ConventionalLoco(cl) => {
+                                *cl.fc.state.pwr_fuel.get_fresh(|| format_dbg!())?
+                            }
+                            PowertrainType::HybridLoco(hel) => {
+                                *hel.fc.state.pwr_fuel.get_fresh(|| format_dbg!())?
+                            }
+                            PowertrainType::BatteryElectricLoco(_) => si::Power::ZERO,
+                            PowertrainType::DummyLoco(_) => f64::NAN * uc::W,
+                        };
+                        Ok(new + acc)
+                    })
+                    .with_context(|| format_dbg!())?;
                 pwr_fuel
             },
             || format_dbg!(),
@@ -479,19 +478,23 @@ impl Consist {
 
         self.state.pwr_reves.update(
             {
-                let mut pwr_out_chem = si::Power::ZERO;
-                for loco in self.loco_vec.clone() {
-                    pwr_out_chem += match &loco.loco_type {
-                        PowertrainType::ConventionalLoco(_cl) => si::Power::ZERO,
-                        PowertrainType::HybridLoco(hel) => {
-                            *hel.res.state.pwr_out_chemical.get_fresh(|| format_dbg!())?
-                        }
-                        PowertrainType::BatteryElectricLoco(bel) => {
-                            *bel.res.state.pwr_out_chemical.get_fresh(|| format_dbg!())?
-                        }
-                        PowertrainType::DummyLoco(_) => f64::NAN * uc::W,
-                    }
-                }
+                let pwr_out_chem = self
+                    .loco_vec
+                    .iter()
+                    .try_fold(si::Power::ZERO, |acc, loco| -> anyhow::Result<si::Power> {
+                        let new = match &loco.loco_type {
+                            PowertrainType::ConventionalLoco(_cl) => si::Power::ZERO,
+                            PowertrainType::HybridLoco(hel) => {
+                                *hel.res.state.pwr_out_chemical.get_fresh(|| format_dbg!())?
+                            }
+                            PowertrainType::BatteryElectricLoco(bel) => {
+                                *bel.res.state.pwr_out_chemical.get_fresh(|| format_dbg!())?
+                            }
+                            PowertrainType::DummyLoco(_) => f64::NAN * uc::W,
+                        } + acc;
+                        Ok(new)
+                    })
+                    .with_context(|| format_dbg!())?;
                 pwr_out_chem
             },
             || format_dbg!(),
@@ -519,19 +522,16 @@ impl Consist {
 
     pub fn set_pwr_dyn_brake_max(&mut self) -> anyhow::Result<()> {
         self.state.pwr_dyn_brake_max.update(
-            {
-                let mut pwr_out_max = si::Power::ZERO;
-                for loco in self.loco_vec.clone() {
-                    pwr_out_max += match &loco.loco_type {
-                        PowertrainType::ConventionalLoco(conv) => conv.edrv.pwr_out_max,
-                        PowertrainType::HybridLoco(hel) => hel.edrv.pwr_out_max,
-                        PowertrainType::BatteryElectricLoco(bel) => bel.edrv.pwr_out_max,
-                        // really big number that is not inf to avoid null in json
-                        PowertrainType::DummyLoco(_) => uc::W * 1e15,
-                    };
-                }
-                pwr_out_max
-            },
+            self.loco_vec
+                .iter()
+                .map(|loco| match &loco.loco_type {
+                    PowertrainType::ConventionalLoco(conv) => conv.edrv.pwr_out_max,
+                    PowertrainType::HybridLoco(hel) => hel.edrv.pwr_out_max,
+                    PowertrainType::BatteryElectricLoco(bel) => bel.edrv.pwr_out_max,
+                    // really big number that is not inf to avoid null in json
+                    PowertrainType::DummyLoco(_) => uc::W * 1e15,
+                })
+                .sum(),
             || format_dbg!(),
         )?;
         Ok(())
@@ -613,50 +613,65 @@ impl LocoTrait for Consist {
         }
         self.state.pwr_out_max.update(
             {
-                let mut pwr_out_max = si::Power::ZERO;
-                for loco in self.loco_vec.clone() {
-                    pwr_out_max += *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?;
-                }
-                pwr_out_max
+                self.loco_vec
+                    .iter()
+                    .try_fold(si::Power::ZERO, |acc, loco| -> anyhow::Result<si::Power> {
+                        Ok(acc + *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?)
+                    })
+                    .with_context(|| format_dbg!())?
             },
             || format_dbg!(),
         )?;
         self.state.pwr_rate_out_max.update(
             {
-                let mut pwr_rate_out_max = si::PowerRate::ZERO;
-                for loco in self.loco_vec.clone() {
-                    pwr_rate_out_max += *loco.state.pwr_rate_out_max.get_fresh(|| format_dbg!())?;
-                }
+                let pwr_rate_out_max = self
+                    .loco_vec
+                    .iter()
+                    .try_fold(
+                        si::PowerRate::ZERO,
+                        |acc, loco| -> anyhow::Result<si::PowerRate> {
+                            Ok(acc + *loco.state.pwr_rate_out_max.get_fresh(|| format_dbg!())?)
+                        },
+                    )
+                    .with_context(|| format_dbg!())?;
                 pwr_rate_out_max
             },
             || format_dbg!(),
         )?;
         self.state.pwr_regen_max.update(
             {
-                let mut pwr_regen_max = si::Power::ZERO;
-                for loco in self.loco_vec.clone() {
-                    pwr_regen_max += *loco.state.pwr_regen_max.get_fresh(|| format_dbg!())?
-                }
+                let pwr_regen_max = self
+                    .loco_vec
+                    .iter()
+                    .try_fold(si::Power::ZERO, |acc, loco| -> anyhow::Result<si::Power> {
+                        let new = acc + *loco.state.pwr_regen_max.get_fresh(|| format_dbg!())?;
+                        Ok(new)
+                    })
+                    .with_context(|| format_dbg!())?;
                 pwr_regen_max
             },
             || format_dbg!(),
         )?;
         self.state.pwr_out_max_reves.update(
             {
-                let mut pwr_out_max_reves = si::Power::ZERO;
-                for loco in self.loco_vec.clone() {
-                    pwr_out_max_reves += match &loco.loco_type {
-                        PowertrainType::ConventionalLoco(_) => si::Power::ZERO,
-                        PowertrainType::HybridLoco(_) => {
-                            *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?
-                        }
-                        PowertrainType::BatteryElectricLoco(_) => {
-                            *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?
-                        }
-                        // really big number that is not inf to avoid null in json
-                        PowertrainType::DummyLoco(_) => 1e15 * uc::W,
-                    };
-                }
+                let pwr_out_max_reves = self
+                    .loco_vec
+                    .iter()
+                    .try_fold(si::Power::ZERO, |acc, loco| -> anyhow::Result<si::Power> {
+                        let new = match &loco.loco_type {
+                            PowertrainType::ConventionalLoco(_) => si::Power::ZERO,
+                            PowertrainType::HybridLoco(_) => {
+                                *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?
+                            }
+                            PowertrainType::BatteryElectricLoco(_) => {
+                                *loco.state.pwr_out_max.get_fresh(|| format_dbg!())?
+                            }
+                            // really big number that is not inf to avoid null in json
+                            PowertrainType::DummyLoco(_) => 1e15 * uc::W,
+                        } + acc;
+                        Ok(new)
+                    })
+                    .with_context(|| format_dbg!())?;
                 pwr_out_max_reves
             },
             || format_dbg!(),
@@ -702,7 +717,8 @@ impl Mass for Consist {
                         "All elements in `loco_vec` must either be `None` or `Some`."
                     ))
                 }
-            })?
+            })
+            .with_context(|| format_dbg!())?
         {
             return Ok(None);
         }

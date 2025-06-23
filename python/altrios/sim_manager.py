@@ -60,12 +60,13 @@ def main(
 
     for loc_name in location_map:
         for loc in location_map[loc_name]:
-            if loc.link_idx.idx >= len(network):
+            loc_dict = loc.to_pydict()
+            if loc_dict["Link Index"] >= len(network):
                 raise ValueError(
                     "Location "
-                    + loc.location_id
+                    + loc_dict["Location ID"]
                     + " with link index "
-                    + str(loc.link_idx.idx)
+                    + str(loc_dict["Link Index"])
                     + " is invalid for network!"
                 )
 
@@ -126,7 +127,7 @@ def main(
         False,
     )
     timed_paths: List[List[alt.LinkIdxTime]] = [  # type: ignore[no-redef]
-        tp.tolist() for tp in timed_paths
+        tp.to_pydict() for tp in timed_paths
     ]
 
     t1_disp = time.perf_counter()
@@ -135,22 +136,27 @@ def main(
             f"Elapsed time to run dispatch for year {scenario_year}: {t1_disp - t0_disp:.3g} s"
         )
 
+    slts_dicts = [sim.to_pydict() for sim in speed_limit_train_sims]
+
     train_times = pl.DataFrame(
         {
             "Train_ID": pl.Series(
-                [int(sim.train_id) for sim in speed_limit_train_sims], dtype=pl.Int32
+                [int(sim["train_id"]) for sim in slts_dicts], dtype=pl.Int32
             ).cast(pl.UInt32),
             "Origin_ID": pl.Series(
-                [sim.origs[0].location_id for sim in speed_limit_train_sims], dtype=str
+                [sim["origs"][0]["Location ID"] for sim in slts_dicts],
+                dtype=str,
             ),
             "Destination_ID": pl.Series(
-                [sim.dests[0].location_id for sim in speed_limit_train_sims], dtype=str
+                [sim["dests"][0]["Location ID"] for sim in slts_dicts],
+                dtype=str,
             ),
             "Departure_Time_Actual_Hr": pl.Series(
-                [this[0].time_hours for this in timed_paths], dtype=pl.Float64
+                [this[0]["time_seconds"] / 3_600 for this in timed_paths],
+                dtype=pl.Float64,
             ),
             "Arrival_Time_Actual_Hr": pl.Series(
-                [this[len(this) - 1].time_hours for this in timed_paths],
+                [this[len(this) - 1]["time_seconds"] / 3_600 for this in timed_paths],
                 dtype=pl.Float64,
             ),
         }
@@ -171,8 +177,11 @@ def main(
     )
     # speed_limit_train_sims is 0-indexed but Train_ID starts at 1
     to_keep = train_consist_plan.unique(subset=["Train_ID"]).to_series().sort()
-    for sim in speed_limit_train_sims:
-        alt.set_param_from_path(sim, "simulation_days", simulation_days)
+    for i, sim in enumerate(speed_limit_train_sims):
+        sim_dict = sim.to_pydict()
+        sim_dict["simulation_days"] = simulation_days
+        speed_limit_train_sims[i] = alt.SpeedLimitTrainSim.from_pydict(sim_dict)
+
     train_sims = alt.SpeedLimitTrainSimVec(
         [speed_limit_train_sims[i - 1] for i in to_keep]
     )

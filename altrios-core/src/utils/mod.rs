@@ -6,10 +6,6 @@ pub use val_range::*;
 pub mod tracked_state;
 pub use tracked_state::*;
 
-/// Error message for when user attempts to set value in a nested struct.
-pub const DIRECT_SET_ERR: &str =
-    "Setting field value directly not allowed. Please use altrios.set_param_from_path() method.";
-
 /// returns true for use with serde default
 pub fn return_true() -> bool {
     true

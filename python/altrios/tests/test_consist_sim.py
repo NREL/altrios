@@ -1,8 +1,6 @@
 import unittest
 
-
-import altrios as alt
-from .mock_resources import *
+from .mock_resources import mock_consist_simulation
 
 
 class TestConsistSimulation(unittest.TestCase):

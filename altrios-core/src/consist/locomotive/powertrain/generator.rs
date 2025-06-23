@@ -62,12 +62,6 @@ impl Generator {
         )
     }
 
-    #[setter]
-    pub fn set_eta_interp(&mut self, new_value: Vec<f64>) -> anyhow::Result<()> {
-        self.eta_interp = new_value;
-        self.set_pwr_in_frac_interp()
-    }
-
     #[getter("eta_max")]
     fn get_eta_max_py(&self) -> f64 {
         self.get_eta_max()

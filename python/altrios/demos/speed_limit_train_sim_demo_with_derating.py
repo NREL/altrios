@@ -232,6 +232,7 @@ def plot_train_level_powers(
     ts: alt.SpeedLimitTrainSim, mod_str: str
 ) -> Tuple[plt.Figure, plt.Axes]:
     ts_dict = ts.to_pydict()
+
     fig, ax = plt.subplots(3, 1, sharex=True)
     plt.suptitle("Train Power " + mod_str)
     ax[0].plot(

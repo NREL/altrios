@@ -50,10 +50,10 @@ impl ElectricDrivetrain {
         )
     }
 
-    #[setter]
-    pub fn set_eta_interp(&mut self, new_value: Vec<f64>) -> anyhow::Result<()> {
-        self.eta_interp = new_value;
-        self.set_pwr_in_frac_interp()
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
     }
 
     #[getter("eta_max")]
@@ -81,12 +81,6 @@ impl ElectricDrivetrain {
         Ok(self
             .set_eta_range(eta_range)
             .map_err(PyValueError::new_err)?)
-    }
-
-    #[staticmethod]
-    #[pyo3(name = "default")]
-    fn default_py() -> Self {
-        Self::default()
     }
 }
 

@@ -19,12 +19,6 @@ SAVE_INTERVAL = 1
 # load hybrid consist
 t0 = time.perf_counter()
 fc = alt.FuelConverter.default()
-# uncomment to check error messanging
-# altpy.set_param_from_path(
-#     fc,
-#     "pwr_out_max_watts",
-#     fc.pwr_out_max_watts / 10.
-# )
 gen = alt.Generator.default()
 edrv = alt.ElectricDrivetrain.default()
 

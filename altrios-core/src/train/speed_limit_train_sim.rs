@@ -484,11 +484,10 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
-        timer!(self
-            .loco_con
+        self.loco_con
             .state
             .pwr_cat_lim
-            .mark_fresh(|| format_dbg!())?);
+            .mark_fresh(|| format_dbg!())?;
         // set catenary power limit
         // self.loco_con.set_cat_power_limit(
         //     &self.path_tpc,
@@ -738,17 +737,21 @@ impl SpeedLimitTrainSim {
         // Verify that train has sufficient power to move
         if *self.state.speed.get_stale(|| format_dbg!())? < uc::MPH * 0.1 && f_pos_max <= res_net {
             let mut soc_vec: Vec<String> = vec![];
-            for loco in self.loco_con.loco_vec.clone() {
-                if let Some(res) = loco.reversible_energy_storage() {
-                    soc_vec.push(
-                        res.state
-                            .soc
-                            .get_fresh(|| format_dbg!())?
-                            .get::<si::ratio>()
-                            .format_eng(Some(5)),
-                    );
-                }
-            }
+            self.loco_con
+                .loco_vec
+                .iter()
+                .try_for_each(|loco| -> anyhow::Result<()> {
+                    if let Some(res) = loco.reversible_energy_storage() {
+                        soc_vec.push(
+                            res.state
+                                .soc
+                                .get_fresh(|| format_dbg!())?
+                                .get::<si::ratio>()
+                                .format_eng(Some(5)),
+                        );
+                    }
+                    Ok(())
+                })?;
             bail!(
                 "{}\nTrain does not have sufficient power to move!
 \n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}", // ,\nlink={:?}
@@ -1104,8 +1107,11 @@ impl Step for SpeedLimitTrainSim {
         self.state.mass_static.mark_fresh(|| format_dbg!())?;
         self.state.mass_rot.mark_fresh(|| format_dbg!())?;
         self.state.mass_freight.mark_fresh(|| format_dbg!())?;
-        self.solve_step()
-            .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
+        #[cfg(feature = "timer")]
+        println!("\n");
+        timer!(self
+            .solve_step()
+            .with_context(|| format!("{}\ntime step: {}", loc(), i))?);
         self.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?;
         Ok(())
     }

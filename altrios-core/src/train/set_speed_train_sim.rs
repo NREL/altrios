@@ -228,18 +228,6 @@ pub struct SetSpeedTrainSim {
 
 #[pyo3_api]
 impl SetSpeedTrainSim {
-    #[setter]
-    pub fn set_res_strap(&mut self, res_strap: method::Strap) -> anyhow::Result<()> {
-        self.train_res = TrainRes::Strap(res_strap);
-        Ok(())
-    }
-
-    #[setter]
-    pub fn set_res_point(&mut self, res_point: method::Point) -> anyhow::Result<()> {
-        self.train_res = TrainRes::Point(res_point);
-        Ok(())
-    }
-
     #[getter]
     pub fn get_res_strap(&self) -> anyhow::Result<Option<method::Strap>> {
         match &self.train_res {

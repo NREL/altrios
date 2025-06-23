@@ -528,60 +528,20 @@ impl Locomotive {
     fn get_fc(&self) -> Option<FuelConverter> {
         self.fuel_converter().cloned()
     }
-    #[setter]
-    fn set_fc(&mut self, _fc: FuelConverter) -> anyhow::Result<()> {
-        bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
-    }
 
-    #[setter(__fc)]
-    fn set_fc_hidden(&mut self, fc: FuelConverter) -> anyhow::Result<()> {
-        Ok(self
-            .set_fuel_converter(fc)
-            .map_err(|e| PyAttributeError::new_err(e.to_string()))?)
-    }
     #[getter]
     fn get_gen(&self) -> Option<Generator> {
         self.generator().cloned()
     }
 
-    #[setter]
-    fn set_gen(&mut self, _gen: Generator) -> anyhow::Result<()> {
-        bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
-    }
-    #[setter(__gen)]
-    fn set_gen_hidden(&mut self, gen: Generator) -> anyhow::Result<()> {
-        Ok(self
-            .set_generator(gen)
-            .map_err(|e| PyAttributeError::new_err(e.to_string()))?)
-    }
     #[getter]
     fn get_res(&self) -> Option<ReversibleEnergyStorage> {
         self.reversible_energy_storage().cloned()
     }
-    #[setter]
-    fn set_res(&mut self, _res: ReversibleEnergyStorage) -> anyhow::Result<()> {
-        bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
-    }
 
-    #[setter(__res)]
-    fn set_res_hidden(&mut self, res: ReversibleEnergyStorage) -> anyhow::Result<()> {
-        Ok(self
-            .set_reversible_energy_storage(res)
-            .map_err(|e| PyAttributeError::new_err(e.to_string()))?)
-    }
     #[getter]
     fn get_edrv(&self) -> Option<ElectricDrivetrain> {
-        self.electric_drivetrain()
-    }
-    #[setter]
-    fn set_edrv(&mut self, _edrv: ElectricDrivetrain) -> anyhow::Result<()> {
-        bail!(PyAttributeError::new_err(DIRECT_SET_ERR))
-    }
-    #[setter(__edrv)]
-    fn set_edrv_hidden(&mut self, edrv: ElectricDrivetrain) -> anyhow::Result<()> {
-        Ok(self
-            .set_electric_drivetrain(edrv)
-            .map_err(|e| PyAttributeError::new_err(e.to_string()))?)
+        self.electric_drivetrain().cloned()
     }
 
     fn loco_type(&self) -> anyhow::Result<String> {
@@ -1023,20 +983,11 @@ impl Locomotive {
         }
     }
 
-    pub fn electric_drivetrain(&self) -> Option<ElectricDrivetrain> {
+    pub fn electric_drivetrain(&self) -> Option<&ElectricDrivetrain> {
         match &self.loco_type {
-            PowertrainType::ConventionalLoco(loco) => {
-                let edrv = loco.edrv.clone();
-                Some(edrv)
-            }
-            PowertrainType::HybridLoco(loco) => {
-                let edrv = loco.edrv.clone();
-                Some(edrv)
-            }
-            PowertrainType::BatteryElectricLoco(loco) => {
-                let edrv = loco.edrv.clone();
-                Some(edrv)
-            }
+            PowertrainType::ConventionalLoco(loco) => Some(&loco.edrv),
+            PowertrainType::HybridLoco(loco) => Some(&loco.edrv),
+            PowertrainType::BatteryElectricLoco(loco) => Some(&loco.edrv),
             PowertrainType::DummyLoco(_) => None,
         }
     }

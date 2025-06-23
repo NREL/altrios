@@ -210,9 +210,9 @@ macro_rules! timer {
         $code_block;
         #[cfg(feature = "timer")]
         println!(
-            "{}\nElapsed time: {} μs",
+            "{}\nElapsed time: {} ns",
             format_dbg!(),
-            now_and_then.elapsed().as_micros()
+            now_and_then.elapsed().as_nanos()
         );
     };
 }

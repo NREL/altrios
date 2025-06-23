@@ -397,8 +397,11 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn step(&mut self) -> anyhow::Result<()> {
-        self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
+        #[cfg(feature = "timer")]
+        println!("\n");
+        timer!(self
+            .solve_step()
+            .map_err(|err| err.context(format!("time step: {}", self.state.i)))?);
         self.save_state();
         self.loco_con.step();
         self.fric_brake.step();

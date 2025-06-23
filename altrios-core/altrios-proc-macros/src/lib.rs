@@ -5,7 +5,6 @@ mod history_vec_derive;
 mod pyo3_api;
 mod serde_api;
 mod sm_derive;
-mod timer;
 mod utilities;
 
 #[proc_macro_error]
@@ -22,13 +21,6 @@ pub fn serde_api(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// attributes and other, non-python API functionality
 pub fn pyo3_api(attr: TokenStream, item: TokenStream) -> TokenStream {
     pyo3_api::pyo3_api(attr, item)
-}
-
-#[proc_macro_error]
-#[proc_macro_attribute]
-/// macro for creating timing harness
-pub fn timer(attr: TokenStream, item: TokenStream) -> TokenStream {
-    timer::timer(attr, item)
 }
 
 #[proc_macro_derive(HistoryVec, attributes(api))]

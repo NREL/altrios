@@ -484,19 +484,21 @@ impl SpeedLimitTrainSim {
     }
 
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
-        self.loco_con
+        timer!(self
+            .loco_con
             .state
             .pwr_cat_lim
-            .mark_fresh(|| format_dbg!())?;
+            .mark_fresh(|| format_dbg!())?);
         // set catenary power limit
         // self.loco_con.set_cat_power_limit(
         //     &self.path_tpc,
         //     *self.state.offset.get_fresh(|| format_dbg!())?,
         // )?;
         // set aux power for the consist
-        self.loco_con
+        timer!(self
+            .loco_con
             .set_pwr_aux(Some(true))
-            .with_context(|| format_dbg!())?;
+            .with_context(|| format_dbg!())?);
 
         let elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)> =
             if let Some(tt) = &self.temp_trace {
@@ -515,7 +517,8 @@ impl SpeedLimitTrainSim {
         self.state.dt.mark_fresh(|| format_dbg!())?;
 
         // set the maximum power out based on dt.
-        self.loco_con
+        timer!(self
+            .loco_con
             .set_curr_pwr_max_out(
                 None,
                 elev_and_temp,
@@ -523,16 +526,18 @@ impl SpeedLimitTrainSim {
                 Some(*self.state.speed.get_stale(|| format_dbg!())?),
                 *self.state.dt.get_fresh(|| format_dbg!())?,
             )
-            .with_context(|| format_dbg!())?;
+            .with_context(|| format_dbg!())?);
         // calculate new resistance
-        self.train_res
+        timer!(self
+            .train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)
-            .with_context(|| format_dbg!())?;
-        set_link_and_offset(&mut self.state, &self.path_tpc)?;
+            .with_context(|| format_dbg!())?);
+        timer!(set_link_and_offset(&mut self.state, &self.path_tpc)?);
         // solve the required power
-        self.solve_required_pwr().with_context(|| format_dbg!())?;
+        timer!(self.solve_required_pwr().with_context(|| format_dbg!())?);
 
-        self.loco_con
+        timer!(self
+            .loco_con
             .solve_energy_consumption(
                 *self.state.pwr_whl_out.get_fresh(|| format_dbg!())?,
                 Some(self.state.mass_compound().with_context(|| format_dbg!())?),
@@ -540,12 +545,12 @@ impl SpeedLimitTrainSim {
                 *self.state.dt.get_fresh(|| format_dbg!())?,
                 Some(true),
             )
-            .with_context(|| format_dbg!())?;
+            .with_context(|| format_dbg!())?);
 
-        self.set_cumulative(
+        timer!(self.set_cumulative(
             *self.state.dt.get_fresh(|| format_dbg!())?,
             || format_dbg!(),
-        )?;
+        )?);
 
         Ok(())
     }

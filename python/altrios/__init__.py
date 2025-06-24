@@ -12,6 +12,7 @@ import polars as pl
 
 from altrios.loaders.powertrain_components import _res_from_excel
 from altrios.utilities import copy_demo_files  # noqa: F401
+from altrios.utilities import package_root, resources_root  # noqa: F401
 from altrios import utilities as utils  # noqa: F401
 
 # make everything in altrios_pyo3 available here
@@ -21,22 +22,6 @@ from altrios import *  # noqa: F403
 
 def __array__(self):
     return np.array(self.tolist())
-
-
-def package_root() -> Path:
-    """
-    Returns the package root directory.
-    """
-    path = Path(__file__).parent
-    return path
-
-
-def resources_root() -> Path:
-    """
-    Returns the resources root directory.
-    """
-    path = package_root() / "resources"
-    return path
 
 
 # creates a list of all python classes from rust structs that need python-side serde helpers

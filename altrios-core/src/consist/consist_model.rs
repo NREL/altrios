@@ -510,7 +510,7 @@ impl Consist {
                 .increment(si::Energy::ZERO, || format_dbg!())?;
         } else {
             self.state.energy_out_neg.increment(
-                *self.state.pwr_out.get_fresh(|| format_dbg!())? * dt,
+                -*self.state.pwr_out.get_fresh(|| format_dbg!())? * dt,
                 || format_dbg!(),
             )?;
             self.state

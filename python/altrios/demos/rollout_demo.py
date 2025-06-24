@@ -47,70 +47,72 @@ for target in targets:
 # Plotting code currently just plots the first year of a multi-year simulation.
 to_plot = scenario_infos[0].sims.to_pydict()
 
-if SHOW_PLOTS:
-    for idx, sim_dict in enumerate(to_plot[:10]):
-        # sim = altc.SpeedLimitTrainSim.from_bincode(
-        #     sim.to_bincode())  # to support linting
-        fig, ax = plt.subplots(3, 1, sharex=True)
+for idx, sim_dict in enumerate(to_plot[:10]):
+    # sim = altc.SpeedLimitTrainSim.from_bincode(
+    #     sim.to_bincode())  # to support linting
+    fig, ax = plt.subplots(3, 1, sharex=True)
 
-        loco0 = next(iter(sim_dict["loco_con"]["loco_vec"]))
-        loco0_type = next(iter(loco0["loco_type"].values()))
+    loco0 = next(iter(sim_dict["loco_con"]["loco_vec"]))
+    loco0_type = next(iter(loco0["loco_type"].values()))
 
-        # loco0 = altc.Locomotive.from_bincode(
-        #     loco0.to_bincode())  # to support linting
-        if len(sim_dict["loco_con"]["loco_vec"]) > 1:
-            loco1 = next(iter(sim_dict["loco_con"]["loco_vec"]))
-            loco1_type = next(iter(loco1["loco_type"].values()))
-            plt.suptitle(f"sim #: {idx}")
+    # loco0 = altc.Locomotive.from_bincode(
+    #     loco0.to_bincode())  # to support linting
+    if len(sim_dict["loco_con"]["loco_vec"]) > 1:
+        loco1 = next(iter(sim_dict["loco_con"]["loco_vec"]))
+        loco1_type = next(iter(loco1["loco_type"].values()))
+        plt.suptitle(f"sim #: {idx}")
 
-        if "fc" in loco0_type:
-            ax[0].plot(
-                np.array(sim_dict["history"]["time_seconds"]) / 3_600,
-                np.array(loco0_type["fc"]["history"]["pwr_fuel_watts"]) / 1e6,
-                # label='fuel'
-            )
-            # ax[0].plot(
-            #     np.array(sim.history.time_seconds) / 3_600,
-            #     np.array(loco0.history.pwr_out_watts) / 1e6,
-            #     label='conv. loco. tractive'
-            # )
-            # ax[0].plot(
-            #     np.array(sim.history.time_seconds) / 3_600,
-            #     np.array(loco1.history.pwr_out_watts) / 1e6,
-            #     label='BEL tractive'
-            # )
-            ax[0].set_ylabel("Single Loco.\nFuel Power [MW]")
-            # ax[0].legend()
-
-        if "res" in loco1_type:
-            ax[1].plot(
-                np.array(sim_dict["history"]["time_seconds"]) / 3_600,
-                loco1_type["res"]["history"]["soc"],
-            )
-            ax[1].set_ylabel("SOC")
-
-        ax[-1].plot(
+    if "fc" in loco0_type:
+        ax[0].plot(
             np.array(sim_dict["history"]["time_seconds"]) / 3_600,
-            sim_dict["history"]["speed_meters_per_second"],
-            label="actual",
+            np.array(loco0_type["fc"]["history"]["pwr_fuel_watts"]) / 1e6,
+            # label='fuel'
         )
-        ax[-1].plot(
-            np.array(sim_dict["history"]["time_seconds"]) / 3_600,
-            sim_dict["history"]["speed_limit_meters_per_second"],
-            label="limit",
-        )
-        # ax[-1].plot(
-        #     sim.history.time_seconds,
-        #     sim.history.speed_target_meters_per_second,
-        #     label='target',
-        #     linestyle="-."
+        # ax[0].plot(
+        #     np.array(sim.history.time_seconds) / 3_600,
+        #     np.array(loco0.history.pwr_out_watts) / 1e6,
+        #     label='conv. loco. tractive'
         # )
-        ax[-1].legend()
-        ax[-1].set_xlabel("Time [hr]")
-        ax[-1].set_ylabel("Speed [m/s]")
+        # ax[0].plot(
+        #     np.array(sim.history.time_seconds) / 3_600,
+        #     np.array(loco1.history.pwr_out_watts) / 1e6,
+        #     label='BEL tractive'
+        # )
+        ax[0].set_ylabel("Single Loco.\nFuel Power [MW]")
+        # ax[0].legend()
 
-        plt.tight_layout()
-        plt.savefig(plot_dir / f"sim num {idx}.png")
-        plt.savefig(plot_dir / f"sim num {idx}.svg")
+    if "res" in loco1_type:
+        ax[1].plot(
+            np.array(sim_dict["history"]["time_seconds"]) / 3_600,
+            loco1_type["res"]["history"]["soc"],
+        )
+        ax[1].set_ylabel("SOC")
+
+    ax[-1].plot(
+        np.array(sim_dict["history"]["time_seconds"]) / 3_600,
+        sim_dict["history"]["speed_meters_per_second"],
+        label="actual",
+    )
+    ax[-1].plot(
+        np.array(sim_dict["history"]["time_seconds"]) / 3_600,
+        sim_dict["history"]["speed_limit_meters_per_second"],
+        label="limit",
+    )
+    # ax[-1].plot(
+    #     sim.history.time_seconds,
+    #     sim.history.speed_target_meters_per_second,
+    #     label='target',
+    #     linestyle="-."
+    # )
+    ax[-1].legend()
+    ax[-1].set_xlabel("Time [hr]")
+    ax[-1].set_ylabel("Speed [m/s]")
+
+    plt.tight_layout()
+
+    if SHOW_PLOTS:
+        plt.show()
+    # plt.savefig(plot_dir / f"sim num {idx}.png")
+    # plt.savefig(plot_dir / f"sim num {idx}.svg")
 
 # %%

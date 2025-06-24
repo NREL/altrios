@@ -608,7 +608,7 @@ ENABLE_ASSERTS = os.environ.get("ENABLE_ASSERTS", "true").lower() == "true"
 # whether to override reference files used in assertions, disabled by default
 ENABLE_REF_OVERRIDE = os.environ.get("ENABLE_REF_OVERRIDE", "false").lower() == "true"
 # directory for reference files for checking sim results against expected results
-ref_dir = alt.resources_root() / "demo_data/speed_limit_train_sim_demo/"
+ref_dir = alt.resources_root() / "demo_data/speed_limit_train_sim_demo_with_derating/"
 
 if ENABLE_REF_OVERRIDE:
     ref_dir.mkdir(exist_ok=True, parents=True)

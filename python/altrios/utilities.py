@@ -31,6 +31,22 @@ MWH_PER_J = 2.77778e-10
 MWH_PER_MJ = KWH_PER_MJ / 1.0e3
 
 
+def package_root() -> Path:
+    """
+    Returns the package root directory.
+    """
+    path = Path(__file__).parent
+    return path
+
+
+def resources_root() -> Path:
+    """
+    Returns the resources root directory.
+    """
+    path = package_root() / "resources"
+    return path
+
+
 def print_dt():
     print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
@@ -234,7 +250,8 @@ def copy_demo_files(demo_path: Path = Path("demos")):
 
 def show_plots() -> bool:
     """
-    Returns true if plots should be displayed
+    Returns true if plots should be displayed based on `SHOW_PLOTS` environment variable.
+    `SHOW_PLOTS` defaults to true, and to set it false, run `SHOW_PLOTS=false python your_script.py`
     """
     return (
         os.environ.get(

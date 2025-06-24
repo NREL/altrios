@@ -221,6 +221,8 @@ train_sim.walk_timed_path(
 )
 t1 = time.perf_counter()
 
+ts_dict = train_sim.to_pydict()
+
 print(f"Time to simulate: {t1 - t0:.5g}")
 raw_fuel_gigajoules = train_sim.get_energy_fuel_joules(False) / 1e9
 print(
@@ -230,7 +232,7 @@ corrected_fuel_gigajoules = train_sim.get_energy_fuel_soc_corrected_joules() / 1
 print(
     f"Total SOC-corrected fuel used with BEL and HEL buffers active: {corrected_fuel_gigajoules:.6g} GJ"
 )
-assert len(train_sim.history) > 1
+assert len(ts_dict["history"]) > 1
 
 t0 = time.perf_counter()
 train_sim_sans_buffers.walk_timed_path(
@@ -269,7 +271,6 @@ print(f"SOC-corrected fuel savings from buffers: {savings_soc_corrected:.5g}%")
 
 # Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `speed_trace`
 if OVERRIDE_SSTS_INPUTS:
-    ts_dict = train_sim.to_pydict()
     speed_trace = alt.SpeedTrace(
         ts_dict["history"]["time_seconds"],
         ts_dict["history"]["speed_meters_per_second"],

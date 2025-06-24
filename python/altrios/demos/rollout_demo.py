@@ -45,27 +45,28 @@ for target in targets:
 
 # %%
 # Plotting code currently just plots the first year of a multi-year simulation.
-to_plot = scenario_infos[0].sims.tolist()
+to_plot = scenario_infos[0].sims.to_pydict()
 
 if SHOW_PLOTS:
-    for idx, sim in enumerate(to_plot[:10]):
+    for idx, sim_dict in enumerate(to_plot[:10]):
         # sim = altc.SpeedLimitTrainSim.from_bincode(
         #     sim.to_bincode())  # to support linting
         fig, ax = plt.subplots(3, 1, sharex=True)
 
-        loco0 = next(iter(sim.loco_con.loco_vec.tolist())).to_pydict()
-        sim_dict = sim.to_pydict()
+        loco0 = next(iter(sim_dict["loco_con"]["loco_vec"]))
+        loco0_type = next(iter(loco0["loco_type"].values()))
 
         # loco0 = altc.Locomotive.from_bincode(
         #     loco0.to_bincode())  # to support linting
-        if len(sim.loco_con.loco_vec.tolist()) > 1:
-            loco1 = next(iter(sim.loco_con.loco_vec.tolist())).to_pydict()
+        if len(sim_dict["loco_con"]["loco_vec"]) > 1:
+            loco1 = next(iter(sim_dict["loco_con"]["loco_vec"]))
+            loco1_type = next(iter(loco1["loco_type"].values()))
             plt.suptitle(f"sim #: {idx}")
 
-        if loco0.fc is not None:
+        if "fc" in loco0_type:
             ax[0].plot(
-                np.array(sim["history"]["time_seconds"]) / 3_600,
-                np.array(loco0["fc"]["history"]["pwr_fuel_watts"]) / 1e6,
+                np.array(sim_dict["history"]["time_seconds"]) / 3_600,
+                np.array(loco0_type["fc"]["history"]["pwr_fuel_watts"]) / 1e6,
                 # label='fuel'
             )
             # ax[0].plot(
@@ -81,10 +82,10 @@ if SHOW_PLOTS:
             ax[0].set_ylabel("Single Loco.\nFuel Power [MW]")
             # ax[0].legend()
 
-        if loco1.res is not None:
+        if "res" in loco1_type:
             ax[1].plot(
-                np.array(sim["history"]["time_seconds"]) / 3_600,
-                loco1["res"]["history"]["soc"],
+                np.array(sim_dict["history"]["time_seconds"]) / 3_600,
+                loco1_type["res"]["history"]["soc"],
             )
             ax[1].set_ylabel("SOC")
 

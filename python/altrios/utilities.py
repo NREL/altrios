@@ -7,30 +7,12 @@ import pandas as pd
 import polars as pl
 import datetime
 import numpy.typing as npt
-import logging
 from pathlib import Path
 import os
 import shutil
 
 # local imports
 from altrios import __version__
-
-
-def package_root() -> Path:
-    """
-    Returns the package root directory.
-    """
-    path = Path(__file__).parent
-    return path
-
-
-def resources_root() -> Path:
-    """
-    Returns the resources root directory.
-    """
-    path = package_root() / "resources"
-    return path
-
 
 MPS_PER_MPH = 1.0 / 2.237
 N_PER_LB = 4.448
@@ -215,70 +197,6 @@ def smoothen(signal: npt.ArrayLike, period: int = 9) -> npt.ArrayLike:
 
 def print_dt():
     print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-
-
-def set_log_level(level: str | int) -> int:
-    """
-    Sets logging level for both Python and Rust.
-    The default logging level is WARNING (30).
-    https://docs.python.org/3/library/logging.html#logging-levels
-
-    Parameters
-    ----------
-    level: `str` | `int`
-        Logging level to set. `str` level name or `int` logging level
-
-        =========== ================
-        Level       Numeric value
-        =========== ================
-        CRITICAL    50
-        ERROR       40
-        WARNING     30
-        INFO        20
-        DEBUG       10
-        NOTSET      0
-
-    Returns
-    -------
-    `int`
-        Previous log level
-    """
-    # Map string name to logging level
-
-    allowed_args = [
-        ("CRITICAL", 50),
-        ("ERROR", 40),
-        ("WARNING", 30),
-        ("INFO", 20),
-        ("DEBUG", 10),
-        ("NOTSET", 0),
-        # no logging of anything ever!
-        ("NONE", logging.CRITICAL + 1),
-    ]
-    allowed_str_args = [a[0] for a in allowed_args]
-    allowed_int_args = [a[1] for a in allowed_args]
-
-    err_str = f"Invalid arg: '{level}'.  See doc string:\n{set_log_level.__doc__}"
-
-    if isinstance(level, str):
-        assert level.upper() in allowed_str_args, err_str
-        level = logging._nameToLevel[level.upper()]
-    else:
-        assert level in allowed_int_args, err_str
-
-    # Extract previous log level and set new log level
-    python_logger = logging.getLogger("altrios")
-    previous_level = python_logger.level
-    python_logger.setLevel(level)
-    return previous_level
-
-
-def disable_logging():
-    set_log_level(logging.CRITICAL + 1)
-
-
-def enable_logging():
-    set_log_level(logging.WARNING)
 
 
 def copy_demo_files(demo_path: Path = Path("demos")):

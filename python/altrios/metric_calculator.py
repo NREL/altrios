@@ -692,9 +692,11 @@ def calculate_ghg(info: ScenarioInfo, units: str) -> MetricType:
             info.emissions_factors.select(pl.col("Node").n_unique() > 0)
         ):
             energy_ghg_val = None
-            print("""No refuel session dataframe was provided (so emissions are not spatially resolved), 
+            print(
+                """No refuel session dataframe was provided (so emissions are not spatially resolved), 
                 but the emissions factor dataframe contains multiple regions. Subset emissions factors 
-                to the desired region before passing the emissions factor dataframe into the metrics calculator.""")
+                to the desired region before passing the emissions factor dataframe into the metrics calculator."""
+            )
         else:
             if electricity_MWh.filter(pl.col("Subset") != "All").height > 0:
                 # Disaggregated results are available
@@ -1451,12 +1453,11 @@ def add_battery_costs(loco_info: pd.DataFrame, year: int) -> pd.DataFrame:
 
     for idx, row in loco_info.iterrows():
         loco_dict = row["Rust_Loco"].to_pydict()
-        if hasattr(next(iter(loco_dict["loco_type"].values())), "res"):
-            kW = row["Rust_Loco"].res.pwr_out_max_watts / 1000
+        loco_type = next(iter(loco_dict["loco_type"].values()))
+        if "res" in loco_type:
+            kW = loco_type["res"]["pwr_out_max_watts"] / 1000
             kWh = (
-                row["Rust_Loco"].res.energy_capacity_joules
-                * 1e-6
-                * utilities.KWH_PER_MJ
+                loco_type["res"]["energy_capacity_joules"] * 1e-6 * utilities.KWH_PER_MJ
             )
             loco_info.at[idx, "Cost_USD"] = (
                 defaults.BEL_MINUS_BATTERY_COST_USD
@@ -1468,18 +1469,17 @@ def add_battery_costs(loco_info: pd.DataFrame, year: int) -> pd.DataFrame:
 
 
 def calculate_meet_pass_events(info: ScenarioInfo, units: str) -> MetricType:
-    import re
-
     slts_results = []
     i = 0
-    for slts in info.sims.tolist():
-        if len(slts.to_pydict()["history"]) == 0:
+    for slts in info.sims.to_pydict():
+        if len(slts["history"]) == 0:
             print(
                 "No SpeedLimitTrainSim history was saved, so meet pass events cannot be counted."
             )
             return metric("Meet_Pass_Events", units, None)
 
-        df = slts.to_dataframe()
+        # NOTE: this code is somewhat clunky and would probably benifit from streamlining
+        df = alt.SpeedLimitTrainSim.from_pydict(slts).to_dataframe()
         if ("history.time" not in df.collect_schema()) or (
             "history.speed" not in df.collect_schema()
         ):

@@ -57,7 +57,7 @@ def extract_hel_from_train_sim(ts: alt.SetSpeedTrainSim) -> list:
     return loco_list
 
 
-def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str):
+def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str, show_plots: bool = False):
     """
     Can take in either SetSpeedTrainSim or SpeedLimitTrainSim
     Extracts first instance of each loco_type and plots representative plots
@@ -205,7 +205,8 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str):
 
         plt.suptitle(plot_name + " " + "Power and Grade Profile")
         plt.tight_layout()
-        plt.show()
+        if show_plots:
+            plt.show()
 
     if extract_conv_from_train_sim(ts):
         # first_conv = next(iter(extract_conv_from_train_sim(ts)))
@@ -317,7 +318,8 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str):
 
         plt.suptitle(plot_name + " " + "Power and Grade Profile")
         plt.tight_layout()
-        plt.show()
+        if show_plots:
+            plt.show()
 
     if extract_hel_from_train_sim(ts):
         first_hel = next(iter(extract_hel_from_train_sim(ts)))
@@ -437,7 +439,8 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str):
 
         plt.suptitle(plot_name + " " + "Power and Grade Profile")
         plt.tight_layout()
-        plt.show()
+        if show_plots:
+            plt.show()
 
         fig3, ax3 = plt.subplots(3, 1, sharex=True)
         ax3[0].plot(
@@ -484,9 +487,8 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str):
         ax3[2].set_xlabel("Times [s]")
         plt.suptitle(plot_name + " " + "Hybrid Loco Power and Buffer Profile")
         plt.tight_layout()
-        plt.show()
-
-    return
+        if show_plots:
+            plt.show()
 
 
 # Build the train config
@@ -590,7 +592,7 @@ ts_dict = train_sim.to_pydict()
 assert len(ts_dict["history"]) > 1
 
 # pull out solved locomotive for plotting convenience
-loco0: alt.Locomotive = next(iter(train_sim.loco_con.loco_vec.tolist())).to_pydict()
+loco0: alt.Locomotive = next(iter(ts_dict["loco_con"]["loco_vec"]))
 
 # fig, ax = plt.subplots(4, 1, sharex=True)
 # ax[0].plot(
@@ -717,7 +719,7 @@ def plot_train_level_powers() -> Tuple[plt.Figure, plt.Axes]:
 #     plt.tight_layout()
 #     plt.show()
 
-plot_locos_from_ts(train_sim, "Time")
+plot_locos_from_ts(train_sim, "Time", show_plots=SHOW_PLOTS)
 
 
 def plot_train_network_info() -> Tuple[plt.Figure, plt.Axes]:

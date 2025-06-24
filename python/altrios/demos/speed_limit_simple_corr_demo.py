@@ -593,6 +593,7 @@ assert len(ts_dict["history"]) > 1
 
 # pull out solved locomotive for plotting convenience
 loco0: alt.Locomotive = next(iter(ts_dict["loco_con"]["loco_vec"]))
+loco0_type = next(iter(loco0["loco_type"].values()))
 
 # fig, ax = plt.subplots(4, 1, sharex=True)
 # ax[0].plot(
@@ -681,7 +682,7 @@ def plot_train_level_powers() -> Tuple[plt.Figure, plt.Axes]:
 
     ax[2].plot(
         np.array(ts_dict["history"]["time_seconds"]) / 3_600,
-        np.array(loco0["res"]["history"]["soc"]),
+        np.array(loco0_type["res"]["history"]["soc"]),
     )
     ax[2].set_ylabel("SOC")
 
@@ -699,6 +700,8 @@ def plot_train_level_powers() -> Tuple[plt.Figure, plt.Axes]:
     ax[-1].set_ylabel("Speed [m/s]")
     ax[-1].legend()
     plt.suptitle("Speed Limit Train Sim Demo")
+
+    return fig, ax
 
 
 # ax[-1].plot(
@@ -951,7 +954,6 @@ def plot_bel_pwr_and_soc() -> Tuple[plt.Figure, plt.Axes]:
     )
     ax[ax_idx].set_ylabel("Speed [m/s]")
     ax[ax_idx].set_xlabel("Times [s]")
-    ax[ax_idx].legend()
     plt.tight_layout()
 
     return fig, ax

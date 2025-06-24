@@ -608,14 +608,14 @@ def calculate_freight_moved(info: ScenarioInfo, units: str) -> MetricType:
                 data={
                     "car-km": [
                         sim.get_kilometers(annualize=info.annualize)
-                        for sim in info.sims.tolist()
+                        for sim in info.sims.to_pydict()
                     ]
                 }
             )
             .with_row_index("idx")
             .with_columns(pl.col("car-km").mul(utilities.MI_PER_KM).alias("car-miles"))
         )
-        all_n_cars_by_type = [sim.n_cars_by_type for sim in info.sims.tolist()]
+        all_n_cars_by_type = [sim.n_cars_by_type for sim in info.sims.to_pydict()]
         car_counts = (
             pl.concat(
                 [pl.from_dict(item) for item in all_n_cars_by_type],

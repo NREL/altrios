@@ -254,7 +254,7 @@ corrected_fuel_sans_buffers_gigajoules = (
 print(
     f"Total SOC-corrected fuel used with BEL and HEL buffers inactive: {corrected_fuel_sans_buffers_gigajoules:.6g} GJ"
 )
-assert len(train_sim_sans_buffers.history) > 1
+assert len(train_sim_sans_buffers.to_pydict()["history"]) > 1
 
 savings_raw = (
     -(raw_fuel_gigajoules - raw_fuel_sans_buffers_gigajoules)

@@ -575,8 +575,6 @@ train_sim: alt.SetSpeedTrainSim = tsb.make_set_speed_train_sim(
     save_interval=SAVE_INTERVAL,
 )
 
-alt.utils.set_log_level("WARNING")
-
 train_sim.set_save_interval(SAVE_INTERVAL)
 t0 = time.perf_counter()
 train_sim.walk()

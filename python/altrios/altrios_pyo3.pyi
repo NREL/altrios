@@ -238,14 +238,14 @@ class FuelConverterStateHistoryVec(SerdeAPI):
     def __len__(self) -> int: ...
 
 
-class Generator(SerdeAPI):
+class Alternator(SerdeAPI):
     eta_interp: list[float]
-    history: GeneratorStateHistoryVec
+    history: AlternatorStateHistoryVec
     pwr_in_frac_interp: list[float]
     pwr_out_frac_interp: list[float]
     pwr_out_max_watts: float
     save_interval: Optional[int]
-    state: GeneratorState
+    state: AlternatorState
     @classmethod
     def __init__(cls) -> None: ...
     def clone(self) -> Self: ...
@@ -254,7 +254,7 @@ class Generator(SerdeAPI):
     def __copy__(self) -> Self: ...
 
 
-class GeneratorState(SerdeAPI):
+class AlternatorState(SerdeAPI):
     energy_elec_aux_joules: float
     energy_elec_prop_out_joules: float
     energy_loss_joules: float
@@ -275,7 +275,7 @@ class GeneratorState(SerdeAPI):
     def __copy__(self) -> Self: ...
 
 
-class GeneratorStateHistoryVec(SerdeAPI):
+class AlternatorStateHistoryVec(SerdeAPI):
     energy_elec_aux_joules: list[float]
     energy_elec_prop_out_joules: list[float]
     energy_loss_joules: list[float]
@@ -315,14 +315,14 @@ class LocoParams(SerdeAPI):
 @dataclass
 class ConventionalLoco(SerdeAPI):
     fc: FuelConverter
-    gen: Generator
+    alt: Alternator
     edrv: ElectricDrivetrain
 
 
 @dataclass
 class HybridLoco(SerdeAPI):
     fuel_converter: FuelConverter
-    generator: Generator
+    alternator: Alternator
     reversible_energy_storage: ReversibleEnergyStorage
     electric_drivetrain: ElectricDrivetrain
 
@@ -342,7 +342,7 @@ class Locomotive(SerdeAPI):
     fc: FuelConverter
     fuel_res_ratio: float
     fuel_res_split: float
-    gen: Generator
+    gen: Alternator
     history: LocomotiveStateHistoryVec
     pwr_aux_watts: float
     res: ReversibleEnergyStorage
@@ -362,7 +362,7 @@ class Locomotive(SerdeAPI):
     def build_conventional_loco(
         cls,
         fuel_converter: FuelConverter,
-        generator: Generator,
+        alternator: Alternator,
         drivetrain: ElectricDrivetrain,
         loco_params: LocoParams,
         save_interval: Optional[int],

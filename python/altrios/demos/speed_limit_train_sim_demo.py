@@ -387,9 +387,9 @@ def plot_hel_pwr_and_soc(ts: alt.SpeedLimitTrainSim, mod_str: str) -> Tuple[plt.
                  ['history']['pwr_out_electrical_watts']) / 1e3,
         label='batt. elec. pwr.'
     )
-    pwr_gen_elect_out = np.array(hybrid_loco['loco_type'][hel_type]['gen']['history']['pwr_elec_prop_out_watts']) \
+    pwr_gen_elect_out = np.array(hybrid_loco['loco_type'][hel_type]['alt']['history']['pwr_elec_prop_out_watts']) \
         + np.array(hybrid_loco['loco_type'][hel_type]
-                   ['gen']['history']['pwr_elec_aux_watts'])
+                   ['alt']['history']['pwr_elec_aux_watts'])
     ax[ax_idx].plot(
         ts_dict['history']['time_seconds'],
         pwr_gen_elect_out / 1e3,

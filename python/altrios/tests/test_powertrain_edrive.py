@@ -1,7 +1,7 @@
 import unittest
 
-
 import altrios as alt
+
 from .mock_resources import *
 
 
@@ -18,7 +18,7 @@ class TestElectricDrivetrain(unittest.TestCase):
     def test_set_nested_state_error(self):
         edrv = mock_electric_drivetrain()
 
-        with self.assertRaises(AttributeError): 
+        with self.assertRaises(AttributeError):
             # not allowed to set value on nested state
             edrv.state.pwr_loss_watts = 0.5
 

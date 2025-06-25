@@ -1,7 +1,8 @@
 import unittest
 
-from .mock_resources import *
 import altrios as alt
+
+from .mock_resources import *
 
 
 class TestLocomotive(unittest.TestCase):

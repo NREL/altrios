@@ -121,9 +121,10 @@ def main(
                               List[Tuple[str, str]]] = [
             ('Meet_Pass_Events', 'count'),
             ('Freight_Moved', 'million tonne-mi'),
+            ('Freight_Moved', 'million tonne-km'),
             ('Freight_Moved', 'car-miles'),
             ('Freight_Moved', 'cars'),
-            ('Freight_Moved', 'detailed'),
+            ('Freight_Moved', 'detailed car counts'),
             ('GHG', 'tonne CO2-eq'),
             ('Count_Locomotives', 'assets'),
             ('Count_Refuelers', 'assets'),
@@ -204,13 +205,19 @@ def calculate_rollout_lcotkm(values: MetricType) -> MetricType:
     """
 
     cost_timeseries = (values
-                       .filter((pl.col("Metric")==pl.lit("Cost_Total")) & (pl.col("Subset")=="All"))
-                       .select(["Year","Value"])
-                       .rename({"Value": "Cost_Total"}))
+        .filter(
+            pl.col("Metric")==pl.lit("Cost_Total"),
+            pl.col("Subset")=="All"
+        )
+        .select(["Year","Value"])
+        .rename({"Value": "Cost_Total"}))
     tkm_timeseries = (values
-                      .filter(pl.col("Metric")==pl.lit("Mt-km"))
-                      .select(["Year", "Value"])
-                      .rename({"Value": "Mt-km"}))
+        .filter(
+            pl.col("Metric")==pl.lit("Freight_Moved"),
+            pl.col("Units")==pl.lit("million tonne-km")
+        )
+        .select(["Year", "Value"])
+        .rename({"Value": "Mt-km"}))
     timeseries = cost_timeseries.join(tkm_timeseries, on="Year", how="outer")
     timeseries = (timeseries
                   .with_columns((pl.col("Year") - pl.col("Year").min()).alias("Year_Offset"))
@@ -467,7 +474,6 @@ def calculate_freight_moved(
         assert info.consist_plan.filter(~pl.col("Train_Type").str.contains("Intermodal")).height == 0, "Can only count containers if the consist plan is all Intermodal"
         car_distance = info.sims.get_car_kilometers(annualize=info.annualize) * conversion_from_km
         return metric("Freight_Moved", units, car_distance * info.train_planner_config.containers_per_car, year=info.scenario_year)
-        
     elif units == "containers":
         container_counts = info.consist_plan.select("Train_ID", "Containers_Loaded", "Containers_Empty").unique().drop("Train_ID").sum()
         if info.annualize: 

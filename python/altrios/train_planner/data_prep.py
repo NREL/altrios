@@ -148,8 +148,6 @@ def build_locopool(
     config: planner_config.TrainPlannerConfig,
     demand_file: Union[pl.DataFrame, pl.LazyFrame, Path, str],
     dispatch_schedule: Union[pl.DataFrame, pl.LazyFrame] = None,
-    method: str = "tile",
-    shares: List[float] = [],
     locomotives_per_node: int = None
 ) -> pl.DataFrame:
     """
@@ -157,7 +155,6 @@ def build_locopool(
     Arguments:
     ----------
     demand_file: Path to a file with origin-destination demand
-    method: Method to determine each locomotive's type ("tile" or "shares_twoway" currently implemented)
     shares: List of shares for each locomotive type in loco_info (implemented for two-way shares only)
     Outputs:
     ----------
@@ -228,15 +225,15 @@ def build_locopool(
         engine_numbers = rankdata(sorted_nodes, method="dense") * 1000 + \
             np.tile(range(0, initial_size), num_nodes)
 
-    if method == "tile":
-        repetitions = math.ceil(rows/len(loco_types))
-        types = np.tile(loco_types, repetitions).tolist()[0:rows]
-    elif method == "shares_twoway":
-        # TODO: this logic can be replaced (and generalized to >2 types) using altrios.utilities.allocateItems
-        if((len(loco_types) != 2) | (len(shares) != 2)):
+    if config.loco_type_shares is not None:
+        if not all(key in loco_types for key in config.loco_type_shares.keys()):
+            raise ValueError(
+                f"""A loco_type was specified in the train planner config's loco_type_shares that was not in its loco_info.""")
+        if((len(loco_types) != 2) | (len(config.loco_type_shares) != 2)):
             raise ValueError(
                 f"""2-way prescribed locopool requested but number of locomotive types is not 2.""")
-
+        # TODO: this logic can be replaced (and generalized to >2 types) using altrios.utilities.allocateItems
+        shares = [config.loco_type_shares.get(type, 0.0) for type in loco_types]
         idx_1 = np.argmin(shares)
         idx_2 = 1 - idx_1
         share_type_one = shares[idx_1]
@@ -266,8 +263,8 @@ def build_locopool(
                 axis=None)
         types = np.tile(types, num_nodes).tolist()
     else:
-        raise ValueError(
-            f"""Locopool build method '{method}' invalid or not implemented.""")
+        repetitions = math.ceil(rows/len(loco_types))
+        types = np.tile(loco_types, repetitions).tolist()[0:rows]
 
     loco_pool = pl.DataFrame(
         {'Locomotive_ID': pl.Series(engine_numbers, dtype=pl.UInt32),

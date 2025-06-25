@@ -534,14 +534,15 @@ def run_train_planner(
                 demand_rebalancing = train_demand_generators.generate_manifest_rebalancing_demand(demand, node_list, config)
                 
         # Set up dispatch scheduler if not provided
-        if config.dispatch_scheduler is None:
+        dispatch_scheduler = config.dispatch_scheduler
+        if dispatch_scheduler is None:
             # Generate full demand including returns and rebalancing
             demand = train_demand_generators.generate_demand_trains(demand, demand_returns, demand_rebalancing, rail_vehicles, freight_type_to_car_type, config)
             # Set default scheduler
-            config.dispatch_scheduler = schedulers.dispatch_uniform_demand_uniform_departure
+            dispatch_scheduler = schedulers.dispatch_uniform_demand_uniform_departure
 
         # Create dispatch schedule using configured scheduler
-        dispatch_schedule = config.dispatch_scheduler(demand, rail_vehicles, freight_type_to_car_type, config)
+        dispatch_schedule = dispatch_scheduler(demand, rail_vehicles, freight_type_to_car_type, config)
         # Uncomment to add random jitter to departure times
         #dispatch_schedule = dispatch_schedule.with_columns(pl.col("Hour").add(pl.random.rand()))
    

@@ -136,7 +136,9 @@ class ModelObjectives:
     def __post_init__(self):
         """Initialize special attributes and check for proper setup"""
         assert self.n_obj is None, "`n_obj` is not intended to be user provided"
-        assert len(self.dfs) == len(self.models), f"{len(self.dfs)} != {len(self.models)}"
+        assert len(self.dfs) == len(self.models), (
+            f"{len(self.dfs)} != {len(self.models)}"
+        )
         self.param_fns = tuple(pb[0] for pb in self.param_fns_and_bounds)
         self.bounds = tuple(pb[1] for pb in self.param_fns_and_bounds)
         assert len(self.bounds) == len(self.param_fns)
@@ -253,7 +255,9 @@ class ModelObjectives:
             sim_dict = sim.to_pydict()
             walk_success = True
             print(err)
-            if len(sim_dict["veh"]["history"]["time_seconds"]) < np.floor(len(df_exp) / 2):
+            if len(sim_dict["veh"]["history"]["time_seconds"]) < np.floor(
+                len(df_exp) / 2
+            ):
                 walk_success = False
 
         if self.verbose:
@@ -315,7 +319,9 @@ class ModelObjectives:
                 mod_sig = obj_fn[0](sim_dict)
                 ref_sig = obj_fn[1](df_exp)
             else:
-                raise ValueError("Each element in `self.obj_fns` must have length of 1 or 2")
+                raise ValueError(
+                    "Each element in `self.obj_fns` must have length of 1 or 2"
+                )
         else:
             # minimizing scalar objective
             mod_sig = obj_fn(sim_dict)

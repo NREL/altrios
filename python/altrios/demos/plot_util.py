@@ -1,7 +1,6 @@
 import altrios as alt
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 
 def extract_bel_from_train_sim(ts: alt.SetSpeedTrainSim) -> list:
@@ -52,9 +51,9 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str, show_plots: bool = Fals
     x: ["time","offset"]
     """
     ts_dict = ts.to_pydict()
-    if isinstance(train_sim, alt.SpeedLimitTrainSim):
+    if isinstance(ts, alt.SpeedLimitTrainSim):
         plot_title = "Speed Limit Train Sim"
-    if isinstance(train_sim, alt.SetSpeedTrainSim):
+    if isinstance(ts, alt.SetSpeedTrainSim):
         plot_title = "Set Speed Train Sim"
     if x == "time" or x == "Time":
         x_axis = np.array(ts_dict["history"]["time_seconds"]) / 3_600
@@ -63,7 +62,6 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str, show_plots: bool = Fals
         x_axis = np.array(ts_dict["history"]["offset_back_meters"]) / 1_000
         x_label = "Distance (km)"
     first_bel = []
-    first_conv = []
     first_hel = []
 
     if extract_bel_from_train_sim(ts):
@@ -125,7 +123,7 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str, show_plots: bool = Fals
             ts_dict["history"]["speed_meters_per_second"],
             label="achieved speed",
         )
-        if isinstance(train_sim, alt.SpeedLimitTrainSim):
+        if isinstance(ts, alt.SpeedLimitTrainSim):
             ax[-1].plot(
                 x_axis,
                 ts_dict["history"]["speed_limit_meters_per_second"],
@@ -195,8 +193,7 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str, show_plots: bool = Fals
         if show_plots:
             plt.show()
 
-    if extract_conv_from_train_sim(ts) != False:
-        first_conv = extract_conv_from_train_sim(ts)[0]
+    if extract_conv_from_train_sim(ts) is not False:
         fig, ax = plt.subplots(3, 1, sharex=True)
         ax[0].plot(
             x_axis,
@@ -238,7 +235,7 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str, show_plots: bool = Fals
             ts_dict["history"]["speed_meters_per_second"],
             label="achieved speed",
         )
-        if isinstance(train_sim, alt.SpeedLimitTrainSim):
+        if isinstance(ts, alt.SpeedLimitTrainSim):
             ax[-1].plot(
                 x_axis,
                 ts_dict["history"]["speed_limit_meters_per_second"],
@@ -308,7 +305,7 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str, show_plots: bool = Fals
         if show_plots:
             plt.show()
 
-    if extract_hel_from_train_sim(ts) != False:
+    if extract_hel_from_train_sim(ts) is not False:
         first_hel = extract_hel_from_train_sim(ts)[0]
         fig, ax = plt.subplots(4, 1, sharex=True)
         ax[0].plot(
@@ -358,7 +355,7 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str, show_plots: bool = Fals
             ts_dict["history"]["speed_meters_per_second"],
             label="achieved speed",
         )
-        if isinstance(train_sim, alt.SpeedLimitTrainSim):
+        if isinstance(ts, alt.SpeedLimitTrainSim):
             ax[-1].plot(
                 x_axis,
                 ts_dict["history"]["speed_limit_meters_per_second"],

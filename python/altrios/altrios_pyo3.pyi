@@ -7,52 +7,6 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, Self, TypeVar
 
-# Classes defined in this module that are referenced before definition
-if TYPE_CHECKING:
-    from .altrios_pyo3 import (  # noqa: F401
-        BatteryElectricLoco,
-        Consist,
-        ConsistState,
-        ConsistStateHistoryVec,
-        ConventionalLoco,
-        DummyLoco,
-        ElectricDrivetrain,
-        ElectricDrivetrainState,
-        ElectricDrivetrainStateHistoryVec,
-        FricBrakeState,
-        FricBrakeStateHistoryVec,
-        FuelConverter,
-        FuelConverterState,
-        Generator,
-        GeneratorState,
-        GeneratorStateHistoryVec,
-        HybridLoco,
-        InitTrainState,
-        Link,
-        LinkIdx,
-        LinkIdxTime,
-        Location,
-        Locomotive,
-        LocomotiveState,
-        LocomotiveStateHistoryVec,
-        Network,
-        PathTpc,
-        PowerTrace,
-        RailVehicle,
-        ReversibleEnergyStorage,
-        ReversibleEnergyStorageState,
-        ReversibleEnergyStorageStateHistoryVec,
-        SetSpeedTrainSim,
-        SpeedLimitTrainSim,
-        SpeedTrace,
-        TemperatureTrace,
-        TrainConfig,
-        TrainParams,
-        TrainState,
-        TrainStateHistoryVec,
-    )
-
-
 class TrainType(Enum):
     """Train type enumeration."""
 
@@ -370,10 +324,10 @@ class GeneratorStateHistoryVec(SerdeAPI):
 
 @dataclass
 class LocoParams(SerdeAPI):
-    mass_kilograms: float | None = 0.0 
+    mass_kilograms: float | None = 0.0
     brake_count: int = 0
-    
-    @classmethod 
+
+    @classmethod
     def from_dict(cls, param_dict: dict[str, float]) -> Self: ...
     def to_dict(self) -> dict[str, float]: ...
 
@@ -770,7 +724,7 @@ class SpeedLimitTrainSim(SerdeAPI):
     train_id: str
     origs: list[Location]
     dests: list[Location]
-    loco_con: Consist 
+    loco_con: Consist
     n_cars_by_type: dict[str, int]
     state: TrainState
     # train_res: TrainRes # not accessible in Python
@@ -781,7 +735,7 @@ class SpeedLimitTrainSim(SerdeAPI):
     save_interval: int | None
     simulation_days: int | None
     scenario_year: int | None
-    
+
     @classmethod
     def __init__(
         cls,
@@ -862,7 +816,7 @@ class TrainSimBuilder(SerdeAPI):
     ) -> SpeedLimitTrainSim: ...
 
 @dataclass
-class TrainConfig(SerdeAPI): 
+class TrainConfig(SerdeAPI):
     n_cars_by_type: dict[str, int]
     rail_vehicle_type: str | None
     train_type: TrainType | None

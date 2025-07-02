@@ -56,15 +56,11 @@ dependencies = [
 dev = [
     { name = "maturin" },
     { name = "memory-profiler" },
+    { name = "mypy" },
     { name = "pylsp-mypy" },
     { name = "pytest" },
     { name = "python-lsp-server" },
     { name = "ruff" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "altrios", extra = ["dev"] },
 ]
 
 [package.metadata]
@@ -75,6 +71,7 @@ requires-dist = [
     { name = "maturin", marker = "extra == 'dev'", specifier = "~=1.8" },
     { name = "memory-profiler", marker = "extra == 'dev'", specifier = "~=0.61.0" },
     { name = "msgpack", specifier = "==1.1.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.15.0" },
     { name = "numpy", specifier = "~=1.24" },
     { name = "openpyxl" },
     { name = "pandas", specifier = ">=2" },
@@ -94,9 +91,6 @@ requires-dist = [
     { name = "typing-extensions" },
     { name = "xlrd" },
 ]
-
-[package.metadata.requires-dev]
-dev = [{ name = "altrios", extras = ["dev"] }]
 
 [[package]]
 name = "appnope"

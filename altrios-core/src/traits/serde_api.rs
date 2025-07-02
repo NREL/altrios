@@ -1,4 +1,5 @@
 use super::*;
+use include_dir::{include_dir, Dir};
 
 pub trait Init {
     /// Specialized code to execute upon initialization.  For any struct with fields
@@ -28,7 +29,9 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
         "toml",
     ];
     #[cfg(feature = "resources")]
-    const RESOURCE_PREFIX: &'static str = "";
+    const RESOURCES_SUBDIR: &'static str = "";
+    #[cfg(feature = "resources")]
+    const RESOURCES_DIR: &'static Dir<'_> = &include_dir!("$CARGO_MANIFEST_DIR/resources");
 
     /// Read (deserialize) an object from a resource file packaged with the `altrios-core` crate
     ///
@@ -36,16 +39,52 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
     ///
     /// * `filepath` - Filepath, relative to the top of the `resources` folder (excluding any relevant prefix), from which to read the object
     #[cfg(feature = "resources")]
-    fn from_resource<P: AsRef<Path>>(filepath: P, skip_init: bool) -> anyhow::Result<Self> {
-        let filepath = Path::new(Self::RESOURCE_PREFIX).join(filepath);
+    fn from_resource<P: AsRef<Path>>(filepath: P, skip_init: bool) -> Result<Self, Error> {
+        let filepath = Path::new(Self::RESOURCES_SUBDIR).join(filepath);
         let extension = filepath
             .extension()
             .and_then(OsStr::to_str)
-            .with_context(|| format!("File extension could not be parsed: {filepath:?}"))?;
-        let file = crate::resources::RESOURCES_DIR
-            .get_file(&filepath)
-            .with_context(|| format!("File not found in resources: {filepath:?}"))?;
+            .ok_or_else(|| {
+                Error::SerdeError(format!("File extension could not be parsed: {filepath:?}"))
+            })?;
+        let file = Self::RESOURCES_DIR.get_file(&filepath).ok_or_else(|| {
+            Error::SerdeError(format!("File not found in resources: {filepath:?}"))
+        })?;
         Self::from_reader(&mut file.contents(), extension, skip_init)
+    }
+
+    /// List the available resources in the resources directory
+    ///
+    /// RETURNS: a vector of strings for resources that can be loaded
+    fn list_resources() -> Result<Vec<PathBuf>, Error> {
+        // Recursive function to walk the directory
+        fn collect_paths(dir: &Dir, paths: &mut Vec<PathBuf>) {
+            for entry in dir.entries() {
+                match entry {
+                    include_dir::DirEntry::Dir(subdir) => {
+                        // Recursively process subdirectory
+                        collect_paths(subdir, paths);
+                    }
+                    include_dir::DirEntry::File(file) => {
+                        // Add file path
+                        paths.push(file.path().to_path_buf());
+                    }
+                }
+            }
+        }
+
+        let mut paths = Vec::new();
+        if let Some(resources_subdir) = Self::RESOURCES_DIR.get_dir(Self::RESOURCES_SUBDIR) {
+            collect_paths(resources_subdir, &mut paths);
+            for p in paths.iter_mut() {
+                *p = p
+                    .strip_prefix(Self::RESOURCES_SUBDIR)
+                    .map_err(|err| Error::SerdeError(format!("{err}")))?
+                    .to_path_buf();
+            }
+            paths.sort();
+        }
+        Ok(paths)
     }
 
     /// Write (serialize) an object to a file.
@@ -285,7 +324,6 @@ pub trait SerdeAPI: Serialize + for<'a> Deserialize<'a> + Init {
     }
 }
 
-impl<T: SerdeAPI> SerdeAPI for Vec<T> {}
 impl<T: Init> Init for Vec<T> {
     fn init(&mut self) -> Result<(), Error> {
         for val in self {
@@ -294,3 +332,5 @@ impl<T: Init> Init for Vec<T> {
         Ok(())
     }
 }
+
+impl<T: SerdeAPI> SerdeAPI for Vec<T> {}

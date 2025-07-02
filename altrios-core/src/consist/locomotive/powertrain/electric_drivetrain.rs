@@ -1,10 +1,39 @@
+use super::*;
 use crate::consist::locomotive::powertrain::ElectricMachine;
 use crate::imports::*;
-
 #[cfg(feature = "pyo3")]
 use crate::pyo3::*;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Struct for modeling electric drivetrain.  This includes power electronics, motor, axle ...
+/// everything involved in converting high voltage electrical power to force exerted by the wheel on the track.  
+pub struct ElectricDrivetrain {
+    #[serde(default)]
+    /// struct for tracking current state
+    pub state: ElectricDrivetrainState,
+    /// Shaft output power fraction array at which efficiencies are evaluated.
+    pub pwr_out_frac_interp: Vec<f64>,
+
+    /// Efficiency array corresponding to [Self::pwr_out_frac_interp] and [Self::pwr_in_frac_interp]
+    pub eta_interp: Vec<f64>,
+    /// Electrical input power fraction array at which efficiencies are evaluated.
+    /// Calculated during runtime if not provided.
+    #[serde(skip)]
+    pub pwr_in_frac_interp: Vec<f64>,
+    /// ElectricDrivetrain maximum output power assuming that positive and negative tractive powers have same magnitude
+    pub pwr_out_max: si::Power,
+    // TODO: add `mass` here
+    /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
+    pub save_interval: Option<usize>,
+    /// Custom vector of [Self::state] haha
+    #[serde(default)]
+    pub history: ElectricDrivetrainStateHistoryVec,
+}
+
+#[pyo3_api]
+impl ElectricDrivetrain {
     #[new]
     #[pyo3(signature = (pwr_out_frac_interp, eta_interp, pwr_out_max_watts, save_interval=None))]
     fn __new__(
@@ -21,10 +50,10 @@ use crate::pyo3::*;
         )
     }
 
-    #[setter]
-    pub fn set_eta_interp(&mut self, new_value: Vec<f64>) -> anyhow::Result<()> {
-        self.eta_interp = new_value;
-        self.set_pwr_in_frac_interp()
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
     }
 
     #[getter("eta_max")]
@@ -49,38 +78,10 @@ use crate::pyo3::*;
 
     #[setter("__eta_range")]
     fn set_eta_range_py(&mut self, eta_range: f64) -> anyhow::Result<()> {
-        Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
+        Ok(self
+            .set_eta_range(eta_range)
+            .map_err(PyValueError::new_err)?)
     }
-)]
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
-/// Struct for modeling electric drivetrain.  This includes power electronics, motor, axle ...
-/// everything involved in converting high voltage electrical power to force exerted by the wheel on the track.  
-pub struct ElectricDrivetrain {
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    /// struct for tracking current state
-    pub state: ElectricDrivetrainState,
-    /// Shaft output power fraction array at which efficiencies are evaluated.
-    pub pwr_out_frac_interp: Vec<f64>,
-    #[api(skip_set)]
-    /// Efficiency array corresponding to [Self::pwr_out_frac_interp] and [Self::pwr_in_frac_interp]
-    pub eta_interp: Vec<f64>,
-    /// Electrical input power fraction array at which efficiencies are evaluated.
-    /// Calculated during runtime if not provided.
-    #[serde(skip)]
-    #[api(skip_set)]
-    pub pwr_in_frac_interp: Vec<f64>,
-    /// ElectricDrivetrain maximum output power assuming that positive and negative tractive powers have same magnitude
-    pub pwr_out_max: si::Power,
-    // TODO: add `mass` here
-    /// Time step interval between saves. 1 is a good option. If None, no saving occurs.
-    pub save_interval: Option<usize>,
-    /// Custom vector of [Self::state]
-    #[serde(
-        default,
-        skip_serializing_if = "ElectricDrivetrainStateHistoryVec::is_empty"
-    )]
-    pub history: ElectricDrivetrainStateHistoryVec,
 }
 
 impl ElectricDrivetrain {
@@ -164,13 +165,16 @@ impl ElectricDrivetrain {
                 &self.eta_interp,
                 false,
             )?;
-        self.state.pwr_mech_regen_max = (pwr_max_regen_in * eta).min(self.pwr_out_max);
-        ensure!(self.state.pwr_mech_regen_max >= si::Power::ZERO);
+        self.state.pwr_mech_regen_max.update(
+            (pwr_max_regen_in * eta).min(self.pwr_out_max),
+            || format_dbg!(),
+        )?;
+        ensure!(*self.state.pwr_mech_regen_max.get_fresh(|| format_dbg!())? >= si::Power::ZERO);
         Ok(())
     }
 
     /// Set `pwr_in_req` required to achieve desired `pwr_out_req` with time step size `dt`.
-    pub fn set_pwr_in_req(&mut self, pwr_out_req: si::Power, dt: si::Time) -> anyhow::Result<()> {
+    pub fn set_pwr_in_req(&mut self, pwr_out_req: si::Power, _dt: si::Time) -> anyhow::Result<()> {
         ensure!(
             almost_le_uom(&pwr_out_req.abs(), &self.pwr_out_max, None),
             format!(
@@ -182,59 +186,97 @@ impl ElectricDrivetrain {
         );
 
         ensure!(
-            almost_le_uom(&pwr_out_req, &self.state.pwr_mech_out_max, Some(1e-5)),
+            almost_le_uom(
+                &pwr_out_req,
+                self.state.pwr_mech_out_max.get_fresh(|| format_dbg!())?,
+                Some(1e-5)
+            ),
             format!(
                 "{}\nedrv required power ({:.6} MW) exceeds dynamic max power ({:.6} MW)",
-                format_dbg!(pwr_out_req.abs() <= self.state.pwr_mech_out_max),
+                format_dbg!(
+                    pwr_out_req.abs()
+                        <= *self.state.pwr_mech_out_max.get_fresh(|| format_dbg!())?
+                ),
                 pwr_out_req.get::<si::megawatt>(),
-                self.state.pwr_mech_out_max.get::<si::megawatt>()
+                self.state
+                    .pwr_mech_out_max
+                    .get_fresh(|| format_dbg!())?
+                    .get::<si::megawatt>()
             ),
         );
 
-        self.state.pwr_out_req = pwr_out_req;
+        self.state
+            .pwr_out_req
+            .update(pwr_out_req, || format_dbg!())?;
 
-        self.state.eta = uc::R
-            * interp1d(
-                &(pwr_out_req / self.pwr_out_max).get::<si::ratio>().abs(),
-                &self.pwr_out_frac_interp,
-                &self.eta_interp,
-                false,
-            )?;
+        self.state.eta.update(
+            uc::R
+                * interp1d(
+                    &(pwr_out_req / self.pwr_out_max).get::<si::ratio>().abs(),
+                    &self.pwr_out_frac_interp,
+                    &self.eta_interp,
+                    false,
+                )
+                .with_context(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
         ensure!(
-            self.state.eta >= 0.0 * uc::R || self.state.eta <= 1.0 * uc::R,
+            *self.state.eta.get_fresh(|| format_dbg!())? >= 0.0 * uc::R
+                || *self.state.eta.get_fresh(|| format_dbg!())? <= 1.0 * uc::R,
             format!(
                 "{}\nedrv eta ({}) must be between 0 and 1",
-                format_dbg!(self.state.eta >= 0.0 * uc::R || self.state.eta <= 1.0 * uc::R),
-                self.state.eta.get::<si::ratio>()
+                format_dbg!(
+                    *self.state.eta.get_fresh(|| format_dbg!())? >= 0.0 * uc::R
+                        || *self.state.eta.get_fresh(|| format_dbg!())? <= 1.0 * uc::R
+                ),
+                self.state
+                    .eta
+                    .get_fresh(|| format_dbg!())?
+                    .get::<si::ratio>()
             )
         );
 
         // `pwr_mech_prop_out` is `pwr_out_req` unless `pwr_out_req` is more negative than `pwr_mech_regen_max`,
         // in which case, excess is handled by `pwr_mech_dyn_brake`
-        self.state.pwr_mech_prop_out = pwr_out_req.max(-self.state.pwr_mech_regen_max);
-        self.state.energy_mech_prop_out += self.state.pwr_mech_prop_out * dt;
+        self.state.pwr_mech_prop_out.update(
+            pwr_out_req.max(-*self.state.pwr_mech_regen_max.get_fresh(|| format_dbg!())?),
+            || format_dbg!(),
+        )?;
 
-        self.state.pwr_mech_dyn_brake = -(pwr_out_req - self.state.pwr_mech_prop_out);
-        self.state.energy_mech_dyn_brake += self.state.pwr_mech_dyn_brake * dt;
+        self.state.pwr_mech_dyn_brake.update(
+            -(pwr_out_req - *self.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())?),
+            || format_dbg!(),
+        )?;
         ensure!(
-            self.state.pwr_mech_dyn_brake >= si::Power::ZERO,
+            *self.state.pwr_mech_dyn_brake.get_fresh(|| format_dbg!())? >= si::Power::ZERO,
             "Mech Dynamic Brake Power cannot be below 0.0"
         );
 
         // if pwr_out_req is negative, need to multiply by eta
-        self.state.pwr_elec_prop_in = if pwr_out_req > si::Power::ZERO {
-            self.state.pwr_mech_prop_out / self.state.eta
-        } else {
-            self.state.pwr_mech_prop_out * self.state.eta
-        };
-        self.state.energy_elec_prop_in += self.state.pwr_elec_prop_in * dt;
+        self.state.pwr_elec_prop_in.update(
+            if pwr_out_req > si::Power::ZERO {
+                *self.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())?
+                    / *self.state.eta.get_fresh(|| format_dbg!())?
+            } else {
+                *self.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())?
+                    * *self.state.eta.get_fresh(|| format_dbg!())?
+            },
+            || format_dbg!(),
+        )?;
 
-        self.state.pwr_elec_dyn_brake = self.state.pwr_mech_dyn_brake * self.state.eta;
-        self.state.energy_elec_dyn_brake += self.state.pwr_elec_dyn_brake * dt;
+        self.state.pwr_elec_dyn_brake.update(
+            *self.state.pwr_mech_dyn_brake.get_fresh(|| format_dbg!())?
+                * *self.state.eta.get_fresh(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
 
         // loss does not account for dynamic braking
-        self.state.pwr_loss = (self.state.pwr_mech_prop_out - self.state.pwr_elec_prop_in).abs();
-        self.state.energy_loss += self.state.pwr_loss * dt;
+        self.state.pwr_loss.update(
+            (*self.state.pwr_mech_prop_out.get_fresh(|| format_dbg!())?
+                - *self.state.pwr_elec_prop_in.get_fresh(|| format_dbg!())?)
+            .abs(),
+            || format_dbg!(),
+        )?;
 
         Ok(())
     }
@@ -287,91 +329,89 @@ impl ElectricMachine for ElectricDrivetrain {
                 false,
             )?;
 
-        self.state.pwr_mech_out_max = self.pwr_out_max.min(pwr_in_max * eta).max(si::Power::ZERO);
+        self.state.pwr_mech_out_max.update(
+            self.pwr_out_max.min(pwr_in_max * eta).max(si::Power::ZERO),
+            || format_dbg!(),
+        )?;
         Ok(())
     }
 
     /// Set current power out max ramp rate, `pwr_rate_out_max` given `pwr_rate_in_max`
     /// from upstream component.  
-    fn set_pwr_rate_out_max(&mut self, pwr_rate_in_max: si::PowerRate) {
-        self.state.pwr_rate_out_max = pwr_rate_in_max
-            * if self.state.eta > si::Ratio::ZERO {
-                self.state.eta
+    fn set_pwr_rate_out_max(&mut self, pwr_rate_in_max: si::PowerRate) -> anyhow::Result<()> {
+        self.state.pwr_rate_out_max.update(
+            if *self.state.eta.get_stale(|| format_dbg!())? > si::Ratio::ZERO {
+                pwr_rate_in_max * *self.state.eta.get_stale(|| format_dbg!())?
             } else {
-                uc::R * 1.0
-            };
+                pwr_rate_in_max * uc::R * 1.0
+            },
+            || format_dbg!(),
+        )?;
+        Ok(())
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
-#[altrios_api]
+#[serde_api]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Serialize,
+    PartialEq,
+    HistoryVec,
+    StateMethods,
+    SetCumulative,
+)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct ElectricDrivetrainState {
     /// index
-    pub i: usize,
+    pub i: TrackedState<usize>,
     /// Component efficiency based on current power demand.
-    pub eta: si::Ratio,
+    pub eta: TrackedState<si::Ratio>,
     // Component limits
     /// Maximum possible positive traction power.
-    pub pwr_mech_out_max: si::Power,
+    pub pwr_mech_out_max: TrackedState<si::Power>,
     /// Maximum possible regeneration power going to ReversibleEnergyStorage.
-    pub pwr_mech_regen_max: si::Power,
+    pub pwr_mech_regen_max: TrackedState<si::Power>,
     /// max ramp-up rate
-    pub pwr_rate_out_max: si::PowerRate,
+    pub pwr_rate_out_max: TrackedState<si::PowerRate>,
 
     // Current values
     /// Raw power requirement from boundary conditions
-    pub pwr_out_req: si::Power,
+    pub pwr_out_req: TrackedState<si::Power>,
     /// Electrical power to propulsion from ReversibleEnergyStorage and Generator.
     /// negative value indicates regenerative braking
-    pub pwr_elec_prop_in: si::Power,
+    pub pwr_elec_prop_in: TrackedState<si::Power>,
     /// Mechanical power to propulsion, corrected by efficiency, from ReversibleEnergyStorage and Generator.
     /// Negative value indicates regenerative braking.
-    pub pwr_mech_prop_out: si::Power,
+    pub pwr_mech_prop_out: TrackedState<si::Power>,
     /// Mechanical power from dynamic braking.  Positive value indicates braking; this should be zero otherwise.
-    pub pwr_mech_dyn_brake: si::Power,
+    pub pwr_mech_dyn_brake: TrackedState<si::Power>,
     /// Electrical power from dynamic braking, dissipated as heat.
-    pub pwr_elec_dyn_brake: si::Power,
+    pub pwr_elec_dyn_brake: TrackedState<si::Power>,
     /// Power lost in regeneratively converting mechanical power to power that can be absorbed by the battery.
-    pub pwr_loss: si::Power,
+    pub pwr_loss: TrackedState<si::Power>,
 
     // Cumulative energy values
     /// cumulative mech energy in from fc
-    pub energy_elec_prop_in: si::Energy,
+    pub energy_elec_prop_in: TrackedState<si::Energy>,
     /// cumulative elec energy out
-    pub energy_mech_prop_out: si::Energy,
+    pub energy_mech_prop_out: TrackedState<si::Energy>,
     /// cumulative energy has lost due to imperfect efficiency
     /// Mechanical energy from dynamic braking.
-    pub energy_mech_dyn_brake: si::Energy,
+    pub energy_mech_dyn_brake: TrackedState<si::Energy>,
     /// Electrical energy from dynamic braking, dissipated as heat.
-    pub energy_elec_dyn_brake: si::Energy,
+    pub energy_elec_dyn_brake: TrackedState<si::Energy>,
     /// Cumulative energy lost in regeneratively converting mechanical power to power that can be absorbed by the battery.
-    pub energy_loss: si::Energy,
+    pub energy_loss: TrackedState<si::Energy>,
 }
+
+#[pyo3_api]
+impl ElectricDrivetrainState {}
 
 impl Init for ElectricDrivetrainState {}
 impl SerdeAPI for ElectricDrivetrainState {}
-impl Default for ElectricDrivetrainState {
-    fn default() -> Self {
-        Self {
-            i: 1,
-            eta: Default::default(),
-            pwr_out_req: Default::default(),
-            pwr_mech_prop_out: Default::default(),
-            pwr_elec_prop_in: Default::default(),
-            pwr_mech_out_max: Default::default(),
-            pwr_mech_regen_max: Default::default(),
-            pwr_elec_dyn_brake: Default::default(),
-            pwr_mech_dyn_brake: Default::default(),
-            pwr_loss: Default::default(),
-            pwr_rate_out_max: Default::default(),
-            energy_elec_prop_in: Default::default(),
-            energy_mech_prop_out: Default::default(),
-            energy_elec_dyn_brake: Default::default(),
-            energy_mech_dyn_brake: Default::default(),
-            energy_loss: Default::default(),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -383,36 +423,9 @@ mod tests {
     #[test]
     fn test_that_i_increments() {
         let mut edrv = test_edrv();
-        edrv.step();
-        assert_eq!(2, edrv.state.i);
-    }
-
-    #[test]
-    fn test_that_loss_is_monotonic() {
-        let mut edrv = test_edrv();
-        edrv.state.pwr_mech_out_max = edrv.pwr_out_max;
-        edrv.save_interval = Some(1);
-        edrv.save_state();
-        edrv.set_pwr_in_req(uc::W * 1_000e3, uc::S * 1.0).unwrap();
-        edrv.step();
-        edrv.save_state();
-        edrv.set_pwr_in_req(uc::W * 1_100e3, uc::S * 1.0).unwrap();
-        edrv.step();
-        edrv.save_state();
-        edrv.set_pwr_in_req(uc::W * 1_000e3, uc::S * 1.0).unwrap();
-        edrv.step();
-        edrv.save_state();
-        edrv.set_pwr_in_req(uc::W * -500e3, uc::S * 1.0).unwrap();
-        edrv.step();
-        edrv.save_state();
-        edrv.set_pwr_in_req(uc::W * -1_500e3, uc::S * 1.0).unwrap();
-        edrv.step();
-        edrv.save_state();
-        assert!(edrv
-            .history
-            .energy_loss
-            .windows(2)
-            .all(|w| w[1] - w[0] >= si::Energy::ZERO));
+        edrv.check_and_reset(|| format_dbg!()).unwrap();
+        edrv.step(|| format_dbg!()).unwrap();
+        assert_eq!(1, *edrv.state.i.get_fresh(|| format_dbg!()).unwrap());
     }
 
     #[test]
@@ -421,7 +434,7 @@ mod tests {
         let mut edrv: ElectricDrivetrain = ElectricDrivetrain::default();
         edrv.save_interval = Some(1);
         assert!(edrv.history.is_empty());
-        edrv.save_state();
+        edrv.save_state(|| format_dbg!()).unwrap();
         assert_eq!(1, edrv.history.len());
     }
 
@@ -429,7 +442,7 @@ mod tests {
     fn test_that_history_has_len_0() {
         let mut edrv: ElectricDrivetrain = ElectricDrivetrain::default();
         assert!(edrv.history.is_empty());
-        edrv.save_state();
+        edrv.save_state(|| format_dbg!()).unwrap();
         assert!(edrv.history.is_empty());
     }
 

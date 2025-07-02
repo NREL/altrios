@@ -4,7 +4,52 @@ use super::*;
 
 const TOL: f64 = 1e-3;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Struct for modeling Fuel Converter (e.g. engine, fuel cell.)
+pub struct FuelConverter {
+    #[serde(default)]
+    /// struct for tracking current state
+    pub state: FuelConverterState,
+    /// FuelConverter mass
+    #[serde(default)]
+    mass: Option<si::Mass>,
+    /// FuelConverter specific power
+    specific_pwr: Option<si::SpecificPower>,
+    /// max rated brake output power
+    pub pwr_out_max: si::Power,
+    /// starting/baseline transient power limit
+    #[serde(default)]
+    pub pwr_out_max_init: si::Power,
+    // TODO: consider a ramp down rate, which may be needed for fuel cells
+    /// lag time for ramp up
+    pub pwr_ramp_lag: si::Time,
+    /// Fuel converter brake power fraction array at which efficiencies are evaluated.
+    /// This fuel converter efficiency model assumes that speed and load (or voltage and current) will
+    /// always be controlled for operating at max possible efficiency for the power demand
+    pub pwr_out_frac_interp: Vec<f64>,
+    /// fuel converter efficiency array
+    pub eta_interp: Vec<f64>,
+    /// pwr at which peak efficiency occurs
+    #[serde(skip)]
+    pub(crate) pwr_for_peak_eff: si::Power,
+    /// idle fuel power to overcome internal friction (not including aux load)
+    pub pwr_idle_fuel: si::Power,
+    /// Interpolator for derating dynamic engine peak power based on altitude
+    /// and temperature. When interpolating, this returns fraction of normal
+    /// peak power, e.g. a value of 1 means no derating and a value of 0 means
+    /// the engine is completely disabled.
+    pub elev_and_temp_derate: Option<Interp2DOwned<f64, strategy::Linear>>,
+    /// time step interval between saves. 1 is a good option. If None, no saving occurs.
+    pub save_interval: Option<usize>,
+    /// Custom vector of [Self::state]
+    #[serde(default)]
+    pub history: FuelConverterStateHistoryVec, // TODO: spec out fuel tank size and track kg of fuel
+}
+
+#[pyo3_api]
+impl FuelConverter {
     // optional, custom, struct-specific pymethods
     #[getter("eta_max")]
     fn get_eta_max_py(&self) -> f64 {
@@ -28,7 +73,9 @@ const TOL: f64 = 1e-3;
 
     #[setter("__eta_range")]
     fn set_eta_range_py(&mut self, eta_range: f64) -> anyhow::Result<()> {
-        Ok(self.set_eta_range(eta_range).map_err(PyValueError::new_err)?)
+        Ok(self
+            .set_eta_range(eta_range)
+            .map_err(PyValueError::new_err)?)
     }
 
     #[getter("mass_kg")]
@@ -38,62 +85,20 @@ const TOL: f64 = 1e-3;
 
     #[getter]
     fn get_specific_pwr_kw_per_kg(&self) -> Option<f64> {
-        self.specific_pwr.map(|sp| sp.get::<si::kilowatt_per_kilogram>())
+        self.specific_pwr
+            .map(|sp| sp.get::<si::kilowatt_per_kilogram>())
     }
 
     #[pyo3(name = "set_default_elev_and_temp_derate")]
     fn set_default_elev_and_temp_derate_py(&mut self) {
         self.set_default_elev_and_temp_derate()
     }
-)]
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, HistoryMethods)]
-/// Struct for modeling Fuel Converter (e.g. engine, fuel cell.)
-pub struct FuelConverter {
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    /// struct for tracking current state
-    pub state: FuelConverterState,
-    /// FuelConverter mass
-    #[serde(default)]
-    #[api(skip_get, skip_set)]
-    mass: Option<si::Mass>,
-    /// FuelConverter specific power
-    #[api(skip_get, skip_set)]
-    specific_pwr: Option<si::SpecificPower>,
-    /// max rated brake output power
-    pub pwr_out_max: si::Power,
-    /// starting/baseline transient power limit
-    #[serde(default)]
-    pub pwr_out_max_init: si::Power,
-    // TODO: consider a ramp down rate, which may be needed for fuel cells
-    /// lag time for ramp up
-    pub pwr_ramp_lag: si::Time,
-    /// Fuel converter brake power fraction array at which efficiencies are evaluated.
-    /// This fuel converter efficiency model assumes that speed and load (or voltage and current) will
-    /// always be controlled for operating at max possible efficiency for the power demand
-    pub pwr_out_frac_interp: Vec<f64>,
-    /// fuel converter efficiency array
-    pub eta_interp: Vec<f64>,
-    /// pwr at which peak efficiency occurs
-    #[serde(skip)]
-    #[api(skip_get)]
-    pub(crate) pwr_for_peak_eff: si::Power,
-    /// idle fuel power to overcome internal friction (not including aux load)
-    pub pwr_idle_fuel: si::Power,
-    /// Interpolator for derating dynamic engine peak power based on altitude
-    /// and temperature. When interpolating, this returns fraction of normal
-    /// peak power, e.g. a value of 1 means no derating and a value of 0 means
-    /// the engine is completely disabled.
-    #[api(skip_get, skip_set)]
-    pub elev_and_temp_derate: Option<Interp2DOwned<f64, strategy::Linear>>,
-    /// time step interval between saves. 1 is a good option. If None, no saving occurs.
-    pub save_interval: Option<usize>,
-    /// Custom vector of [Self::state]
-    #[serde(
-        default,
-        skip_serializing_if = "FuelConverterStateHistoryVec::is_empty"
-    )]
-    pub history: FuelConverterStateHistoryVec, // TODO: spec out fuel tank size and track kg of fuel
+
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
+    }
 }
 
 impl Default for FuelConverter {
@@ -207,11 +212,18 @@ impl FuelConverter {
         };
 
         self.pwr_out_max_init = self.pwr_out_max_init.max(self.pwr_out_max / 10.);
-        self.state.pwr_out_max = (self.state.pwr_mech_out
-            + (self.pwr_out_max / self.pwr_ramp_lag) * dt)
-            .min(self.pwr_out_max)
-            .min(pwr_max_derated)
-            .max(self.pwr_out_max_init);
+        self.state.pwr_out_max.update(
+            (*self.state.pwr_shaft.get_stale(|| format_dbg!())?
+                + self.pwr_out_max / self.pwr_ramp_lag * dt)
+                .min(self.pwr_out_max)
+                .min(pwr_max_derated)
+                .max(self.pwr_out_max_init),
+            || format_dbg!(),
+        )?;
+        #[cfg(test)]
+        {
+            ensure!(self.state.pwr_out_max.get_fresh(|| format_dbg!())? <= &self.pwr_out_max)
+        }
         Ok(())
     }
 
@@ -224,9 +236,11 @@ impl FuelConverter {
         assert_limits: bool,
     ) -> anyhow::Result<()> {
         if engine_on {
-            self.state.time_on += dt;
+            self.state.time_on.increment(dt, || format_dbg!())?;
         } else {
-            self.state.time_on = si::Time::ZERO;
+            self.state
+                .time_on
+                .update(si::Time::ZERO, || format_dbg!())?;
         }
 
         if assert_limits {
@@ -239,11 +253,11 @@ impl FuelConverter {
                 self.pwr_out_max.get::<si::megawatt>()),
             );
             ensure!(
-                utils::almost_le_uom(&pwr_out_req, &self.state.pwr_out_max, Some(TOL)),
+                utils::almost_le_uom(&pwr_out_req, self.state.pwr_out_max.get_fresh(|| format_dbg!())?, Some(TOL)),
                 format!("{}\nfc pwr_out_req ({:.6} kW) must be less than or equal to current transient pwr_out_max ({:.6} kW)",
-                format_dbg!(utils::almost_le_uom(&pwr_out_req, &self.state.pwr_out_max, Some(TOL))),
+                format_dbg!(utils::almost_le_uom(&pwr_out_req, self.state.pwr_out_max.get_fresh(|| format_dbg!())?, Some(TOL))),
                 pwr_out_req.get::<si::kilowatt>(),
-                self.state.pwr_out_max.get::<si::kilowatt>()),
+                self.state.pwr_out_max.get_fresh(|| format_dbg!())?.get::<si::kilowatt>()),
             );
         }
         ensure!(
@@ -265,49 +279,79 @@ impl FuelConverter {
             )
         );
 
-        self.state.pwr_mech_out = pwr_out_req;
-        self.state.eta = uc::R
-            * interp1d(
-                &(pwr_out_req / self.pwr_out_max).get::<si::ratio>(),
-                &self.pwr_out_frac_interp,
-                &self.eta_interp,
-                false,
-            )?;
+        self.state.pwr_shaft.update(pwr_out_req, || format_dbg!())?;
+        self.state.eta.update(
+            uc::R
+                * interp1d(
+                    &(pwr_out_req / self.pwr_out_max).get::<si::ratio>(),
+                    &self.pwr_out_frac_interp,
+                    &self.eta_interp,
+                    false,
+                )
+                .with_context(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
         ensure!(
-            self.state.eta >= 0.0 * uc::R || self.state.eta <= 1.0 * uc::R,
+            *self.state.eta.get_fresh(|| format_dbg!())? >= 0.0 * uc::R
+                || *self.state.eta.get_fresh(|| format_dbg!())? <= 1.0 * uc::R,
             format!(
                 "{}\nfc eta ({}) must be between 0 and 1",
-                format_dbg!(self.state.eta >= 0.0 * uc::R || self.state.eta <= 1.0 * uc::R),
-                self.state.eta.get::<si::ratio>()
+                format_dbg!(
+                    *self.state.eta.get_fresh(|| format_dbg!())? >= 0.0 * uc::R
+                        || *self.state.eta.get_fresh(|| format_dbg!())? <= 1.0 * uc::R
+                ),
+                self.state
+                    .eta
+                    .get_fresh(|| format_dbg!())?
+                    .get::<si::ratio>()
             )
         );
 
-        self.state.engine_on = engine_on;
-        self.state.pwr_idle_fuel = if self.state.engine_on {
-            self.pwr_idle_fuel
-        } else {
-            si::Power::ZERO
-        };
+        self.state.engine_on.update(engine_on, || format_dbg!())?;
+        self.state.pwr_idle_fuel.update(
+            if *self.state.engine_on.get_fresh(|| format_dbg!())? {
+                self.pwr_idle_fuel
+            } else {
+                si::Power::ZERO
+            },
+            || format_dbg!(),
+        )?;
         // if the engine is not on, `pwr_out_req` should be 0.0
         ensure!(
-            self.state.engine_on || pwr_out_req == si::Power::ZERO,
+            *self.state.engine_on.get_fresh(|| format_dbg!())? || (pwr_out_req == si::Power::ZERO),
             format!(
                 "{}\nEngine is off but pwr_out_req is non-zero",
-                format_dbg!(self.state.engine_on || pwr_out_req == si::Power::ZERO)
+                format_dbg!(
+                    *self.state.engine_on.get_fresh(|| format_dbg!())?
+                        || pwr_out_req == si::Power::ZERO
+                )
             )
         );
-        self.state.pwr_fuel = pwr_out_req / self.state.eta + self.pwr_idle_fuel;
-        self.state.pwr_loss = self.state.pwr_fuel - self.state.pwr_mech_out;
+        self.state.pwr_fuel.update(
+            pwr_out_req / *self.state.eta.get_fresh(|| format_dbg!())? + self.pwr_idle_fuel,
+            || format_dbg!(),
+        )?;
+        self.state.pwr_loss.update(
+            *self.state.pwr_fuel.get_fresh(|| format_dbg!())?
+                - *self.state.pwr_shaft.get_fresh(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
 
-        self.state.energy_brake += self.state.pwr_mech_out * dt;
-        self.state.energy_fuel += self.state.pwr_fuel * dt;
-        self.state.energy_loss += self.state.pwr_loss * dt;
-        self.state.energy_idle_fuel += self.state.pwr_idle_fuel * dt;
         ensure!(
-            self.state.energy_loss.get::<si::joule>() >= 0.0,
+            self.state
+                .pwr_loss
+                .get_fresh(|| format_dbg!())?
+                .get::<si::watt>()
+                >= 0.0,
             format!(
-                "{}\nEnergy loss must be non-negative",
-                format_dbg!(self.state.energy_loss.get::<si::joule>() >= 0.0)
+                "{}\n`pwr_loss` must be non-negative",
+                format_dbg!(
+                    self.state
+                        .pwr_loss
+                        .get_fresh(|| format_dbg!())?
+                        .get::<si::watt>()
+                        >= 0.0
+                )
             )
         );
         Ok(())
@@ -334,55 +378,61 @@ impl FuelConverter {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, HistoryVec)]
-#[altrios_api]
+#[serde_api]
+#[derive(
+    Clone, Debug, Deserialize, Serialize, PartialEq, HistoryVec, StateMethods, SetCumulative,
+)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct FuelConverterState {
     /// iteration counter
-    pub i: usize,
+    pub i: TrackedState<usize>,
     /// max power fc can produce at current time
-    pub pwr_out_max: si::Power,
+    pub pwr_out_max: TrackedState<si::Power>,
     /// efficiency evaluated at current demand
-    pub eta: si::Ratio,
-    /// instantaneous power going to generator
-    pub pwr_mech_out: si::Power,
+    pub eta: TrackedState<si::Ratio>,
+    /// instantaneous shaft power going to generator
+    pub pwr_shaft: TrackedState<si::Power>,
     /// instantaneous fuel power flow
-    pub pwr_fuel: si::Power,
+    pub pwr_fuel: TrackedState<si::Power>,
     /// loss power, including idle
-    pub pwr_loss: si::Power,
+    pub pwr_loss: TrackedState<si::Power>,
     /// idle fuel flow rate power
-    pub pwr_idle_fuel: si::Power,
-    /// cumulative propulsion energy fc has produced
-    pub energy_brake: si::Energy,
+    pub pwr_idle_fuel: TrackedState<si::Power>,
+    /// cumulative shaft energy fc has provided to generator
+    pub energy_shaft: TrackedState<si::Energy>,
     /// cumulative fuel energy fc has consumed
-    pub energy_fuel: si::Energy,
+    pub energy_fuel: TrackedState<si::Energy>,
     /// cumulative energy fc has lost due to imperfect efficiency
-    pub energy_loss: si::Energy,
+    pub energy_loss: TrackedState<si::Energy>,
     /// cumulative fuel energy fc has lost due to idle
-    pub energy_idle_fuel: si::Energy,
+    pub energy_idle_fuel: TrackedState<si::Energy>,
     /// If true, engine is on, and if false, off (no idle)
-    pub engine_on: bool,
+    pub engine_on: TrackedState<bool>,
     /// elapsed time since engine was turned on
-    pub time_on: si::Time,
+    pub time_on: TrackedState<si::Time>,
 }
+
+#[pyo3_api]
+impl FuelConverterState {}
 
 impl Init for FuelConverterState {}
 impl SerdeAPI for FuelConverterState {}
 impl Default for FuelConverterState {
     fn default() -> Self {
         Self {
-            i: 1,
+            i: Default::default(),
             pwr_out_max: Default::default(),
             eta: Default::default(),
             pwr_fuel: Default::default(),
-            pwr_mech_out: Default::default(),
+            pwr_shaft: Default::default(),
             pwr_loss: Default::default(),
             pwr_idle_fuel: Default::default(),
             energy_fuel: Default::default(),
-            energy_brake: Default::default(),
+            energy_shaft: Default::default(),
             energy_loss: Default::default(),
             energy_idle_fuel: Default::default(),
-            engine_on: true,
-            time_on: si::Time::ZERO,
+            engine_on: TrackedState::new(true),
+            time_on: Default::default(),
         }
     }
 }
@@ -406,10 +456,20 @@ mod tests {
     #[test]
     fn test_that_fuel_grtr_than_shaft_energy() {
         let mut fc = test_fc();
-        fc.state.pwr_out_max = uc::MW * 2.;
+        //performing check and reset on entire state for the new engine we created
+
+        fc.state.check_and_reset(|| format_dbg!()).unwrap();
+        fc.state
+            .pwr_out_max
+            .update(uc::MW * 2., || format_dbg!())
+            .unwrap();
+
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
-        assert!(fc.state.energy_fuel > fc.state.energy_brake);
+        assert!(
+            fc.state.pwr_fuel.get_fresh(|| format_dbg!()).unwrap()
+                > fc.state.pwr_shaft.get_fresh(|| format_dbg!()).unwrap()
+        );
     }
 
     #[test]
@@ -420,33 +480,62 @@ mod tests {
     #[test]
     fn test_that_max_power_includes_rate() {
         let mut fc = test_fc();
+        fc.check_and_reset(|| format_dbg!()).unwrap();
         fc.set_cur_pwr_out_max(None, uc::S * 1.0).unwrap();
-        let pwr_out_max = fc.state.pwr_out_max;
+        let pwr_out_max = *fc.state.pwr_out_max.get_fresh(|| format_dbg!()).unwrap();
         assert!(pwr_out_max < fc.pwr_out_max);
     }
 
     #[test]
     fn test_that_i_increments() {
         let mut fc = test_fc();
-        fc.step();
-        assert_eq!(2, fc.state.i);
+        fc.check_and_reset(|| format_dbg!()).unwrap();
+        fc.step(|| format_dbg!()).unwrap();
+        assert_eq!(1, *fc.state.i.get_fresh(|| format_dbg!()).unwrap());
     }
 
     #[test]
     fn test_that_fuel_is_monotonic() {
         let mut fc = test_fc();
-        fc.state.pwr_out_max = uc::MW * 2.0;
+        fc.check_and_reset(|| format_dbg!()).unwrap();
+        fc.step(|| format_dbg!()).unwrap();
+
+        fc.state
+            .pwr_out_max
+            .update(uc::MW * 2.0, || format_dbg!())
+            .unwrap();
         fc.save_interval = Some(1);
-        fc.save_state();
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
-        fc.step();
-        fc.save_state();
+        fc.set_cumulative(uc::S * 1.0, || format_dbg!()).unwrap();
+        fc.save_state(|| format_dbg!()).unwrap();
+        fc.check_and_reset(|| format_dbg!()).unwrap();
+        fc.step(|| format_dbg!()).unwrap();
+        fc.state
+            .pwr_out_max
+            .update(uc::MW * 2.0, || format_dbg!())
+            .unwrap();
         fc.solve_energy_consumption(uc::W * 2_000e3, uc::S * 1.0, true, true)
             .unwrap();
-        fc.step();
-        assert!(fc.history.energy_fuel[1] > fc.history.energy_fuel[0]);
-        assert!(fc.history.energy_loss[1] > fc.history.energy_loss[0]);
+        fc.set_cumulative(uc::S * 1.0, || format_dbg!()).unwrap();
+        fc.save_state(|| format_dbg!()).unwrap();
+
+        assert!(
+            fc.history.energy_fuel[1]
+                .get_fresh(|| format_dbg!())
+                .unwrap()
+                > fc.history.energy_fuel[0]
+                    .get_fresh(|| format_dbg!())
+                    .unwrap()
+        );
+        assert!(
+            fc.history.energy_loss[1]
+                .get_fresh(|| format_dbg!())
+                .unwrap()
+                > fc.history.energy_loss[0]
+                    .get_fresh(|| format_dbg!())
+                    .unwrap()
+        );
     }
 
     #[test]
@@ -455,7 +544,7 @@ mod tests {
         let mut fc: FuelConverter = FuelConverter::default();
         fc.save_interval = Some(1);
         assert!(fc.history.is_empty());
-        fc.save_state();
+        fc.save_state(|| format_dbg!()).unwrap();
         assert_eq!(1, fc.history.len());
     }
 
@@ -463,7 +552,7 @@ mod tests {
     fn test_that_history_has_len_0() {
         let mut fc: FuelConverter = FuelConverter::default();
         assert!(fc.history.is_empty());
-        fc.save_state();
+        fc.save_state(|| format_dbg!()).unwrap();
         assert!(fc.history.is_empty());
     }
 

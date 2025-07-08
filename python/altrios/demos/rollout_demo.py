@@ -1,8 +1,7 @@
 # %%
 import altrios as alt
 from altrios import rollout, defaults
-
-from altrios.train_planner import planner, planner_config
+from altrios.train_planner import planner_config
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns

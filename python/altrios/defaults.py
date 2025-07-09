@@ -34,7 +34,8 @@ DIESEL_LOCO_COST_USD = DIESEL_MANUFACTURE_COST_USD * RETAIL_PRICE_EQUIVALENT_MUL
 LOCO_LIFESPAN = 20
 ANNUAL_LOCO_TURNOVER = 1.0/LOCO_LIFESPAN
 
-DEMAND_FILE = alt.resources_root() / "Default Demand.csv"
+# DEMAND_FILE = alt.resources_root() / "Default Demand.csv"
+DEMAND_FILE = "/Users/qianqiantong/PycharmProjects/RailwayLPF/results/demand segment 485.csv"
 FUEL_EMISSIONS_FILE = alt.resources_root() / "metrics_inputs" / "GREET-CA_Emissions_Factors.csv"
 GRID_EMISSIONS_FILE = alt.resources_root() / "metrics_inputs" / "Cambium23_allScenarios_annual_gea.csv"
 ELECTRICITY_PRICE_FILE = alt.resources_root() / "metrics_inputs" / "EIA_Electricity_Prices.csv"

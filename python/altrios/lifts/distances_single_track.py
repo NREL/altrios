@@ -68,7 +68,7 @@ def simulate_truck_travel(truck_id, train_schedule, terminal, total_lane_length,
     # print(f"Current truck {truck_id} speed is {truck_speed} (m/s)")
 
     # Compute truck travel time in hours and convert to seconds
-    truck_travel_time = (d_t_dist/3.2) / (2 * truck_speed * 3600)  # (ft -> m) / (m/hr)
+    truck_travel_time = (d_t_dist) / (2 * truck_speed * 3600)  # (ft -> m) / (m/hr)
     # print(f"Truck {truck_id} travel time {truck_travel_time} (hr)")
 
     return truck_travel_time
@@ -87,10 +87,11 @@ def simulate_hostler_travel(hostler_id, current_veh_num, total_lane_length, d_h_
     # print(f"Current hostler {hostler_id} speed is {hostler_speed} (m/s)")
 
     # Compute hostler travel time in hours and convert to seconds
-    hostler_travel_time = (d_h_dist/3.2) / (2 * hostler_speed * 3600)     # (ft -> m) / (m/hr)
+    hostler_travel_time = 3.28 * (d_h_dist) / (hostler_speed * 3600)     # (ft -> m) / (s -> hr)
     # print(f"hostler {hostler_id} travel time {hostler_travel_time} (hr)")
 
     return hostler_travel_time
+
 
 def simulate_reposition_travel(hostler_id, current_veh_num, total_lane_length, d_r_min, d_r_max):
     global state
@@ -105,7 +106,7 @@ def simulate_reposition_travel(hostler_id, current_veh_num, total_lane_length, d
     # print(f"Current hostler {hostler_id} speed is {hostler_speed} (m/s)")
 
     # Compute hostler travel time in hours and convert to seconds
-    hostler_reposition_travel_time = (d_r_dist/3.2) / (2 * hostler_speed * 3600)      # (ft -> m) / (m/hr)
+    hostler_reposition_travel_time = (d_r_dist) / (hostler_speed * 3600)      # (ft -> m) / (m/hr)
     # print(f"hostler {hostler_id} travel time {hostler_reposition_travel_time} (hr)")
 
     return hostler_reposition_travel_time

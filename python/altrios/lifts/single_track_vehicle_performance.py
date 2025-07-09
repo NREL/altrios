@@ -17,6 +17,7 @@ vehicle_events = {
     'truck': []
 }
 
+
 def record_vehicle_event(vehicle_category, vehicle, action, state, move, time, emission, event_type, timestamp):
     vehicle_events[vehicle_category].append({
         'vehicle_id': str(vehicle),
@@ -28,6 +29,7 @@ def record_vehicle_event(vehicle_category, vehicle, action, state, move, time, e
         'event_type': event_type,
         'timestamp': timestamp
     })
+
 
 def calculate_performance(dataframes, ic_count, oc_count):
     summary = {vehicle: {'IC Emissions': 0, 'OC Emissions': 0, 'Total Emissions': 0} for vehicle in dataframes.keys()}
@@ -77,7 +79,7 @@ def save_energy_to_excel(state):
                                'OC Emissions': 'OC Energy Consumption',
                                'Total Emissions': 'Total Energy Consumption'}, inplace=True)
 
-    file_name = f"vehicle_throughput_{K}_batch_size_{k}.xlsx"
+    file_name = f"{state.CRANE_NUMBER}C-{state.HOSTLER_NUMBER}H_vehicle_throughput_{K}_batch_size_{k}.xlsx"
     file_path = out_path / file_name
 
     with pd.ExcelWriter(file_path) as writer:
@@ -86,7 +88,7 @@ def save_energy_to_excel(state):
         performance_df.to_excel(writer, sheet_name='performance', index=True)
 
 
-def calculate_container_processing_time(container_excel_path, num_trains, train_batch_size, daily_throughput):
+def calculate_container_processing_time(container_excel_path, num_trains, train_batch_size, daily_throughput, ic_delay_time, oc_delay_time):
     df = pd.read_excel(container_excel_path)
 
     df['type'] = df['container_id'].apply(lambda x: 'IC' if str(x).isdigit() else 'OC' if str(x).startswith('OC-') else 'Unknown')
@@ -114,9 +116,10 @@ def calculate_container_processing_time(container_excel_path, num_trains, train_
     oc_avg_time = oc_full_avg + oc_remain_avg
     print(f"full_oc_avg_time: {oc_full_avg}, remaining_oc_avg_time: {oc_remain_avg}")
 
-    total_avg_time = (ic_avg_time + oc_avg_time)/2
+    total_ic_avg_time = ic_avg_time + ic_delay_time
+    total_oc_avg_time = oc_avg_time + oc_delay_time
 
-    return ic_avg_time, oc_avg_time, total_avg_time
+    return ic_avg_time, oc_avg_time, total_ic_avg_time, total_oc_avg_time
 
 
 def calculate_vehicle_energy(vehicle_excel_path):

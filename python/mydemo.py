@@ -45,7 +45,7 @@ class Terminal:
         self.in_gates = simpy.Resource(env, state.IN_GATE_NUMBERS)
         self.out_gates = simpy.Resource(env, state.OUT_GATE_NUMBERS)
         self.oc_store = simpy.Store(env, capacity=9999)
-        self.parking_slots = simpy.FilterStore(env)  # store ic and oc in the parking area
+        self.parking_slots = simpy.FilterStore(env, capacity=10)  # store ic and oc in the parking area
         self.chassis = simpy.FilterStore(env, capacity=9999)
         self.parked_hostlers = simpy.Store(env, capacity=state.HOSTLER_NUMBER)
         self.active_hostlers = simpy.Store(env, capacity=state.HOSTLER_NUMBER)

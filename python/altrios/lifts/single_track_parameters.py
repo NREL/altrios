@@ -29,12 +29,10 @@ class LiftsState:
     # Fixed: Simulation files and hyperparameters
     log_level: loggingLevel = loggingLevel.DEBUG
     random_seed: int = 42
-    sim_time: int = 72
+    sim_time: int = 20 * 24
     terminal: str = 'Allouez'  # Choose 'Hibbing' or 'Allouez'
     train_consist_plan: pl.DataFrame = field(default_factory=lambda: pl.DataFrame())
 
-    # Train delay list
-    delay_list = {}
 
     # Fixed: Train parameters
     ## Train timetable: train_units, train arrival time
@@ -52,9 +50,9 @@ class LiftsState:
     CONTAINER_TAL: float = 8.6
     # crane moving distance = 2 * CONTAINER_WID + CONTAINER_WID = 24.6 ft
     # crane movement speed mean value: 10ft/min = 600 ft/hr
-    CRANE_NUMBER: int = 1
+    CRANE_NUMBER: int = 2
     CRANE_DIESEL_PERCENTAGE: float = 1
-    CONTAINERS_PER_CRANE_MOVE_MEAN: float = 1/60  # crane movement avg time: distance / speed = hr
+    CONTAINERS_PER_CRANE_MOVE_MEAN: float = 2/60  # crane movement avg time: distance / speed = hr
     CRANE_MOVE_DEV_TIME: float = 1 / 3600  # crane movement speed deviation value: hr
 
     # Fixed: Hostler parameters
@@ -86,6 +84,7 @@ class LiftsState:
             'Crane': {'Diesel': 0.26, 'Hybrid': 0.48},
         }
     )
+
     IDLE_LOAD_EMISSIONS_RATES: dict[str, dict[str, float]] = field(
         default_factory=lambda: {
             'Truck': {'Diesel': 0.60, 'Electric': 12.42},
@@ -110,10 +109,17 @@ class LiftsState:
         }
     )
 
+    SIDE_PICK_RATES: dict[str, dict[str, float]] = field(
+        default_factory=lambda: {
+            'Side': {'Diesel': 2.88, 'Electric': 0.21},
+        }
+    )
+
     # Various: tracking container number
     IC_NUM: int = 1
     OC_NUM: int = 1
 
+    # Various
     time_per_train: dict[str, int] = field(default_factory=lambda: {})  # total processing time for a train
     train_delay_time: dict[str, int] = field(default_factory=lambda: {})  # delay time for a train
     ## Notice: Hostler, truck and crane performance are reflected on the excel output

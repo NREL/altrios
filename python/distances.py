@@ -22,7 +22,6 @@ d_x = 10        # The distance between two tracks (ft)
 n = 6           # The actual railcars on the track TODO: Match with batch size; Expand to decoupling
 mu = n / n_max        # Ratio of train length and track length
 
-
 # Fixed yard parameters
 P = 10  # fixed aisle width
 BL_w = 80  # fixed block width
@@ -33,14 +32,15 @@ B = N * 80 + (N+1) * n_p * P # the horizontal length of the yard
 # Total length of yard lanes, used to estimate density (veh/ft)
 total_lane_length = A * (N + 1) + B * (M + 1)  # total distances of lanes
 
+
 def speed_density(count, vehicle_type):
     '''
-    Unit of speed: ft/s
+    Unit of speed: m/s -> ft/s
     '''
     if vehicle_type == 'hostler':   # V_h = (1.7033 + 0.1445 nr + 0.3020 k) * e(-1.4726 * N - 0.5197) * d
-        speed = (1.7 + 0.1 * n_r + 0.003 * k) * math.e ** ((-1.5 * N - 0.5) * (count / total_lane_length))
+        speed = 3.2 * (1.7 + 0.1 * n_r + 0.003 * k) * math.e ** ((-1.5 * N - 0.5) * (count / total_lane_length))
     elif vehicle_type == 'truck':   # V_t = 10 * e(-3.5 * N - 0.5) * d
-        speed = 10 * math.e ** ((-3.5 * N - 0.5) * (count / total_lane_length))
+        speed = 3.2 * 10 * math.e ** ((-3.5 * N - 0.5) * (count / total_lane_length))
     else:
         raise ValueError("Invalid vehicle type. Choose 'hostler' or 'truck'.")
     return speed

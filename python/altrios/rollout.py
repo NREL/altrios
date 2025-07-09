@@ -65,6 +65,9 @@ def simulate_prescribed_rollout(
     location_map = alt.import_locations(
         str(alt.resources_root() / "networks/default_locations.csv")
     )
+    # location_map = alt.import_locations(
+    #     "/Users/qianqiantong/PycharmProjects/altrios-private/altrios/python/altrios/resources/networks/simple_corridor_locations.csv")
+
     network = alt.Network.from_file(network_filename_path)
     sim_days = defaults.SIMULATION_DAYS
     scenarios = []

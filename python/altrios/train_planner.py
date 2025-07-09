@@ -903,7 +903,8 @@ def run_train_planner(
             config.refuelers_per_incoming_corridor)
         
     if network_charging_guidelines is None: 
-        network_charging_guidelines = pl.read_csv(alt.resources_root() / "networks" / "network_charging_guidelines.csv")
+        # network_charging_guidelines = pl.read_csv(alt.resources_root() / "networks" / "network_charging_guidelines.csv")
+        network_charging_guidelines = pl.read_csv("/Users/qianqiantong/PycharmProjects/altrios-private/altrios/python/altrios/resources/networks/simple_network_charging.csv")
 
     refuelers, loco_pool = append_charging_guidelines(refuelers, loco_pool, demand, network_charging_guidelines)
     if config.single_train_mode:
@@ -974,6 +975,7 @@ def run_train_planner(
                         selected = loco_pool.select(pl.col("Locomotive_ID").is_not_null().alias("selected")).to_series()
                         dispatched = loco_pool
                     else:
+
                         selected = dispatch(
                             current_time,
                             this_train['Tons_Per_Train'],
@@ -1132,12 +1134,15 @@ if __name__ == "__main__":
     rail_vehicles=[alt.RailVehicle.from_file(vehicle_file) 
                 for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob('*.yaml')]
 
-    location_map = alt.import_locations(
-        str(alt.resources_root() / "networks/default_locations.csv")
-    )
-    network = alt.Network.from_file(
-        str(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
-    )
+    # location_map = alt.import_locations(
+    #     str(alt.resources_root() / "networks/default_locations.csv")
+    # )
+    # network = alt.Network.from_file(
+    #     str(alt.resources_root() / "networks/Taconite-NoBalloon.yaml")
+    # )
+    network = alt.Network.from_file("/Users/qianqiantong/PycharmProjects/RailwayLPF/results/line segment 485.yaml")
+    location_map = alt.import_locations("/Users/qianqiantong/PycharmProjects/RailwayLPF/results/locations segment 485.csv")
+
     config = TrainPlannerConfig()
     loco_pool = build_locopool(config, defaults.DEMAND_FILE)
     demand, node_list = demand_loader(defaults.DEMAND_FILE)

@@ -19,7 +19,7 @@ def main(
     simulation_days: int = defaults.SIMULATION_DAYS,
     warm_start_days: int = defaults.WARM_START_DAYS,
     scenario_year: int = defaults.BASE_ANALYSIS_YEAR,
-    target_bel_share: float = 0.5,
+    target_bel_share: float = 0,
     debug: bool = False,
     loco_pool: pl.DataFrame = None,
     refuelers: pl.DataFrame = None,

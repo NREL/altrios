@@ -1,8 +1,8 @@
 # %%
-from altrios import sim_manager
+from altrios import sim_manager_manual
 from altrios import utilities, defaults
 import altrios as alt
-from altrios.train_planner import planner_config
+from altrios.train_planner import planner_config, manual_train_planner
 import numpy as np
 import polars as pl
 import matplotlib.pyplot as plt
@@ -12,23 +12,17 @@ from pathlib import Path
 
 sns.set_theme()
 
+t0_total = time.perf_counter()
+
 SHOW_PLOTS = alt.utils.show_plots()
 # %
 
 plot_dir = Path() / "plots"
 # make the dir if it doesn't exist
 plot_dir.mkdir(exist_ok=True)
+#%%
 
-
-# %%
-
-t0_import = time.perf_counter()
-t0_total = time.perf_counter()
-
-rail_vehicles = [
-    alt.RailVehicle.from_file(vehicle_file, skip_init=False)
-    for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob("*.yaml")
-]
+consist_plan = pl.read_csv(alt.resources_root() / "demo_data/consist plan for manual planner demo.csv")
 
 location_map = alt.import_locations(
     alt.resources_root() / "networks/default_locations.csv"
@@ -37,19 +31,17 @@ network = alt.Network.from_file(
     alt.resources_root() / "networks/Taconite-NoBalloon.yaml"
 )
 
-t1_import = time.perf_counter()
-print(
-    f"Elapsed time to import rail vehicles, locations, and network: {t1_import - t0_import:.3g} s"
-)
+loco_map = {'Diesel_Large' : 'Diesel_Large',
+            'BEL' : 'BEL'}
 
-train_planner_config = planner_config.TrainPlannerConfig(
-    cars_per_locomotive={"Default": 50},
-    target_cars_per_train={"Default": 90},
-    require_diesel=True,
-)
+rail_vehicles = [
+    alt.RailVehicle.from_file(vehicle_file, skip_init=False)
+    for vehicle_file in Path(alt.resources_root() / "rolling_stock/").glob("*.yaml")
+]
 
 t0_main = time.perf_counter()
-
+#not passing in a trainplanner config here because we do not need to specify train length or any other parameters like
+#sim_manager_demo.py.  This example is just replaying trains that have already been planned.
 (
     train_consist_plan,
     loco_pool,
@@ -59,14 +51,21 @@ t0_main = time.perf_counter()
     speed_limit_train_sims,
     timed_paths,
     train_consist_plan_untrimmed,
-) = sim_manager.main(
+) = sim_manager_manual.main(
     network=network,
-    rail_vehicles=rail_vehicles,
+    rail_vehicles=rail_vehicles, #double check this to see if it is actually need in sim_manager_manual.py
     location_map=location_map,
-    train_planner_config=train_planner_config,
+    consist_plan= consist_plan,
+    loco_map=loco_map,
     debug=True,
 )
 
+
+# train_consist_plan, loco_pool, refuelers, speed_limit_train_sims, est_time_nets = (
+#     manual_train_planner(consist_plan, loco_map)
+# )
+
+#%%
 t1_main = time.perf_counter()
 print(f"Elapsed time to run `sim_manager.main()`: {t1_main-t0_main:.3g} s")
 

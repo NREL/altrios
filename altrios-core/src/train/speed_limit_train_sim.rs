@@ -804,7 +804,7 @@ impl SpeedLimitTrainSim {
                 &self.train_res,
                 &self.path_tpc,
             )
-            .with_context(|| format_dbg!())?
+            .with_context(|| format_dbg!())
     }
 }
 

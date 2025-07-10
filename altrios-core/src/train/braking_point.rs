@@ -87,7 +87,7 @@ impl BrakingPoints {
         train_state.speed = si::Velocity::ZERO;
         train_res
             .update_res(&mut train_state, path_tpc, &Dir::Unk)
-            .with_context(|| format_dbg!())??;
+            .with_context(|| format_dbg!())?;
         let speed_points = path_tpc.speed_points();
         let mut idx = path_tpc.speed_points().len();
 
@@ -109,7 +109,7 @@ impl BrakingPoints {
                     train_state.speed = bp_curr.speed_limit;
                     train_res
                         .update_res(&mut train_state, path_tpc, &Dir::Bwd)
-                        .with_context(|| format_dbg!())??;
+                        .with_context(|| format_dbg!())?;
 
                     ensure!(
                         fric_brake.force_max + train_state.res_net() > si::Force::ZERO,

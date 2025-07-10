@@ -22,7 +22,7 @@ impl Point {
         Ok(Self {
             idx: path_res_coeffs
                 .calc_idx(state.offset - state.length * 0.5, 0, &Dir::Fwd)
-                .with_context(|| format_dbg!())??,
+                .with_context(|| format_dbg!())?,
         })
     }
 
@@ -89,12 +89,12 @@ impl Strap {
         } else {
             let idx_back = vals
                 .calc_idx(state.offset - state.length, 0, &Dir::Fwd)
-                .with_context(|| format_dbg!())??;
+                .with_context(|| format_dbg!())?;
             Ok(Self {
                 idx_back,
                 idx_front: vals
                     .calc_idx(state.offset, idx_back, &Dir::Fwd)
-                    .with_context(|| format_dbg!())??,
+                    .with_context(|| format_dbg!())?,
             })
         }
     }
@@ -109,20 +109,20 @@ impl Strap {
             Dir::Fwd => {
                 self.idx_front = path_res_coeffs
                     .calc_idx(state.offset, self.idx_front, dir)
-                    .with_context(|| format_dbg!())??;
+                    .with_context(|| format_dbg!())?;
             }
             Dir::Bwd => {
                 self.idx_back = path_res_coeffs
                     .calc_idx(state.offset_back, self.idx_back, dir)
-                    .with_context(|| format_dbg!())??;
+                    .with_context(|| format_dbg!())?;
             }
             Dir::Unk => {
                 self.idx_front = path_res_coeffs
                     .calc_idx(state.offset, self.idx_front, dir)
-                    .with_context(|| format_dbg!())??;
+                    .with_context(|| format_dbg!())?;
                 self.idx_back = path_res_coeffs
                     .calc_idx(state.offset_back, self.idx_back, dir)
-                    .with_context(|| format_dbg!())??;
+                    .with_context(|| format_dbg!())?;
             }
         }
 
@@ -133,12 +133,12 @@ impl Strap {
                 Dir::Fwd => {
                     self.idx_back = path_res_coeffs
                         .calc_idx(state.offset_back, self.idx_back, dir)
-                        .with_context(|| format_dbg!())??;
+                        .with_context(|| format_dbg!())?;
                 }
                 Dir::Bwd => {
                     self.idx_front = path_res_coeffs
                         .calc_idx(state.offset, self.idx_front, dir)
-                        .with_context(|| format_dbg!())??;
+                        .with_context(|| format_dbg!())?;
                 }
                 _ => {}
             }

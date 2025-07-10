@@ -3,7 +3,6 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
-import pandas as pd
 import seaborn as sns
 import os
 from typing import Tuple
@@ -580,8 +579,6 @@ fig0, ax0 = plot_train_level_powers(train_sim, "No Derating")
 fig1, ax1 = plot_train_network_info(train_sim, "No Derating")
 fig2, ax2 = plot_consist_pwr(train_sim, "No Derating")
 fig3, ax3 = plot_hel_pwr_and_soc(train_sim, "No Derating")
-# fig3.savefig("plots/hel with buffers.svg")
-# fig4, ax4 = plot_bel_pwr_and_soc(train_sim, "No Derating")
 
 fig0_sans_buffers, ax0_sans_buffers = plot_train_level_powers(
     train_sim_with_derating, "With Altitude and Temperature Derating"
@@ -595,8 +592,6 @@ fig2_sans_buffers, ax2_sans_buffers = plot_consist_pwr(
 fig3_sans_buffers, ax3_sans_buffers = plot_hel_pwr_and_soc(
     train_sim_with_derating, "With Altitude and Temperature Derating"
 )
-# fig3_sans_buffers.savefig("plots/hel sans buffers.svg")
-# fig4_sans_buffers, ax4_sans_buffers = plot_bel_pwr_and_soc(train_sim_sans_buffers, "With Altitude and Temperature Derating")
 
 if SHOW_PLOTS:
     plt.tight_layout()

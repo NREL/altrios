@@ -4,7 +4,6 @@ from altrios import utilities, defaults
 import altrios as alt
 from altrios.train_planner import planner_config
 import numpy as np
-import polars as pl
 import matplotlib.pyplot as plt
 import time
 import seaborn as sns
@@ -110,11 +109,6 @@ t1_tolist = time.perf_counter()
 print(f"Elapsed time to run `tolist()`: {t1_tolist - t0_tolist:.3g} s")
 
 sim0 = sims_list[0]
-# sim0 = alt.SpeedLimitTrainSim.from_bincode(
-#     sim0.to_bincode())  # to support linting
-
-
-# %%
 
 t0_main = time.perf_counter()
 e_total_fuel_mj = summary_sims.get_energy_fuel_joules(annualize=False) / 1e9
@@ -139,45 +133,39 @@ print(f"Total elapsed time: {time.perf_counter() - t0_total} s")
 # %%
 
 for idx, sim_dict in enumerate(sims_list[:10]):
-    # sim = altc.SpeedLimitTrainSim.from_bincode(
-    #     sim.to_bincode())  # to support linting
-    fig, ax = plt.subplots(3, 1, sharex=True)
 
     loco0 = next(iter(sim_dict["loco_con"]["loco_vec"]))
     loco0_type = next(iter(loco0["loco_type"].values()))
 
-    # loco0 = altc.Locomotive.from_bincode(
-    #     loco0.to_bincode())  # to support linting
     if len(sim_dict["loco_con"]["loco_vec"]) > 1:
         loco1 = next(iter(sim_dict["loco_con"]["loco_vec"]))
         loco1_type = next(iter(loco1["loco_type"].values()))
-        plt.suptitle(f"sim #: {idx}")
-
+        #plt.suptitle(f"sim #: {idx}")
+    number_of_plots = 1
     if "fc" in loco0_type:
-        ax[0].plot(
+        number_of_plots += 1
+    if "res" in loco1_type:
+        number_of_plots += 1
+    fig, ax = plt.subplots(number_of_plots, 1, sharex=True)
+    fig.suptitle(f"sim #: {idx + 1}")
+    ax_idx = -1
+    if "fc" in loco0_type:
+        ax_idx += 1
+        ax[ax_idx].plot(
             np.array(sim_dict["history"]["time_seconds"]) / 3_600,
             np.array(loco0_type["fc"]["history"]["pwr_fuel_watts"]) / 1e6,
             # label='fuel'
         )
-        # ax[0].plot(
-        #     np.array(sim.history.time_seconds) / 3_600,
-        #     np.array(loco0.history.pwr_out_watts) / 1e6,
-        #     label='conv. loco. tractive'
-        # )
-        # ax[0].plot(
-        #     np.array(sim.history.time_seconds) / 3_600,
-        #     np.array(loco1.history.pwr_out_watts) / 1e6,
-        #     label='BEL tractive'
-        # )
-        ax[0].set_ylabel("Single Loco.\nFuel Power [MW]")
-        # ax[0].legend()
+
+        ax[ax_idx].set_ylabel("Single Loco.\nFuel Power [MW]")
 
     if "res" in loco1_type:
-        ax[1].plot(
+        ax_idx += 1
+        ax[ax_idx].plot(
             np.array(sim_dict["history"]["time_seconds"]) / 3_600,
             loco1_type["res"]["history"]["soc"],
         )
-        ax[1].set_ylabel("SOC")
+        ax[ax_idx].set_ylabel("SOC")
 
     ax[-1].plot(
         np.array(sim_dict["history"]["time_seconds"]) / 3_600,
@@ -189,24 +177,15 @@ for idx, sim_dict in enumerate(sims_list[:10]):
         sim_dict["history"]["speed_limit_meters_per_second"],
         label="limit",
     )
-    # ax[-1].plot(
-    #     sim.history.time_seconds,
-    #     sim.history.speed_target_meters_per_second,
-    #     label='target',
-    #     linestyle="-."
-    # )
+
     ax[-1].legend()
     ax[-1].set_xlabel("Time [hr]")
     ax[-1].set_ylabel("Speed [m/s]")
 
-    plt.tight_layout()
+    fig.tight_layout()
 
     if SHOW_PLOTS:
         plt.show()
-    # plt.savefig(plot_dir / f"sim num {idx}.png")
-    # plt.savefig(plot_dir / f"sim num {idx}.svg")
 
-if SHOW_PLOTS:
-    plt.show()
 
 # %%

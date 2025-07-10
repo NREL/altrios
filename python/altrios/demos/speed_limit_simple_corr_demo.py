@@ -77,7 +77,6 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str, show_plots: bool = Fals
         x_axis = np.array(ts_dict["history"]["offset_back_meters"]) / 1_000
         x_label = "Distance (km)"
     first_bel = []
-    first_conv = []
     first_hel = []
     if extract_bel_from_train_sim(ts):
         first_bel = next(iter(extract_bel_from_train_sim(ts)))
@@ -595,52 +594,6 @@ assert len(ts_dict["history"]) > 1
 loco0: alt.Locomotive = next(iter(ts_dict["loco_con"]["loco_vec"]))
 loco0_type = next(iter(loco0["loco_type"].values()))
 
-# fig, ax = plt.subplots(4, 1, sharex=True)
-# ax[0].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
-#     label="tract pwr",
-# )
-# ax[0].set_ylabel('Power [MW]')
-# ax[0].legend()
-
-# ax[1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.history.res_aero_newtons) / 1e3,
-#     label='aero',
-# )
-# ax[1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.history.res_rolling_newtons) / 1e3,
-#     label='rolling',
-# )
-# ax[1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.history.res_curve_newtons) / 1e3,
-#     label='curve',
-# )
-# ax[1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.history.res_bearing_newtons) / 1e3,
-#     label='bearing',
-# )
-# ax[1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.history.res_grade_newtons) / 1e3,
-#     label='grade',
-# )
-# ax[1].set_ylabel('Force [MN]')
-# ax[1].legend()
-
-# ax[2].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(loco0.res.history.soc)
-# )
-
-# ax[2].set_ylabel('SOC')
-# ax[2].legend()
-
-
 def plot_train_level_powers() -> Tuple[plt.Figure, plt.Axes]:
     fig, ax = plt.subplots(4, 1, sharex=True)
     plt.suptitle("Train Power")
@@ -702,25 +655,6 @@ def plot_train_level_powers() -> Tuple[plt.Figure, plt.Axes]:
     plt.suptitle("Speed Limit Train Sim Demo")
 
     return fig, ax
-
-
-# ax[-1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     train_sim.history.speed_meters_per_second,
-#     label='achieved'
-# )
-# ax[-1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     train_sim.history.speed_limit_meters_per_second,
-#     label='limit'
-# )
-# ax[-1].set_xlabel('Time [hr]')
-# ax[-1].set_ylabel('Speed [m/s]')
-# ax[-1].legend()
-# plt.suptitle("Speed Limit Train Sim Demo")
-# if SHOW_PLOTS:
-#     plt.tight_layout()
-#     plt.show()
 
 plot_locos_from_ts(train_sim, "Time", show_plots=SHOW_PLOTS)
 

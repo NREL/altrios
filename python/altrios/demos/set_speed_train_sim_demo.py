@@ -3,7 +3,6 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
-import pandas as pd
 import seaborn as sns
 import os
 
@@ -74,9 +73,8 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str):
         x_axis = np.array(ts_dict["history"]["offset_back_meters"]) / 1_000
         x_label = "Distance (km)"
     first_bel = []
-    first_conv = []
     first_hel = []
-    if extract_bel_from_train_sim(ts) != False:
+    if extract_bel_from_train_sim(ts) is not False:
         first_bel = extract_bel_from_train_sim(ts)[0]
         """
         first fig
@@ -206,8 +204,7 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str):
         if SHOW_PLOTS:
             plt.show()
 
-    if extract_conv_from_train_sim(ts) != False:
-        first_conv = extract_conv_from_train_sim(ts)[0]
+    if extract_conv_from_train_sim(ts) is not False:
         fig, ax = plt.subplots(3, 1, sharex=True)
         ax[0].plot(
             x_axis,
@@ -320,7 +317,7 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str):
         if SHOW_PLOTS:
             plt.show()
 
-    if extract_hel_from_train_sim(ts) != False:
+    if extract_hel_from_train_sim(ts) is not False:
         first_hel = extract_hel_from_train_sim(ts)[0]
         ts_dict = ts.to_pydict()
         fig, ax = plt.subplots(4, 1, sharex=True)
@@ -453,8 +450,6 @@ def plot_locos_from_ts(ts: alt.SetSpeedTrainSim, x: str):
                 ]
             )
             / 1e3,
-            # np.array(hybrid_loco['loco_type']['HybridLoco']['res']
-            #        ['history']['pwr_out_electrical_watts']) / 1e3,
             label="hybrid batt. elec. pwr.",
         )
         ax3[0].set_ylabel("Power [kW]")
@@ -583,55 +578,7 @@ print(f"Time to simulate: {t1 - t0:.5g}")
 
 df = train_sim.to_dataframe()
 
-# fig, ax = plt.subplots(3, 1, sharex=True)
-# ax[0].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.history.pwr_whl_out_watts) / 1e6,
-#     label="tract pwr",
-# )
-# ax[0].set_ylabel('Power [MW]')
-# ax[0].legend()
-
-# ax[1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.history.res_aero_newtons) / 1e3,
-#     label='aero',
-# )
-# ax[1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.history.res_rolling_newtons) / 1e3,
-#     label='rolling',
-# )
-# ax[1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.history.res_curve_newtons) / 1e3,
-#     label='curve',
-# )
-# ax[1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.history.res_bearing_newtons) / 1e3,
-#     label='bearing',
-# )
-# ax[1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.history.res_grade_newtons) / 1e3,
-#     label='grade',
-# )
-# ax[1].set_ylabel('Force [MN]')
-# ax[1].legend()
-
-# ax[-1].plot(
-#     np.array(train_sim.history.time_seconds) / 3_600,
-#     np.array(train_sim.speed_trace.speed_meters_per_second)[::SAVE_INTERVAL],
-# )
-# ax[-1].set_xlabel('Time [hr]')
-# ax[-1].set_ylabel('Speed [m/s]')
-
-# plt.suptitle("Set Speed Train Sim Demo")
 plot_locos_from_ts(train_sim, "Distance")
-# if SHOW_PLOTS:
-#     plt.tight_layout()
-#     plt.show()
 
 # whether to run assertions, enabled by default
 ENABLE_ASSERTS = os.environ.get("ENABLE_ASSERTS", "true").lower() == "true"

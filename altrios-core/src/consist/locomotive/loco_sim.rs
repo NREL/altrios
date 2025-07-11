@@ -2,9 +2,12 @@
 
 use rayon::prelude::*;
 
-use crate::consist::locomotive::Locomotive;
+use super::locomotive::Locomotive;
 use crate::consist::LocoTrait;
 use crate::imports::*;
+
+#[cfg(doc)]
+use super::locomotive::HybridLoco;
 
 #[altrios_api(
     #[staticmethod]
@@ -27,9 +30,9 @@ pub struct PowerTrace {
     /// Whether engine is on
     pub engine_on: Vec<Option<bool>>,
     #[serde(default)]
-    /// Speed, needed only if simulating [HybridElectricLocomotive]  
+    /// Speed, needed only if simulating [HybridLoco]  
     pub train_speed: Vec<si::Velocity>,
-    /// Train mass, needed only if simulating [HybridElectricLocomotive]
+    /// Train mass, needed only if simulating [HybridLoco]
     #[api(skip_get, skip_set)]
     pub train_mass: Option<si::Mass>,
 }

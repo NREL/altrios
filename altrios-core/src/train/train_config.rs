@@ -94,7 +94,6 @@ use pyo3_polars::PyDataFrame;
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 /// User-defined train configuration used to generate
 /// [crate::prelude::TrainParams]. Any optional fields will be populated later
-/// in [TrainSimBuilder::make_train_sim_parts]
 pub struct TrainConfig {
     /// Types of rail vehicle composing the train
     pub rail_vehicles: Vec<RailVehicle>,

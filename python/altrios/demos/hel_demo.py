@@ -8,7 +8,6 @@ import altrios as alt
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-import os
 import seaborn as sns
 
 sns.set_theme()

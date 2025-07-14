@@ -76,10 +76,10 @@ loco_con = alt.Consist(
 
 tsb = alt.TrainSimBuilder(
     train_id="0",
-    # origin_id="WichtaFalls",
-    # destination_id="FortWorth",
-    origin_id="FortWorth",
-    destination_id="WichtaFalls",
+    origin_id="WichtaFalls",
+    destination_id="FortWorth",
+    # origin_id="FortWorth",
+    # destination_id="WichtaFalls",
     train_config=train_config,
     loco_con=loco_con,
 )

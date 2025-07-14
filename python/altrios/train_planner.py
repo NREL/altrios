@@ -16,11 +16,11 @@ pl.enable_string_cache()
 class TrainPlannerConfig:
     def __init__(self, 
                  single_train_mode: bool = False,
-                 min_cars_per_train: int = 60,
-                 target_cars_per_train: int = 180,
+                 min_cars_per_train: int = 40,
+                 target_cars_per_train: int = 10, #180,
                  manifest_empty_return_ratio: float = 0.6,
                  #TODO single vs double stacked operations on the corridor
-                 cars_per_locomotive: int = 70,
+                 cars_per_locomotive: int = 5, #70,
                  refuelers_per_incoming_corridor: int = 4,
                  drag_coeff_function: List = None,
                  hp_required_per_ton: Dict = {
@@ -985,10 +985,12 @@ def run_train_planner(
                         )
                         dispatched = loco_pool.filter(selected)
 
+                    # print(this_train['Train_Type'], this_train['Number_of_Cars'], type(this_train['Number_of_Cars']))
+
                     train_config = alt.TrainConfig(
                         rail_vehicles = [vehicle for vehicle in rail_vehicles if vehicle.car_type==this_train['Train_Type']],
                         n_cars_by_type = {
-                            this_train['Train_Type']: this_train['Number_of_Cars']
+                            this_train['Train_Type']: int(this_train['Number_of_Cars'])
                         },
                         train_type = train_type,
                         cd_area_vec = config.drag_coeff_function

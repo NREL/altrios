@@ -19,7 +19,7 @@ def main(
     simulation_days: int = defaults.SIMULATION_DAYS,
     warm_start_days: int = defaults.WARM_START_DAYS,
     scenario_year: int = defaults.BASE_ANALYSIS_YEAR,
-    target_bel_share: float = 0,
+    target_bel_share: float = 0.1,
     debug: bool = False,
     loco_pool: pl.DataFrame = None,
     refuelers: pl.DataFrame = None,
@@ -156,6 +156,12 @@ def main(
     train_sims = alt.SpeedLimitTrainSimVec([speed_limit_train_sims[i-1] for i in to_keep])
     timed_paths = [timed_paths[i-1] for i in to_keep]
 
+    # print("[DEBUG] Number of planned trains:", train_consist_plan.height)
+    # print("[DEBUG] Columns:", train_consist_plan.columns)
+    # print(train_consist_plan.select([
+    #     "Train_ID", "Train_Type", "Origin_ID", "Destination_ID", "Cars_Loaded", "Cars_Empty"
+    # ]).head())
+
     return (
         train_consist_plan,
         loco_pool,
@@ -165,3 +171,4 @@ def main(
         train_sims,
         timed_paths,
     )
+

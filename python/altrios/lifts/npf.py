@@ -11,16 +11,16 @@ total_simulation_length = 24 * simulation_days
 replicate_times = 3
 simulation_duration = replicate_times * 24
 
-train_batch_sizes = list(range(100, 201, 100))
-num_trains_per_day = [1, 2, 3]
+train_batch_sizes = list(range(100, 101, 100))
+num_trains_per_day = [1]
 containers_per_train = 1
 layout_file = "single_track_input/layout.xlsx"
 
 df_layout = pd.read_excel(layout_file)
 performance_matrix = []
 
-num_cranes_list = [3]
-num_hostlers_list = [24]
+num_cranes_list = [100]
+num_hostlers_list = [100]
 
 def generate_train_timetable(train_batch_size, trains_per_day, simulation_days):
     train_timetable = []

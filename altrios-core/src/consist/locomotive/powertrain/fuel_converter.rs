@@ -80,8 +80,8 @@ pub struct FuelConverter {
     pub(crate) pwr_for_peak_eff: si::Power,
     /// idle fuel power to overcome internal friction (not including aux load)
     pub pwr_idle_fuel: si::Power,
-    /// Interpolator for derating dynamic engine peak power based on altitude
-    /// and temperature. When interpolating, this returns fraction of normal
+    /// Interpolator for derating dynamic engine peak power based on altitude \[m\]
+    /// and temperature \[*C\]. When interpolating, this returns fraction of normal
     /// peak power, e.g. a value of 1 means no derating and a value of 0 means
     /// the engine is completely disabled.
     #[api(skip_get, skip_set)]

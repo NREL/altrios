@@ -6,6 +6,9 @@ use super::link_old::LinkOld;
 use super::speed::*;
 use crate::imports::*;
 
+#[cfg(doc)]
+use crate::meet_pass::est_times::*;
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 struct OldSpeedSets(Vec<OldSpeedSet>);
 

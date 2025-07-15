@@ -594,11 +594,11 @@ assert len(ts_dict["history"]) > 1
 loco0: alt.Locomotive = next(iter(ts_dict["loco_con"]["loco_vec"]))
 loco0_type = next(iter(loco0["loco_type"].values()))
 
-fig0, ax0 = plot_util.plot_train_level_powers()
-fig1, ax1 = plot_util.plot_train_network_info()
-fig2, ax2 = plot_util.plot_consist_pwr()
-fig3, ax3 = plot_util.plot_hel_pwr_and_soc()
-fig4, ax4 = plot_util.plot_bel_pwr_and_soc()
+fig0, ax0 = plot_util.plot_train_level_powers(train_sim, "With Buffers")
+fig1, ax1 = plot_util.plot_train_network_info(train_sim, "With Buffers")
+fig2, ax2 = plot_util.plot_consist_pwr(train_sim, "With Buffers")
+fig3, ax3 = plot_util.plot_hel_pwr_and_soc(train_sim, "With Buffers")
+fig4, ax4 = plot_util.plot_bel_pwr_and_soc(train_sim, "With Buffers")
 
 if SHOW_PLOTS:
     plt.show()

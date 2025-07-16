@@ -6,19 +6,20 @@ use super::speed::*;
 
 use crate::imports::*;
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 /// An arbitrary unit of single track that does not include turnouts
 ///
 /// # Note:
 /// This struct is to be deprecated and superseded by [super::link_impl::Link],
 /// which includes either a train-type-independent `speed_set` or a
 /// train-type-dependent `speed_sets` HashMap, superseding [LinkOld]
-#[altrios_api()]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct LinkOld {
     pub elevs: Vec<Elev>,
     #[serde(default)]
     pub headings: Vec<Heading>,
-    #[api(skip_get, skip_set)]
+
     pub speed_sets: Vec<OldSpeedSet>,
     #[serde(default)]
     pub cat_power_limits: Vec<CatPowerLimit>,
@@ -39,8 +40,13 @@ pub struct LinkOld {
     /// Index of adjacent link in reverse direction
     pub idx_flip: LinkIdx,
     /// Optional OpenStreetMap ID -- not used in simulation
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub osm_id: Option<String>,
     #[serde(default)]
     pub link_idxs_lockout: Vec<LinkIdx>,
 }
+
+#[pyo3_api]
+impl LinkOld {}
+
+impl Init for LinkOld {}
+impl SerdeAPI for LinkOld {}

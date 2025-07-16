@@ -1,26 +1,30 @@
 use crate::imports::*;
 
 /// Struct containing heading for a particular offset w.r.t. `Link`
-#[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Heading {
-    #[api(skip_set)]
+    #[serde(alias = "offset")]
     pub offset: si::Length,
-    #[api(skip_set)]
+
+    #[serde(alias = "heading")]
     pub heading: si::Angle,
     /// Optional latitude at `self.offset`.  No checks are currently performed to ensure consistency
     /// between headind and lat/lon, and this is not actually used in the code.  
-    #[api(skip_set)]
-    #[serde(rename = "Lat")]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "Lat")]
     pub lat: Option<f64>,
     /// Optional longitude at `self.offset`.  No checks are currently performed to ensure
     /// consistency between headind and lat/lon, and this is not actually used in the code.
-    #[api(skip_set)]
-    #[serde(rename = "Lon")]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "Lon")]
     pub lon: Option<f64>,
 }
+
+#[pyo3_api]
+impl Heading {}
+
+impl Init for Heading {}
+impl SerdeAPI for Heading {}
 
 impl Valid for Heading {}
 

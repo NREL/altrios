@@ -12,9 +12,10 @@ use crate::meet_pass::est_times::*;
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 struct OldSpeedSets(Vec<OldSpeedSet>);
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// An arbitrary unit of single track that does not include turnouts
-#[altrios_api()]
 pub struct Link {
     /// Index of current link
     pub idx_curr: LinkIdx,
@@ -31,9 +32,9 @@ pub struct Link {
     /// if it does not exist, it should be `LinkIdx{idx: 0}`
     pub idx_prev_alt: LinkIdx,
     /// Optional OpenStreetMap ID -- not used in simulation
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub osm_id: Option<String>,
     /// Total length of [Self]
+    #[serde(alias = "length")]
     pub length: si::Length,
 
     /// Spatial vector of elevation values and corresponding positions along track
@@ -59,9 +60,11 @@ pub struct Link {
     pub link_idxs_lockout: Vec<LinkIdx>,
 
     #[serde(skip)]
-    #[api(skip_get, skip_set)]
     pub err_tol: Option<NetworkErrTol>,
 }
+
+#[pyo3_api]
+impl Link {}
 
 impl Link {
     fn is_linked_prev(&self, idx: LinkIdx) -> bool {
@@ -88,6 +91,9 @@ impl Link {
         Ok(())
     }
 }
+
+impl Init for Link {}
+impl SerdeAPI for Link {}
 
 impl From<LinkOld> for Link {
     fn from(l: LinkOld) -> Self {
@@ -359,35 +365,47 @@ impl ObjState for Link {
     }
 }
 
-#[altrios_api(
-    #[pyo3(name = "set_speed_set_for_train_type")]
-    fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> PyResult<()> {
-        Ok(self.set_speed_set_for_train_type(train_type)?)
-    }
-)]
+#[serde_api]
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Struct that contains a `Vec<Link>`, and optional parameters for setting
 /// error tolerances in checks performed by [Init::init]
 pub struct Network(pub NetworkErrTol, pub Vec<Link>);
 
-#[altrios_api]
+#[pyo3_api]
+impl Network {
+    fn __len__(&self) -> usize {
+        self.1.len()
+    }
+
+    #[pyo3(name = "set_speed_set_for_train_type")]
+    fn set_speed_set_for_train_type_py(&mut self, train_type: TrainType) -> anyhow::Result<()> {
+        self.set_speed_set_for_train_type(train_type)
+    }
+}
+
+#[serde_api]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Network error tolerances used in [Network::init]
 pub struct NetworkErrTol {
-    #[api(skip_get, skip_set)]
     /// Maximum absolute grade allowed at any point in the network
     pub max_grade: Option<si::Ratio>,
-    #[api(skip_get, skip_set)]
+
     /// Maximum absolute curvature allowed anywhere in the network
     pub max_curv: Option<si::Curvature>,
-    #[api(skip_get, skip_set)]
+
     /// Maximum allowed step change in heading for coincident nodes in adjacent links
     pub max_heading_step: Option<si::Angle>,
-    #[api(skip_get, skip_set)]
+
     /// Maximum allowed step change in elevation for coincident nodes in
     /// adjacent links, should be very small
     pub max_elev_step: Option<si::Length>,
 }
+
+#[pyo3_api]
+impl NetworkErrTol {}
+
 impl Init for NetworkErrTol {
     fn init(&mut self) -> Result<(), Error> {
         let def: Self = Default::default();
@@ -562,15 +580,23 @@ impl From<NetworkUnchecked> for Network {
     }
 }
 
-#[altrios_api]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Deprecated Struct that contains a `Vec<Link>` for the purpose of providing
 /// `SerdeAPI` for `Vec<Link>` in Python.  This is used solely to enable
 /// backwards compatibility.
 struct NetworkUnchecked(pub Vec<Link>);
 
-#[altrios_api]
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, SerdeAPI)]
+#[pyo3_api]
+impl NetworkUnchecked {}
+
+impl Init for NetworkUnchecked {}
+impl SerdeAPI for NetworkUnchecked {}
+
+#[serde_api]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Struct that contains a `Vec<LinkOld>` for the purpose of providing `SerdeAPI` for `Vec<Link>` in
 /// Python
 ///
@@ -579,6 +605,12 @@ struct NetworkUnchecked(pub Vec<Link>);
 /// option for either a train-type-independent `speed_set` or a train-type-dependent
 /// `speed_sets` HashMap
 struct NetworkOld(pub Vec<LinkOld>);
+
+#[pyo3_api]
+impl NetworkOld {}
+
+impl Init for NetworkOld {}
+impl SerdeAPI for NetworkOld {}
 
 impl AsRef<[Link]> for Network {
     fn as_ref(&self) -> &[Link] {

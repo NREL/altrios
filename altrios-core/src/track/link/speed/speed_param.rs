@@ -1,6 +1,6 @@
 use crate::imports::*;
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[repr(u8)]
 pub enum LimitType {
     //CivilSpeed = 1,
@@ -13,7 +13,7 @@ pub enum LimitType {
 
 impl Valid for LimitType {}
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, SerdeAPI)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[repr(u8)]
 pub enum CompareType {
     #[default]
@@ -45,7 +45,7 @@ impl Valid for CompareType {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct SpeedParam {
     pub limit_val: f64,
     pub limit_type: LimitType,

@@ -1,6 +1,18 @@
 use super::train_imports::*;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Container
+pub struct TemperatureTraceBuilder {
+    /// simulation elapsed time
+    pub time: Vec<si::Time>,
+    /// ambient temperature at sea level
+    pub temp_at_sea_level: Vec<si::ThermodynamicTemperature>,
+}
+
+#[pyo3_api]
+impl TemperatureTraceBuilder {
     #[staticmethod]
     #[pyo3(name = "from_csv_file")]
     fn from_csv_file_py(pathstr: String) -> anyhow::Result<Self> {
@@ -10,15 +22,10 @@ use super::train_imports::*;
     fn __len__(&self) -> usize {
         self.len()
     }
-)]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, SerdeAPI)]
-/// Container
-pub struct TemperatureTraceBuilder {
-    /// simulation elapsed time
-    pub time: Vec<si::Time>,
-    /// ambient temperature at sea level
-    pub temp_at_sea_level: Vec<si::ThermodynamicTemperature>,
 }
+
+impl Init for TemperatureTraceBuilder {}
+impl SerdeAPI for TemperatureTraceBuilder {}
 
 impl TemperatureTraceBuilder {
     fn empty() -> Self {
@@ -86,7 +93,7 @@ impl Default for TemperatureTraceBuilder {
 }
 
 /// Element of [TemperatureTrace].  Used for vec-like operations.
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TemperatureTraceElement {
     /// simulation time
     time: si::Time,
@@ -94,10 +101,17 @@ pub struct TemperatureTraceElement {
     pub temp_at_sea_level: si::ThermodynamicTemperature,
 }
 
-#[altrios_api]
-#[derive(Clone, Debug, PartialEq, SerdeAPI)]
+#[serde_api]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Container for an interpolator of temperature at sea level (to be corrected for altitude)
 pub struct TemperatureTrace(pub(crate) Interp1DOwned<f64, strategy::Linear>);
+
+#[pyo3_api]
+impl TemperatureTrace {}
+
+impl Init for TemperatureTrace {}
+impl SerdeAPI for TemperatureTrace {}
 
 impl TemperatureTrace {
     pub fn get_temp_at_time_and_elev(

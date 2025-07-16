@@ -6,6 +6,9 @@ use super::link_old::LinkOld;
 use super::speed::*;
 use crate::imports::*;
 
+#[cfg(doc)]
+use crate::meet_pass::est_times::*;
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 struct OldSpeedSets(Vec<OldSpeedSet>);
 
@@ -31,7 +34,7 @@ pub struct Link {
     /// Optional OpenStreetMap ID -- not used in simulation
     pub osm_id: Option<String>,
     /// Total length of [Self]
-    // #[serde(alias = "length")] // TODO: uncomment
+    #[serde(alias = "length")]
     pub length: si::Length,
 
     /// Spatial vector of elevation values and corresponding positions along track

@@ -7,7 +7,7 @@ use super::TrainResWrapper;
 use crate::consist::locomotive::locomotive_model::PowertrainType;
 
 use super::{
-    friction_brakes::*, rail_vehicle::RailVehicle, train_imports::*, InitTrainState, LinkIdxTime,
+    friction_brakes::*, rail_vehicle::RailVehicle, train_imports::*, InitTrainState,
     SetSpeedTrainSim, SetSpeedTrainSimBuilder, SpeedLimitTrainSim, SpeedLimitTrainSimBuilder,
     SpeedTrace, TrainState,
 };

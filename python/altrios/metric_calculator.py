@@ -119,7 +119,6 @@ def main(
         scenario_infos: Union[ScenarioInfo, List[ScenarioInfo]],
         annual_metrics: Union[Tuple[str, str],
                               List[Tuple[str, str]]] = [
-            ('Meet_Pass_Events', 'count'),
             ('Freight_Moved', 'million tonne-mi'),
             ('Freight_Moved', 'million tonne-km'),
             ('Freight_Moved', 'car-miles'),

@@ -88,11 +88,12 @@ def manual_train_planner(
     freight_type_to_car_type = {}
     for rv in rail_vehicles:
         # Check for duplicate mappings (should not happen)
-        if rv.freight_type in freight_type_to_car_type:
-            assert f"More than one rail vehicle car type for freight type {rv.freight_type}"
+        rv_dict = rv.to_pydict()
+        if rv_dict["freight_type"] in freight_type_to_car_type:
+            raise Exception(f"More than one rail vehicle car type for freight type {rv_dict['freight_type']}")
         else:
             # Map this freight type to its car type
-            freight_type_to_car_type[rv.freight_type] = rv.car_type
+            freight_type_to_car_type[rv_dict["freight_type"]] = rv_dict["car_type"]
 
 
     # initialize lists for simulation results
@@ -141,23 +142,26 @@ def manual_train_planner(
                 config.loco_info["Locomotive_Type"] == loco_type
             ]["Rust_Loco"]
             .to_list()[0]
-            .clone()
+            .copy()
             for loco_type in consist_locos.get_column("Locomotive_Type")
         ]
 
         #TODO figure out how to set soc to 100% for the time being
         # Set state of charge for electric locomotives
-        [
-            alt.set_param_from_path(
-                locos[i], "res.state.soc", 1.0 #loco_start_soc_pct[i]
-            )
-            for i in range(len(locos))
-            if consist_locos.get_column("Fuel_Type")[i] == "Electricity"
-        ]
+        loco_list = [loco.to_pydict() for loco in locos]
+        for i, loco_dict in enumerate(loco_list):
+            if consist_locos.get_column("Fuel_Type")[i] == "Electricity":
+                loco_type_val = next(iter(loco_dict["loco_type"].values()))
+                loco_type_key = next(iter(loco_dict["loco_type"].keys()))                
+                #TODO figure out if 1.0 will cause problems
+                loco_type_val["res"]["state"]["soc"] = 1.0
+                loco_dict["loco_type"][loco_type_key] = loco_type_val
+                loco_list[i] = loco_dict
 
+        loco_vec = [alt.Locomotive.from_pydict(loco_dict) for loco_dict in loco_list]      
         # Create locomotive consist from the selected locomotives
         loco_con = alt.Consist(
-            loco_vec=locos,
+            loco_vec=loco_vec,
             save_interval=None,
         )
 

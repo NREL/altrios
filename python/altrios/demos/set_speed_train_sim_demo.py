@@ -3,7 +3,7 @@ import time
 import polars as pl
 import seaborn as sns
 import os
-import plot_util
+from altrios.demos import plot_util
 
 import altrios as alt
 

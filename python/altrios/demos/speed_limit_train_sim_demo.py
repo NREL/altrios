@@ -7,8 +7,7 @@ import os
 from copy import copy
 
 import altrios as alt
-import plot_util
-
+from altrios.demos import plot_util
 sns.set_theme()
 
 
@@ -101,10 +100,18 @@ hel_new_dict["loco_type"]["HybridLoco"]["pt_cntrl"]["RGWDB"] = hel_new_pt_cntrl
 hel_sans_buffers = alt.Locomotive.from_pydict(hel_new_dict)
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
-loco_vec = [] + [hel.clone()] + [alt.Locomotive.default()] * 1
+loco_vec = (
+    []
+    + [hel.copy()]
+    + [alt.Locomotive.default()] * 1
+)
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
-loco_vec_sans_buffers = [] + [hel_sans_buffers.clone()] + [alt.Locomotive.default()] * 1
+loco_vec_sans_buffers = (
+    []
+    + [hel_sans_buffers.copy()]
+    + [alt.Locomotive.default()] * 1
+)
 
 # instantiate consist
 print("Building `Consist`")

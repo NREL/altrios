@@ -6,7 +6,7 @@ import polars as pl
 import seaborn as sns
 import os
 from copy import copy
-from altrios.demos import plot_util
+import plot_util
 
 import altrios as alt
 
@@ -58,10 +58,10 @@ conv_new_dict["loco_type"]["ConventionalLoco"]["fc"] = fc_with_derate_dict
 conv_with_derate = alt.Locomotive.from_pydict(conv_new_dict)
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
-loco_vec = [hel.copy()] + [alt.Locomotive.default()] * 1
+loco_vec = [hel.clone()] + [alt.Locomotive.default()] * 1
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
-loco_vec_with_derating = [hel_with_derate.copy()] + [conv_with_derate] * 1
+loco_vec_with_derating = [hel_with_derate.clone()] + [conv_with_derate] * 1
 
 # instantiate consist
 loco_con = alt.Consist(

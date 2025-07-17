@@ -1,20 +1,24 @@
 use crate::imports::*;
 
-#[altrios_api]
-#[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize, SerdeAPI)]
+#[serde_api]
+#[derive(Clone, Copy, Default, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Struct containing linear resistance coefficients for a particular offset with respect to start
 /// of `PathTpc`
 pub struct PathResCoeff {
-    #[api(skip_set)]
     /// Distance from start of `PathTpc`
     pub offset: si::Length,
-    #[api(skip_set)]
     /// Represents non-dimensional grade resistance (aka grade) or curvature resistance.
     pub res_coeff: si::Ratio,
-    #[api(skip_set)]
     /// Cumulative sum of `res_coeff` times length up to this `PathResCoeff` along `PathTpc`
     pub res_net: si::Length,
 }
+
+#[pyo3_api]
+impl PathResCoeff {}
+
+impl Init for PathResCoeff {}
+impl SerdeAPI for PathResCoeff {}
 
 impl PathResCoeff {
     /// Cumulative sum of `res_coeff` times length up to this `offset` along `PathTpc`

@@ -5,7 +5,7 @@ edition = { workspace = true }
 license = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }
-version = "0.2.4"
+version = "1.0.0"
 description = "ALTRIOS procedural macros"
 readme = "README.md"
 rust-version = { workspace = true }
@@ -19,6 +19,7 @@ quote = "1.0.18"
 regex = "1.6.0"
 syn = { version = "2.0.76", features = ["full"] }
 uom = { workspace = true }
+lazy_static = { workspace = true }
 
 [lib]
 proc-macro = true

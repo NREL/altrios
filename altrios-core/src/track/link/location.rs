@@ -3,8 +3,9 @@ use serde_this_or_that::as_bool;
 
 use super::link_idx::*;
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Location {
     /// User-defined name of the location/terminal
     #[serde(rename = "Location ID")]
@@ -23,6 +24,13 @@ pub struct Location {
     #[serde(rename = "Liquid Fuel Price Region")]
     pub liquid_fuel_price_region: String,
 }
+
+#[pyo3_api]
+impl Location {}
+
+impl Init for Location {}
+impl SerdeAPI for Location {}
+
 pub type LocationMap = HashMap<String, Vec<Location>>;
 
 #[cfg(feature = "pyo3")]

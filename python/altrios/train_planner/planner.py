@@ -97,7 +97,7 @@ def dispatch(
                 message = (
                     message
                     + f"""
-                {row['Node']}: {row['count']}"""
+                    {row["Node"]}: {row["count"]}"""
                 )
         else:
             # Show counts of locomotives servicing or refueling at the origin
@@ -106,7 +106,7 @@ def dispatch(
                 + f"""Count of locomotives refueling or waiting to refuel at {origin} are:"""
             )
             for row in waiting_counts.iter_rows(named=True):
-                message = message + f"""\n{row['Locomotive_Type']}: {row['count']}"""
+                message = message + f"""\n{row["Locomotive_Type"]}: {row["count"]}"""
 
         raise ValueError(message)
 
@@ -226,7 +226,7 @@ def dispatch(
             message = (
                 message
                 + f"""
-            {row['Locomotive_Type']}: {row['count']}"""
+            {row["Locomotive_Type"]}: {row["count"]}"""
             )
 
         # Raise error when we don't have enough locomotives/horsepower
@@ -593,12 +593,13 @@ def run_train_planner(
     # Create mapping from freight types to car types
     freight_type_to_car_type = {}
     for rv in rail_vehicles:
+        rv_dict = rv.to_pydict()
         # Check for duplicate mappings (should not happen)
-        if rv.freight_type in freight_type_to_car_type:
-            assert f"More than one rail vehicle car type for freight type {rv.freight_type}"
+        if rv_dict["freight_type"] in freight_type_to_car_type:
+            assert f"More than one rail vehicle car type for freight type {rv_dict['freight_type']}"
         else:
             # Map this freight type to its car type
-            freight_type_to_car_type[rv.freight_type] = rv.car_type
+            freight_type_to_car_type[rv_dict["freight_type"]] = rv_dict["car_type"]
 
     # Handle single train mode (simple scheduling)
     if config.single_train_mode:
@@ -843,18 +844,19 @@ def run_train_planner(
                             config.loco_info["Locomotive_Type"] == loco_type
                         ]["Rust_Loco"]
                         .to_list()[0]
-                        .clone()
+                        .copy()
                         for loco_type in dispatched.get_column("Locomotive_Type")
                     ]
 
                     # Set state of charge for electric locomotives
-                    [
-                        alt.set_param_from_path(
-                            locos[i], "res.state.soc", loco_start_soc_pct[i]
-                        )
-                        for i in range(len(locos))
-                        if dispatched.get_column("Fuel_Type")[i] == "Electricity"
-                    ]
+                    for i, loco in enumerate(locos):
+                        if dispatched.get_column("Fuel_Type")[i] == "Electricity":
+                            loco_dict = loco.to_pydict()
+                            loco_type = next(iter(loco_dict["loco_type"].keys()))
+                            loco_dict["loco_type"][loco_type]["res"]["state"]["soc"] = (
+                                float(loco_start_soc_pct[i])
+                            )
+                            locos[i] = alt.Locomotive.from_pydict(loco_dict)
 
                     # Create locomotive consist from the selected locomotives
                     loco_con = alt.Consist(
@@ -898,18 +900,29 @@ def run_train_planner(
                     )
 
                     # Calculate energy usage for each locomotive
-                    locos = loco_con_out.loco_vec.tolist()
+                    locos = loco_con_out.to_pydict()["loco_vec"]
                     # Extract energy consumption from locomotive objects based on type
-                    energy_use_locos = [
-                        (
-                            loco.res.state.energy_out_chemical_joules
-                            if loco.res
-                            else loco.fc.state.energy_fuel_joules if loco.fc else 0
-                        )
-                        for loco in locos
-                    ]
+                    energy_use_locos = []
+                    for loco in locos:
+                        loco_type = next(iter(loco["loco_type"].values()))
+                        if "res" in loco_type.keys():
+                            energy_use_locos.append(
+                                loco_type["res"]["state"]["energy_out_chemical_joules"]
+                            )
+                        elif "fc" in loco_type.keys():
+                            energy_use_locos.append(
+                                loco_type["fc"]["state"]["energy_fuel_joules"]
+                            )
+                        elif ("fc" in loco_type.keys()) and ("res" in loco_type.keys()):
+                            energy_use_locos.append(
+                                loco_type["fc"]["state"]["energy_fuel_joules"]
+                                + loco_type["res"]["state"][
+                                    "energy_out_chemical_joules"
+                                ]
+                            )
+                        else:
+                            energy_use_locos.append(0)
 
-                    # Create energy usage vector for all locomotives
                     energy_use_j = np.zeros(len(loco_pool))
                     # Assign energy use to selected locomotives based on rank order
                     energy_use_j[selected] = [

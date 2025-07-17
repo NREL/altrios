@@ -3,11 +3,10 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
-import pandas as pd
 import seaborn as sns
 import os
-from typing import Tuple
 from copy import copy
+from altrios.demos import plot_util
 
 import altrios as alt
 
@@ -50,25 +49,19 @@ fc_with_derate = alt.FuelConverter.default()
 fc_with_derate.set_default_elev_and_temp_derate()
 fc_with_derate_dict = fc_with_derate.to_pydict()
 
-hel_with_derate_dict = copy(hel_dict)
-hel_with_derate_dict["loco_type"]["HybridLoco"]["fc"] = fc_with_derate_dict
-hel_with_derate = alt.Locomotive.from_pydict(hel_with_derate_dict)
+hel_new_dict = copy(hel_dict)
+hel_new_dict["loco_type"]["HybridLoco"]["fc"] = fc_with_derate_dict
+hel_with_derate = alt.Locomotive.from_pydict(hel_new_dict)
 
-conv_with_derate_dict = alt.Locomotive.default().to_pydict()
-conv_with_derate_dict["loco_type"]["ConventionalLoco"]["fc"] = fc_with_derate_dict
-conv_with_derate = alt.Locomotive.from_pydict(conv_with_derate_dict)
-
-# construct a vector of one BEL, one HEL, and several conventional locomotives
-loco_vec = (
-    [alt.Locomotive.default()] * 2
-    # + [hel.clone()]
-)
+conv_new_dict = alt.Locomotive.default().to_pydict()
+conv_new_dict["loco_type"]["ConventionalLoco"]["fc"] = fc_with_derate_dict
+conv_with_derate = alt.Locomotive.from_pydict(conv_new_dict)
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
-loco_vec_with_derating = (
-    [conv_with_derate] * 2
-    # + [hel_with_derate.clone()]
-)
+loco_vec = [hel.copy()] + [alt.Locomotive.default()] * 1
+
+# construct a vector of one BEL, one HEL, and several conventional locomotives
+loco_vec_with_derating = [hel_with_derate.copy()] + [conv_with_derate] * 1
 
 # instantiate consist
 loco_con = alt.Consist(
@@ -119,7 +112,7 @@ CELSIUS_TO_KELVIN = 273.15
 temp_trace = alt.TemperatureTrace.from_pydict(
     {
         "time_seconds": [0, 7_200],
-        "temp_at_sea_level_degrees_Celsius": (
+        "temp_at_sea_level_kelvin": (
             np.array([22.0, 45.0]) + CELSIUS_TO_KELVIN
         ).tolist(),
     }
@@ -178,7 +171,7 @@ train_sim.walk_timed_path(
 )
 t1 = time.perf_counter()
 
-print(f"Time to simulate: {t1 - t0:.5g}")
+print(f"Time to simulate without derating: {t1 - t0:.5g}")
 raw_fuel_gigajoules = train_sim.get_energy_fuel_joules(False) / 1e9
 print(
     f"Total raw fuel used without engine derating in BEL and HEL: {raw_fuel_gigajoules:.6g} GJ"
@@ -187,7 +180,9 @@ corrected_fuel_gigajoules = train_sim.get_energy_fuel_soc_corrected_joules() / 1
 print(
     f"Total SOC-corrected fuel used without engine derating in BEL and HEL: {corrected_fuel_gigajoules:.6g} GJ"
 )
-assert len(train_sim.history) > 1
+
+ts_dict = train_sim.to_pydict()
+assert len(ts_dict["history"]) > 1
 
 t0 = time.perf_counter()
 train_sim_with_derating.walk_timed_path(
@@ -211,7 +206,9 @@ corrected_fuel_with_derating_gigajoules = (
 print(
     f"Total SOC-corrected fuel used with altitude and temperature derating in BEL and HEL: {corrected_fuel_with_derating_gigajoules:.6g} GJ"
 )
-assert len(train_sim_with_derating.history) > 1
+
+ts_with_derating_dict = train_sim_with_derating.to_pydict()
+assert len(ts_with_derating_dict["history"]) > 1
 
 fuel_increase = (
     (raw_fuel_with_derating_gigajoules - raw_fuel_gigajoules)
@@ -227,306 +224,6 @@ fuel_increase_soc_corrected = (
 print(
     f"SOC-corrected fuel increase due to derating: {fuel_increase_soc_corrected:.5g}%"
 )
-
-
-# Uncomment the following lines to overwrite `set_speed_train_sim_demo.py` `speed_trace`
-def plot_train_level_powers(
-    ts: alt.SpeedLimitTrainSim, mod_str: str
-) -> Tuple[plt.Figure, plt.Axes]:
-    fig, ax = plt.subplots(3, 1, sharex=True)
-    plt.suptitle("Train Power " + mod_str)
-    ax[0].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.pwr_whl_out_watts) / 1e6,
-        label="tract pwr",
-    )
-    ax[0].set_ylabel("Power [MW]")
-    ax[0].legend()
-
-    ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.res_aero_newtons) / 1e3,
-        label="aero",
-    )
-    ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.res_rolling_newtons) / 1e3,
-        label="rolling",
-    )
-    ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.res_curve_newtons) / 1e3,
-        label="curve",
-    )
-    ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.res_bearing_newtons) / 1e3,
-        label="bearing",
-    )
-    ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.res_grade_newtons) / 1e3,
-        label="grade",
-    )
-    ax[1].set_ylabel("Force [MN]")
-    ax[1].legend()
-
-    ax[-1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        ts.history.speed_meters_per_second,
-        label="achieved",
-    )
-    ax[-1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        ts.history.speed_limit_meters_per_second,
-        label="limit",
-    )
-    ax[-1].set_xlabel("Time [hr]")
-    ax[-1].set_ylabel("Speed [m/s]")
-    ax[-1].legend()
-
-    return fig, ax
-
-
-def plot_train_network_info(
-    ts: alt.SpeedLimitTrainSim, mod_str: str
-) -> Tuple[plt.Figure, plt.Axes]:
-    fig, ax = plt.subplots(3, 1, sharex=True)
-    plt.suptitle("Train Position in Network " + mod_str)
-    ax[0].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.offset_in_link_meters) / 1_000,
-        label="current link",
-    )
-    ax[0].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.offset_meters) / 1_000,
-        label="overall",
-    )
-    ax[0].legend()
-    ax[0].set_ylabel("Net Dist. [km]")
-
-    ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        ts.history.link_idx_front,
-        linestyle="",
-        marker=".",
-    )
-    ax[1].set_ylabel("Link Idx Front")
-
-    ax[-1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        ts.history.speed_meters_per_second,
-    )
-    ax[-1].set_xlabel("Time [hr]")
-    ax[-1].set_ylabel("Speed [m/s]")
-
-    plt.tight_layout()
-
-    return fig, ax
-
-
-def plot_consist_pwr(
-    ts: alt.SpeedLimitTrainSim, mod_str: str
-) -> Tuple[plt.Figure, plt.Axes]:
-    fig, ax = plt.subplots(3, 1, sharex=True)
-    plt.suptitle("Loco. Consist " + mod_str)
-    ax[0].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.pwr_whl_out_watts) / 1e6,
-        label="consist tract pwr",
-    )
-    ax[0].set_ylabel("Power [MW]")
-    ax[0].legend()
-
-    ax[1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        np.array(ts.history.grade_front) * 100.0,
-    )
-    ax[1].set_ylabel("Grade [%] at\nHead End")
-
-    ax[-1].plot(
-        np.array(ts.history.time_seconds) / 3_600,
-        ts.history.speed_meters_per_second,
-    )
-    ax[-1].set_xlabel("Time [hr]")
-    ax[-1].set_ylabel("Speed [m/s]")
-
-    return fig, ax
-
-
-hel_type = "HybridLoco"
-
-
-def plot_hel_pwr_and_soc(
-    ts: alt.SpeedLimitTrainSim, mod_str: str
-) -> Tuple[plt.Figure, plt.Axes]:
-    ts_dict = ts.to_pydict()
-    hybrid_loco = ts_dict["loco_con"]["loco_vec"][0]
-    fig, ax = plt.subplots(3, 1, sharex=True)
-    plt.suptitle("Hybrid Locomotive " + mod_str)
-
-    ax_idx = 0
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        np.array(hybrid_loco["history"]["pwr_out_watts"]) / 1e3,
-        label="tract. pwr.",
-    )
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        np.array(
-            hybrid_loco["loco_type"][hel_type]["res"]["history"]["pwr_disch_max_watts"]
-        )
-        / 1e3,
-        label="batt. max disch. pwr",
-    )
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        np.array(
-            hybrid_loco["loco_type"][hel_type]["res"]["history"]["pwr_charge_max_watts"]
-        )
-        / 1e3,
-        label="batt. max chrg. pwr",
-    )
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        np.array(
-            hybrid_loco["loco_type"][hel_type]["res"]["history"][
-                "pwr_out_electrical_watts"
-            ]
-        )
-        / 1e3,
-        label="batt. elec. pwr.",
-    )
-    pwr_gen_elect_out = np.array(
-        hybrid_loco["loco_type"][hel_type]["gen"]["history"]["pwr_elec_prop_out_watts"]
-    ) + np.array(
-        hybrid_loco["loco_type"][hel_type]["gen"]["history"]["pwr_elec_aux_watts"]
-    )
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        pwr_gen_elect_out / 1e3,
-        label="gen. elec. pwr.",
-    )
-    y_max = ax[ax_idx].get_ylim()[1]
-    ax[ax_idx].set_ylim([-y_max, y_max])
-    ax[ax_idx].set_ylabel("Power [kW]")
-    ax[ax_idx].legend()
-
-    ax_idx += 1
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        hybrid_loco["loco_type"][hel_type]["res"]["history"]["soc"],
-        label="soc",
-    )
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"][1:],
-        hybrid_loco["loco_type"][hel_type]["res"]["history"]["soc_chrg_buffer"][1:],
-        label="chrg buff",
-    )
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"][1:],
-        hybrid_loco["loco_type"][hel_type]["res"]["history"]["soc_disch_buffer"][1:],
-        label="disch buff",
-    )
-    # TODO: add static min and max soc bounds to plots
-    # TODO: make a plot util for any type of locomotive that will plot all the stuff
-    ax[ax_idx].set_ylabel("[-]")
-    ax[ax_idx].legend()
-
-    ax_idx += 1
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        ts_dict["history"]["speed_meters_per_second"],
-    )
-    ax[ax_idx].set_ylabel("Speed [m/s]")
-    ax[ax_idx].set_xlabel("Times [s]")
-    plt.tight_layout()
-
-    return fig, ax
-
-
-bel_type = "BatteryElectricLoco"
-
-
-def plot_bel_pwr_and_soc(
-    ts: alt.SpeedLimitTrainSim, mod_str: str
-) -> Tuple[plt.Figure, plt.Axes]:
-    ts_dict = ts.to_pydict()
-    batt_loco = ts_dict["loco_con"]["loco_vec"][0]
-    fig, ax = plt.subplots(3, 1, sharex=True)
-    plt.suptitle("Battery Electric Locomotive " + mod_str)
-
-    ax_idx = 0
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        np.array(batt_loco["history"]["pwr_out_watts"]) / 1e3,
-        label="tract. pwr.",
-    )
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        np.array(
-            batt_loco["loco_type"][bel_type]["res"]["history"]["pwr_disch_max_watts"]
-        )
-        / 1e3,
-        label="batt. max disch. pwr",
-    )
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        np.array(
-            batt_loco["loco_type"][bel_type]["res"]["history"]["pwr_charge_max_watts"]
-        )
-        / 1e3,
-        label="batt. max chrg. pwr",
-    )
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        np.array(
-            batt_loco["loco_type"][bel_type]["res"]["history"][
-                "pwr_out_electrical_watts"
-            ]
-        )
-        / 1e3,
-        label="batt. elec. pwr.",
-    )
-    y_max = ax[ax_idx].get_ylim()[1]
-    ax[ax_idx].set_ylim([-y_max, y_max])
-    ax[ax_idx].set_ylabel("Power [kW]")
-    ax[ax_idx].legend()
-
-    ax_idx += 1
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        batt_loco["loco_type"][bel_type]["res"]["history"]["soc"],
-        label="soc",
-    )
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"][1:],
-        batt_loco["loco_type"][bel_type]["res"]["history"]["soc_chrg_buffer"][1:],
-        label="chrg buff",
-    )
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"][1:],
-        batt_loco["loco_type"][bel_type]["res"]["history"]["soc_disch_buffer"][1:],
-        label="disch buff",
-    )
-    ax[ax_idx].set_ylabel("[-]")
-    ax[ax_idx].legend()
-
-    ax_idx += 1
-    # TODO: add static min and max soc bounds to plots
-    # TODO: make a plot util for any type of locomotive that will plot all the stuff
-    ax[ax_idx].plot(
-        ts_dict["history"]["time_seconds"],
-        ts_dict["history"]["speed_meters_per_second"],
-    )
-    ax[ax_idx].set_ylabel("Speed [m/s]")
-    ax[ax_idx].set_xlabel("Times [s]")
-    ax[ax_idx].legend()
-    plt.tight_layout()
-
-    return fig, ax
-
 
 df_no_derate = train_sim.to_dataframe()
 df_with_derate = train_sim_with_derating.to_dataframe()
@@ -574,26 +271,49 @@ ax[2].set_ylabel("Speed [m/s]")
 ax[2].set_xlabel("Times [s]")
 plt.tight_layout()
 
-fig0, ax0 = plot_train_level_powers(train_sim, "No Derating")
-fig1, ax1 = plot_train_network_info(train_sim, "No Derating")
-fig2, ax2 = plot_consist_pwr(train_sim, "No Derating")
-# fig3, ax3 = plot_hel_pwr_and_soc(train_sim, "No Derating")
-# fig3.savefig("plots/hel with buffers.svg")
-# fig4, ax4 = plot_bel_pwr_and_soc(train_sim, "No Derating")
+fig0, ax0 = plot_util.plot_train_level_powers(train_sim, "No Derating")
+fig1, ax1 = plot_util.plot_train_network_info(train_sim, "No Derating")
+fig2, ax2 = plot_util.plot_consist_pwr(train_sim, "No Derating")
+fig3, ax3 = plot_util.plot_hel_pwr_and_soc(train_sim, "No Derating")
 
-fig0_sans_buffers, ax0_sans_buffers = plot_train_level_powers(
+fig0_sans_buffers, ax0_sans_buffers = plot_util.plot_train_level_powers(
     train_sim_with_derating, "With Altitude and Temperature Derating"
 )
-fig1_sans_buffers, ax1_sans_buffers = plot_train_network_info(
+fig1_sans_buffers, ax1_sans_buffers = plot_util.plot_train_network_info(
     train_sim_with_derating, "With Altitude and Temperature Derating"
 )
-fig2_sans_buffers, ax2_sans_buffers = plot_consist_pwr(
+fig2_sans_buffers, ax2_sans_buffers = plot_util.plot_consist_pwr(
     train_sim_with_derating, "With Altitude and Temperature Derating"
 )
-# fig3_sans_buffers, ax3_sans_buffers = plot_hel_pwr_and_soc(train_sim_with_derating, "With Altitude and Temperature Derating")
-# fig3_sans_buffers.savefig("plots/hel sans buffers.svg")
-# fig4_sans_buffers, ax4_sans_buffers = plot_bel_pwr_and_soc(train_sim_sans_buffers, "With Altitude and Temperature Derating")
+fig3_sans_buffers, ax3_sans_buffers = plot_util.plot_hel_pwr_and_soc(
+    train_sim_with_derating, "With Altitude and Temperature Derating"
+)
 
 if SHOW_PLOTS:
     plt.tight_layout()
     plt.show()
+# Impact of sweep of battery capacity TODO: make this happen
+
+# whether to run assertions, enabled by default
+ENABLE_ASSERTS = os.environ.get("ENABLE_ASSERTS", "true").lower() == "true"
+# whether to override reference files used in assertions, disabled by default
+ENABLE_REF_OVERRIDE = os.environ.get("ENABLE_REF_OVERRIDE", "false").lower() == "true"
+# directory for reference files for checking sim results against expected results
+ref_dir = alt.resources_root() / "demo_data/speed_limit_train_sim_demo_with_derating/"
+
+if ENABLE_REF_OVERRIDE:
+    ref_dir.mkdir(exist_ok=True, parents=True)
+    df: pl.DataFrame = train_sim.to_dataframe().lazy().collect()[-1]
+    df.write_csv(ref_dir / "to_dataframe_expected.csv")
+if ENABLE_ASSERTS:
+    print("Checking output of `to_dataframe`")
+    to_dataframe_expected = pl.scan_csv(
+        ref_dir / "to_dataframe_expected.csv"
+    ).collect()[-1]
+    assert to_dataframe_expected.equals(train_sim.to_dataframe()[-1]), (
+        f"to_dataframe_expected: \n{to_dataframe_expected}\ntrain_sim.to_dataframe()[-1]: \n{train_sim.to_dataframe()[-1]}"
+        + "\ntry running with `ENABLE_REF_OVERRIDE=True`"
+    )
+    print("Success!")
+
+# %%

@@ -4,8 +4,9 @@ use crate::imports::*;
 use crate::track::{LinkPoint, PathResCoeff, PathTpc};
 use crate::train::TrainState;
 
-#[altrios_api]
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, SerdeAPI)]
+#[serde_api]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Strap {
     bearing: bearing::Basic,
     rolling: rolling::Basic,
@@ -14,6 +15,12 @@ pub struct Strap {
     grade: path_res::Strap,
     curve: path_res::Strap,
 }
+
+#[pyo3_api]
+impl Strap {}
+
+impl Init for Strap {}
+impl SerdeAPI for Strap {}
 
 impl Strap {
     pub fn new(
@@ -41,23 +48,55 @@ impl ResMethod for Strap {
         path_tpc: &PathTpc,
         dir: &Dir,
     ) -> anyhow::Result<()> {
-        // TODO: think about pulling the next one or two lines out to somewhere else
-        state.offset_back = state.offset - state.length;
-        state.weight_static = state
-            .mass()
-            .with_context(|| format_dbg!())?
-            .with_context(|| "{}\nExpected `Some`.")?
-            * uc::ACC_GRAV;
-        state.res_bearing = self.bearing.calc_res();
-        state.res_rolling = self.rolling.calc_res(state);
-        state.res_davis_b = self.davis_b.calc_res(state);
-        state.res_aero = self.aerodynamic.calc_res(state);
-        state.res_grade = self.grade.calc_res(path_tpc.grades(), state, dir)?;
-        state.res_curve = self.curve.calc_res(path_tpc.curves(), state, dir)?;
-        state.grade_front = self.grade.res_coeff_front(path_tpc.grades());
-        state.grade_back = self.grade.res_coeff_back(path_tpc.grades());
-        state.elev_front = self.grade.res_net_front(path_tpc.grades(), state);
-        state.elev_back = self.grade.res_net_back(path_tpc.grades(), state);
+        state.offset_back.update_unchecked(
+            *state.offset.get_unchecked(|| format_dbg!())?
+                - *state.length.get_unchecked(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
+        state.weight_static.update_unchecked(
+            state
+                .mass()
+                .with_context(|| format_dbg!())? // extract result
+                .with_context(|| "{}\nExpected `Some`.")? // extract option
+                * uc::ACC_GRAV,
+            || format_dbg!(),
+        )?;
+        state
+            .res_bearing
+            .update_unchecked(self.bearing.calc_res(), || format_dbg!())?;
+        state
+            .res_rolling
+            .update_unchecked(self.rolling.calc_res(state)?, || format_dbg!())?;
+        state
+            .res_davis_b
+            .update_unchecked(self.davis_b.calc_res(state)?, || format_dbg!())?;
+        state
+            .res_aero
+            .update_unchecked(self.aerodynamic.calc_res(state)?, || format_dbg!())?;
+        state.res_grade.update_unchecked(
+            self.grade.calc_res(path_tpc.grades(), state, dir)?,
+            || format_dbg!(),
+        )?;
+        state.res_curve.update_unchecked(
+            self.curve.calc_res(path_tpc.curves(), state, dir)?,
+            || format_dbg!(),
+        )?;
+        state.grade_front.update_unchecked(
+            self.grade.res_coeff_front(path_tpc.grades()),
+            || format_dbg!(),
+        )?;
+        state.grade_back.update_unchecked(
+            self.grade.res_coeff_back(path_tpc.grades()),
+            || format_dbg!(),
+        )?;
+        state.elev_front.update_unchecked(
+            self.grade.res_net_front(path_tpc.grades(), state)?,
+            || format_dbg!(),
+        )?;
+        state.elev_back.update_unchecked(
+            self.grade.res_net_back(path_tpc.grades(), state)?,
+            || format_dbg!(),
+        )?;
         Ok(())
     }
 

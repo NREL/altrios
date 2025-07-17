@@ -5,8 +5,9 @@ use super::*;
 use super::{LocoTrait, Mass, MassSideEffect};
 use crate::imports::*;
 
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, HistoryMethods)]
-#[altrios_api]
+#[serde_api]
+#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// Battery electric locomotive
 pub struct BatteryElectricLoco {
     #[has_state]
@@ -15,16 +16,18 @@ pub struct BatteryElectricLoco {
     pub edrv: ElectricDrivetrain,
     /// control strategy for distributing power demand between `fc` and `res`
     #[has_state]
-    #[api(skip_get, skip_set)]
     #[serde(default)]
     pub pt_cntrl: BatteryPowertrainControls,
     // /// field for tracking current state
     // #[serde(default)]
     // pub state: BELState,
     // /// vector of [Self::state]
-    // #[serde(default, skip_serializing_if = "BELStateHistoryVec::is_empty")]
+    // #[serde(default)]
     // pub history: BELStateHistoryVec,
 }
+
+#[pyo3_api]
+impl BatteryElectricLoco {}
 
 impl BatteryElectricLoco {
     /// Solve energy consumption for the current power output required
@@ -38,18 +41,42 @@ impl BatteryElectricLoco {
         pwr_aux: si::Power,
     ) -> anyhow::Result<()> {
         self.edrv.set_pwr_in_req(pwr_out_req, dt)?;
-        if self.edrv.state.pwr_elec_prop_in > si::Power::ZERO {
+        if *self
+            .edrv
+            .state
+            .pwr_elec_prop_in
+            .get_fresh(|| format_dbg!())?
+            > si::Power::ZERO
+        {
             // positive traction
-            self.res
-                .solve_energy_consumption(self.edrv.state.pwr_elec_prop_in, pwr_aux, dt)?;
+            self.res.solve_energy_consumption(
+                *self
+                    .edrv
+                    .state
+                    .pwr_elec_prop_in
+                    .get_fresh(|| format_dbg!())?,
+                pwr_aux,
+                dt,
+            )?;
         } else {
             // negative traction
             self.res.solve_energy_consumption(
-                self.edrv.state.pwr_elec_prop_in,
+                *self
+                    .edrv
+                    .state
+                    .pwr_elec_prop_in
+                    .get_fresh(|| format_dbg!())?,
                 // limit aux power to whatever is actually available
                 pwr_aux
                     // whatever power is available from regen plus normal
-                    .min(self.res.state.pwr_prop_max - self.edrv.state.pwr_elec_prop_in)
+                    .min(
+                        *self.res.state.pwr_prop_max.get_fresh(|| format_dbg!())?
+                            - *self
+                                .edrv
+                                .state
+                                .pwr_elec_prop_in
+                                .get_fresh(|| format_dbg!())?,
+                    )
                     .max(si::Power::ZERO),
                 dt,
             )?;
@@ -150,43 +177,36 @@ impl LocoTrait for BatteryElectricLoco {
             disch_buffer,
             chrg_buffer,
         )?;
+        self.edrv.set_cur_pwr_max_out(
+            *self.res.state.pwr_prop_max.get_fresh(|| format_dbg!())?,
+            None,
+        )?;
         self.edrv
-            .set_cur_pwr_max_out(self.res.state.pwr_prop_max, None)?;
-        self.edrv
-            .set_cur_pwr_regen_max(self.res.state.pwr_charge_max)?;
+            .set_cur_pwr_regen_max(*self.res.state.pwr_charge_max.get_fresh(|| format_dbg!())?)?;
 
         // power rate is never limiting in BEL, but assuming dt will be same
         // in next time step, we can synthesize a rate
         self.edrv.set_pwr_rate_out_max(
-            (self.edrv.state.pwr_mech_out_max - self.edrv.state.pwr_mech_prop_out) / dt,
-        );
+            (*self
+                .edrv
+                .state
+                .pwr_mech_out_max
+                .get_fresh(|| format_dbg!())?
+                - *self
+                    .edrv
+                    .state
+                    .pwr_mech_prop_out
+                    .get_stale(|| format_dbg!())?)
+                / dt,
+        )?;
         Ok(())
     }
 
-    fn save_state(&mut self) {
-        self.save_state();
-    }
-
-    fn step(&mut self) {
-        self.step()
-    }
-
-    fn get_energy_loss(&self) -> si::Energy {
-        self.res.state.energy_loss + self.edrv.state.energy_loss
+    fn get_energy_loss(&self) -> anyhow::Result<si::Energy> {
+        Ok(*self.res.state.energy_loss.get_fresh(|| format_dbg!())?
+            + *self.edrv.state.energy_loss.get_fresh(|| format_dbg!())?)
     }
 }
-
-// #[altrios_api]
-// #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
-// #[non_exhaustive]
-// #[serde(default)]
-// pub struct BELState {
-//     /// time step index
-//     pub i: usize,
-// }
-
-// impl Init for BELState {}
-// impl SerdeAPI for BELState {}
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, IsVariant, From, TryInto)]
 pub enum BatteryPowertrainControls {
@@ -211,49 +231,77 @@ impl Init for BatteryPowertrainControls {
     }
 }
 
-impl BatteryPowertrainControls {
-    fn step(&mut self) {
+impl SetCumulative for BatteryPowertrainControls {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
         match self {
-            Self::RGWDB(rgwdb) => rgwdb.step(),
+            Self::RGWDB(rgwdb) => {
+                rgwdb.set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?
+            }
         }
-    }
-
-    fn save_state(&mut self) {
-        match self {
-            Self::RGWDB(rgwdb) => rgwdb.save_state(),
-        }
+        Ok(())
     }
 }
+
+impl Step for BatteryPowertrainControls {
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        match self {
+            Self::RGWDB(rgwdb) => rgwdb.step(|| format!("{}\n{}", loc(), format_dbg!()))?,
+        }
+        Ok(())
+    }
+}
+
+impl SaveState for BatteryPowertrainControls {
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        match self {
+            Self::RGWDB(rgwdb) => rgwdb.save_state(|| format!("{}\n{}", loc(), format_dbg!()))?,
+        }
+        Ok(())
+    }
+}
+
+impl CheckAndResetState for BatteryPowertrainControls {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        match self {
+            Self::RGWDB(rgwdb) => {
+                rgwdb.check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?
+            }
+        }
+        Ok(())
+    }
+}
+
+impl StateMethods for BatteryPowertrainControls {}
 
 /// Greedily uses [ReversibleEnergyStorage] with buffers that derate charge
 /// and discharge power inside of static min and max SOC range.  Also, includes
 /// buffer for forcing [FuelConverter] to be active/on. See [Self::init] for
 /// default values.
-#[altrios_api]
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default, HistoryMethods)]
+#[serde_api]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, Default, StateMethods, SetCumulative)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 #[non_exhaustive]
 pub struct RESGreedyWithDynamicBuffersBEL {
     /// RES energy delta from minimum SOC corresponding to kinetic energy of
     /// vehicle at this speed that triggers ramp down in RES discharge.
-    #[api(skip_get, skip_set)]
     pub speed_soc_disch_buffer: Option<si::Velocity>,
     /// Coefficient for modifying amount of accel buffer
-    #[api(skip_get, skip_set)]
     pub speed_soc_disch_buffer_coeff: Option<si::Ratio>,
     /// RES energy delta from maximum SOC corresponding to kinetic energy of
     /// vehicle at current speed minus kinetic energy of vehicle at this speed
     /// triggers ramp down in RES discharge
-    #[api(skip_get, skip_set)]
     pub speed_soc_regen_buffer: Option<si::Velocity>,
     /// Coefficient for modifying amount of regen buffer
-    #[api(skip_get, skip_set)]
     pub speed_soc_regen_buffer_coeff: Option<si::Ratio>,
     #[serde(default)]
     pub state: RGWDBStateBEL,
-    #[serde(default, skip_serializing_if = "RGWDBStateBELHistoryVec::is_empty")]
+    #[serde(default)]
     /// history of current state
     pub history: RGWDBStateBELHistoryVec,
 }
+
+#[pyo3_api]
+impl RESGreedyWithDynamicBuffersBEL {}
 
 impl Init for RESGreedyWithDynamicBuffersBEL {
     fn init(&mut self) -> Result<(), Error> {
@@ -266,14 +314,28 @@ impl Init for RESGreedyWithDynamicBuffersBEL {
 }
 impl SerdeAPI for RESGreedyWithDynamicBuffersBEL {}
 
-#[altrios_api]
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, HistoryVec)]
+#[serde_api]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Serialize,
+    PartialEq,
+    HistoryVec,
+    StateMethods,
+    SetCumulative,
+)]
 #[serde(default)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 /// State for [RESGreedyWithDynamicBuffers ]
 pub struct RGWDBStateBEL {
     /// time step index
-    pub i: usize,
+    pub i: TrackedState<usize>,
 }
+
+#[pyo3_api]
+impl RGWDBStateBEL {}
 
 impl Init for RGWDBStateBEL {}
 impl SerdeAPI for RGWDBStateBEL {}

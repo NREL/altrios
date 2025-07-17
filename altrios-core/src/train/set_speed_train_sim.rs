@@ -1,7 +1,20 @@
 use super::environment::TemperatureTrace;
 use super::train_imports::*;
 
-#[altrios_api(
+#[serde_api]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+pub struct SpeedTrace {
+    /// simulation time
+    pub time: Vec<si::Time>,
+    /// simulation speed
+    pub speed: Vec<si::Velocity>,
+    /// Whether engine is on
+    pub engine_on: Option<Vec<bool>>,
+}
+
+#[pyo3_api]
+impl SpeedTrace {
     #[new]
     #[pyo3(signature = (
         time_seconds,
@@ -11,7 +24,7 @@ use super::train_imports::*;
     fn __new__(
         time_seconds: Vec<f64>,
         speed_meters_per_second: Vec<f64>,
-        engine_on: Option<Vec<bool>>
+        engine_on: Option<Vec<bool>>,
     ) -> anyhow::Result<Self> {
         Ok(Self::new(time_seconds, speed_meters_per_second, engine_on))
     }
@@ -30,15 +43,12 @@ use super::train_imports::*;
     fn to_csv_file_py(&self, filepath: &Bound<PyAny>) -> anyhow::Result<()> {
         self.to_csv_file(PathBuf::extract_bound(filepath)?)
     }
-)]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, SerdeAPI)]
-pub struct SpeedTrace {
-    /// simulation time
-    pub time: Vec<si::Time>,
-    /// simulation speed
-    pub speed: Vec<si::Velocity>,
-    /// Whether engine is on
-    pub engine_on: Option<Vec<bool>>,
+
+    #[staticmethod]
+    #[pyo3(name = "default")]
+    fn default_py() -> Self {
+        Self::default()
+    }
 }
 
 impl SpeedTrace {
@@ -161,6 +171,9 @@ impl SpeedTrace {
     }
 }
 
+impl Init for SpeedTrace {}
+impl SerdeAPI for SpeedTrace {}
+
 impl Default for SpeedTrace {
     fn default() -> Self {
         let mut speed_mps: Vec<f64> = Vec::linspace(0.0, 20.0, 800);
@@ -173,7 +186,7 @@ impl Default for SpeedTrace {
 }
 
 /// Element of [SpeedTrace].  Used for vec-like operations.
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq, SerdeAPI)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SpeedTraceElement {
     /// simulation time
     #[serde(alias = "time_seconds")]
@@ -185,19 +198,36 @@ pub struct SpeedTraceElement {
     engine_on: Option<bool>,
 }
 
-#[altrios_api(
-    #[setter]
-    pub fn set_res_strap(&mut self, res_strap: method::Strap) -> anyhow::Result<()> {
-        self.train_res = TrainRes::Strap(res_strap);
-        Ok(())
-    }
+#[serde_api]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
+/// Train simulation in which speed is prescribed.  Note that this is not guaranteed to
+/// produce identical results to [super::SpeedLimitTrainSim] because of differences in braking
+/// controls but should generally be very close (i.e. error in cumulative fuel/battery energy
+/// should be less than 0.1%)
+pub struct SetSpeedTrainSim {
+    pub loco_con: Consist,
+    pub n_cars_by_type: HashMap<String, u32>,
+    #[serde(default)]
+    pub state: TrainState,
+    pub speed_trace: SpeedTrace,
 
-    #[setter]
-    pub fn set_res_point(&mut self, res_point: method::Point) -> anyhow::Result<()> {
-        self.train_res = TrainRes::Point(res_point);
-        Ok(())
-    }
+    /// train resistance calculation
+    pub train_res: TrainRes,
 
+    path_tpc: PathTpc,
+    /// Custom vector of [Self::state]
+    #[serde(default)]
+    pub history: TrainStateHistoryVec,
+
+    save_interval: Option<usize>,
+    /// Time-dependent temperature at sea level that can be corrected for
+    /// altitude using a standard model
+    temp_trace: Option<TemperatureTrace>,
+}
+
+#[pyo3_api]
+impl SetSpeedTrainSim {
     #[getter]
     pub fn get_res_strap(&self) -> anyhow::Result<Option<method::Strap>> {
         match &self.train_res {
@@ -222,7 +252,7 @@ pub struct SpeedTraceElement {
 
     #[pyo3(name = "step")]
     fn step_py(&mut self) -> anyhow::Result<()> {
-        self.step()
+        self.step(|| format_dbg!())
     }
 
     #[pyo3(name = "set_save_interval")]
@@ -242,32 +272,6 @@ pub struct SpeedTraceElement {
         self.trim_failed_steps()?;
         Ok(())
     }
-)]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-/// Train simulation in which speed is prescribed.  Note that this is not guaranteed to
-/// produce identical results to [super::SpeedLimitTrainSim] because of differences in braking
-/// controls but should generally be very close (i.e. error in cumulative fuel/battery energy
-/// should be less than 0.1%)
-pub struct SetSpeedTrainSim {
-    pub loco_con: Consist,
-    pub n_cars_by_type: HashMap<String, u32>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "EqDefault::eq_default")]
-    pub state: TrainState,
-    pub speed_trace: SpeedTrace,
-    #[api(skip_get, skip_set)]
-    /// train resistance calculation
-    pub train_res: TrainRes,
-    #[api(skip_set)]
-    path_tpc: PathTpc,
-    /// Custom vector of [Self::state]
-    #[serde(default, skip_serializing_if = "TrainStateHistoryVec::is_empty")]
-    pub history: TrainStateHistoryVec,
-    #[api(skip_set, skip_get)]
-    save_interval: Option<usize>,
-    /// Time-dependent temperature at sea level that can be corrected for
-    /// altitude using a standard model
-    temp_trace: Option<TemperatureTrace>,
 }
 
 pub struct SetSpeedTrainSimBuilder {
@@ -302,10 +306,11 @@ impl From<SetSpeedTrainSimBuilder> for SetSpeedTrainSim {
 impl SetSpeedTrainSim {
     /// Trims off any portion of the trip that failed to run
     pub fn trim_failed_steps(&mut self) -> anyhow::Result<()> {
-        if self.state.i <= 1 {
+        if *self.state.i.get_fresh(|| format_dbg!())? <= 1 {
             bail!("`walk` method has not proceeded past first time step.")
         }
-        self.speed_trace.trim(None, Some(self.state.i))?;
+        self.speed_trace
+            .trim(None, Some(*self.state.i.get_fresh(|| format_dbg!())?))?;
 
         Ok(())
     }
@@ -324,26 +329,42 @@ impl SetSpeedTrainSim {
         self.save_interval
     }
 
-    /// Solves step, saves state, steps nested `loco_con`, and increments `self.i`.
-    pub fn step(&mut self) -> anyhow::Result<()> {
-        self.solve_step()
-            .map_err(|err| err.context(format!("time step: {}", self.state.i)))?;
-        self.save_state();
-        self.loco_con.step();
-        self.state.i += 1;
-        Ok(())
-    }
-
     /// Solves time step.
     pub fn solve_step(&mut self) -> anyhow::Result<()> {
         // checking on speed trace to ensure it is at least stopped or moving forward (no backwards)
+        let dt = self.speed_trace.time[*self.state.i.get_fresh(|| format_dbg!())?]
+            - *self.state.time.get_stale(|| format_dbg!())?;
+        self.state.dt.update(dt, || format_dbg!())?;
+
         ensure!(
-            self.speed_trace.speed[self.state.i] >= si::Velocity::ZERO,
-            format_dbg!(self.speed_trace.speed[self.state.i] >= si::Velocity::ZERO)
+            self.speed_trace.speed[*self.state.i.get_fresh(|| format_dbg!())?]
+                >= si::Velocity::ZERO,
+            format_dbg!(
+                self.speed_trace.speed[*self.state.i.get_fresh(|| format_dbg!())?]
+                    >= si::Velocity::ZERO
+            )
         );
-        // set the catenary power limit.  I'm assuming it is 0 at this point.
         self.loco_con
-            .set_cat_power_limit(&self.path_tpc, self.state.offset);
+            .state
+            .pwr_cat_lim
+            .mark_fresh(|| format_dbg!())?;
+        // not used in set_speed_train_sim
+        self.state.speed_limit.mark_fresh(|| format_dbg!())?;
+        // not used in set_speed_train_sim
+        self.state.speed_target.mark_fresh(|| format_dbg!())?;
+        // not used in set_speed_train_sim
+        self.state.mass_static.mark_fresh(|| format_dbg!())?;
+        // not used in set_speed_train_sim
+        self.state.mass_rot.mark_fresh(|| format_dbg!())?;
+        // not used in set_speed_train_sim
+        self.state.mass_freight.mark_fresh(|| format_dbg!())?;
+        // TODO: update this if length ever becomes dynamic
+        self.state.length.mark_fresh(|| format_dbg!())?;
+        // set the catenary power limit.  I'm assuming it is 0 at this point.
+        // self.loco_con.set_cat_power_limit(
+        //     &self.path_tpc,
+        //     *self.state.offset.get_fresh(|| format_dbg!())?,
+        // )?;
         // set aux power loads.  this will be calculated in the locomotive model and be loco type dependent.
         self.loco_con.set_pwr_aux(Some(true))?;
         let train_mass = Some(self.state.mass_compound().with_context(|| format_dbg!())?);
@@ -351,9 +372,12 @@ impl SetSpeedTrainSim {
         let elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)> =
             if let Some(tt) = &self.temp_trace {
                 Some((
-                    self.state.elev_front,
-                    tt.get_temp_at_time_and_elev(self.state.time, self.state.elev_front)
-                        .with_context(|| format_dbg!())?,
+                    *self.state.elev_front.get_fresh(|| format_dbg!())?,
+                    tt.get_temp_at_time_and_elev(
+                        *self.state.time.get_fresh(|| format_dbg!())?,
+                        *self.state.elev_front.get_fresh(|| format_dbg!())?,
+                    )
+                    .with_context(|| format_dbg!())?,
                 ))
             } else {
                 None
@@ -364,49 +388,65 @@ impl SetSpeedTrainSim {
             None,
             elev_and_temp,
             train_mass,
-            Some(self.state.speed),
-            self.speed_trace.dt(self.state.i),
+            Some(*self.state.speed.get_stale(|| format_dbg!())?),
+            self.speed_trace
+                .dt(*self.state.i.get_fresh(|| format_dbg!())?),
         )?;
         // calculate the train resistance for current time steps.  Based on train config and calculated in train model.
         self.train_res
             .update_res(&mut self.state, &self.path_tpc, &Dir::Fwd)?;
         // figure out how much power is needed to pull train with current speed trace.
-        self.solve_required_pwr(self.speed_trace.dt(self.state.i))?;
+        self.solve_required_pwr(
+            self.speed_trace
+                .dt(*self.state.i.get_fresh(|| format_dbg!())?),
+        )?;
         self.loco_con.solve_energy_consumption(
-            self.state.pwr_whl_out,
+            *self.state.pwr_whl_out.get_fresh(|| format_dbg!())?,
             train_mass,
-            Some(self.speed_trace.speed[self.state.i]),
-            self.speed_trace.dt(self.state.i),
+            Some(self.speed_trace.speed[*self.state.i.get_fresh(|| format_dbg!())?]),
+            self.speed_trace
+                .dt(*self.state.i.get_fresh(|| format_dbg!())?),
             Some(true),
         )?;
         // advance time
-        self.state.time = self.speed_trace.time[self.state.i];
+        self.state.time.increment(dt, || format_dbg!())?;
         // update speed
-        self.state.speed = self.speed_trace.speed[self.state.i];
-        // update offset
-        self.state.offset += self.speed_trace.mean(self.state.i) * self.state.dt;
-        // I'm not too familiar with this bit, but I am assuming this is related to finding the way through the network and is not a difference between set speed and speed limit train sim.
+        self.state.speed.update(
+            self.speed_trace.speed[*self.state.i.get_fresh(|| format_dbg!())?],
+            || format_dbg!(),
+        )?;
         set_link_and_offset(&mut self.state, &self.path_tpc)?;
+        // update offset
+        self.state.offset.increment(
+            self.speed_trace
+                .mean(*self.state.i.get_fresh(|| format_dbg!())?)
+                * *self.state.dt.get_fresh(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
         // update total distance
-        self.state.total_dist += (self.speed_trace.mean(self.state.i) * self.state.dt).abs();
+        self.state.total_dist.increment(
+            (self
+                .speed_trace
+                .mean(*self.state.i.get_fresh(|| format_dbg!())?)
+                * *self.state.dt.get_fresh(|| format_dbg!())?)
+            .abs(),
+            || format_dbg!(),
+        )?;
+        self.set_cumulative(
+            *self.state.dt.get_fresh(|| format_dbg!())?,
+            || format_dbg!(),
+        )?;
         Ok(())
-    }
-
-    /// Saves current time step for self and nested `loco_con`.
-    fn save_state(&mut self) {
-        if let Some(interval) = self.save_interval {
-            if self.state.i % interval == 0 {
-                self.history.push(self.state);
-                self.loco_con.save_state();
-            }
-        }
     }
 
     /// Iterates `save_state` and `step` through all time steps.
     pub fn walk(&mut self) -> anyhow::Result<()> {
-        self.save_state();
-        while self.state.i < self.speed_trace.len() {
-            self.step()?;
+        self.save_state(|| format_dbg!())?;
+        loop {
+            if *self.state.i.get_fresh(|| format_dbg!())? > self.speed_trace.len() - 2 {
+                break;
+            }
+            self.step(|| format_dbg!()).with_context(|| format_dbg!())?;
         }
         Ok(())
     }
@@ -418,13 +458,30 @@ impl SetSpeedTrainSim {
     /// - acceleration
     pub fn solve_required_pwr(&mut self, dt: si::Time) -> anyhow::Result<()> {
         // This calculates the maximum power from loco based on current power, ramp rate, and dt of model.  will return 0 if this is negative.
-        let pwr_pos_max =
-            self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
-                self.state.pwr_whl_out + self.loco_con.state.pwr_rate_out_max * self.state.dt,
-            ));
+        let pwr_pos_max = self
+            .loco_con
+            .state
+            .pwr_out_max
+            .get_fresh(|| format_dbg!())?
+            .min(
+                si::Power::ZERO.max(
+                    *self.state.pwr_whl_out.get_stale(|| format_dbg!())?
+                        + *self
+                            .loco_con
+                            .state
+                            .pwr_rate_out_max
+                            .get_fresh(|| format_dbg!())?
+                            * *self.state.dt.get_fresh(|| format_dbg!())?,
+                ),
+            );
 
-        // find max dynamic braking power. I am liking that we use a positive dyn braking.  This feels like we need a coordinate system where the math works out better rather than ad hoc'ing it.
-        let pwr_neg_max = self.loco_con.state.pwr_dyn_brake_max.max(si::Power::ZERO);
+        // find max dynamic braking power as positive value
+        let pwr_neg_max = self
+            .loco_con
+            .state
+            .pwr_dyn_brake_max
+            .get_fresh(|| format_dbg!())?
+            .max(si::Power::ZERO);
 
         // not sure why we have these checks if the max function worked earlier.
         ensure!(
@@ -433,32 +490,108 @@ impl SetSpeedTrainSim {
         );
 
         // res for resistance is a horrible name.  It collides with reversible energy storage.  This like is calculating train resistance for the time step.
-        self.state.pwr_res = self.state.res_net() * self.speed_trace.mean(self.state.i);
+        self.state.pwr_res.update(
+            self.state.res_net().with_context(|| format_dbg!())?
+                * self
+                    .speed_trace
+                    .mean(*self.state.i.get_fresh(|| format_dbg!())?),
+            || format_dbg!(),
+        )?;
         // find power to accelerate the train mass from an energy perspective.
-        self.state.pwr_accel = self.state.mass_compound().with_context(|| format_dbg!())?
-            / (2.0 * self.speed_trace.dt(self.state.i))
-            * (self.speed_trace.speed[self.state.i].powi(typenum::P2::new())
-                - self.speed_trace.speed[self.state.i - 1].powi(typenum::P2::new()));
-        // store the used `dt` value in `state`
-        self.state.dt = self.speed_trace.dt(self.state.i);
+        self.state.pwr_accel.update(
+            self.state.mass_compound().with_context(|| format_dbg!())?
+                / (2.0
+                    * self
+                        .speed_trace
+                        .dt(*self.state.i.get_fresh(|| format_dbg!())?))
+                * (self.speed_trace.speed[*self.state.i.get_fresh(|| format_dbg!())?]
+                    .powi(typenum::P2::new())
+                    - self.speed_trace.speed[*self.state.i.get_fresh(|| format_dbg!())? - 1]
+                        .powi(typenum::P2::new())),
+            || format_dbg!(),
+        )?;
 
         // total power exerted by the consist to move the train, without limits applied
-        self.state.pwr_whl_out = self.state.pwr_accel + self.state.pwr_res;
+        let pwr_whl_out_unclipped = *self.state.pwr_accel.get_fresh(|| format_dbg!())?
+            + *self.state.pwr_res.get_fresh(|| format_dbg!())?;
+
         // limit power to within the consist capability
-        self.state.pwr_whl_out = self.state.pwr_whl_out.max(-pwr_neg_max).min(pwr_pos_max);
-        // accumulate energy
-        self.state.energy_whl_out += self.state.pwr_whl_out * dt;
+        self.state.pwr_whl_out.update(
+            pwr_whl_out_unclipped.max(-pwr_neg_max).min(pwr_pos_max),
+            || format_dbg!(),
+        )?;
 
         // add to positive or negative wheel energy tracking.
-        if self.state.pwr_whl_out >= 0. * uc::W {
-            self.state.energy_whl_out_pos += self.state.pwr_whl_out * dt;
+        if *self.state.pwr_whl_out.get_fresh(|| format_dbg!())? >= 0. * uc::W {
+            self.state.energy_whl_out_pos.increment(
+                *self.state.pwr_whl_out.get_fresh(|| format_dbg!())? * dt,
+                || format_dbg!(),
+            )?;
+            self.state
+                .energy_whl_out_neg
+                .increment(si::Energy::ZERO, || format_dbg!())?;
         } else {
-            self.state.energy_whl_out_neg -= self.state.pwr_whl_out * dt;
+            self.state.energy_whl_out_neg.increment(
+                -*self.state.pwr_whl_out.get_fresh(|| format_dbg!())? * dt,
+                || format_dbg!(),
+            )?;
+            self.state
+                .energy_whl_out_pos
+                .increment(si::Energy::ZERO, || format_dbg!())?;
         }
         Ok(())
     }
 }
 
+impl StateMethods for SetSpeedTrainSim {}
+impl CheckAndResetState for SetSpeedTrainSim {
+    fn check_and_reset<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        // self.state.speed_limit.mark_fresh(|| format_dbg!())?;
+        self.state
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .check_and_reset(|| format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+impl SetCumulative for SetSpeedTrainSim {
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()> {
+        self.state
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con
+            .set_cumulative(dt, || format!("{}\n{}", loc(), format_dbg!()))?;
+        Ok(())
+    }
+}
+
+impl Step for SetSpeedTrainSim {
+    /// Solves step, saves state, steps nested `loco_con`, and increments `self.i`.
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()> {
+        let i = *self.state.i.get_fresh(|| format_dbg!())?;
+        self.check_and_reset(|| format_dbg!())?;
+        self.state
+            .i
+            .increment(1, || format!("{}\n{}", loc(), format_dbg!()))?;
+        self.loco_con.step(|| format_dbg!())?;
+        self.solve_step()
+            .with_context(|| format!("{}\ntime step: {}", loc(), i))?;
+
+        self.save_state(|| format_dbg!())?;
+        Ok(())
+    }
+}
+impl SaveState for SetSpeedTrainSim {
+    /// Saves current time step for self and nested `loco_con`.
+    fn save_state<F: Fn() -> String>(&mut self, _loc: F) -> anyhow::Result<()> {
+        if let Some(interval) = self.save_interval {
+            if self.state.i.get_fresh(|| format_dbg!())? % interval == 0 {
+                self.history.push(self.state.clone());
+                self.loco_con.save_state(|| format_dbg!())?;
+            }
+        }
+        Ok(())
+    }
+}
 impl Init for SetSpeedTrainSim {
     fn init(&mut self) -> Result<(), Error> {
         self.loco_con.init()?;
@@ -496,6 +629,14 @@ mod tests {
     fn test_set_speed_train_sim() {
         let mut train_sim = SetSpeedTrainSim::default();
         train_sim.walk().unwrap();
-        assert!(train_sim.loco_con.state.i > 1);
+        assert!(
+            *train_sim
+                .loco_con
+                .state
+                .i
+                .get_fresh(|| format_dbg!())
+                .unwrap()
+                > 1
+        );
     }
 }

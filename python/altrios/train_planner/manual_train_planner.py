@@ -89,8 +89,9 @@ def manual_train_planner(
     for rv in rail_vehicles:
         # Check for duplicate mappings (should not happen)
         rv_dict = rv.to_pydict()
+
         if rv_dict["freight_type"] in freight_type_to_car_type:
-            raise Exception(f"More than one rail vehicle car type for freight type {rv_dict['freight_type']}")
+            raise Exception(f"More than one unique rail vehicle car type for freight type {rv_dict['freight_type']}")
         else:
             # Map this freight type to its car type
             freight_type_to_car_type[rv_dict["freight_type"]] = rv_dict["car_type"]

@@ -345,6 +345,7 @@ def update_refuel_queue(
                 nulls_last=True,
             )
         )
+
         # Organize locomotives by charger type and node for queue processing
         charger_type_breakouts = (
             loco_pool.filter(
@@ -676,6 +677,7 @@ def run_train_planner(
                 freight_type_to_car_type,
                 config,
             )
+
             # Set default scheduler
             config.dispatch_scheduler = (
                 schedulers.dispatch_uniform_demand_uniform_departure

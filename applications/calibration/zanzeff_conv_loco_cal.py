@@ -5,9 +5,9 @@
 import pprint
 from pathlib import Path
 
-import pandas as pd
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 
 import altrios as alt
 from altrios import LocomotiveSimulation, pymoo_api
@@ -66,7 +66,7 @@ def get_conv_trip_mods(df: pd.DataFrame) -> pd.DataFrame:
     return df39xx
 
 
-def get_loco_sim(df39xx: pd.DataFrame) -> bytes:
+def get_loco_sim(df39xx: pd.DataFrame) -> LocomotiveSimulation:
     powertrace = alt.PowerTrace(
         df39xx["time [s]"].to_numpy(),
         df39xx["Tractive Power [W]"].to_numpy(),
@@ -76,22 +76,58 @@ def get_loco_sim(df39xx: pd.DataFrame) -> bytes:
 
     loco_dict = loco_unit.to_pydict()
 
-    loco_dict["pwr_aux_offset_watts"] = 10e3
-    loco_dict["fc"]["pwr_ramp_lag_seconds"] = 0.0000000000000001
-    loco_dict["fc"]["pwr_out_max_watts"] = 3255000.0 * 2
-    loco_dict["edrv"]["pwr_out_max_watts"] = 3255000.0 * 2
-    loco_dict["gen"]["pwr_out_max_watts"] = 3255000.0 * 2
+    # loco_dict["pwr_aux_offset_watts"] = 10e3
+    # loco_dict["fc"]["pwr_ramp_lag_seconds"] = 0.0000000000000001
+    # loco_dict["fc"]["pwr_out_max_watts"] = 3255000.0 * 2
+    # loco_dict["edrv"]["pwr_out_max_watts"] = 3255000.0 * 2
+    # loco_dict["gen"]["pwr_out_max_watts"] = 3255000.0 * 2
 
     loco_sim = LocomotiveSimulation(
         loco_unit=alt.Locomotive.from_pydict(loco_dict),
         power_trace=powertrace,
         save_interval=1,
     )
-    loco_sim_bincode = loco_sim.to_bincode()
-    return loco_sim_bincode
+    return loco_sim
 
 
+df_path = "ZANZEFF Data- Corrected GPS Plus Train Build ALTRIOS Confidential v2/"
+df_files = []
+for file in df_path.iterdir():
+    if file.suffix == ".csv":
+        df_files.append(file.name, pd.read_csv(file))
+#PATH TO simulation csvs.iterdir(txt file only)
+save_path = "cal_files/"
+parser = pymoo_api.get_parser()
+args = parser.parse_args()
+cal_files, val_files = alt.utils.select_cal_and_val_trips(
+        save_path=save_path,
+        force_rerun=args.repartition,
+    )
+#val=30% cal=70%
+
+
+dfs_for_cal: dict[str, pd.DataFrame] = {
+    # `delimiter="\t"` should work for tab separated variables
+    pd.read_csv(cal_file, delimiter="\t") for cal_file in cal_files.iterdir()
+}
 def_save_path = Path("conv_loco_cal")
+
+
+#model pydict
+sims_for_cal: dict[str, alt.loco_sim] = {}
+# populate `sims_for_cal`
+for loco_name, loco in train_sim["loco_con"]["loco_vec"].items():
+    loco_name: str
+    loco: alt.Locomotive
+    # NOTE: maybe change `save_interval` to 5
+    sims_for_cal[loco_name] = alt.loco_sim(
+        loco_unit, power_trace, save_interval).to_pydict()
+
+
+def get_loco_sims(dfs: dict[str, pd.DataFrame]):
+    for trip_name, df in dfs.items():
+        get_loco_sim(df)
+
 
 
 # Objective Functions -- `obj_fns`
@@ -107,12 +143,29 @@ def get_exp_fuel_energy(df: pd.DataFrame) -> pd.DataFrame:
 
 # Parameter Functions -- `param_fns_and_bounds`
 def new_pwr_idle_fuel_watts(sim_dict: dict, new_val: float) -> dict:
-    """
-    Set `pwr_idle_fuel_watts` in `FuelConverter`
-    """
-    sim_dict["loco_type"]["ConventionalLocomotive"]["fc"][""]
+    """Set `pwr_idle_fuel_watts` in `FuelConverter`"""
+    sim_dict["loco_type"]["ConventionalLocomotive"]["fc"]["pwr_idle_fuel_watts"] = new_val
     return sim_dict
 
+def new_gen_eta_max(sim_dict: dict, new_val: float) -> dict:
+    """Set `eta_max` in `Generator`"""
+    sim_dict["loco_type"]["ConventionalLocomotive"]["gen"]["eta_max"] = new_val
+    return sim_dict
+
+def new_pwr_aux_offset_watts(sim_dict: dict, new_val: float) -> dict:
+    """Set `pwr_aux_offset_watts` in `ConventionalLocomotive`"""
+    sim_dict["loco_type"]["ConventionalLocomotive"]["pwr_aux_offset_watts"] = new_val
+    return sim_dict
+
+def new_pwr_aux_traction_coeff(sim_dict: dict, new_val: float) -> dict:
+    """Set `pwr_aux_traction_coeff` in `ConventionalLocomotive`"""
+    sim_dict["loco_type"]["ConventionalLocomotive"]["pwr_aux_traction_coeff"] = new_val
+    return sim_dict
+
+def new_edrv_eta_max(sim_dict: dict, new_val: float) -> dict:
+    """Set `eta_max` in `ElectricDrivetrain`"""
+    sim_dict["loco_type"]["ConventionalLocomotive"]["edrv"]["eta_max"] = new_val
+    return sim_dict
 
 (("loco_unit.fc.pwr_idle_fuel_watts", (0, 20e3)),)
 (("loco_unit.gen.eta_max", (0.88, 0.98)),)
@@ -122,29 +175,15 @@ def new_pwr_idle_fuel_watts(sim_dict: dict, new_val: float) -> dict:
 
 # Model Objectives
 cal_mod_obj = pymoo_api.ModelObjectives(
-    models=sims_for_cal,
+    models=get_loco_sims(dfs_for_cal),
     dfs=dfs_for_cal,
     obj_fns=((get_mod_fuel_energy, get_exp_fuel_energy),),
     param_fns_and_bounds=(
-        (new_em_eff_max, (0.80, 0.99)),  # new_em_eff_max,
-        (new_em_eff_range, (0.1, 0.6)),  # new_em_eff_range,
-        # new_cab_shell_htc_w_per_m2_k,
-        (new_cab_shell_htc_w_per_m2_k, (10, 350)),
-        # new_cab_htc_to_amb_stop_w_per_m2_k,
-        (new_cab_htc_to_amb_stop_w_per_m2_k, (10, 250)),
-        (new_cab_tm_j_per_k, (50e3, 350e3)),  # new_cab_tm_j_per_k,
-        (new_cab_length_m, (1.5, 7)),  # new_cab_length_m,
-        (new_res_cndctnc_to_amb, (1, 60)),  # new_res_cndctnc_to_amb,
-        (new_res_cndctnc_to_cab, (1, 60)),  # new_res_cndctnc_to_cab,
-        (new_res_tm_j_per_k, (30e3, 200e3)),  # new_res_tm_j_per_k,
-        (new_hvac_p_res_w_per_k, (5, 1_000)),  # new_hvac_p_res_w_per_k,
-        (new_hvac_i_res, (1, 100)),  # new_hvac_i_res,
-        # (new_hvac_d_res, (1, 100)),  # new_hvac_d_res,
-        (new_hvac_p_cabin_w_per_k, (5, 1_000)),  # new_hvac_p_cabin_w_per_k,
-        (new_hvac_i_cabin, (1, 100)),  # new_hvac_i_cabin,
-        # (new_hvac_d_cabin, (1, 100)),  # new_hvac_d_cabin,
-        # new_hvac_frac_of_ideal_cop,
-        (new_hvac_frac_of_ideal_cop, (0.15, 0.35)),
+        (new_pwr_idle_fuel_watts, (0, 20e3)),
+        (new_gen_eta_max, (0.88, 0.98)),
+        (new_pwr_aux_offset_watts, (0.0, 1_000_000)),
+        (new_pwr_aux_traction_coeff, (0.0, 0.1)),
+        (new_edrv_eta_max, (0.85, 0.99)),
     ),
     sim_type=alt.LocomotiveSimulation,
     constr_fns=(),

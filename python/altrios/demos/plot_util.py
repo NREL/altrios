@@ -607,7 +607,11 @@ def plot_hel_pwr_and_soc(
     ts: alt.SpeedLimitTrainSim, mod_str: str, hel_type = "HybridLoco"
 ) -> Tuple[plt.Figure, plt.Axes]:
     ts_dict = ts.to_pydict()
-    hybrid_loco = ts_dict["loco_con"]["loco_vec"][0]
+    loco_list = []
+    for loco in ts_dict["loco_con"]["loco_vec"]:
+        if "HybridLoco" in loco["loco_type"]:
+            loco_list.append(loco)
+    hybrid_loco = loco_list[0]
     fig, ax = plt.subplots(3, 1, sharex=True)
     plt.suptitle("Hybrid Locomotive " + mod_str)
 

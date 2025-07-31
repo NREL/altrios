@@ -122,7 +122,7 @@ class ModelObjectives:
     obj_fns: tuple[Callable] | tuple[tuple[Callable, Callable]]
     constr_fns: tuple[Callable]
     param_fns_and_bounds: tuple[tuple[Callable], tuple[tuple[float, float]]]
-    sim_type: alt.SerdeAPI
+    sim_type: Any  # note: make sure the import section has `from typing import Any`
     param_fns: tuple[Callable] = field(init=False)
     bounds: tuple[tuple[float, float]] = field(init=False)
 
@@ -162,7 +162,7 @@ class ModelObjectives:
 
         for key, pydict in self.models.items():
             try:
-                sim_drives[key] = alt.SerdeAPI.from_pydict(pydict, skip_init=False)
+                sim_drives[key] = sim_type.from_pydict(pydict, skip_init=False)
             except Exception as err:
                 sim_drives[key] = err
         t1 = time.perf_counter()

@@ -92,9 +92,9 @@ def get_loco_sim(df39xx: pd.DataFrame) -> LocomotiveSimulation:
     )
     df39xx["engine_on"] = df39xx["Engine Speed (RPM) BNSF " + str(trailing_loc)] > 100
     powertrace = alt.PowerTrace(
-        df39xx["time [s]"].to_numpy(),
-        df39xx["Tractive Power [W]"].to_numpy(),
-        df39xx.engine_on,  # This is 39XX engine state (on/off)
+        df39xx["time [s]"].to_list(),
+        df39xx["Tractive Power [W]"].to_list(),
+        df39xx.engine_on.to_list(),  # This is 39XX engine state (on/off)
     )
     loco_unit = alt.Locomotive.default()
 

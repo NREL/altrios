@@ -10,7 +10,7 @@ import numpy.typing as npt
 import pandas as pd
 
 import altrios as alt
-from altrios import LocomotiveSimulation, pymoo_api
+from altrios import LocomotiveSimulation, pymoo_api, utils
 from altrios.pymoo_api import StarmapParallelization
 
 CUR_FUEL_LHV_J__KG = 43e6
@@ -91,17 +91,17 @@ def get_loco_sim(df39xx: pd.DataFrame) -> LocomotiveSimulation:
 
 
 df_path = "ZANZEFF Data- Corrected GPS Plus Train Build ALTRIOS Confidential v2/"
-df_files = []
-for file in df_path.iterdir():
-    if file.suffix == ".csv":
-        df_files.append(file.name, pd.read_csv(file))
+# df_files = []
+# for file in df_path.iterdir():
+#     if file.suffix == ".csv":
+#         df_files.append(file.name, pd.read_csv(file))
 #PATH TO simulation csvs.iterdir(txt file only)
 save_path = "cal_files/"
-parser = pymoo_api.get_parser()
-args = parser.parse_args()
+# parser = pymoo_api.get_parser()
+# args = parser.parse_args()
 cal_files, val_files = alt.utils.select_cal_and_val_trips(
         save_path=save_path,
-        force_rerun=args.repartition,
+        # force_rerun=args.repartition,
     )
 #val=30% cal=70%
 

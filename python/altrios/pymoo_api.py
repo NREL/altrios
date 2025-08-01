@@ -172,15 +172,15 @@ class ModelObjectives:
 
     def get_errors(
         self,
-        sim_drives: dict[str, alt.SerdeAPI],
+        sim_drives: dict[str, Any],
         return_mods: bool = False,
     ) -> (
         tuple[dict[str, list[float]], dict[str, list[float]]]
         | tuple[
             dict[str, list[float]],
             dict[str, list[float]],
-            dict[str, alt.SerdeAPI | Any],
-            dict[str, alt.SerdeAPI | Any],
+            dict[str, Any],
+            dict[str, Any],
         ]
     ):
         """

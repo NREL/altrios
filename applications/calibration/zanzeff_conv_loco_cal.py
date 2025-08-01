@@ -10,8 +10,9 @@ import numpy.typing as npt
 import pandas as pd
 
 import altrios as alt
-from altrios import LocomotiveSimulation, pymoo_api, utils
+from altrios import LocomotiveSimulation, pymoo_api
 from altrios.pymoo_api import StarmapParallelization
+import utils
 
 CUR_FUEL_LHV_J__KG = 43e6
 
@@ -67,6 +68,29 @@ def get_conv_trip_mods(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_loco_sim(df39xx: pd.DataFrame) -> LocomotiveSimulation:
+    df39xx = df39xx.drop_duplicates("PacificTime").copy()
+    df39xx["timestamp"] = pd.to_datetime(df39xx["PacificTime"]).dt.to_pydatetime()
+    df39xx["time [s]"] = pymoo_api.get_delta_seconds(df39xx["timestamp"]).cumsum()
+    trailing_loc = 3965
+    df39xx["Tractive Power [W]"] = (
+        df39xx["Tractive Effort Feedback BNSF " + str(trailing_loc)]
+        * alt.utils.N_PER_LB
+        * df39xx["Locomotive Speed GECX 3000"]
+        * alt.utils.MPS_PER_MPH
+    ).fillna(0.0)
+
+    df39xx["Fuel Power [W]"] = (
+        df39xx["Fuel Rate " + str(trailing_loc) + " [lbs/hr]"].fillna(0.0)
+        * alt.utils.KG_PER_LB
+        / 3600
+        * CUR_FUEL_LHV_J__KG
+    )
+    df39xx["Fuel Energy [J]"] = (
+        (df39xx["Fuel Power [W]"] * pymoo_api.get_delta_seconds(df39xx["timestamp"]))
+        .cumsum()
+        .copy()
+    )
+    df39xx["engine_on"] = df39xx["Engine Speed (RPM) BNSF " + str(trailing_loc)] > 100
     powertrace = alt.PowerTrace(
         df39xx["time [s]"].to_numpy(),
         df39xx["Tractive Power [W]"].to_numpy(),
@@ -96,10 +120,12 @@ df_path = "ZANZEFF Data- Corrected GPS Plus Train Build ALTRIOS Confidential v2/
 #     if file.suffix == ".csv":
 #         df_files.append(file.name, pd.read_csv(file))
 #PATH TO simulation csvs.iterdir(txt file only)
-save_path = "cal_files/"
+save_path = Path(__file__).parents[1] / "train_sim_cal"
+if not save_path.exists():
+    save_path.mkdir(parents=True)
 # parser = pymoo_api.get_parser()
 # args = parser.parse_args()
-cal_files, val_files = alt.utils.select_cal_and_val_trips(
+cal_files, val_files = utils.select_cal_and_val_trips(
         save_path=save_path,
         # force_rerun=args.repartition,
     )
@@ -107,21 +133,20 @@ cal_files, val_files = alt.utils.select_cal_and_val_trips(
 
 
 dfs_for_cal: dict[str, pd.DataFrame] = {
-    # `delimiter="\t"` should work for tab separated variables
-    pd.read_csv(cal_file, delimiter="\t") for cal_file in cal_files.iterdir()
+    cal_file: pd.read_csv(cal_file) for cal_file in cal_files
 }
 def_save_path = Path("conv_loco_cal")
 
 
 #model pydict
-sims_for_cal: dict[str, alt.loco_sim] = {}
+# sims_for_cal: dict[str, alt.loco_sim] = {}
 # populate `sims_for_cal`
-for loco_name, loco in train_sim["loco_con"]["loco_vec"].items():
-    loco_name: str
-    loco: alt.Locomotive
-    # NOTE: maybe change `save_interval` to 5
-    sims_for_cal[loco_name] = alt.loco_sim(
-        loco_unit, power_trace, save_interval).to_pydict()
+# for loco_name, loco in train_sim["loco_con"]["loco_vec"].items():
+#     loco_name: str
+#     loco: alt.Locomotive
+#     # NOTE: maybe change `save_interval` to 5
+#     sims_for_cal[loco_name] = alt.loco_sim(
+#         loco_unit, power_trace, save_interval).to_pydict()
 
 
 def get_loco_sims(dfs: dict[str, pd.DataFrame]):

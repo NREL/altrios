@@ -13,7 +13,7 @@ import hashlib
 import os
 
 import altrios
-from altrios.optimization import cal_and_val as cval
+import cal_and_val as cval
 
 # ignore list and reasons
 TRIP_FILE_IGNORE_DICT = {
@@ -62,6 +62,7 @@ def get_trip_data_dir(
         ) / "../../data/trips/ZANZEFF Data - v5 1-27-23 ALTRIOS Confidential"),
         Path(altrios.package_root(
         ) / "../../data/trips/ZANZEFF Data - v4 1-18-23 ALTRIOS Confidential"),
+        Path(altrios.package_root()).parents[2] / "ZANZEFF Data- Corrected GPS Plus Train Build ALTRIOS Confidential v2"
     ),
 ) -> Path:
     """

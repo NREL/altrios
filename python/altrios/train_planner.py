@@ -17,10 +17,10 @@ class TrainPlannerConfig:
     def __init__(self, 
                  single_train_mode: bool = False,
                  min_cars_per_train: int = 40,
-                 target_cars_per_train: int = 10, #180,
+                 target_cars_per_train: int = 100, #180,
                  manifest_empty_return_ratio: float = 0.6,
                  #TODO single vs double stacked operations on the corridor
-                 cars_per_locomotive: int = 5, #70,
+                 cars_per_locomotive: int = 10, #70,
                  refuelers_per_incoming_corridor: int = 4,
                  drag_coeff_function: List = None,
                  hp_required_per_ton: Dict = {

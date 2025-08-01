@@ -267,7 +267,7 @@ def container_process(env, terminal, train_schedule, all_oc_prepared, oc_needed,
     yield env.timeout(hostler_travel_time_to_parking)
     # print(f"Time {env.now}: Hostler {hostler_id} picked up IC {ic_id} and is heading to parking slot.")
     record_event(ic_id, 'hostler_pickup', env.now)
-    emissions = emission_calculation('empty', 'trip','hostler', hostler_id, hostler_travel_time_to_parking)
+    emissions = emission_calculation('loaded', 'trip','hostler', hostler_id, hostler_travel_time_to_parking)
     record_vehicle_event('hostler', hostler_id, f'pick up IC-{ic_id}', 'empty', 'trip', hostler_travel_time_to_parking,
                          emissions, 'doing', env.now)
 

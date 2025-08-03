@@ -162,11 +162,18 @@ def get_loco_sims(dfs: dict[str, pd.DataFrame]):
     return loco_sims
 
 
+def get_loco_sims(dfs: dict[str, pd.DataFrame]):
+    loco_sims = {}
+    for trip_name, df in dfs.items():
+        loco_sims[trip_name] = get_loco_sim(df).to_pydict()
+    return loco_sims
+
+
 
 # Objective Functions -- `obj_fns`
 def get_mod_fuel_energy(sim_dict: dict) -> npt.NDArray:
     return np.array(
-        sim_dict["loco_type"]["ConventionalLocomotive"]["fc"]["history"]["fuel_energy_joules"]
+        sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["fc"]["history"]["energy_fuel_joules"]
     )
 
 
@@ -177,27 +184,27 @@ def get_exp_fuel_energy(df: pd.DataFrame) -> pd.DataFrame:
 # Parameter Functions -- `param_fns_and_bounds`
 def new_pwr_idle_fuel_watts(sim_dict: dict, new_val: float) -> dict:
     """Set `pwr_idle_fuel_watts` in `FuelConverter`"""
-    sim_dict["loco_type"]["ConventionalLocomotive"]["fc"]["pwr_idle_fuel_watts"] = new_val
+    sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["fc"]["pwr_idle_fuel_watts"] = new_val
     return sim_dict
 
 def new_gen_eta_max(sim_dict: dict, new_val: float) -> dict:
     """Set `eta_max` in `Generator`"""
-    sim_dict["loco_type"]["ConventionalLocomotive"]["gen"]["eta_max"] = new_val
+    sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["gen"]["eta_max"] = new_val
     return sim_dict
 
 def new_pwr_aux_offset_watts(sim_dict: dict, new_val: float) -> dict:
     """Set `pwr_aux_offset_watts` in `ConventionalLocomotive`"""
-    sim_dict["loco_type"]["ConventionalLocomotive"]["pwr_aux_offset_watts"] = new_val
+    sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["pwr_aux_offset_watts"] = new_val
     return sim_dict
 
 def new_pwr_aux_traction_coeff(sim_dict: dict, new_val: float) -> dict:
     """Set `pwr_aux_traction_coeff` in `ConventionalLocomotive`"""
-    sim_dict["loco_type"]["ConventionalLocomotive"]["pwr_aux_traction_coeff"] = new_val
+    sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["pwr_aux_traction_coeff"] = new_val
     return sim_dict
 
 def new_edrv_eta_max(sim_dict: dict, new_val: float) -> dict:
     """Set `eta_max` in `ElectricDrivetrain`"""
-    sim_dict["loco_type"]["ConventionalLocomotive"]["edrv"]["eta_max"] = new_val
+    sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["edrv"]["eta_max"] = new_val
     return sim_dict
 
 (("loco_unit.fc.pwr_idle_fuel_watts", (0, 20e3)),)
@@ -213,7 +220,7 @@ cal_mod_obj = pymoo_api.ModelObjectives(
     obj_fns=((get_mod_fuel_energy, get_exp_fuel_energy),),
     param_fns_and_bounds=(
         (new_pwr_idle_fuel_watts, (0, 20e3)),
-        (new_gen_eta_max, (0.88, 0.98)),
+        # (new_gen_eta_max, (0.88, 0.98)),
         (new_pwr_aux_offset_watts, (0.0, 1_000_000)),
         (new_pwr_aux_traction_coeff, (0.0, 0.1)),
         (new_edrv_eta_max, (0.85, 0.99)),
@@ -234,7 +241,7 @@ def perturb_params(pos_perturb_dec: float = 0.05, neg_perturb_dec: float = 0.1):
     loco_dict = loco.to_pydict()
     baseline_params_and_bounds = [
         (loco_dict["loco_type"]["ConventionalLoco"]["fc"]["pwr_idle_fuel_watts"], None),
-        (loco_dict['loco_type']['ConventionalLoco']['gen']['eta_interp'][1], None),
+        # (loco_dict['loco_type']['ConventionalLoco']['gen']['eta_interp'][1], None),
         (loco_dict['pwr_aux_offset_watts'], None,),
         (loco_dict['pwr_aux_traction_coeff'], None,),
         (loco_dict['loco_type']['ConventionalLoco']['edrv']['eta_interp'][1], None),

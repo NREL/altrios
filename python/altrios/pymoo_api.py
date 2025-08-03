@@ -148,7 +148,7 @@ class ModelObjectives:
         assert len(xs) == len(self.param_fns), f"({len(xs)} != {len(self.param_fns)}"
 
         t0 = time.perf_counter()
-
+        sim_type = alt.LocomotiveSimulation
         # Instantiate SimDrive objects
         sim_drives: dict[str, alt.SerdeAPI | Exception] = {}
 
@@ -244,7 +244,7 @@ class ModelObjectives:
 
         try:
             t0 = time.perf_counter()
-            sim.walk_once()  # type: ignore
+            sim.walk()  # type: ignore
             t1 = time.perf_counter()
             sim_dict = sim.to_pydict()
             walk_success = True

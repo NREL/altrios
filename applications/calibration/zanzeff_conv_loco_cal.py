@@ -16,6 +16,11 @@ import utils
 
 CUR_FUEL_LHV_J__KG = 43e6
 
+# loco = alt.Locomotive.from_file(
+#     Path(__file__).parent / "resources/powertrains/fuel_converters/wabtec_tier4.yaml")
+veh = alt.Locomotive.default()
+veh_dict = veh.to_pydict()
+
 
 def get_conv_trip_mods(df: pd.DataFrame) -> pd.DataFrame:
     """Given single trip data frame, return dataframe for non-lead locomotive"""
@@ -91,11 +96,12 @@ def get_loco_sim(df39xx: pd.DataFrame) -> LocomotiveSimulation:
         .copy()
     )
     df39xx["engine_on"] = df39xx["Engine Speed (RPM) BNSF " + str(trailing_loc)] > 100
-    powertrace = alt.PowerTrace(
-        df39xx["time [s]"].to_list(),
-        df39xx["Tractive Power [W]"].to_list(),
-        df39xx.engine_on.to_list(),  # This is 39XX engine state (on/off)
-    )
+    alt.PowerTrace.from_pydict({"time_seconds": [5.0, 5.0], "pwr_watts": [5.0, 5.0], "engine_on": [False, False]})
+    powertrace = alt.PowerTrace.from_pydict({
+        "time_seconds": df39xx["time [s]"].to_list(),
+        "pwr_watts": df39xx["Tractive Power [W]"].to_list(),
+        "engine_on": df39xx.engine_on.to_list(),  # This is 39XX engine state (on/off)
+    })
     loco_unit = alt.Locomotive.default()
 
     loco_dict = loco_unit.to_pydict()
@@ -150,8 +156,10 @@ def_save_path = Path("conv_loco_cal")
 
 
 def get_loco_sims(dfs: dict[str, pd.DataFrame]):
+    loco_sims = []
     for trip_name, df in dfs.items():
-        get_loco_sim(df)
+        loco_sims.append(get_loco_sim(df))
+    return loco_sims
 
 
 
@@ -214,6 +222,78 @@ cal_mod_obj = pymoo_api.ModelObjectives(
     constr_fns=(),
     verbose=False,
 )
+
+
+def perturb_params(pos_perturb_dec: float = 0.05, neg_perturb_dec: float = 0.1):
+    """
+    # Arguments:
+    # - `pos_perturb_doc`: perturbation percentage added to all params.  Can be overridden invididually
+    # - `neg_perturb_doc`: perturbation percentage subtracted from all params.  Can be overridden invididually
+    """
+    loco = alt.Locomotive.default()
+    loco_dict = loco.to_pydict()
+    baseline_params_and_bounds = [
+        (loco_dict["loco_type"]["ConventionalLoco"]["fc"]["pwr_idle_fuel_watts"], None),
+        (loco_dict['loco_type']['ConventionalLoco']['gen']['eta_interp'][1], None),
+        (loco_dict['pwr_aux_offset_watts'], None,),
+        (loco_dict['pwr_aux_traction_coeff'], None,),
+        (loco_dict['loco_type']['ConventionalLoco']['edrv']['eta_interp'][1], None),
+    ]
+
+    baseline_params = [bpb[0] for bpb in baseline_params_and_bounds]
+
+    print(
+        "Verifying that model responds to input parameter changes by individually perturbing parameters"
+    )
+    baseline_errors = cal_mod_obj.get_errors(
+        cal_mod_obj.update_params([param for param in baseline_params])
+    )[0]
+
+    for i, param_and_bounds in enumerate(baseline_params_and_bounds):
+        param = param_and_bounds[0]
+        bounds = param_and_bounds[1]
+        # +5%
+        if bounds is not None:
+            param_pos_perturb_dec = bounds[0]
+            param_neg_perturb_dec = bounds[1]
+        else:
+            param_pos_perturb_dec = pos_perturb_dec
+            param_neg_perturb_dec = neg_perturb_dec
+
+        assert param_pos_perturb_dec >= 0
+        assert param_neg_perturb_dec >= 0
+
+        perturbed_params = baseline_params.copy()
+        perturbed_params[i] = param * (1 + param_pos_perturb_dec)
+        perturbed_errors = cal_mod_obj.get_errors(
+            cal_mod_obj.update_params(perturbed_params))
+        if np.all(perturbed_errors == baseline_errors):
+            print("\nperturbed_errros:")
+            pprint.pp(perturbed_errors)
+            print("baseline_errors")
+            pprint.pp(baseline_errors)
+            print("")
+            raise Exception(
+                f"+{100 * param_pos_perturb_dec}% perturbation failed for param {cal_mod_obj.param_fns[i].__name__}"
+            )
+
+        # -5%
+        perturbed_params = baseline_params.copy()
+        perturbed_params[i] = param * (1 - param_neg_perturb_dec)
+        perturbed_errors = cal_mod_obj.get_errors(
+            cal_mod_obj.update_params(perturbed_params))
+        if np.all(perturbed_errors == baseline_errors):
+            print("\nperturbed_errros:")
+            pprint.pp(perturbed_errors)
+            print("baseline_errors")
+            pprint.pp(baseline_errors)
+            print("")
+            raise Exception(
+                f"-{100 * param_neg_perturb_dec}% perturbation failed for param {cal_mod_obj.param_fns[i].__name__}"
+            )
+
+    print("Success!")
+
 
 if __name__ == "__main__":
     print("Params and bounds:")

@@ -1,14 +1,14 @@
 # %%
-from altrios import sim_manager_manual
-from altrios import utilities, defaults
-import altrios as alt
-from altrios.train_planner import planner_config, manual_train_planner
+import time
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
-import matplotlib.pyplot as plt
-import time
 import seaborn as sns
-from pathlib import Path
+
+import altrios as alt
+from altrios import defaults, sim_manager_manual, utilities
 
 sns.set_theme()
 
@@ -20,19 +20,19 @@ SHOW_PLOTS = alt.utils.show_plots()
 plot_dir = Path() / "plots"
 # make the dir if it doesn't exist
 plot_dir.mkdir(exist_ok=True)
-#%%
+# %%
 
 consist_plan = pl.read_csv(alt.resources_root() / "demo_data/consist plan for manual planner demo.csv")
 
 location_map = alt.import_locations(
-    alt.resources_root() / "networks/default_locations.csv"
+    alt.resources_root() / "networks/default_locations.csv",
 )
 network = alt.Network.from_file(
-    alt.resources_root() / "networks/Taconite-NoBalloon.yaml"
+    alt.resources_root() / "networks/Taconite-NoBalloon.yaml",
 )
 
-loco_map = {'Diesel_Large' : 'Diesel_Large',
-            'BEL' : 'BEL'}
+loco_map = {"Diesel_Large": "Diesel_Large",
+            "BEL": "BEL"}
 
 rail_vehicles = [
     alt.RailVehicle.from_file(vehicle_file, skip_init=False)
@@ -40,8 +40,8 @@ rail_vehicles = [
 ]
 
 t0_main = time.perf_counter()
-#not passing in a trainplanner config here because we do not need to specify train length or any other parameters like
-#sim_manager_demo.py.  This example is just replaying trains that have already been planned.
+# not passing in a trainplanner config here because we do not need to specify train length or any other parameters like
+# sim_manager_demo.py.  This example is just replaying trains that have already been planned.
 (
     train_consist_plan,
     loco_pool,
@@ -53,9 +53,9 @@ t0_main = time.perf_counter()
     train_consist_plan_untrimmed,
 ) = sim_manager_manual.main(
     network=network,
-    rail_vehicles=rail_vehicles, #double check this to see if it is actually need in sim_manager_manual.py
+    rail_vehicles=rail_vehicles,  # double check this to see if it is actually need in sim_manager_manual.py
     location_map=location_map,
-    consist_plan= consist_plan,
+    consist_plan=consist_plan,
     loco_map=loco_map,
     debug=True,
 )
@@ -65,9 +65,9 @@ t0_main = time.perf_counter()
 #     manual_train_planner(consist_plan, loco_map)
 # )
 
-#%%
+# %%
 t1_main = time.perf_counter()
-print(f"Elapsed time to run `sim_manager.main()`: {t1_main-t0_main:.3g} s")
+print(f"Elapsed time to run `sim_manager.main()`: {t1_main - t0_main:.3g} s")
 
 # %%
 t0_train_sims = time.perf_counter()
@@ -81,7 +81,7 @@ speed_limit_train_sims.set_save_interval(100)
     timed_paths=[alt.TimedLinkPath.from_pydict(tp) for tp in timed_paths],
 )
 t1_train_sims = time.perf_counter()
-print(f"Elapsed time to run train sims: {t1_train_sims-t0_train_sims:.3g} s")
+print(f"Elapsed time to run train sims: {t1_train_sims - t0_train_sims:.3g} s")
 t_train_time = sum([sim["state"]["time_seconds"] for sim in sims.to_pydict()])
 print(f"Total train-seconds simulated: {t_train_time} s")
 
@@ -98,14 +98,14 @@ speed_limit_train_sims.set_save_interval(None)
 )
 t1_summary_sims = time.perf_counter()
 print(
-    f"Elapsed time to build and run summary sims: {t1_summary_sims-t0_summary_sims:.3g} s"
+    f"Elapsed time to build and run summary sims: {t1_summary_sims - t0_summary_sims:.3g} s",
 )
 
 # %%
 t0_tolist = time.perf_counter()
 sims_list = sims.to_pydict()
 t1_tolist = time.perf_counter()
-print(f"Elapsed time to run `tolist()`: {t1_tolist-t0_tolist:.3g} s")
+print(f"Elapsed time to run `tolist()`: {t1_tolist - t0_tolist:.3g} s")
 
 sim0 = sims_list[0]
 # sim0 = alt.SpeedLimitTrainSim.from_bincode(
@@ -118,7 +118,7 @@ t0_main = time.perf_counter()
 e_total_fuel_mj = summary_sims.get_energy_fuel_joules(annualize=False) / 1e9
 t1_main = time.perf_counter()
 
-print(f"Elapsed time to get total fuel energy: {t1_main-t0_main:.3g} s")
+print(f"Elapsed time to get total fuel energy: {t1_main - t0_main:.3g} s")
 print(f"Total fuel energy used: {e_total_fuel_mj:.3g} GJ")
 
 v_total_fuel_gal = (
@@ -192,5 +192,3 @@ if SHOW_PLOTS:
             plt.show()
 
 # %%
-
-

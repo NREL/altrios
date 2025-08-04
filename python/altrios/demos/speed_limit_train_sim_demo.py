@@ -1,13 +1,15 @@
 # %%
+import os
 import time
+from copy import copy
+
 import matplotlib.pyplot as plt
 import polars as pl
 import seaborn as sns
-import os
-from copy import copy
 
 import altrios as alt
 from altrios.demos import plot_util
+
 sns.set_theme()
 
 
@@ -18,10 +20,10 @@ SAVE_INTERVAL = 1
 # Build the train config
 print("Loading rail vehicles")
 rail_vehicle_loaded = alt.RailVehicle.from_file(
-    alt.resources_root() / "rolling_stock/Manifest_Loaded.yaml"
+    alt.resources_root() / "rolling_stock/Manifest_Loaded.yaml",
 )
 rail_vehicle_empty = alt.RailVehicle.from_file(
-    alt.resources_root() / "rolling_stock/Manifest_Empty.yaml"
+    alt.resources_root() / "rolling_stock/Manifest_Empty.yaml",
 )
 
 # https://docs.rs/altrios-core/latest/altrios_core/train/struct.TrainConfig.html
@@ -41,7 +43,7 @@ train_config = alt.TrainConfig(
 # https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/reversible_energy_storage/struct.ReversibleEnergyStorage.html#
 res = alt.ReversibleEnergyStorage.from_file(
     alt.resources_root()
-    / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml"
+    / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml",
 )
 # instantiate electric drivetrain (motors and any gearboxes)
 # https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/electric_drivetrain/struct.ElectricDrivetrain.html
@@ -58,14 +60,14 @@ bel: alt.Locomotive = alt.Locomotive.from_pydict(
             "BatteryElectricLoco": {
                 "res": res.to_pydict(),
                 "edrv": edrv.to_pydict(),
-            }
+            },
         },
         "pwr_aux_offset_watts": 8.55e3,
         "pwr_aux_traction_coeff": 540.0e-6,
         "force_max_newtons": 667.2e3,
         "mass_kilograms": alt.LocoParams.default().to_pydict()["mass_kilograms"],
         "save_interval": SAVE_INTERVAL,
-    }
+    },
 )
 bel_dict = bel.to_pydict()
 bel_pt_cntrl = bel_dict["loco_type"]["BatteryElectricLoco"]["pt_cntrl"]["RGWDB"]
@@ -147,11 +149,11 @@ tsb_sans_buffers = alt.TrainSimBuilder(
 # Load the network and construct the timed link path through the network.
 print("Loading `Network`")
 network = alt.Network.from_file(
-    alt.resources_root() / "networks/Taconite-NoBalloon.yaml"
+    alt.resources_root() / "networks/Taconite-NoBalloon.yaml",
 )
 
 location_map = alt.import_locations(
-    alt.resources_root() / "networks/default_locations.csv"
+    alt.resources_root() / "networks/default_locations.csv",
 )
 
 train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
@@ -172,7 +174,7 @@ print("Running `make_est_times`")
 est_time_net, _consist = alt.make_est_times(train_sim, network)
 
 est_time_net_sans_buffers, _consist = alt.make_est_times(
-    train_sim_sans_buffers, network
+    train_sim_sans_buffers, network,
 )
 
 print("Running `run_dispatch`")
@@ -184,8 +186,8 @@ timed_link_path = next(
             [est_time_net],
             False,
             False,
-        )
-    )
+        ),
+    ),
 )
 
 timed_link_path_sans_buffers = next(
@@ -196,8 +198,8 @@ timed_link_path_sans_buffers = next(
             [est_time_net_sans_buffers],
             False,
             False,
-        )
-    )
+        ),
+    ),
 )
 
 
@@ -221,11 +223,11 @@ ts_dict = train_sim.to_pydict()
 print(f"Time to simulate: {t1 - t0:.5g}")
 raw_fuel_gigajoules = train_sim.get_energy_fuel_joules(False) / 1e9
 print(
-    f"Total raw fuel used with BEL and HEL buffers active: {raw_fuel_gigajoules:.6g} GJ"
+    f"Total raw fuel used with BEL and HEL buffers active: {raw_fuel_gigajoules:.6g} GJ",
 )
 corrected_fuel_gigajoules = train_sim.get_energy_fuel_soc_corrected_joules() / 1e9
 print(
-    f"Total SOC-corrected fuel used with BEL and HEL buffers active: {corrected_fuel_gigajoules:.6g} GJ"
+    f"Total SOC-corrected fuel used with BEL and HEL buffers active: {corrected_fuel_gigajoules:.6g} GJ",
 )
 assert len(ts_dict["history"]) > 1
 
@@ -241,13 +243,13 @@ raw_fuel_sans_buffers_gigajoules = (
     train_sim_sans_buffers.get_energy_fuel_joules(False) / 1e9
 )
 print(
-    f"Total raw fuel used with BEL and HEL buffers inactive: {raw_fuel_sans_buffers_gigajoules:.6g} GJ"
+    f"Total raw fuel used with BEL and HEL buffers inactive: {raw_fuel_sans_buffers_gigajoules:.6g} GJ",
 )
 corrected_fuel_sans_buffers_gigajoules = (
     train_sim_sans_buffers.get_energy_fuel_soc_corrected_joules() / 1e9
 )
 print(
-    f"Total SOC-corrected fuel used with BEL and HEL buffers inactive: {corrected_fuel_sans_buffers_gigajoules:.6g} GJ"
+    f"Total SOC-corrected fuel used with BEL and HEL buffers inactive: {corrected_fuel_sans_buffers_gigajoules:.6g} GJ",
 )
 assert len(train_sim_sans_buffers.to_pydict()["history"]) > 1
 
@@ -278,16 +280,16 @@ fig2, ax2 = plot_util.plot_consist_pwr(train_sim, "With Buffers")
 fig3, ax3 = plot_util.plot_hel_pwr_and_soc(train_sim, "With Buffers")
 
 fig0_sans_buffers, ax0_sans_buffers = plot_util.plot_train_level_powers(
-    train_sim_sans_buffers, "Without Buffers"
+    train_sim_sans_buffers, "Without Buffers",
 )
 fig1_sans_buffers, ax1_sans_buffers = plot_util.plot_train_network_info(
-    train_sim_sans_buffers, "Without Buffers"
+    train_sim_sans_buffers, "Without Buffers",
 )
 fig2_sans_buffers, ax2_sans_buffers = plot_util.plot_consist_pwr(
-    train_sim_sans_buffers, "Without Buffers"
+    train_sim_sans_buffers, "Without Buffers",
 )
 fig3_sans_buffers, ax3_sans_buffers = plot_util.plot_hel_pwr_and_soc(
-    train_sim_sans_buffers, "Without Buffers"
+    train_sim_sans_buffers, "Without Buffers",
 )
 
 if SHOW_PLOTS:
@@ -309,7 +311,7 @@ if ENABLE_REF_OVERRIDE:
 if ENABLE_ASSERTS:
     print("Checking output of `to_dataframe`")
     to_dataframe_expected = pl.scan_csv(
-        ref_dir / "to_dataframe_expected.csv"
+        ref_dir / "to_dataframe_expected.csv",
     ).collect()[-1]
     assert to_dataframe_expected.equals(train_sim.to_dataframe()[-1]), (
         f"to_dataframe_expected: \n{to_dataframe_expected}\ntrain_sim.to_dataframe()[-1]: \n{train_sim.to_dataframe()[-1]}"

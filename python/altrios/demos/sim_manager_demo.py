@@ -1,13 +1,14 @@
 # %%
-from altrios import sim_manager
-from altrios import utilities, defaults
-import altrios as alt
-from altrios.train_planner import planner_config
-import numpy as np
-import matplotlib.pyplot as plt
 import time
-import seaborn as sns
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+
+import altrios as alt
+from altrios import defaults, sim_manager, utilities
+from altrios.train_planner import planner_config
 
 sns.set_theme()
 
@@ -30,21 +31,21 @@ rail_vehicles = [
 ]
 
 location_map = alt.import_locations(
-    alt.resources_root() / "networks/default_locations.csv"
+    alt.resources_root() / "networks/default_locations.csv",
 )
 network = alt.Network.from_file(
-    alt.resources_root() / "networks/Taconite-NoBalloon.yaml"
+    alt.resources_root() / "networks/Taconite-NoBalloon.yaml",
 )
 
 t1_import = time.perf_counter()
 print(
-    f"Elapsed time to import rail vehicles, locations, and network: {t1_import - t0_import:.3g} s"
+    f"Elapsed time to import rail vehicles, locations, and network: {t1_import - t0_import:.3g} s",
 )
 
 train_planner_config = planner_config.TrainPlannerConfig(
             cars_per_locomotive={"Default": 50},
             target_cars_per_train={"Default": 90},
-            loco_type_shares={'BEL': 0.5, 'Diesel_Large': 0.5},
+            loco_type_shares={"BEL": 0.5, "Diesel_Large": 0.5},
             require_diesel=True)
 
 t0_main = time.perf_counter()
@@ -99,7 +100,7 @@ speed_limit_train_sims.set_save_interval(None)
 )
 t1_summary_sims = time.perf_counter()
 print(
-    f"Elapsed time to build and run summary sims: {t1_summary_sims - t0_summary_sims:.3g} s"
+    f"Elapsed time to build and run summary sims: {t1_summary_sims - t0_summary_sims:.3g} s",
 )
 
 # %%

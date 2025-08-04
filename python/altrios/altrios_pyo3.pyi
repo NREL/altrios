@@ -72,7 +72,11 @@ class Consist(SerdeAPI):
     save_interval: int
     state: ConsistState
 
-    def __init__(self, loco_vec: list[Locomotive]): ...
+    def __init__(
+        self,
+        loco_vec: list[Locomotive],
+        save_interval: int | None = None,
+    ) -> None: ...
     def clone(self) -> Self: ...
     @classmethod
     def default(cls) -> Self: ...
@@ -153,8 +157,14 @@ class ElectricDrivetrain(SerdeAPI):
     pwr_out_max_watts: float
     save_interval: int | None
     state: ElectricDrivetrainState
-    @classmethod
-    def __init__(cls) -> None: ...
+
+    def __init__(
+        self,
+        pwr_out_frac_interp: list[float],
+        eta_interp: list[float],
+        pwr_out_max_watts: float,
+        save_interval: int | None = None,
+    ) -> None: ...
     def clone(self) -> Self: ...
     @classmethod
     def default(cls) -> Self: ...
@@ -326,6 +336,9 @@ class GeneratorStateHistoryVec(SerdeAPI):
 class LocoParams(SerdeAPI):
     mass_kilograms: float | None = 0.0
     brake_count: int = 0
+    pwr_aux_offset_watts: float | None = None
+    pwr_aux_traction_coeff_ratio: float | None = None
+    force_max_newtons: float | None = None
 
     @classmethod
     def from_dict(cls, param_dict: dict[str, float]) -> Self: ...
@@ -369,6 +382,8 @@ class Locomotive(SerdeAPI):
     @classmethod
     def default_battery_electric_loco(cls) -> Locomotive: ...
     @classmethod
+    def default_hybrid_electric_loco(cls) -> Locomotive: ...
+    @classmethod
     def build_conventional_loco(
         cls,
         fuel_converter: FuelConverter,
@@ -390,8 +405,13 @@ class LocomotiveSimulation(SerdeAPI):
     i: int
     loco_unit: Locomotive
     power_trace: PowerTrace
-    @classmethod
-    def __init__(cls) -> None: ...
+
+    def __init__(
+        self,
+        loco_unit: Locomotive,
+        power_trace: PowerTrace,
+        save_interval: int | None = None,
+    ) -> None: ...
     def clone(self) -> Self: ...
     def get_save_interval(self) -> int: ...
     def set_save_interval(self, save_interval: int): ...
@@ -565,6 +585,8 @@ class SetSpeedTrainSim(SerdeAPI):
     def default(cls) -> Self: ...
     def __copy__(self) -> Self: ...
     def set_save_interval(self, save_interval: int): ...
+    def walk(self) -> None: ...
+    def to_dataframe(self) -> Any: ...
 
 @dataclass
 class TrainState:
@@ -609,7 +631,7 @@ class TrainState:
         mass_static_kilograms: float,
         mass_adj_kilograms: float,
         mass_freight_kilograms: float,
-        init_train_state: Optional[InitTrainState],
+        init_train_state: InitTrainState | None,
     ) -> Self: ...
     def to_json(self) -> str: ...
     @classmethod
@@ -755,6 +777,9 @@ class SpeedLimitTrainSim(SerdeAPI):
     def set_save_interval(self, save_interval: int): ...
     def walk(self): ...
     def walk_timed_path(self, network: Network, timed_path: list[LinkIdxTime]): ...
+    def get_energy_fuel_joules(self) -> float: ...
+    def get_energy_fuel_soc_corrected_joules(self) -> float: ...
+    def to_dataframe(self) -> Any: ...
 
 @dataclass
 class SpeedLimitTrainSimVec(SerdeAPI):
@@ -819,6 +844,7 @@ class TrainSimBuilder(SerdeAPI):
 class TrainConfig(SerdeAPI):
     n_cars_by_type: dict[str, int]
     rail_vehicle_type: str | None
+    rail_vehicles: list[RailVehicle] | None
     train_type: TrainType | None
     train_length_meters: float | None
     train_mass_kilograms: float | None
@@ -848,3 +874,53 @@ class RailVehicle(SerdeAPI):
 
     @classmethod
     def default(cls) -> Self: ...
+
+# Additional missing classes referenced in the demos
+class Network(SerdeAPI):
+    @classmethod
+    def default(cls) -> Self: ...
+
+class Location(SerdeAPI):
+    @classmethod
+    def default(cls) -> Self: ...
+
+class Link(SerdeAPI):
+    @classmethod
+    def default(cls) -> Self: ...
+
+class LinkPath(SerdeAPI):
+    @classmethod
+    def default(cls) -> Self: ...
+
+class TimedLinkPath(SerdeAPI):
+    @classmethod
+    def default(cls) -> Self: ...
+
+class TemperatureTrace(SerdeAPI):
+    @classmethod
+    def default(cls) -> Self: ...
+
+class InitTrainState(SerdeAPI):
+    @classmethod
+    def default(cls) -> Self: ...
+
+# Module-level functions
+def import_locations(file_path: str | Path) -> dict[str, list[Location]]: ...
+def resources_root() -> Path: ...
+def make_est_times(train_sims: list[SpeedLimitTrainSim]) -> Any: ...
+def run_dispatch(train_sims: list[SpeedLimitTrainSim], network: Network) -> tuple[Any, Any]: ...
+def run_speed_limit_train_sims(
+    network: Network,
+    location_map: dict[str, list[Location]],
+    train_sims: list[SpeedLimitTrainSim],
+    save_interval: int | None,
+    simulation_days: int | None,
+    scenario_year: int | None,
+) -> tuple[list[SpeedLimitTrainSim], list[TimedLinkPath]]: ...
+def simulate_prescribed_rollout(
+    network_filename_path: str,
+    demand_file: str,
+    simulation_days: int,
+    scenario_year: int,
+    **kwargs: Any,
+) -> dict[str, Any]: ...

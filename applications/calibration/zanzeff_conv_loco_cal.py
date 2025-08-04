@@ -220,7 +220,7 @@ cal_mod_obj = pymoo_api.ModelObjectives(
     obj_fns=((get_mod_fuel_energy, get_exp_fuel_energy),),
     param_fns_and_bounds=(
         (new_pwr_idle_fuel_watts, (0, 20e3)),
-        # (new_gen_eta_max, (0.88, 0.98)),
+        (new_gen_eta_max, (0.88, 0.98)),
         (new_pwr_aux_offset_watts, (0.0, 1_000_000)),
         (new_pwr_aux_traction_coeff, (0.0, 0.1)),
         (new_edrv_eta_max, (0.85, 0.99)),
@@ -241,9 +241,9 @@ def perturb_params(pos_perturb_dec: float = 0.05, neg_perturb_dec: float = 0.1):
     loco_dict = loco.to_pydict()
     baseline_params_and_bounds = [
         (loco_dict["loco_type"]["ConventionalLoco"]["fc"]["pwr_idle_fuel_watts"], None),
-        # (loco_dict['loco_type']['ConventionalLoco']['gen']['eta_interp'][1], None),
-        (loco_dict['pwr_aux_offset_watts'], None,),
-        (loco_dict['pwr_aux_traction_coeff'], None,),
+        (loco_dict['loco_type']['ConventionalLoco']['gen']['eta_interp'][1], None),
+        (loco_dict['pwr_aux_offset_watts'], None),
+        (loco_dict['pwr_aux_traction_coeff'], None),
         (loco_dict['loco_type']['ConventionalLoco']['edrv']['eta_interp'][1], None),
     ]
 

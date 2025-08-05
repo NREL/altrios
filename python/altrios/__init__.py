@@ -1,5 +1,5 @@
-from pkg_resources import get_distribution
-__version__ = get_distribution("altrios").version
+from importlib.metadata import version
+__version__ = version("altrios")
 
 from pathlib import Path
 import re

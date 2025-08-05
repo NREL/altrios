@@ -110,12 +110,9 @@ pub struct TrainConfig {
 
 impl SerdeAPI for TrainConfig {
     fn init(&mut self) -> anyhow::Result<()> {
-        match &self.cd_area_vec {
-            Some(dcv) => {
-                // TODO: account for locomotive drag here, too
-                ensure!(dcv.len() as u32 == self.cars_total());
-            }
-            None => {}
+        if let Some(dcv) = &self.cd_area_vec {
+            // TODO: account for locomotive drag here, too
+            ensure!(dcv.len() as u32 == self.cars_total());
         };
         Ok(())
     }
@@ -915,12 +912,11 @@ pub fn run_speed_limit_train_sims(
                     .loco_vec
                     .iter_mut()
                     .zip(departing_soc_pct_vec)
-                    .for_each(
-                        |(loco, soc)| match &mut loco.reversible_energy_storage_mut() {
-                            Some(loco) => loco.state.soc = soc * uc::R,
-                            None => {}
-                        },
-                    );
+                    .for_each(|(loco, soc)| {
+                        if let Some(loco) = &mut loco.reversible_energy_storage_mut() {
+                            loco.state.soc = soc * uc::R
+                        }
+                    });
                 let _ = sim
                     .walk_timed_path(&network, &timed_paths[idx])
                     .map_err(|err| err.context(format!("train sim idx: {}", idx)));

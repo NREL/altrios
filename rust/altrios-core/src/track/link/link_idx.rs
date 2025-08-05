@@ -17,6 +17,7 @@ use std::io::prelude::*;
 /// See [supplementary documentation.](https://nrel.github.io/altrios/doc/rail-network.html)
 pub struct LinkIdx {
     #[api(skip_set)]
+    /// index of link within network
     idx: u32,
 }
 pub const LINK_IDX_NA: LinkIdx = LinkIdx { idx: 0 };
@@ -58,7 +59,7 @@ impl<'de> Deserialize<'de> for LinkIdx {
         D: Deserializer<'de>,
     {
         struct LinkIdxVisitor;
-        impl<'de> Visitor<'de> for LinkIdxVisitor {
+        impl Visitor<'_> for LinkIdxVisitor {
             type Value = LinkIdx;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

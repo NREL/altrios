@@ -26,6 +26,7 @@ license = "BSD-3-Clause"
 edition = "2021"
 homepage = "https://www.nrel.gov/transportation/altrios.html"
 repository = "https://github.com/NREL/altrios"
+rust-version = "1.83"
 
 [profile.dev]
 opt-level = 0

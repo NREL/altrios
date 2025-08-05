@@ -39,7 +39,7 @@ pub struct Link {
     /// Spatial vector of compass heading values and corresponding positions along track
     pub headings: Vec<Heading>,
     /// Map of train types and corresponding speed sets
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub speed_sets: HashMap<TrainType, SpeedSet>,
     /// Optional train-type-neutral [SpeedSet].  If provided, overrides [Link::speed_sets].
     pub speed_set: Option<SpeedSet>,

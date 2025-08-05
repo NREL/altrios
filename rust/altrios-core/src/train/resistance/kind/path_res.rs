@@ -14,6 +14,7 @@ fn calc_res_val(res_coeff: si::Ratio, state: &TrainState) -> si::Force {
 #[altrios_api]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, SerdeAPI)]
 pub struct Point {
+    /// index within corresponding [PathResCoeff]
     idx: usize,
 }
 impl Point {
@@ -68,9 +69,9 @@ impl [PathResCoeff] {
 #[altrios_api]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, SerdeAPI)]
 pub struct Strap {
-    // TODO: figure out if `idx` is reference to link index
-    // within Network, offset index within Link, or index within PathTpc
+    /// index of front of train within corresponding [PathResCoeff]
     idx_front: usize,
+    /// index of back of train within corresponding [PathResCoeff]
     idx_back: usize,
 }
 

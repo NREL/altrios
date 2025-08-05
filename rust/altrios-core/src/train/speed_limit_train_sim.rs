@@ -444,7 +444,7 @@ impl SpeedLimitTrainSim {
 
         // calculate the max positive tractive effort.  this is the same as set_speed_train_sim
         let pwr_pos_max = self.loco_con.state.pwr_out_max.min(si::Power::ZERO.max(
-            // TODO: the effect of rate may already be accounted for in this snippet
+            // NOTE: the effect of rate may already be accounted for in this snippet
             // from fuel_converter.rs:
 
             // ```

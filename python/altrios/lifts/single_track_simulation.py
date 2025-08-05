@@ -24,7 +24,7 @@ class Terminal:
         self.in_gates = simpy.Resource(env, state.IN_GATE_NUMBERS)
         self.out_gates = simpy.Resource(env, state.OUT_GATE_NUMBERS)
         self.oc_store = simpy.Store(env)
-        self.parking_slots = simpy.Store(env, K)   # todo: parking_slots capacity
+        self.parking_slots = simpy.Store(env, K)   # parking_slots capacity
         self.chassis = simpy.FilterStore(env, capacity=chassis_count)
         self.hostlers = simpy.Store(env, capacity=state.HOSTLER_NUMBER)
         self.truck_store = simpy.Store(env, capacity=truck_capacity)
@@ -72,7 +72,6 @@ def handle_train_departure(env, train_schedule, train_id, track_id):
     # total_delay_time = sum(state.delay_list.values())
 
     # print(f"Total delay time for all trains is {total_delay_time} hours.")
-
     # return delay_time
 
 

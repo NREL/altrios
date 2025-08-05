@@ -1,0 +1,7 @@
+Origin,Destination,Train_Type,Number_of_Cars,Number_of_Containers
+B,A,Unit,798,0
+B,A,Manifest,863,0
+B,A,Intermodal,740,740
+A,B,Unit,777,0
+A,B,Manifest,1076,0
+A,B,Intermodal,707,707

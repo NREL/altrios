@@ -42,8 +42,7 @@ train_config = alt.TrainConfig(
 # instantiate battery model
 # https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/reversible_energy_storage/struct.ReversibleEnergyStorage.html#
 res = alt.ReversibleEnergyStorage.from_file(
-    alt.resources_root()
-    / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml",
+    alt.resources_root() / "powertrains/reversible_energy_storages/Kokam_NMC_75Ah_flx_drive.yaml",
 )
 # instantiate electric drivetrain (motors and any gearboxes)
 # https://docs.rs/altrios-core/latest/altrios_core/consist/locomotive/powertrain/electric_drivetrain/struct.ElectricDrivetrain.html
@@ -102,18 +101,10 @@ hel_new_dict["loco_type"]["HybridLoco"]["pt_cntrl"]["RGWDB"] = hel_new_pt_cntrl
 hel_sans_buffers = alt.Locomotive.from_pydict(hel_new_dict)
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
-loco_vec = (
-    []
-    + [hel.copy()]
-    + [alt.Locomotive.default()] * 1
-)
+loco_vec = [] + [hel.copy()] + [alt.Locomotive.default()] * 1
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
-loco_vec_sans_buffers = (
-    []
-    + [hel_sans_buffers.copy()]
-    + [alt.Locomotive.default()] * 1
-)
+loco_vec_sans_buffers = [] + [hel_sans_buffers.copy()] + [alt.Locomotive.default()] * 1
 
 # instantiate consist
 print("Building `Consist`")
@@ -162,11 +153,9 @@ train_sim: alt.SpeedLimitTrainSim = tsb.make_speed_limit_train_sim(
 )
 train_sim.set_save_interval(SAVE_INTERVAL)
 
-train_sim_sans_buffers: alt.SpeedLimitTrainSim = (
-    tsb_sans_buffers.make_speed_limit_train_sim(
-        location_map=location_map,
-        save_interval=SAVE_INTERVAL,
-    )
+train_sim_sans_buffers: alt.SpeedLimitTrainSim = tsb_sans_buffers.make_speed_limit_train_sim(
+    location_map=location_map,
+    save_interval=SAVE_INTERVAL,
 )
 train_sim_sans_buffers.set_save_interval(SAVE_INTERVAL)
 
@@ -174,7 +163,8 @@ print("Running `make_est_times`")
 est_time_net, _consist = alt.make_est_times(train_sim, network)
 
 est_time_net_sans_buffers, _consist = alt.make_est_times(
-    train_sim_sans_buffers, network,
+    train_sim_sans_buffers,
+    network,
 )
 
 print("Running `run_dispatch`")
@@ -239,9 +229,7 @@ train_sim_sans_buffers.walk_timed_path(
 t1 = time.perf_counter()
 
 print(f"\nTime to simulate without buffers: {t1 - t0:.5g}")
-raw_fuel_sans_buffers_gigajoules = (
-    train_sim_sans_buffers.get_energy_fuel_joules(False) / 1e9
-)
+raw_fuel_sans_buffers_gigajoules = train_sim_sans_buffers.get_energy_fuel_joules(False) / 1e9
 print(
     f"Total raw fuel used with BEL and HEL buffers inactive: {raw_fuel_sans_buffers_gigajoules:.6g} GJ",
 )
@@ -280,16 +268,20 @@ fig2, ax2 = plot_util.plot_consist_pwr(train_sim, "With Buffers")
 fig3, ax3 = plot_util.plot_hel_pwr_and_soc(train_sim, "With Buffers")
 
 fig0_sans_buffers, ax0_sans_buffers = plot_util.plot_train_level_powers(
-    train_sim_sans_buffers, "Without Buffers",
+    train_sim_sans_buffers,
+    "Without Buffers",
 )
 fig1_sans_buffers, ax1_sans_buffers = plot_util.plot_train_network_info(
-    train_sim_sans_buffers, "Without Buffers",
+    train_sim_sans_buffers,
+    "Without Buffers",
 )
 fig2_sans_buffers, ax2_sans_buffers = plot_util.plot_consist_pwr(
-    train_sim_sans_buffers, "Without Buffers",
+    train_sim_sans_buffers,
+    "Without Buffers",
 )
 fig3_sans_buffers, ax3_sans_buffers = plot_util.plot_hel_pwr_and_soc(
-    train_sim_sans_buffers, "Without Buffers",
+    train_sim_sans_buffers,
+    "Without Buffers",
 )
 
 if SHOW_PLOTS:

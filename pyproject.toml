@@ -154,6 +154,7 @@ select = [
 ]
 ignore = [
   "D400", # first-line-should-end-with-a-period
+  "D205", # "1 blank line required between summary and details turned off"
   "E266", # Too many leading `#`
   "N817", # CamelCase `LatinHypercubeSampling` imported as acronym `LHS`
 ]

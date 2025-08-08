@@ -1,3 +1,8 @@
+"""
+Script for calibrating models for non-lead locomotives from Zanzeff data or,
+if it's not available, from reasonably contrived data (aspirationally, TODO:
+make this happen)
+"""
 # Notes from discussion with Garrett
 # do the model deviations w.r.t. locomotive position occur at idle or under load?
 # How much does aux load impact discrepancies?
@@ -8,11 +13,11 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+import utils
 
 import altrios as alt
 from altrios import LocomotiveSimulation, pymoo_api
 from altrios.pymoo_api import StarmapParallelization
-import utils
 
 CUR_FUEL_LHV_J__KG = 43e6
 
@@ -38,7 +43,7 @@ def get_conv_trip_mods(df: pd.DataFrame) -> pd.DataFrame:
             else:
                 lead_loc = int(lead_loc_possible)
 
-        except:
+        except Exception:
             pass
 
     if lead_loc == 3940:
@@ -96,12 +101,16 @@ def get_loco_sim(df39xx: pd.DataFrame) -> LocomotiveSimulation:
         .copy()
     )
     df39xx["engine_on"] = df39xx["Engine Speed (RPM) BNSF " + str(trailing_loc)] > 100
-    alt.PowerTrace.from_pydict({"time_seconds": [5.0, 5.0], "pwr_watts": [5.0, 5.0], "engine_on": [False, False]})
-    powertrace = alt.PowerTrace.from_pydict({
-        "time_seconds": df39xx["time [s]"].to_list(),
-        "pwr_watts": df39xx["Tractive Power [W]"].to_list(),
-        "engine_on": df39xx.engine_on.to_list(),  # This is 39XX engine state (on/off)
-    })
+    alt.PowerTrace.from_pydict(
+        {"time_seconds": [5.0, 5.0], "pwr_watts": [5.0, 5.0], "engine_on": [False, False]},
+    )
+    powertrace = alt.PowerTrace.from_pydict(
+        {
+            "time_seconds": df39xx["time [s]"].to_list(),
+            "pwr_watts": df39xx["Tractive Power [W]"].to_list(),
+            "engine_on": df39xx.engine_on.to_list(),  # This is 39XX engine state (on/off)
+        },
+    )
     loco_unit = alt.Locomotive.default()
 
     loco_dict = loco_unit.to_pydict()
@@ -125,26 +134,24 @@ df_path = "ZANZEFF Data- Corrected GPS Plus Train Build ALTRIOS Confidential v2/
 # for file in df_path.iterdir():
 #     if file.suffix == ".csv":
 #         df_files.append(file.name, pd.read_csv(file))
-#PATH TO simulation csvs.iterdir(txt file only)
+# PATH TO simulation csvs.iterdir(txt file only)
 save_path = Path(__file__).parents[1] / "train_sim_cal"
 if not save_path.exists():
     save_path.mkdir(parents=True)
 # parser = pymoo_api.get_parser()
 # args = parser.parse_args()
 cal_files, val_files = utils.select_cal_and_val_trips(
-        save_path=save_path,
-        # force_rerun=args.repartition,
-    )
-#val=30% cal=70%
+    save_path=save_path,
+    # force_rerun=args.repartition,
+)
+# val=30% cal=70%
 
 
-dfs_for_cal: dict[str, pd.DataFrame] = {
-    cal_file: pd.read_csv(cal_file) for cal_file in cal_files
-}
+dfs_for_cal: dict[str, pd.DataFrame] = {cal_file: pd.read_csv(cal_file) for cal_file in cal_files}
 def_save_path = Path("conv_loco_cal")
 
 
-#model pydict
+# model pydict
 # sims_for_cal: dict[str, alt.loco_sim] = {}
 # populate `sims_for_cal`
 # for loco_name, loco in train_sim["loco_con"]["loco_vec"].items():
@@ -156,24 +163,18 @@ def_save_path = Path("conv_loco_cal")
 
 
 def get_loco_sims(dfs: dict[str, pd.DataFrame]):
-    loco_sims = []
-    for trip_name, df in dfs.items():
-        loco_sims.append(get_loco_sim(df))
-    return loco_sims
-
-
-def get_loco_sims(dfs: dict[str, pd.DataFrame]):
     loco_sims = {}
     for trip_name, df in dfs.items():
         loco_sims[trip_name] = get_loco_sim(df).to_pydict()
     return loco_sims
 
 
-
 # Objective Functions -- `obj_fns`
 def get_mod_fuel_energy(sim_dict: dict) -> npt.NDArray:
     return np.array(
-        sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["fc"]["history"]["energy_fuel_joules"]
+        sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["fc"]["history"][
+            "energy_fuel_joules"
+        ],
     )
 
 
@@ -187,25 +188,30 @@ def new_pwr_idle_fuel_watts(sim_dict: dict, new_val: float) -> dict:
     sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["fc"]["pwr_idle_fuel_watts"] = new_val
     return sim_dict
 
+
 def new_gen_eta_max(sim_dict: dict, new_val: float) -> dict:
     """Set `eta_max` in `Generator`"""
     sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["gen"]["eta_max"] = new_val
     return sim_dict
+
 
 def new_pwr_aux_offset_watts(sim_dict: dict, new_val: float) -> dict:
     """Set `pwr_aux_offset_watts` in `ConventionalLocomotive`"""
     sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["pwr_aux_offset_watts"] = new_val
     return sim_dict
 
+
 def new_pwr_aux_traction_coeff(sim_dict: dict, new_val: float) -> dict:
     """Set `pwr_aux_traction_coeff` in `ConventionalLocomotive`"""
     sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["pwr_aux_traction_coeff"] = new_val
     return sim_dict
 
+
 def new_edrv_eta_max(sim_dict: dict, new_val: float) -> dict:
     """Set `eta_max` in `ElectricDrivetrain`"""
     sim_dict["loco_unit"]["loco_type"]["ConventionalLoco"]["edrv"]["eta_max"] = new_val
     return sim_dict
+
 
 (("loco_unit.fc.pwr_idle_fuel_watts", (0, 20e3)),)
 (("loco_unit.gen.eta_max", (0.88, 0.98)),)
@@ -241,19 +247,19 @@ def perturb_params(pos_perturb_dec: float = 0.05, neg_perturb_dec: float = 0.1):
     loco_dict = loco.to_pydict()
     baseline_params_and_bounds = [
         (loco_dict["loco_type"]["ConventionalLoco"]["fc"]["pwr_idle_fuel_watts"], None),
-        (loco_dict['loco_type']['ConventionalLoco']['gen']['eta_interp'][1], None),
-        (loco_dict['pwr_aux_offset_watts'], None),
-        (loco_dict['pwr_aux_traction_coeff'], None),
-        (loco_dict['loco_type']['ConventionalLoco']['edrv']['eta_interp'][1], None),
+        (loco_dict["loco_type"]["ConventionalLoco"]["gen"]["eta_interp"][1], None),
+        (loco_dict["pwr_aux_offset_watts"], None),
+        (loco_dict["pwr_aux_traction_coeff"], None),
+        (loco_dict["loco_type"]["ConventionalLoco"]["edrv"]["eta_interp"][1], None),
     ]
 
     baseline_params = [bpb[0] for bpb in baseline_params_and_bounds]
 
     print(
-        "Verifying that model responds to input parameter changes by individually perturbing parameters"
+        "Verifying that model responds to input parameter changes by individually perturbing parameters",
     )
     baseline_errors = cal_mod_obj.get_errors(
-        cal_mod_obj.update_params([param for param in baseline_params])
+        cal_mod_obj.update_params([param for param in baseline_params]),
     )[0]
 
     for i, param_and_bounds in enumerate(baseline_params_and_bounds):
@@ -272,8 +278,7 @@ def perturb_params(pos_perturb_dec: float = 0.05, neg_perturb_dec: float = 0.1):
 
         perturbed_params = baseline_params.copy()
         perturbed_params[i] = param * (1 + param_pos_perturb_dec)
-        perturbed_errors = cal_mod_obj.get_errors(
-            cal_mod_obj.update_params(perturbed_params))
+        perturbed_errors = cal_mod_obj.get_errors(cal_mod_obj.update_params(perturbed_params))
         if np.all(perturbed_errors == baseline_errors):
             print("\nperturbed_errros:")
             pprint.pp(perturbed_errors)
@@ -281,14 +286,13 @@ def perturb_params(pos_perturb_dec: float = 0.05, neg_perturb_dec: float = 0.1):
             pprint.pp(baseline_errors)
             print("")
             raise Exception(
-                f"+{100 * param_pos_perturb_dec}% perturbation failed for param {cal_mod_obj.param_fns[i].__name__}"
+                f"+{100 * param_pos_perturb_dec}% perturbation failed for param {cal_mod_obj.param_fns[i].__name__}",
             )
 
         # -5%
         perturbed_params = baseline_params.copy()
         perturbed_params[i] = param * (1 - param_neg_perturb_dec)
-        perturbed_errors = cal_mod_obj.get_errors(
-            cal_mod_obj.update_params(perturbed_params))
+        perturbed_errors = cal_mod_obj.get_errors(cal_mod_obj.update_params(perturbed_params))
         if np.all(perturbed_errors == baseline_errors):
             print("\nperturbed_errros:")
             pprint.pp(perturbed_errors)
@@ -296,7 +300,7 @@ def perturb_params(pos_perturb_dec: float = 0.05, neg_perturb_dec: float = 0.1):
             pprint.pp(baseline_errors)
             print("")
             raise Exception(
-                f"-{100 * param_neg_perturb_dec}% perturbation failed for param {cal_mod_obj.param_fns[i].__name__}"
+                f"-{100 * param_neg_perturb_dec}% perturbation failed for param {cal_mod_obj.param_fns[i].__name__}",
             )
 
     print("Success!")

@@ -179,8 +179,42 @@ pub trait Mass {
     }
 }
 
+/// Super trait to ensure that related traits are implemented together
+pub trait StateMethods: SetCumulative + SaveState + Step + CheckAndResetState {}
+
 /// Trait for setting cumulative values based on rate values
 pub trait SetCumulative {
     /// Sets cumulative values based on rate values
-    fn set_cumulative(&mut self, dt: si::Time) -> anyhow::Result<()>;
+    fn set_cumulative<F: Fn() -> String>(&mut self, dt: si::Time, loc: F) -> anyhow::Result<()>;
+}
+
+/// Provides method that saves `self.state` to `self.history` and propagates to any fields with
+/// `state`
+pub trait SaveState {
+    /// Saves `self.state` to `self.history` and propagates to any fields with `state`
+    /// # Arguments
+    /// - `loc`: closure that returns file and line number where called
+    fn save_state<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()>;
+}
+
+/// Trait that provides method for incrementing `i` field of this and all contained structs,
+/// recursively
+pub trait Step {
+    /// Increments `i` field of this and all contained structs, recursively
+    /// # Arguments
+    /// - `loc`: closure that returns file and line number where called
+    fn step<F: Fn() -> String>(&mut self, loc: F) -> anyhow::Result<()>;
+}
+
+/// Provides methods for getting and setting the save interval
+pub trait HistoryMethods: SaveState {
+    /// Recursively sets save interval
+    /// # Arguments
+    /// - `save_interval`: time step interval at which to save `self.state` to `self.history`
+    fn set_save_interval(&mut self, save_interval: Option<usize>) -> anyhow::Result<()>;
+    /// Returns save interval for `self` but does not guarantee recursive consistency in nested
+    /// objects
+    fn save_interval(&self) -> anyhow::Result<Option<usize>>;
+    /// Remove all history
+    fn clear(&mut self);
 }

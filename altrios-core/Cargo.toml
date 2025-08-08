@@ -5,7 +5,7 @@ edition = { workspace = true }
 license = { workspace = true }
 homepage = { workspace = true }
 repository = { workspace = true }
-version = "0.2.3"
+version = "1.0.1"
 description = "ALTRIOS Core model for train simulation"
 readme = "README.md"
 rust-version = { workspace = true }
@@ -62,7 +62,7 @@ ninterp = { workspace = true }
 lazy_static = { workspace = true }
 
 [features]
-default = ["serde-default"]
+default = ["serde-default", "resources", ]
 ## Compiles external resources (e.g. vehicle files or cycle files) to be
 ## available in the binary
 resources = ["dep:include_dir"]
@@ -80,6 +80,8 @@ toml = ["dep:toml"]
 yaml = ["dep:serde_yaml"]
 ## Enables message pack serialization and deserialization via `rmp-serde`
 msgpack = ["dep:rmp-serde"]
+## Activates `timer` macros
+timer = []
 
 [lints.rust]
 # `'cfg(debug_advance_rewind)'` is expected for debugging in `advance_rewind.rs`

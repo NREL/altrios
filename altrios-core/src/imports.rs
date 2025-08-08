@@ -9,13 +9,13 @@ pub(crate) use crate::si;
 pub(crate) use crate::traits::*;
 pub(crate) use crate::uc;
 pub(crate) use crate::utils;
+pub(crate) use crate::utils::tracked_state::*;
 pub(crate) use crate::utils::{
-    almost_eq, almost_eq_uom, almost_le_uom, interp1d, interp3d, is_sorted, DIRECT_SET_ERR,
+    almost_eq, almost_eq_uom, almost_le_uom, interp1d, interp3d, is_sorted,
 };
-pub(crate) use crate::utils::{Pyo3Vec2Wrapper, Pyo3Vec3Wrapper, Pyo3VecWrapper};
 pub(crate) use crate::validate::*;
 pub(crate) use altrios_proc_macros::{
-    altrios_api, altrios_enum_api, HistoryMethods, HistoryVec, SerdeAPI,
+    pyo3_api, serde_api, HistoryVec, SetCumulative, StateMethods,
 };
 pub(crate) use anyhow::{anyhow, bail, ensure, Context};
 pub(crate) use bincode::{deserialize, serialize};
@@ -35,5 +35,6 @@ pub(crate) use std::fs::File;
 pub(crate) use std::num::{NonZeroU16, NonZeroUsize};
 pub(crate) use std::ops::{Deref, DerefMut, IndexMut, Sub};
 pub(crate) use std::path::{Path, PathBuf};
+pub(crate) use std::time::Instant;
 pub(crate) use uom::typenum;
 pub(crate) use uom::ConstZero;

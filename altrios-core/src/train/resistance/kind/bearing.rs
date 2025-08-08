@@ -1,10 +1,14 @@
 use crate::imports::*;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, SerdeAPI)]
-#[altrios_api]
+#[serde_api]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq)]
+#[cfg_attr(feature = "pyo3", pyclass(module = "altrios", subclass, eq))]
 pub struct Basic {
     force: si::Force,
 }
+
+impl Basic {}
+
 impl Basic {
     pub fn new(force: si::Force) -> Self {
         Self { force }

@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "altrios"
-version = "0.3.0"
+version = "1.0.0"
 authors = [
     { name = "ALTRIOS Team", email = "altrios@nrel.gov" },
     { name = "Chad Baker, Lead Developer" },
@@ -64,9 +64,12 @@ dev = [
     "ruff~=0.9",
     "pylsp-mypy~=0.7.0",
     "memory_profiler~=0.61.0",
+    "mypy>=1.15.0",
 ]
 [dependency-groups]
-dev = ["altrios[dev]"]
+dev = [
+    "altrios[dev]",
+]
 
 [tool.maturin]
 profile = "release"

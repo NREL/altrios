@@ -98,10 +98,8 @@ import pandas as pd
 def calculate_container_processing_time(container_excel_path):
     df = pd.read_excel(container_excel_path)
 
-    # 根据 container_id 判断 IC 或 OC
     df['type'] = df['container_id'].apply(lambda x: 'IC' if str(x).isdigit() else 'OC' if str(x).startswith('OC-') else 'Unknown')
 
-    # 处理时间列名为 container_processing_time
     ic_df = df[df['type'] == 'IC']
     oc_df = df[df['type'] == 'OC']
 

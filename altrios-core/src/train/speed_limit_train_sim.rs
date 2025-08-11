@@ -597,7 +597,7 @@ impl SpeedLimitTrainSim {
         // - one with offset and elevation for the entire timed_path
         // - one with offset and speed_limit for the entire timed_path
         // This approach might work, but it's not 100% thought through.  For example, it doesn't account for train length.
-        // It might be worthwhile to check if each element in the PathTPC is long enough to enable this without modifiyng the code.  
+        // Maybe we could get away with only using the speed limit at front of the train because for the xEL controls, we don't need precise knowledge of the speed limit.
         let mut lookahead_path: Vec<(si::Length, si::Length, si::Velocity)> = vec![];
         for tpx in timed_path {
             let link_idx = tpx.link_idx;

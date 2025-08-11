@@ -10,6 +10,8 @@ pub trait LocoTrait {
     /// - `elev_and_temp`: elevation and temperature
     /// - `train_speed`: current train speed
     /// - `train_mass`: portion of total train mass handled by `self`
+    /// - `speed_limit_lookahead`: min anx max speed limit within lookahead distance,
+    /// - `elev_lookahead`: min anx max elevation within lookahead distance,
     /// - `dt`: time step size
     fn set_curr_pwr_max_out(
         &mut self,

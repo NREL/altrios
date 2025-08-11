@@ -281,8 +281,8 @@ impl LocomotiveSimulation {
             train_mass,
             train_speed,
             // TODO: come up with a way to pipe real values in for these
-            si::Velocity::ZERO,
-            si::Length::ZERO,
+            (si::Velocity::ZERO, si::Velocity::ZERO),
+            (si::Length::ZERO, si::Length::ZERO),
             dt,
         )?;
         let pwr_out_req = self

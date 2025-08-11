@@ -38,8 +38,8 @@ fn test_consist() {
             None,
             5e6 * uc::LB,
             10.0 * uc::MPH,
-            si::Velocity::ZERO,
-            si::Length::ZERO,
+            (si::Velocity::ZERO, si::Velocity::ZERO),
+            (si::Length::ZERO, si::Length::ZERO),
             1.0 * uc::S,
         )
         .unwrap();

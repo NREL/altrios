@@ -29,8 +29,8 @@ impl LocoTrait for PowertrainType {
         elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         train_mass_for_loco: si::Mass,
         train_speed: si::Velocity,
-        speed_limit_lookahead: si::Velocity,
-        elev_lookahead: si::Length,
+        speed_limit_lookahead: (si::Velocity, si::Velocity),
+        elev_lookahead: (si::Length, si::Length),
         dt: si::Time,
     ) -> anyhow::Result<()> {
         match self {
@@ -355,8 +355,8 @@ impl LocoTrait for DummyLoco {
         _elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         _train_mass: si::Mass,
         _train_speed: si::Velocity,
-        _speed_limit_lookahead: si::Velocity,
-        _elev_lookahead: si::Length,
+        _speed_limit_lookahead: (si::Velocity, si::Velocity),
+        _elev_lookahead: (si::Length, si::Length),
         _dt: si::Time,
     ) -> anyhow::Result<()> {
         Ok(())
@@ -1295,8 +1295,8 @@ impl LocoTrait for Locomotive {
         elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         train_mass_for_loco: si::Mass,
         train_speed: si::Velocity,
-        speed_limit_lookahead: si::Velocity,
-        elev_lookahead: si::Length,
+        speed_limit_lookahead: (si::Velocity, si::Velocity),
+        elev_lookahead: (si::Length, si::Length),
         dt: si::Time,
     ) -> anyhow::Result<()> {
         ensure!(

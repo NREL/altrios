@@ -103,8 +103,8 @@ impl LocoTrait for Box<HybridLoco> {
         train_mass_for_loco: si::Mass,
         train_speed: si::Velocity,
         // TODO: make the lookahead controls for the HEL and pipe these in
-        speed_limit_lookahead: si::Velocity,
-        elev_lookahead: si::Length,
+        speed_limit_lookahead: (si::Velocity, si::Velocity),
+        elev_lookahead: (si::Length, si::Length),
         dt: si::Time,
     ) -> anyhow::Result<()> {
         let mass_for_loco = train_mass_for_loco;

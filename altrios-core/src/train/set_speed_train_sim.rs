@@ -389,8 +389,8 @@ impl SetSpeedTrainSim {
             elev_and_temp,
             train_mass,
             *self.state.speed.get_stale(|| format_dbg!())?,
-            si::Velocity::ZERO,
-            si::Length::ZERO,
+            (si::Velocity::ZERO, si::Velocity::ZERO),
+            (si::Length::ZERO, si::Length::ZERO),
             self.speed_trace
                 .dt(*self.state.i.get_fresh(|| format_dbg!())?),
         )?;

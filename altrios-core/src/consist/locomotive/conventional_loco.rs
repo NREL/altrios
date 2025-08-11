@@ -133,8 +133,8 @@ impl LocoTrait for ConventionalLoco {
         elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         _train_mass: si::Mass,
         _train_speed: si::Velocity,
-        _speed_limit_lookahead: si::Velocity,
-        _elev_lookahead: si::Length,
+        _speed_limit_lookahead: (si::Velocity, si::Velocity),
+        _elev_lookahead: (si::Length, si::Length),
         dt: si::Time,
     ) -> anyhow::Result<()> {
         self.fc.set_cur_pwr_out_max(elev_and_temp, dt)?;

@@ -127,8 +127,8 @@ impl LocoTrait for BatteryElectricLoco {
         _elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         mass_for_loco: si::Mass,
         train_speed: si::Velocity,
-        speed_limit_lookahead: si::Velocity,
-        elev_lookahead: si::Length,
+        speed_limit_lookahead: (si::Velocity, si::Velocity),
+        elev_lookahead: (si::Length, si::Length),
         dt: si::Time,
     ) -> anyhow::Result<()> {
         let (disch_buffer, chrg_buffer) = self
@@ -187,8 +187,8 @@ pub trait RESPtCntrlMethods {
         &self,
         mass_for_loco: si::Mass,
         train_speed: si::Velocity,
-        speed_limit_lookahead: si::Velocity,
-        elev_lookahead: si::Length,
+        speed_limit_lookahead: (si::Velocity, si::Velocity),
+        elev_lookahead: (si::Length, si::Length),
     ) -> anyhow::Result<(si::Energy, si::Energy)>;
 }
 
@@ -209,8 +209,8 @@ impl RESPtCntrlMethods for RESPowertrainControls {
         &self,
         mass_for_loco: si::Mass,
         train_speed: si::Velocity,
-        speed_limit_lookahead: si::Velocity,
-        elev_lookahead: si::Length,
+        speed_limit_lookahead: (si::Velocity, si::Velocity),
+        elev_lookahead: (si::Length, si::Length),
     ) -> anyhow::Result<(si::Energy, si::Energy)> {
         let (disch_buffer, chrg_buffer) = match &self {
             RESPowertrainControls::RGWDB(rgwdb) => rgwdb
@@ -337,8 +337,8 @@ impl RESPtCntrlMethods for RESGreedyWithDynamicBuffersBEL {
         &self,
         mass_for_loco: si::Mass,
         train_speed: si::Velocity,
-        _speed_limit_lookahead: si::Velocity,
-        _elev_lookahead: si::Length,
+        _speed_limit_lookahead: (si::Velocity, si::Velocity),
+        _elev_lookahead: (si::Length, si::Length),
     ) -> anyhow::Result<(si::Energy, si::Energy)> {
         let disch_buffer: si::Energy = (0.5
             * mass_for_loco
@@ -430,8 +430,8 @@ impl RESPtCntrlMethods for LookaheadSpeedAndElev {
         &self,
         mass_for_loco: si::Mass,
         train_speed: si::Velocity,
-        speed_limit_lookahead: si::Velocity,
-        elev_lookahead: si::Length,
+        speed_limit_lookahead: (si::Velocity, si::Velocity),
+        elev_lookahead: (si::Length, si::Length),
     ) -> anyhow::Result<(si::Energy, si::Energy)> {
         todo!("Steven should populate this method")
     }

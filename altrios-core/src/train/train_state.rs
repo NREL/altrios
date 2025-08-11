@@ -133,11 +133,12 @@ pub struct TrainState {
     /// Elevation at back of train
     pub elev_back: TrackedState<si::Length>,
 
-    /// speed limit at lookahead distance
-    pub lookahead_speed_limit: TrackedState<si::Velocity>,
+    /// min and max speed limit within lookahead distance of current position
+    pub lookahead_speed_limit: TrackedState<(si::Velocity, si::Velocity)>,
 
-    /// elevation at front of train at lookahead distance
-    pub lookahead_elev: TrackedState<si::Length>,
+    /// min and max elevation at front of train within lookahead distance of
+    /// current position
+    pub lookahead_elev: TrackedState<(si::Length, si::Length)>,
 
     /// Power to overcome train resistance forces
     pub pwr_res: TrackedState<si::Power>,
@@ -265,7 +266,7 @@ impl TrainState {
     /// All base, freight, and rotational mass
     pub fn mass_compound(&self) -> anyhow::Result<si::Mass> {
         Ok(self
-            .mass() 
+            .mass()
             .with_context(|| format_dbg!())? // extract result
             .with_context(|| format!("{}\nExpected `Some`", format_dbg!()))? // extract option
             + *self.mass_rot.get_unchecked(|| format_dbg!())?)

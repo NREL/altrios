@@ -571,8 +571,8 @@ impl LocoTrait for Consist {
         elev_and_temp: Option<(si::Length, si::ThermodynamicTemperature)>,
         train_mass: si::Mass,
         train_speed: si::Velocity,
-        speed_limit_lookahead: si::Velocity,
-        elev_lookahead: si::Length,
+        speed_limit_lookahead: (si::Velocity, si::Velocity),
+        elev_lookahead: (si::Length, si::Length),
         dt: si::Time,
     ) -> anyhow::Result<()> {
         // TODO: this will need to account for catenary power

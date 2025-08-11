@@ -133,6 +133,12 @@ pub struct TrainState {
     /// Elevation at back of train
     pub elev_back: TrackedState<si::Length>,
 
+    /// speed limit at lookahead distance
+    pub lookahead_speed_limit: TrackedState<si::Velocity>,
+
+    /// elevation at front of train at lookahead distance
+    pub lookahead_elev: TrackedState<si::Length>,
+
     /// Power to overcome train resistance forces
     pub pwr_res: TrackedState<si::Power>,
     /// Power to overcome inertial forces
@@ -175,6 +181,8 @@ impl Default for TrainState {
             grade_back: Default::default(),
             speed_target: Default::default(),
             weight_static: Default::default(),
+            lookahead_speed_limit: Default::default(),
+            lookahead_elev: Default::default(),
             res_rolling: Default::default(),
             res_bearing: Default::default(),
             res_davis_b: Default::default(),

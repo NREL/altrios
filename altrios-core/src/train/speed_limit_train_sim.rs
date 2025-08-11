@@ -519,10 +519,15 @@ impl SpeedLimitTrainSim {
         timer!(self
             .loco_con
             .set_curr_pwr_max_out(
-                None,
+                Default::default(),
                 elev_and_temp,
-                Some(self.state.mass_compound().with_context(|| format_dbg!())?),
-                Some(*self.state.speed.get_stale(|| format_dbg!())?),
+                self.state.mass_compound().with_context(|| format_dbg!())?,
+                *self.state.speed.get_stale(|| format_dbg!())?,
+                *self
+                    .state
+                    .lookahead_speed_limit
+                    .get_fresh(|| format_dbg!())?,
+                *self.state.lookahead_elev.get_fresh(|| format_dbg!())?,
                 *self.state.dt.get_fresh(|| format_dbg!())?,
             )
             .with_context(|| format_dbg!())?);
@@ -539,8 +544,8 @@ impl SpeedLimitTrainSim {
             .loco_con
             .solve_energy_consumption(
                 *self.state.pwr_whl_out.get_fresh(|| format_dbg!())?,
-                Some(self.state.mass_compound().with_context(|| format_dbg!())?),
-                Some(*self.state.speed.get_fresh(|| format_dbg!())?),
+                self.state.mass_compound().with_context(|| format_dbg!())?,
+                *self.state.speed.get_fresh(|| format_dbg!())?,
                 *self.state.dt.get_fresh(|| format_dbg!())?,
                 Some(true),
             )
@@ -1040,12 +1045,14 @@ impl SpeedLimitTrainSim {
     }
 
     fn recalc_braking_points(&mut self) -> anyhow::Result<()> {
-        self.braking_points.recalc(
-            &self.state,
-            &self.fric_brake,
-            &self.train_res,
-            &self.path_tpc,
-        )
+        self.braking_points
+            .recalc(
+                &self.state,
+                &self.fric_brake,
+                &self.train_res,
+                &self.path_tpc,
+            )
+            .with_context(|| format_dbg!())
     }
 }
 

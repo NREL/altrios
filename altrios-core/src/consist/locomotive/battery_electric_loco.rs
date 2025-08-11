@@ -198,6 +198,7 @@ pub enum RESPowertrainControls {
     /// and discharge power inside of static min and max SOC range.
     RGWDB(Box<RESGreedyWithDynamicBuffersBEL>),
     // TODO: implement on the HEL
+    // TODO: make another variant of this that includes lookahead for catenary
     /// Uses [ReversibleEnergyStorage] with buffers that derate charge and
     /// discharge power inside of static min and max SOC range.  In this
     /// variant, all buffers are based on lookahead speed and elevation.

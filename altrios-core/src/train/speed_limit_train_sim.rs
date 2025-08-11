@@ -592,6 +592,21 @@ impl SpeedLimitTrainSim {
     ) -> anyhow::Result<()> {
         let network = network.as_ref();
         let timed_path = timed_path.as_ref();
+
+        // The code below is wrong, but the idea is that you need to make two vectors:
+        // - one with offset and elevation for the entire timed_path
+        // - one with offset and speed_limit for the entire timed_path
+        // This approach might work, but it's not 100% thought through.  
+        let mut lookahead_path: Vec<(si::Length, si::Length, si::Velocity)> = vec![];
+        for tpx in timed_path {
+            let link_idx = tpx.link_idx;
+            let link = network
+                .iter()
+                .find(|&link| link.idx_curr == link_idx)
+                .with_context(|| format_dbg!())?;
+            lookahead_path.extend(link.iter().map(|));
+        }
+
         if timed_path.is_empty() {
             bail!("Timed path cannot be empty!");
         }

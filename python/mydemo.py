@@ -45,7 +45,7 @@ class Terminal:
         self.in_gates = simpy.Resource(env, state.IN_GATE_NUMBERS)
         self.out_gates = simpy.Resource(env, state.OUT_GATE_NUMBERS)
         self.oc_store = simpy.Store(env, capacity=9999)
-        self.parking_slots = simpy.FilterStore(env, capacity=10)  # store ic and oc in the parking area
+        self.parking_slots = simpy.FilterStore(env, capacity=9999)  # store ic and oc in the parking area
         self.chassis = simpy.FilterStore(env, capacity=9999)
         self.parked_hostlers = simpy.Store(env, capacity=state.HOSTLER_NUMBER)
         self.active_hostlers = simpy.Store(env, capacity=state.HOSTLER_NUMBER)
@@ -189,16 +189,16 @@ def truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event):
 
 
 def check_ic_picked_complete(env, terminal, train_schedule):
-    inbound_count = sum(getattr(item, 'type', None) == 'Inbound' and getattr(item, 'train_id', None) == train_schedule['train_id'] for
-        item in terminal.chassis.items)
+    inbound_count = sum(getattr(item, 'type', None) == 'Inbound' and getattr(item, 'train_id', None) == train_schedule['train_id'] for item in terminal.chassis.items)
     print(f"Time {env.now:.3f}: IC for train-{train_schedule['train_id']} on chassis:", inbound_count)
     print("chassis:", terminal.chassis.items)
+    print("parking slots:", terminal.parking_slots.items)
     if inbound_count == 0:
         if terminal.train_ic_unload_events[train_schedule['train_id']].triggered:
             terminal.train_ic_picked_events[train_schedule['train_id']].succeed()
             print(f"Time {env.now:.3f}: All ICs for train {train_schedule['train_id']} are picked up by hostlers.")
-        else:
-            yield get_hostler(terminal)
+        # else:
+        #     yield get_hostler(terminal)
 
 
 def crane_unload_process(env, terminal, train_schedule, track_id):
@@ -488,8 +488,8 @@ def process_train_arrival(env, terminal, train_schedule):
     terminal.IC_COUNT[train_id] = 1
     terminal.OC_COUNT[train_id] = 1
 
-    print(f"IC counter: {terminal.IC_COUNT}")
-    print(f"OC counter: {terminal.OC_COUNT}")
+    # print(f"IC counter: {terminal.IC_COUNT}")
+    # print(f"OC counter: {terminal.OC_COUNT}")
 
     # All trucks arrive before train arrives
     env.process(truck_arrival(env, terminal, train_schedule, all_trucks_arrived_event))
@@ -572,7 +572,7 @@ def process_train_arrival(env, terminal, train_schedule):
 
     state.time_per_train[train_schedule['train_id']] = env.now - arrival_time
 
-    # Update various parameters to track inbound and outbound containers
+    # For container ID record: track inbound and outbound containers for each train
     terminal.IC_COUNT[train_schedule['train_id']] += train_schedule['full_cars']
     terminal.OC_COUNT[train_schedule['train_id']] += train_schedule['oc_number']
     print(f"terminal oc_num for {train_schedule['train_id']}: {terminal.OC_COUNT[train_schedule['train_id']]}")
@@ -580,8 +580,7 @@ def process_train_arrival(env, terminal, train_schedule):
     # state.IC_NUM = state.IC_NUM + train_schedule['full_cars']
     # state.OC_NUM = state.OC_NUM + train_schedule['oc_number']
 
-    terminal.IC_COUNT[train_schedule['train_id']] = terminal.IC_COUNT[train_schedule['train_id']] + train_schedule[
-        'full_cars']
+    terminal.IC_COUNT[train_schedule['train_id']] = terminal.IC_COUNT[train_schedule['train_id']] + train_schedule['full_cars']
     print(f"train {train_schedule['train_id']} has {terminal.IC_COUNT[train_schedule['train_id']]} ICs.")
 
     # Check available tracks
@@ -599,18 +598,18 @@ def run_simulation(train_consist_plan: pl.DataFrame, terminal: str, out_path=Non
 
     # Train timetable: shorter headway
     train_timetable = [
-        {"train_id": 19, "arrival_time": 0, "departure_time": 10, "empty_cars": 0, "full_cars": 5, "oc_number": 3,
-         "truck_number": 5},  # test: ic > oc
-        # {"train_id": 9, "arrival_time": 0, "departure_time": 10, "empty_cars": 0, "full_cars": 5, "oc_number": 3,
-        #  "truck_number": 5},  # test: ic > oc
-        # {"train_id": 12, "arrival_time": 1, "departure_time": 10, "empty_cars": 0, "full_cars": 4, "oc_number": 4,
-        #  "truck_number": 4},  # test: ic = oc
-        # {"train_id": 2, "arrival_time": 1, "departure_time": 10, "empty_cars": 0, "full_cars": 4, "oc_number": 4,
-        #  "truck_number": 4},  # test: ic = oc
-        # {"train_id": 70, "arrival_time": 2, "departure_time": 20, "empty_cars": 0, "full_cars": 3, "oc_number": 5,
-        #  "truck_number": 5},  # test: ic < oc
-        # {"train_id": 7, "arrival_time": 2, "departure_time": 20, "empty_cars": 0, "full_cars": 3, "oc_number": 5,
-        #  "truck_number": 5},  # test: ic < oc
+        {"train_id": 19, "arrival_time": 0, "departure_time": 10, "empty_cars": 0, "full_cars": 3, "oc_number": 1,
+         "truck_number": 3},  # test: ic > oc
+        {"train_id": 9, "arrival_time": 0, "departure_time": 10, "empty_cars": 0, "full_cars": 3, "oc_number": 1,
+         "truck_number": 3},  # test: ic > oc
+        {"train_id": 12, "arrival_time": 1, "departure_time": 10, "empty_cars": 0, "full_cars": 4, "oc_number": 4,
+         "truck_number": 4},  # test: ic = oc
+        {"train_id": 2, "arrival_time": 1, "departure_time": 10, "empty_cars": 0, "full_cars": 4, "oc_number": 4,
+         "truck_number": 4},  # test: ic = oc
+        {"train_id": 70, "arrival_time": 2, "departure_time": 20, "empty_cars": 0, "full_cars": 3, "oc_number": 5,
+         "truck_number": 5},  # test: ic < oc
+        {"train_id": 7, "arrival_time": 2, "departure_time": 20, "empty_cars": 0, "full_cars": 3, "oc_number": 5,
+         "truck_number": 5},  # test: ic < oc
     ]
 
     # Initialize train status in the terminal

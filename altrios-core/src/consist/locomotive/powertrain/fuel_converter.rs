@@ -199,7 +199,7 @@ impl FuelConverter {
                     elev_and_temp.0.get::<si::meter>(),
                     elev_and_temp.1.get::<si::degree_celsius>(),
                 ])?;
-                ensure!(derate_factor <= 1.0 && derate_factor >= 0.0, format_dbg!());
+                ensure!((0.0..=1.0).contains(&derate_factor), format_dbg!());
                 derate_factor * self.pwr_out_max
             }
             (None, Some(_)) => bail!(

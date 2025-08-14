@@ -514,11 +514,11 @@ fn add_new_join_paths(
 /// # Arguments
 ///
 /// * `speed_limit_train_sim` - `SpeedLimitTrainSim` is an instance of
-///    train simulation in which speed is allowed to vary according to train
-///    capabilities and speed limit.
+///   train simulation in which speed is allowed to vary according to train
+///   capabilities and speed limit.
 /// * `network` - Network comprises an ensemble of links (path between junctions
-///    along the rail with heading, grade, and location) this simulation
-///    operates on.
+///   along the rail with heading, grade, and location) this simulation
+///   operates on.
 /// * `path_for_failed_sim` - if provided, saves failed `speed_limit_train_sim` at Path
 ///
 /// # Returns

@@ -339,7 +339,7 @@ class NetworkBuilder:
             except:
                 pass
 
-        # Tread the input geopackage region layer
+        # read the input geopackage region layer
         regions_gdf = gpd.read_file(
             self.input_geopackage, layer=self.input_regions_layer_name
         )
@@ -348,6 +348,7 @@ class NetworkBuilder:
         # This may be a bit unnecessary, but this structure let's us use several different
         # file input types that may be proprietary.
         for idx, row in regions_gdf.iterrows():
+            # if row.region_name == "FEC":
             single_region_gdf = gpd.GeoDataFrame(
                 [{"region_name": row.region_name}],
                 geometry=[row.geometry],
@@ -442,6 +443,9 @@ class NetworkBuilder:
             result = api.query(LayerQuery)
             TrackData = result.ways
 
+            if "FEC" in layername:
+                x = 1
+
             TrackGDF = []
             all_switch_gdf = []
             for Way in TrackData:
@@ -469,16 +473,28 @@ class NetworkBuilder:
                 WayGDF["Node Tags"] = str(NodeTags)
                 WayGDF["osm_id"] = Way.id
                 TrackGDF.append(WayGDF)
-            for Node_ in result.nodes: # Only look for junctions and add them to the list of switches
-                if "railway" in Node_.tags.keys():
-                    if Node_.tags["railway"] == "junction":
+            for (
+                Node_
+            ) in (
+                result.nodes
+            ):  # Only look for junctions and add them to the list of switches
+                if (
+                    "railway" in Node_.tags.keys()
+                    or "railway:switch" in Node_.tags.keys()
+                ):
+                    if "railway:switch" in Node_.tags.keys():
+                        print(Node_.tags.keys())
+                    if (
+                        Node_.tags["railway"] == "junction"
+                        or "railway:switch" in Node_.tags.keys()
+                    ):
                         switch_gdf = gpd.GeoDataFrame(
                             data=[{"railway": "junction"}],
                             geometry=[shapely.Point([Node_.lon, Node_.lat])],
                             crs="EPSG:4326",
                         )
                         switch_gdf["osm_link_id"] = Node_.id
-                        all_switch_gdf.append(switch_gdf)           
+                        all_switch_gdf.append(switch_gdf)
             TrackGDF = pd.concat(TrackGDF)
             TrackGDF = TrackGDF.drop("fixme", axis=1)
             all_switch_gdf = pd.concat(all_switch_gdf)
@@ -517,6 +533,8 @@ class NetworkBuilder:
 
             if "Note" in TrackGDF.columns.values:
                 TrackGDF = TrackGDF.drop("Note", axis=1)
+
+            TrackGDF = TrackGDF.clip(geolayer)
 
             TrackGDF.to_file(
                 self.geopackage_path, driver="GPKG", layer=layername + "_osm", mode="a"
@@ -1214,7 +1232,7 @@ class NetworkBuilder:
                     "idx_prev": 0,
                     "idx_prev_alt": 0,
                     "osm_id": 0,
-                    "length": 0,
+                    "length_meters": 0,
                     "elevs": [],
                     "headings": [],
                     "speed_set": None,
@@ -1262,20 +1280,39 @@ class NetworkBuilder:
                     )
 
                     for idx in range(len(offsets)):
-                        link_elevs.append(
-                            {"offset": offsets[idx], "elev": elevations[idx]}
-                        )
 
-                        link_headings.append(
-                            {
-                                "offset": offsets[idx],
-                                "lat": lats[idx],
-                                "lon": lons[idx],
-                                "heading": float(
-                                    np.mod(headings[idx] * np.pi / 180, 2 * np.pi)
-                                ),
-                            }
-                        )
+                        if (idx == 0) or (idx == len(offsets) - 1):
+                            link_elevs.append(
+                                {"offset_meters": offsets[idx], "elev": elevations[idx]}
+                            )
+
+                            link_headings.append(
+                                {
+                                    "offset_meters": offsets[idx],
+                                    "lat": lats[idx],
+                                    "lon": lons[idx],
+                                    "heading_radians": float(
+                                        np.mod(headings[idx] * np.pi / 180, 2 * np.pi)
+                                    ),
+                                }
+                            )
+                        elif (offsets[idx] > 500) and (
+                            (offsets[-1] - offsets[idx]) > 500
+                        ):
+                            link_elevs.append(
+                                {"offset_meters": offsets[idx], "elev": elevations[idx]}
+                            )
+
+                            link_headings.append(
+                                {
+                                    "offset_meters": offsets[idx],
+                                    "lat": lats[idx],
+                                    "lon": lons[idx],
+                                    "heading_radians": float(
+                                        np.mod(headings[idx] * np.pi / 180, 2 * np.pi)
+                                    ),
+                                }
+                            )
 
                     link_dict = {
                         "idx_curr": row.yaml_idx,
@@ -1286,7 +1323,7 @@ class NetworkBuilder:
                         "idx_prev_alt": row.prev_idx_alt,
                         "osm_id": row.osm_id,
                         "uid": row.uid,
-                        "length": offsets[-1],
+                        "length_meters": offsets[-1],
                         "elevs": link_elevs,
                         "headings": link_headings,
                         "speed_set": link_speed_sets,
@@ -1298,10 +1335,10 @@ class NetworkBuilder:
 
                 network_dict = [
                     {
-                        "max_grade": 0.25,
-                        "max_curv_radians_per_meter": 0.020,
-                        "max_heading_step_radians": 0.24,
-                        "max_elev_step_meters": 0.0,
+                        "max_grade": 20.25,
+                        "max_curv_radians_per_meter": 20.020,
+                        "max_heading_step_radians": 20.24,
+                        "max_elev_step_meters": 10.0,
                     },
                     track_list,
                 ]
@@ -1497,9 +1534,9 @@ class NetworkBuilder:
         speed_restict_dict["mp_dir"] = "unknown"
         speed_restict_dict["speed_limits"].append(
             {
-                "offset_start": 0,
-                "offset_end": float(link_length),
-                "speed": 60.0 / 2.23693629,
+                "offset_start_meters": 0,
+                "offset_end_meters": float(link_length),
+                "speed_meters_per_second": 60.0 / 2.23693629,
             }
         )
 
@@ -1524,7 +1561,7 @@ if __name__ == "__main__":
 
     # print(fiona.listlayers(MyBuilder.geopackage_path))
     # MyBuilder.input_geopackage_parsing()
-    # MyBuilder.build_network()
+    MyBuilder.build_network()
     # MyBuilder.drape_geometry()
     # MyBuilder.add_speed_limits()
     # MyBuilder.verify_grade_elev()

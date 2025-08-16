@@ -31,8 +31,8 @@ print("Loading `TrainConfig`")
 train_config = alt.TrainConfig(
     rail_vehicles=[rail_vehicle_loaded, rail_vehicle_empty],
     n_cars_by_type={
-        "Manifest_Loaded": 5,
-        "Manifest_Empty": 5,
+        "Manifest_Loaded": 50,
+        "Manifest_Empty": 50,
     },
     train_length_meters=None,
     train_mass_kilograms=None,
@@ -102,7 +102,7 @@ hel_new_dict["loco_type"]["HybridLoco"]["pt_cntrl"]["RGWDB"] = hel_new_pt_cntrl
 hel_sans_buffers = alt.Locomotive.from_pydict(hel_new_dict)
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
-loco_vec = [] + [hel.copy()] + [alt.Locomotive.default()] * 1
+loco_vec = [] + [hel.copy()] + [alt.Locomotive.default()] * 3
 
 # construct a vector of one BEL, one HEL, and several conventional locomotives
 loco_vec_sans_buffers = [] + [hel_sans_buffers.copy()] + [alt.Locomotive.default()] * 1
@@ -157,7 +157,7 @@ for network_path in networks:
                         save_interval=SAVE_INTERVAL,
                     )
                     train_sim.set_save_interval(SAVE_INTERVAL)
-
+                    train_sim.to_file(network_path + "/debug_train_sim.yaml")
                     print("Running `make_est_times`")
                     est_time_net, _consist = alt.make_est_times(train_sim, network)
 

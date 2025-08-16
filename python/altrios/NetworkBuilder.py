@@ -1198,10 +1198,15 @@ class NetworkBuilder:
                     layername.replace("_draped", "_linked"), trackdata
                 )
 
-    def convert_to_yaml(self):
+    def convert_to_yaml(self, scale_loc_links=True, desired_length_meters=3500):
         """
         This converts to linked layers to a yaml file.  The output is saved to
         the 'Generated Networks folder' contained in the 'data_folder'.
+
+        scale_loc_links: This will scale the location links if set to True
+
+        desired_length_meters:  This is the desired length in meters so that the offsets can be scaled to provide
+            a link that is long enough for long trains.
 
         Raises
         ------
@@ -1221,6 +1226,12 @@ class NetworkBuilder:
             if "_linked" in layername:
                 trackdata = gpd.read_file(self.geopackage_path, layer=layername)
 
+                location_data = pd.read_csv(
+                    str(self.data_folder)
+                    + "/Generated Networks/"
+                    + layername.replace("_linked", "/Network Locations.csv")
+                )
+                links_to_scale = location_data["Link Index"].to_list()
                 track_list = []
 
                 # populate link 0 that ALTRIOS requires
@@ -1257,6 +1268,13 @@ class NetworkBuilder:
                     # parse out all the headings and offsets that were lists that got stored as stings.
                     headings = ast.literal_eval(row["smooth headings"])
                     offsets = ast.literal_eval(row.offsets)
+
+                    if (row.yaml_idx in links_to_scale) & (
+                        offsets[-1] < desired_length_meters
+                    ):
+                        multiplier = desired_length_meters / offsets[-1]
+                        offsets = [x * multiplier for x in offsets]
+
                     try:
                         elevations = ast.literal_eval(row.elevations)
                     except Exception as e:
@@ -1413,8 +1431,9 @@ class NetworkBuilder:
             self.drape_geometry()
 
         self.build_links()
-        self.convert_to_yaml()
         self.indentify_links()
+        self.convert_to_yaml()
+
         build_complete = True
 
         # TODO provide more diagnostics for what files were created so user can
@@ -1561,12 +1580,13 @@ if __name__ == "__main__":
 
     # print(fiona.listlayers(MyBuilder.geopackage_path))
     # MyBuilder.input_geopackage_parsing()
-    MyBuilder.build_network()
+    # MyBuilder.build_network()
     # MyBuilder.drape_geometry()
     # MyBuilder.add_speed_limits()
     # MyBuilder.verify_grade_elev()
-    # MyBuilder.convert_to_yaml()
-    # MyBuilder.indentify_links()
+
+    MyBuilder.indentify_links()
+    MyBuilder.convert_to_yaml()
     # MyBuilder.build_links()
     # MyBuilder.download_elevation()
     # MyBuilder.create_virtual_raster()

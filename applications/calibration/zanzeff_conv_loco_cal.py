@@ -227,7 +227,7 @@ cal_mod_obj = pymoo_api.ModelObjectives(
     param_fns_and_bounds=(
         (new_pwr_idle_fuel_watts, (0, 20e3)),
         (new_gen_eta_max, (0.88, 0.98)),
-        (new_pwr_aux_offset_watts, (0.0, 1_000_000)),
+        (new_pwr_aux_offset_watts, (0.0, 100_000)),
         (new_pwr_aux_traction_coeff, (0.0, 0.1)),
         (new_edrv_eta_max, (0.85, 0.99)),
     ),

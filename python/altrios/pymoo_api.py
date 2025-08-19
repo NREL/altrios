@@ -253,8 +253,14 @@ class ModelObjectives:
             sim_dict = sim.to_pydict()
             walk_success = True
             print(err)
-            if len(sim_dict["veh"]["history"]["time_seconds"]) < np.floor(len(df_exp) / 2):
-                walk_success = False
+            # Error handling for locomotive sim vs. other sim types
+            # If is instance of alt.LocomotiveSimulation, then sim_dict['power_trace']['time_seconds']
+            if isinstance(sim, alt.LocomotiveSimulation):
+                if len(sim_dict['power_trace']['time_seconds']) < np.floor(len(df_exp) / 2):
+                    walk_success = False
+            else:
+                if len(sim_dict["veh"]["history"]["time_seconds"]) < np.floor(len(df_exp) / 2):
+                    walk_success = False
 
         if self.verbose:
             print(f"Time to simulate {key}: {t1 - t0:.3g}")
@@ -266,7 +272,10 @@ class ModelObjectives:
             solved_mods[key] = sim_dict
 
         # trim dataframe to match length of cycle completed by vehicle
-        df_exp = df_exp[: len(sim_dict["veh"]["history"]["time_seconds"])]
+        if isinstance(sim, alt.LocomotiveSimulation):
+            df_exp = df_exp[: len(sim_dict['power_trace']['time_seconds'])]
+        else:
+            df_exp = df_exp[: len(sim_dict["veh"]["history"]["time_seconds"])]
 
         # loop through the objectives for each trip
         for i_obj, obj_fn in enumerate(self.obj_fns):

@@ -404,13 +404,13 @@ class NetworkBuilder:
         # This may be a bit unnecessary, but this structure let's us use several different
         # file input types that may be proprietary.
         for idx, row in regions_gdf.iterrows():
-            # if row.region_name == "FEC":
-            single_region_gdf = gpd.GeoDataFrame(
-                [{"region_name": row.region_name}],
-                geometry=[row.geometry],
-                crs="EPSG:4326",
-            )
-            self.delete_and_create_layer(row.region_name, single_region_gdf)
+            if row.region_name == "Amarillo_FortWorth":
+                single_region_gdf = gpd.GeoDataFrame(
+                    [{"region_name": row.region_name}],
+                    geometry=[row.geometry],
+                    crs="EPSG:4326",
+                )
+                self.delete_and_create_layer(row.region_name, single_region_gdf)
 
     def download_elevation(self):
         """
@@ -1507,7 +1507,7 @@ class NetworkBuilder:
                 osm_id_mapping = {}
                 for Loc in long_links.Location.unique():
                     loc_links = long_links[long_links.Location == Loc].sort_values(
-                        "length"
+                        "match dist [m]"  # "length"
                     )
                     longest_loc_link = loc_links.iloc[0, :].copy()
                     osm_id_mapping[longest_loc_link.uid] = longest_loc_link.Location
@@ -1598,11 +1598,11 @@ if __name__ == "__main__":
         "SmallNetworkBuild",
     )
 
-    # MyBuilder.build_network()
+    MyBuilder.build_network()
     # print(fiona.listlayers(MyBuilder.geopackage_path))
     # MyBuilder.input_geopackage_parsing()
 
-    MyBuilder.drape_geometry()
+    # MyBuilder.drape_geometry()
     # MyBuilder.add_speed_limits()
     # MyBuilder.verify_grade_elev()
 

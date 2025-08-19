@@ -348,13 +348,13 @@ class NetworkBuilder:
         # This may be a bit unnecessary, but this structure let's us use several different
         # file input types that may be proprietary.
         for idx, row in regions_gdf.iterrows():
-            # if row.region_name == "FEC":
-            single_region_gdf = gpd.GeoDataFrame(
-                [{"region_name": row.region_name}],
-                geometry=[row.geometry],
-                crs="EPSG:4326",
-            )
-            self.delete_and_create_layer(row.region_name, single_region_gdf)
+            if row.region_name == "Amarillo_FortWorth":
+                single_region_gdf = gpd.GeoDataFrame(
+                    [{"region_name": row.region_name}],
+                    geometry=[row.geometry],
+                    crs="EPSG:4326",
+                )
+                self.delete_and_create_layer(row.region_name, single_region_gdf)
 
     def download_elevation(self):
         """
@@ -1457,7 +1457,7 @@ class NetworkBuilder:
         """
         min_link_length = 1000  # this is the minimum link length for the location
         # maximum distance in meters link can be from coordinate specified for location
-        max_link_distance_from_coord = 15000
+        max_link_distance_from_coord = 500
 
         locations = gpd.read_file(
             self.input_geopackage, layer=self.input_locations_layer_name
@@ -1580,13 +1580,13 @@ if __name__ == "__main__":
 
     # print(fiona.listlayers(MyBuilder.geopackage_path))
     # MyBuilder.input_geopackage_parsing()
-    # MyBuilder.build_network()
+    MyBuilder.build_network()
     # MyBuilder.drape_geometry()
     # MyBuilder.add_speed_limits()
     # MyBuilder.verify_grade_elev()
 
-    MyBuilder.indentify_links()
-    MyBuilder.convert_to_yaml()
+    # MyBuilder.indentify_links()
+    # MyBuilder.convert_to_yaml()
     # MyBuilder.build_links()
     # MyBuilder.download_elevation()
     # MyBuilder.create_virtual_raster()

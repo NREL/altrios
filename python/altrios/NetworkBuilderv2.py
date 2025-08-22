@@ -50,8 +50,23 @@ import momepy
 import numpy as np
 from scipy.signal import savgol_filter
 
+from tenacity import retry, stop_after_attempt, wait_fixed
+
+
+import rasterio.mask
+
 
 # import altrios as alt
+
+
+# retry 10 times and wait 3 minutes between attempts if it errors out
+@retry(stop=stop_after_attempt(10), wait=wait_fixed(180_000))
+def call_osm(LayerQuery):
+    # this is just a wrapper around overpass so that I can use tenacity to retry things with the server is too busy
+    print("calling osm server....")
+    api = overpy.Overpass()
+    api.default_max_retry_count = 5
+    return api.query(LayerQuery)
 
 
 def point_from_coord(coord):
@@ -470,8 +485,8 @@ class NetworkBuilder:
                         (._;>;);
                         out body;"""
 
-        api = overpy.Overpass()
-        api.default_max_retry_count = 5
+        # api = overpy.Overpass()
+        # api.default_max_retry_count = 5
 
         for layername in fiona.listlayers(self.geopackage_path):
             # purge previous osm layers
@@ -496,7 +511,7 @@ class NetworkBuilder:
             # geopandas and overpass api use different order for bounding boxes
             bounds = tuple(geolayer.total_bounds)
             LayerQuery = BaseQuery.format(bounds[1], bounds[0], bounds[3], bounds[2])
-            result = api.query(LayerQuery)
+            result = call_osm(LayerQuery)
             TrackData = result.ways
 
             if "FEC" in layername:
@@ -538,8 +553,8 @@ class NetworkBuilder:
                     "railway" in Node_.tags.keys()
                     or "railway:switch" in Node_.tags.keys()
                 ):
-                    if "railway:switch" in Node_.tags.keys():
-                        print(Node_.tags.keys())
+                    # if "railway:switch" in Node_.tags.keys():
+                    # print(Node_.tags.keys())
                     if (
                         Node_.tags["railway"] == "junction"
                         or "railway:switch" in Node_.tags.keys()
@@ -1611,9 +1626,3 @@ if __name__ == "__main__":
     # MyBuilder.build_links()
     # MyBuilder.download_elevation()
     # MyBuilder.create_virtual_raster()
-
-    import numpy as np
-    import shapely
-    import geopandas as gpd
-    import rasterio
-    import rasterio.mask

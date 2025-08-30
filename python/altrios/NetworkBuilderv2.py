@@ -1492,7 +1492,7 @@ class NetworkBuilder:
         """
         min_link_length = 1000  # this is the minimum link length for the location
         # maximum distance in meters link can be from coordinate specified for location
-        max_link_distance_from_coord = 15000
+        max_link_distance_from_coord = 1500
 
         locations = gpd.read_file(
             self.input_geopackage, layer=self.input_locations_layer_name
@@ -1520,6 +1520,9 @@ class NetworkBuilder:
 
                 long_links["length"] = long_links.length
                 osm_id_mapping = {}
+
+                self.delete_and_create_layer(layername.replace("_linked", "_locations"), locations[locations.Location.isin(long_links.Location.unique())].to_crs(epsg=4326))
+
                 for Loc in long_links.Location.unique():
                     loc_links = long_links[long_links.Location == Loc].sort_values(
                         "match dist [m]"  # "length"
@@ -1613,7 +1616,7 @@ if __name__ == "__main__":
         "SmallNetworkBuild",
     )
 
-    MyBuilder.build_network()
+    # MyBuilder.build_network()
     # print(fiona.listlayers(MyBuilder.geopackage_path))
     # MyBuilder.input_geopackage_parsing()
 
@@ -1621,7 +1624,7 @@ if __name__ == "__main__":
     # MyBuilder.add_speed_limits()
     # MyBuilder.verify_grade_elev()
 
-    # MyBuilder.indentify_links()
+    MyBuilder.indentify_links()
     # MyBuilder.convert_to_yaml()
     # MyBuilder.build_links()
     # MyBuilder.download_elevation()
